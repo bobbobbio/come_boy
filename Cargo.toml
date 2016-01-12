@@ -1,0 +1,8 @@
+[package]
+name = "come_boy"
+version = "0.1.0"
+authors = ["Remi Bernotavicius <remi@kunugiken.com>"]
+
+[dependencies]
+
+argparse = "*"
