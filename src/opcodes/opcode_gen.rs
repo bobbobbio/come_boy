@@ -1,6 +1,7 @@
 
-pub fn lookup_opcode(opcode: u8) ->
-   (&'static str, u8, Vec<&'static str>) {
+pub fn lookup_opcode(
+    opcode: u8) -> (&'static str, u8, Vec<&'static str>)
+{
     match opcode {
         62 => ("MVI", 2, vec!["A", "D8"]),
         61 => ("DCR", 1, vec!["A"]),
@@ -15,7 +16,7 @@ pub fn lookup_opcode(opcode: u8) ->
         236 => ("CPE", 3, vec!["adr"]),
         40 => ("-", 1, vec![]),
         41 => ("DAD", 1, vec!["H"]),
-        207 => ("RST", 1, vec![]),
+        207 => ("RST", 1, vec!["1"]),
         248 => ("RM", 1, vec![]),
         235 => ("XCHG", 1, vec![]),
         34 => ("SHLD", 3, vec!["adr"]),
@@ -261,4 +262,100 @@ pub fn lookup_opcode(opcode: u8) ->
 
         _ => ("unknown", 1, vec![])
    }
+}
+
+enum Register8080 {
+    A,
+    B,
+    C,
+    D,
+    E,
+    H,
+    L,
+    M,
+    PSW,
+    SP,
+}
+
+trait InstructionSet8080 {
+    fn instruction_cpi(&self, data1: u8);
+    fn instruction_sub(&self, register1: Register8080);
+    fn instruction_jz(&self, address1: u8);
+    fn instruction_cpo(&self, address1: u8);
+    fn instruction_aci(&self, data1: u8);
+    fn instruction_cmc(&self, );
+    fn instruction_cpe(&self, address1: u8);
+    fn instruction_cma(&self, );
+    fn instruction_ani(&self, data1: u8);
+    fn instruction_jm(&self, address1: u8);
+    fn instruction_sbi(&self, data1: u8);
+    fn instruction_rz(&self, );
+    fn instruction_lhld(&self, address1: u8);
+    fn instruction_ei(&self, );
+    fn instruction_shld(&self, address1: u8);
+    fn instruction_sim(&self, );
+    fn instruction_jc(&self, address1: u8);
+    fn instruction_dad(&self, register1: Register8080);
+    fn instruction_jnc(&self, address1: u8);
+    fn instruction_lda(&self, address1: u8);
+    fn instruction_rp(&self, );
+    fn instruction_daa(&self, );
+    fn instruction_jmp(&self, address1: u8);
+    fn instruction_di(&self, );
+    fn instruction_rrc(&self, );
+    fn instruction_pop(&self, register1: Register8080);
+    fn instruction_ret(&self, );
+    fn instruction_rim(&self, );
+    fn instruction_rpe(&self, );
+    fn instruction_dcx(&self, register1: Register8080);
+    fn instruction_rc(&self, );
+    fn instruction_xchg(&self, );
+    fn instruction_rm(&self, );
+    fn instruction_cmp(&self, register1: Register8080);
+    fn instruction_dcr(&self, register1: Register8080);
+    fn instruction_rpo(&self, );
+    fn instruction_out(&self, data1: u8);
+    fn instruction_cnz(&self, address1: u8);
+    fn instruction_xri(&self, data1: u8);
+    fn instruction_sta(&self, address1: u8);
+    fn instruction_cm(&self, address1: u8);
+    fn instruction_stc(&self, );
+    fn instruction_cc(&self, address1: u8);
+    fn instruction_jp(&self, address1: u8);
+    fn instruction_xra(&self, register1: Register8080);
+    fn instruction_push(&self, register1: Register8080);
+    fn instruction_add(&self, register1: Register8080);
+    fn instruction_cnc(&self, address1: u8);
+    fn instruction_ldax(&self, register1: Register8080);
+    fn instruction_in(&self, data1: u8);
+    fn instruction_cz(&self, address1: u8);
+    fn instruction_mvi(&self, register1: Register8080,data2: u8);
+    fn instruction_cp(&self, address1: u8);
+    fn instruction_xthl(&self, );
+    fn instruction_stax(&self, register1: Register8080);
+    fn instruction_adi(&self, data1: u8);
+    fn instruction_sui(&self, data1: u8);
+    fn instruction_pchl(&self, );
+    fn instruction_inx(&self, register1: Register8080);
+    fn instruction_ana(&self, register1: Register8080);
+    fn instruction_jpo(&self, address1: u8);
+    fn instruction_sphl(&self, );
+    fn instruction_rnc(&self, );
+    fn instruction_jnz(&self, address1: u8);
+    fn instruction_hlt(&self, );
+    fn instruction_jpe(&self, address1: u8);
+    fn instruction_mov(&self, register1: Register8080,register2: Register8080);
+    fn instruction_inr(&self, register1: Register8080);
+    fn instruction_rar(&self, );
+    fn instruction_sbb(&self, register1: Register8080);
+    fn instruction_rnz(&self, );
+    fn instruction_call(&self, address1: u8);
+    fn instruction_rlc(&self, );
+    fn instruction_ori(&self, data1: u8);
+    fn instruction_rst(&self, data1: u8);
+    fn instruction_ora(&self, register1: Register8080);
+    fn instruction_nop(&self, );
+    fn instruction_ral(&self, );
+    fn instruction_lxi(&self, register1: Register8080,data2: u16);
+    fn instruction_adc(&self, register1: Register8080);
 }

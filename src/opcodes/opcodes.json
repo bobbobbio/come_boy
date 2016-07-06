@@ -206,7 +206,7 @@
 "0xcc": {"instr": "CZ", "args": ["adr"], "size": 3},
 "0xcd": {"instr": "CALL", "args": ["adr"], "size": 3},
 "0xce": {"instr": "ACI", "args": ["D8"], "size": 2},
-"0xcf": {"instr": "RST", "args": [], "size": 1},
+"0xcf": {"instr": "RST", "args": ["1"], "size": 1},
 "0xd0": {"instr": "RNC", "args": [], "size": 1},
 "0xd1": {"instr": "POP", "args": ["D"], "size": 1},
 "0xd2": {"instr": "JNC", "args": ["adr"], "size": 3},
