@@ -75,9 +75,9 @@ def main():
 
         for name, args in functions.iteritems():
             out_file.write('    '
-                'fn instruction_{}(&self, {});\n'.format(
+                'fn instruction_{}({});\n'.format(
                     name.lower(),
-                    ','.join(name_args(args))))
+                    ', '.join(['&self'] + name_args(args))))
 
         out_file.write('}')
 
