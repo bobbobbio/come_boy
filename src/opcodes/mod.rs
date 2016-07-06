@@ -3,8 +3,8 @@ use std::fmt::Write;
 
 mod opcode_gen;
 
-fn read_bytes<T: Read>(mut stream: T, bytes: u8, mut asm: &mut String)
-    -> Result<u16> {
+fn read_bytes<T: Read>(mut stream: T, bytes: u8, mut asm: &mut String) -> Result<u16>
+{
     let mut narg : u16 = 0;
     for i in 0..bytes {
         let mut arg_buffer = [0; 1];
@@ -18,14 +18,18 @@ fn read_bytes<T: Read>(mut stream: T, bytes: u8, mut asm: &mut String)
     Ok(narg)
 }
 
-pub fn print_opcode<T: Read>(mut stream: T, index: &mut u64) -> Result<()> {
+fn print_opcode_with_table<T: Read>(
+    mut stream: T,
+    index: &mut u64,
+    lookup_opcode: fn(u8) -> (&'static str, u8, Vec<&'static str>)) -> Result<()>
+{
     let mut buffer = [0; 1];
     let n = try!(stream.read(&mut buffer));
     if n == 0 {
         return Err(Error::new(ErrorKind::Other, "Unexpected EOF"))
     }
 
-    let (instr, size, args) = opcode_gen::lookup_opcode(buffer[0]);
+    let (instr, size, args) = lookup_opcode(buffer[0]);
 
     let mut formatted_op = String::new();
     write!(&mut formatted_op, "{:4}", instr).ok();
@@ -53,4 +57,26 @@ pub fn print_opcode<T: Read>(mut stream: T, index: &mut u64) -> Result<()> {
     *index += size as u64;
     println!("{:07} {:8} {}", *index, asm, formatted_op);
     Ok(())
+}
+
+#[cfg(test)]
+fn test_opcode_lookup(opcode: u8) -> (&'static str, u8, Vec<&'static str>) {
+    match opcode {
+        1 => ("TEST_INSTR1", 3, vec!["adr"]),
+        _ => ("Unknown", 1, vec![])
+    }
+}
+
+#[test]
+fn print_opcode_test() {
+    let mut index: u64 = 0;
+    let code: &[u8] = &[1, 8, 1];
+    print_opcode_with_table(code, &mut index, test_opcode_lookup).ok().expect("");
+}
+
+pub fn print_opcode<T: Read>(
+    stream: T,
+    index: &mut u64) -> Result<()>
+{
+    print_opcode_with_table(stream, index, opcode_gen::lookup_opcode)
 }
