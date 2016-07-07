@@ -908,389 +908,471 @@ pub struct OpcodePrinter<'a> {
     stream_out: &'a mut io::Write
 }
 impl<'a> OpcodePrinter<'a> {
-    pub fn new(stream_out: &'a mut io::Write) -> OpcodePrinter<'a> {
+    pub fn new(stream_out: &'a mut io::Write) -> OpcodePrinter<'a>
+    {
         return OpcodePrinter {
             stream_out: stream_out
         };
     }
 }
 impl<'a> InstructionSet8080 for OpcodePrinter<'a> {
-    fn instruction_cpi(&mut self, data1: u8) -> Result<()> {
+    fn instruction_cpi(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CPI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_sub(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_sub(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SUB"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_jz(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jz(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JZ"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_cpo(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cpo(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CPO"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_aci(&mut self, data1: u8) -> Result<()> {
+    fn instruction_aci(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ACI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_cmc(&mut self) -> Result<()> {
+    fn instruction_cmc(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CMC"));
         Ok(())
     }
-    fn instruction_cpe(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cpe(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CPE"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_cma(&mut self) -> Result<()> {
+    fn instruction_cma(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CMA"));
         Ok(())
     }
-    fn instruction_ani(&mut self, data1: u8) -> Result<()> {
+    fn instruction_ani(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ANI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_jm(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jm(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JM"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_sbi(&mut self, data1: u8) -> Result<()> {
+    fn instruction_sbi(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SBI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_rz(&mut self) -> Result<()> {
+    fn instruction_rz(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RZ"));
         Ok(())
     }
-    fn instruction_lhld(&mut self, address1: u16) -> Result<()> {
+    fn instruction_lhld(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "LHLD"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_ei(&mut self) -> Result<()> {
+    fn instruction_ei(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "EI"));
         Ok(())
     }
-    fn instruction_shld(&mut self, address1: u16) -> Result<()> {
+    fn instruction_shld(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SHLD"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_sim(&mut self) -> Result<()> {
+    fn instruction_sim(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SIM"));
         Ok(())
     }
-    fn instruction_jc(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jc(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JC"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_dad(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_dad(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "DAD"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_jnc(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jnc(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JNC"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_lda(&mut self, address1: u16) -> Result<()> {
+    fn instruction_lda(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "LDA"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_rp(&mut self) -> Result<()> {
+    fn instruction_rp(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RP"));
         Ok(())
     }
-    fn instruction_daa(&mut self) -> Result<()> {
+    fn instruction_daa(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "DAA"));
         Ok(())
     }
-    fn instruction_rnz(&mut self) -> Result<()> {
+    fn instruction_rnz(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RNZ"));
         Ok(())
     }
-    fn instruction_jmp(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jmp(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JMP"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_di(&mut self) -> Result<()> {
+    fn instruction_di(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "DI"));
         Ok(())
     }
-    fn instruction_rrc(&mut self) -> Result<()> {
+    fn instruction_rrc(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RRC"));
         Ok(())
     }
-    fn instruction_pop(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_pop(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "POP"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_ret(&mut self) -> Result<()> {
+    fn instruction_ret(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RET"));
         Ok(())
     }
-    fn instruction_rim(&mut self) -> Result<()> {
+    fn instruction_rim(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RIM"));
         Ok(())
     }
-    fn instruction_rpe(&mut self) -> Result<()> {
+    fn instruction_rpe(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RPE"));
         Ok(())
     }
-    fn instruction_dcx(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_dcx(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "DCX"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_rc(&mut self) -> Result<()> {
+    fn instruction_rc(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RC"));
         Ok(())
     }
-    fn instruction_xchg(&mut self) -> Result<()> {
+    fn instruction_xchg(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "XCHG"));
         Ok(())
     }
-    fn instruction_rm(&mut self) -> Result<()> {
+    fn instruction_rm(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RM"));
         Ok(())
     }
-    fn instruction_cmp(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_cmp(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CMP"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_dcr(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_dcr(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "DCR"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_rpo(&mut self) -> Result<()> {
+    fn instruction_rpo(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RPO"));
         Ok(())
     }
-    fn instruction_out(&mut self, data1: u8) -> Result<()> {
+    fn instruction_out(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "OUT"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_cnz(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cnz(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CNZ"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_xri(&mut self, data1: u8) -> Result<()> {
+    fn instruction_xri(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "XRI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_sta(&mut self, address1: u16) -> Result<()> {
+    fn instruction_sta(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "STA"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_cm(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cm(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CM"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_stc(&mut self) -> Result<()> {
+    fn instruction_stc(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "STC"));
         Ok(())
     }
-    fn instruction_cc(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cc(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CC"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_jp(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jp(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JP"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_xra(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_xra(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "XRA"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_push(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_push(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "PUSH"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_add(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_add(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ADD"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_cnc(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cnc(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CNC"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_ldax(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_ldax(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "LDAX"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_in(&mut self, data1: u8) -> Result<()> {
+    fn instruction_in(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "IN"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_cz(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cz(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CZ"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_mvi(&mut self, register1: Register8080, data2: u8) -> Result<()> {
+    fn instruction_mvi(&mut self, register1: Register8080, data2: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "MVI"));
         try!(write!(self.stream_out, " {:?}", register1));
         try!(write!(self.stream_out, " #${:02x}", data2));
         Ok(())
     }
-    fn instruction_cp(&mut self, address1: u16) -> Result<()> {
+    fn instruction_cp(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CP"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_xthl(&mut self) -> Result<()> {
+    fn instruction_xthl(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "XTHL"));
         Ok(())
     }
-    fn instruction_stax(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_stax(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "STAX"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_adi(&mut self, data1: u8) -> Result<()> {
+    fn instruction_adi(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ADI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_sui(&mut self, data1: u8) -> Result<()> {
+    fn instruction_sui(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SUI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_pchl(&mut self) -> Result<()> {
+    fn instruction_pchl(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "PCHL"));
         Ok(())
     }
-    fn instruction_inx(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_inx(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "INX"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_ana(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_ana(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ANA"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_jpo(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jpo(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JPO"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_sphl(&mut self) -> Result<()> {
+    fn instruction_sphl(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SPHL"));
         Ok(())
     }
-    fn instruction_rnc(&mut self) -> Result<()> {
+    fn instruction_rnc(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RNC"));
         Ok(())
     }
-    fn instruction_jnz(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jnz(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JNZ"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_hlt(&mut self) -> Result<()> {
+    fn instruction_hlt(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "HLT"));
         Ok(())
     }
-    fn instruction_jpe(&mut self, address1: u16) -> Result<()> {
+    fn instruction_jpe(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "JPE"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_mov(&mut self, register1: Register8080, register2: Register8080) -> Result<()> {
+    fn instruction_mov(&mut self, register1: Register8080, register2: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "MOV"));
         try!(write!(self.stream_out, " {:?}", register1));
         try!(write!(self.stream_out, " {:?}", register2));
         Ok(())
     }
-    fn instruction_inr(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_inr(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "INR"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_rar(&mut self) -> Result<()> {
+    fn instruction_rar(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RAR"));
         Ok(())
     }
-    fn instruction_sbb(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_sbb(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "SBB"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_not_implemented(&mut self) -> Result<()> {
+    fn instruction_not_implemented(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "-"));
         Ok(())
     }
-    fn instruction_call(&mut self, address1: u16) -> Result<()> {
+    fn instruction_call(&mut self, address1: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "CALL"));
         try!(write!(self.stream_out, " ${:02x}", address1));
         Ok(())
     }
-    fn instruction_rlc(&mut self) -> Result<()> {
+    fn instruction_rlc(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RLC"));
         Ok(())
     }
-    fn instruction_ori(&mut self, data1: u8) -> Result<()> {
+    fn instruction_ori(&mut self, data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ORI"));
         try!(write!(self.stream_out, " #${:02x}", data1));
         Ok(())
     }
-    fn instruction_rst(&mut self, implicit_data1: u8) -> Result<()> {
+    fn instruction_rst(&mut self, implicit_data1: u8) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RST"));
         try!(write!(self.stream_out, " {}", implicit_data1));
         Ok(())
     }
-    fn instruction_ora(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_ora(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ORA"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())
     }
-    fn instruction_nop(&mut self) -> Result<()> {
+    fn instruction_nop(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "NOP"));
         Ok(())
     }
-    fn instruction_ral(&mut self) -> Result<()> {
+    fn instruction_ral(&mut self) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "RAL"));
         Ok(())
     }
-    fn instruction_lxi(&mut self, register1: Register8080, data2: u16) -> Result<()> {
+    fn instruction_lxi(&mut self, register1: Register8080, data2: u16) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "LXI"));
         try!(write!(self.stream_out, " {:?}", register1));
         try!(write!(self.stream_out, " #${:02x}", data2));
         Ok(())
     }
-    fn instruction_adc(&mut self, register1: Register8080) -> Result<()> {
+    fn instruction_adc(&mut self, register1: Register8080) -> Result<()>
+    {
         try!(write!(self.stream_out, "{:04}", "ADC"));
         try!(write!(self.stream_out, " {:?}", register1));
         Ok(())

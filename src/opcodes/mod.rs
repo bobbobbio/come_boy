@@ -10,14 +10,16 @@ struct Disassembler<'a> {
 }
 
 impl<'a> Disassembler<'a> {
-    fn new(rom: &'a [u8], stream_out: &'a mut io::Write) -> Disassembler<'a> {
+    fn new(rom: &'a [u8], stream_out: &'a mut io::Write) -> Disassembler<'a>
+    {
         return Disassembler {
             index: 0,
             rom: rom,
             stream_out: stream_out
         }
     }
-    fn disassemble(&mut self) -> Result<()> {
+    fn disassemble(&mut self) -> Result<()>
+    {
         while (self.index as usize) < self.rom.len() {
 
             let mut formatted_op_buf: Vec<u8> = vec![];
@@ -33,7 +35,7 @@ impl<'a> Disassembler<'a> {
                 raw_assembly.push_str(format!("{:02x} ", code).as_str());
             }
 
-            try!(write!(self.stream_out, "{:07x} {:8} {}\n",
+            try!(write!(self.stream_out, "{:07x} {:9}{}\n",
                 self.index, raw_assembly, formatted_opcode));
             self.index += size as u64;
         }

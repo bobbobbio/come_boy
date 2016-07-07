@@ -6,7 +6,8 @@ use std::io::Read;
 
 mod opcodes;
 
-fn main() {
+fn main()
+{
     // List of files
     let mut files : Vec<String> = Vec::new();
 

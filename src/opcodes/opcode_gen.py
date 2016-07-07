@@ -135,7 +135,8 @@ def main():
                 stream_out: &'a mut io::Write
             }
             impl<'a> OpcodePrinter<'a> {
-                pub fn new(stream_out: &'a mut io::Write) -> OpcodePrinter<'a> {
+                pub fn new(stream_out: &'a mut io::Write) -> OpcodePrinter<'a>
+                {
                     return OpcodePrinter {
                         stream_out: stream_out
                     };
@@ -146,7 +147,7 @@ def main():
 
         for name, args in functions.iteritems():
             out_file.write('    '
-                'fn instruction_{}({}) -> Result<()> {{\n'.format(
+                'fn instruction_{}({}) -> Result<()>\n    {{\n'.format(
                     name.lower(),
                     ', '.join(['&mut self'] + name_args(args))))
             if name == 'not_implemented':
