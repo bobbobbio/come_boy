@@ -2,7 +2,7 @@ extern crate argparse;
 
 use argparse::ArgumentParser;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::Read;
 
 mod opcodes;
 
@@ -19,14 +19,10 @@ fn main() {
     }
 
     for arg in &files {
-        let mut reader =
-            BufReader::new(File::open(&arg).ok().expect("open fail"));
-        let mut index: u64 = 0;
-        loop {
-            match opcodes::print_opcode(&mut reader, &mut index) {
-                Err(_) => break,
-                Ok(_) => continue
-            }
-        }
+        let mut file = File::open(&arg).ok().expect("open fail");
+        let mut rom : Vec<u8> = vec![];
+        file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
+
+        opcodes::disassemble(&rom).ok().expect("Disassemble failure");
     }
 }
