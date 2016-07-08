@@ -30,7 +30,6 @@ def main():
     output_file = os.path.join(script_dir, 'opcode_gen.rs')
 
     with open(output_file, 'w') as out_file:
-
         out_file.write(textwrap.dedent('''
             use std::io::{self, Result};
 
@@ -47,7 +46,7 @@ def main():
                 try!(stream.read_exact(&mut arg_buffer));
                 narg = arg_buffer[0] as u16;
                 try!(stream.read_exact(&mut arg_buffer));
-                narg |= (arg_buffer[0] as u16)  << 8;
+                narg |= (arg_buffer[0] as u16) << 8;
                 Ok(narg)
             }
 
@@ -59,6 +58,13 @@ def main():
                 Ok(arg_buffer[0])
             }
         '''))
+
+        #   __                  _   _               _        _     _
+        #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
+        # | |_| | | | '_ \ / __| __| |/ _ \| '_ \  | __/ _` | '_ \| |/ _ \
+        # |  _| |_| | | | | (__| |_| | (_) | | | | | || (_| | |_) | |  __/
+        # |_|  \__,_|_| |_|\___|\__|_|\___/|_| |_|  \__\__,_|_.__/|_|\___|
+        #
 
         functions = {}
         registers = set()
@@ -83,7 +89,15 @@ def main():
             if name not in functions:
                 functions[name] = arg_desc
             else:
-                assert functions[name] == arg_desc, "{}".format(name)
+                assert functions[name] == arg_desc, \
+                    "{} has non consistant arugments".format(name)
+
+        #                 _     _
+        #  _ __ ___  __ _(_)___| |_ ___ _ __ ___
+        # | '__/ _ \/ _` | / __| __/ _ \ '__/ __|
+        # | | |  __/ (_| | \__ \ ||  __/ |  \__ \
+        # |_|  \___|\__, |_|___/\__\___|_|  |___/
+        #           |___/
 
         out_file.write(textwrap.dedent('''
           #[derive(Debug)]
@@ -92,6 +106,17 @@ def main():
         for register_name in sorted(registers):
             out_file.write('    ' + register_name + ',\n')
         out_file.write('}\n')
+
+        #  _           _                   _   _
+        # (_)_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
+        # | | '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \/ __|
+        # | | | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | \__ \
+        # |_|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|___/
+        #  _             _ _
+        # | |_ _ __ __ _(_) |_
+        # | __| '__/ _` | | __|
+        # | |_| | | (_| | | |_
+        #  \__|_|  \__,_|_|\__|
 
         out_file.write(textwrap.dedent('''
           pub trait InstructionSet8080 {
@@ -129,6 +154,13 @@ def main():
               Ok((size))
            }
         '''))
+
+        #                            _                   _       _
+        #   ___  _ __   ___ ___   __| | ___   _ __  _ __(_)_ __ | |_ ___ _ __
+        #  / _ \| '_ \ / __/ _ \ / _` |/ _ \ | '_ \| '__| | '_ \| __/ _ \ '__|
+        # | (_) | |_) | (_| (_) | (_| |  __/ | |_) | |  | | | | | ||  __/ |
+        #  \___/| .__/ \___\___/ \__,_|\___| | .__/|_|  |_|_| |_|\__\___|_|
+        #       |_|                          |_|
 
         out_file.write(textwrap.dedent('''
             pub struct OpcodePrinter<'a> {
@@ -172,7 +204,6 @@ def main():
             out_file.write('        Ok(())\n')
             out_file.write('    }\n')
         out_file.write('}')
-
 
 if __name__ == "__main__":
     main()

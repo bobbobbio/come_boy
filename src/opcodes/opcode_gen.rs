@@ -14,7 +14,7 @@ fn read_u16<T: io::Read>(
     try!(stream.read_exact(&mut arg_buffer));
     narg = arg_buffer[0] as u16;
     try!(stream.read_exact(&mut arg_buffer));
-    narg |= (arg_buffer[0] as u16)  << 8;
+    narg |= (arg_buffer[0] as u16) << 8;
     Ok(narg)
 }
 
