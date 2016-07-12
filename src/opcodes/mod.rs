@@ -25,8 +25,8 @@ impl<'a> Disassembler<'a> {
             let mut formatted_op_buf: Vec<u8> = vec![];
             let size: u8;
             {
-                let mut d = opcode_gen::OpcodePrinter::new(&mut formatted_op_buf);
-                size = try!(opcode_gen::dispatch_opcode(&self.rom[self.index as usize..], &mut d));
+                let mut d = opcode_gen::OpcodePrinter8080::new(&mut formatted_op_buf);
+                size = try!(d.dispatch_opcode(&self.rom[self.index as usize..]));
             }
             let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
 

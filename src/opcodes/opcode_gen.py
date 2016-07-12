@@ -163,18 +163,25 @@ def main():
         #       |_|                          |_|
 
         out_file.write(textwrap.dedent('''
-            pub struct OpcodePrinter<'a> {
+            pub struct OpcodePrinter8080<'a> {
                 stream_out: &'a mut io::Write
             }
-            impl<'a> OpcodePrinter<'a> {
-                pub fn new(stream_out: &'a mut io::Write) -> OpcodePrinter<'a>
+            impl<'a> OpcodePrinter8080<'a> {
+                pub fn new(
+                    stream_out: &'a mut io::Write) -> OpcodePrinter8080<'a>
                 {
-                    return OpcodePrinter {
+                    return OpcodePrinter8080 {
                         stream_out: stream_out
                     };
                 }
+                pub fn dispatch_opcode(
+                    &mut self,
+                    stream: &[u8]) -> Result<u8>
+                {
+                    Ok(try!(dispatch_opcode(stream, self)))
+                }
             }
-            impl<'a> InstructionSet8080 for OpcodePrinter<'a> {
+            impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         '''))
 
         for name, args in functions.iteritems():
