@@ -3,6 +3,8 @@ use std::str;
 
 mod opcode_gen;
 
+use opcodes::opcode_gen::OpcodePrinter;
+
 struct Disassembler<'a> {
     index: u64,
     rom: &'a [u8],
@@ -18,15 +20,17 @@ impl<'a> Disassembler<'a> {
             stream_out: stream_out
         }
     }
-    fn disassemble(&mut self) -> Result<()>
+    fn disassemble<PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>>(
+        &mut self,
+        opcode_printer_factory: PF) -> Result<()>
     {
         while (self.index as usize) < self.rom.len() {
 
             let mut formatted_op_buf: Vec<u8> = vec![];
             let size: u8;
             {
-                let mut d = opcode_gen::OpcodePrinter8080::new(&mut formatted_op_buf);
-                size = try!(d.dispatch_opcode(&self.rom[self.index as usize..]));
+                let mut d = opcode_printer_factory.new(&mut formatted_op_buf);
+                size = try!(d.print_opcode(&self.rom[self.index as usize..]));
             }
             let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
 
@@ -47,5 +51,5 @@ pub fn disassemble(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
     let mut disassembler = Disassembler::new(rom, stdout);
-    disassembler.disassemble()
+    disassembler.disassemble(opcode_gen::OpcodePrinterFactory8080)
 }

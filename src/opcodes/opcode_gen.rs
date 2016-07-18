@@ -904,18 +904,31 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
    Ok((size))
 }
 
+pub trait OpcodePrinter<'a> {
+    fn print_opcode(
+        &mut self,
+        stream: &[u8]) -> Result<u8>;
+}
+pub trait OpcodePrinterFactory<'a> {
+    type Output: OpcodePrinter<'a>;
+    fn new(&self, &'a mut io::Write) -> Self::Output;
+}
 pub struct OpcodePrinter8080<'a> {
     stream_out: &'a mut io::Write
 }
-impl<'a> OpcodePrinter8080<'a> {
-    pub fn new(
+pub struct OpcodePrinterFactory8080;
+impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
+    type Output = OpcodePrinter8080<'a>;
+    fn new(&self,
         stream_out: &'a mut io::Write) -> OpcodePrinter8080<'a>
     {
         return OpcodePrinter8080 {
             stream_out: stream_out
         };
     }
-    pub fn dispatch_opcode(
+}
+impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
+    fn print_opcode(
         &mut self,
         stream: &[u8]) -> Result<u8>
     {
