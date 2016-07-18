@@ -899,9 +899,9 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
             try!(machine.instruction_inr(Register8080::C)); size = 1
         }
 
-        _ => panic!("Unknown opcode"),
+        _ => panic!("Unknown opcode")
    };
-   Ok((size))
+   Ok(size)
 }
 
 pub trait OpcodePrinter<'a> {

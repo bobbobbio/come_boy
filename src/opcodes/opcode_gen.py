@@ -149,9 +149,9 @@ def main():
             out_file.write('size = {}\n        }}\n'.format(info['size']))
 
         out_file.write(textwrap.dedent('''
-                   _ => panic!("Unknown opcode"),
+                   _ => panic!("Unknown opcode")
               };
-              Ok((size))
+              Ok(size)
            }
         '''))
 
