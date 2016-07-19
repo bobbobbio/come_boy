@@ -6,3 +6,7 @@ authors = ["Remi Bernotavicius <remi@kunugiken.com>"]
 [dependencies]
 
 argparse = "*"
+
+[[bin]]
+name = "disassembler"
+path = "src/disassembler.rs"
