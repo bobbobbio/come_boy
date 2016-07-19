@@ -5,30 +5,33 @@ mod opcode_gen;
 
 use opcodes::opcode_gen::{OpcodePrinter, OpcodePrinterFactory8080};
 
-struct Disassembler<'a> {
+struct Disassembler<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> {
     index: u64,
     rom: &'a [u8],
+    opcode_printer_factory: PF,
     stream_out: &'a mut io::Write
 }
 
-impl<'a> Disassembler<'a> {
-    fn new(rom: &'a [u8], stream_out: &'a mut io::Write) -> Disassembler<'a>
+impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
+    fn new(
+        rom: &'a [u8],
+        opcode_printer_factory: PF,
+        stream_out: &'a mut io::Write) -> Disassembler<'a, PF>
     {
         return Disassembler {
             index: 0,
             rom: rom,
+            opcode_printer_factory: opcode_printer_factory,
             stream_out: stream_out
         }
     }
-    fn disassemble<PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>>(
-        &mut self,
-        opcode_printer_factory: PF) -> Result<()>
+    fn disassemble(&mut self) -> Result<()>
     {
         while (self.index as usize) < self.rom.len() {
             let mut formatted_op_buf: Vec<u8> = vec![];
             let size: u8;
             {
-                let mut d = opcode_printer_factory.new(&mut formatted_op_buf);
+                let mut d = self.opcode_printer_factory.new(&mut formatted_op_buf);
                 size = try!(d.print_opcode(&self.rom[self.index as usize..]));
             }
             let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
@@ -49,8 +52,8 @@ impl<'a> Disassembler<'a> {
 pub fn disassemble(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = Disassembler::new(rom, stdout);
-    disassembler.disassemble(OpcodePrinterFactory8080)
+    let mut disassembler = Disassembler::new(rom, OpcodePrinterFactory8080, stdout);
+    disassembler.disassemble()
 }
 
 #[cfg(test)]
@@ -104,8 +107,8 @@ fn do_disassembler_test<PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>>(
 {
     let mut output = vec![];
     {
-        let mut disassembler = Disassembler::new(test_rom, &mut output);
-        disassembler.disassemble(opcode_printer_factory).ok().expect("");
+        let mut disassembler = Disassembler::new(test_rom, opcode_printer_factory, &mut output);
+        disassembler.disassemble().ok().expect("");
     }
     assert_eq!(str::from_utf8(&output).ok().expect(""), expected_str);
 }
