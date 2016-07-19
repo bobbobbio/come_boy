@@ -25,7 +25,6 @@ impl<'a> Disassembler<'a> {
         opcode_printer_factory: PF) -> Result<()>
     {
         while (self.index as usize) < self.rom.len() {
-
             let mut formatted_op_buf: Vec<u8> = vec![];
             let size: u8;
             {
