@@ -1,9 +1,9 @@
 use std::io::{self, Result};
 use std::str;
 
-mod opcode_gen;
+pub mod opcode_gen;
 
-use opcodes::opcode_gen::{OpcodePrinter, OpcodePrinterFactory8080};
+use z8080::opcodes::opcode_gen::{OpcodePrinter, OpcodePrinterFactory8080};
 
 struct Disassembler<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> {
     index: u64,
