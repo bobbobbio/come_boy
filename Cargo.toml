@@ -10,3 +10,7 @@ argparse = "*"
 [[bin]]
 name = "disassembler"
 path = "src/disassembler.rs"
+
+[[bin]]
+name = "come_boy"
+path = "src/come_boy.rs"
