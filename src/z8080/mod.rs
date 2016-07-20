@@ -3,9 +3,30 @@ pub mod opcodes;
 use std::io::Result;
 use z8080::opcodes::opcode_gen::{InstructionSet8080, Register8080};
 
-struct _Z8080Emulator;
+const MAX_ADDRESS: u16 = 0xffff;
+const ROM_ADDRESS: u16 = 0x0100;
 
-impl InstructionSet8080 for _Z8080Emulator {
+struct Z8080Emulator {
+    main_memory: [u8; MAX_ADDRESS as usize + 1],
+    registers: [u8; Register8080::Count as usize]
+}
+
+impl Z8080Emulator {
+    fn new(rom: &[u8]) -> Z8080Emulator
+    {
+        let mut emu = Z8080Emulator {
+            main_memory: [0; MAX_ADDRESS as usize + 1],
+            registers: [0; Register8080::Count as usize]
+        };
+
+        emu.main_memory[
+            ROM_ADDRESS as usize..(ROM_ADDRESS as usize + rom.len() + 1)].clone_from_slice(rom);
+
+        return emu;
+    }
+}
+
+impl InstructionSet8080 for Z8080Emulator {
     fn instruction_cpi(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
@@ -316,6 +337,7 @@ impl InstructionSet8080 for _Z8080Emulator {
     }
     fn instruction_nop(&mut self) -> Result<()>
     {
+        // do nothing!
         Ok(())
     }
     fn instruction_ral(&mut self) -> Result<()>
@@ -332,5 +354,6 @@ impl InstructionSet8080 for _Z8080Emulator {
     }
 }
 
-pub fn run_emulator<'a>(_rom: &'a [u8]) {
+pub fn run_emulator<'a>(rom: &'a [u8]) {
+    let _e = Z8080Emulator::new(rom);
 }

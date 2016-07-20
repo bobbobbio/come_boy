@@ -103,8 +103,8 @@ def main():
           #[derive(Debug)]
           pub enum Register8080 {
         '''))
-        for register_name in sorted(registers):
-            out_file.write('    ' + register_name + ',\n')
+        for num, register_name in enumerate(sorted(registers) + ['Count']):
+            out_file.write('    {} = {},\n'.format(register_name, num))
         out_file.write('}\n')
 
         #  _           _                   _   _

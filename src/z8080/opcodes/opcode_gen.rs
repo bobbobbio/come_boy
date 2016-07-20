@@ -28,16 +28,17 @@ fn read_u8<T: io::Read>(
 
 #[derive(Debug)]
 pub enum Register8080 {
-    A,
-    B,
-    C,
-    D,
-    E,
-    H,
-    L,
-    M,
-    PSW,
-    SP,
+    A = 0,
+    B = 1,
+    C = 2,
+    D = 3,
+    E = 4,
+    H = 5,
+    L = 6,
+    M = 7,
+    PSW = 8,
+    SP = 9,
+    Count = 10,
 }
 
 pub trait InstructionSet8080 {
