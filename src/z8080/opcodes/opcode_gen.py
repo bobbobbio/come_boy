@@ -69,9 +69,11 @@ def main():
         functions = {}
         registers = set()
         for info in opcode_dict.itervalues():
-            name = info['instr']
-            if name == '-':
+            instr = info['instr']
+            if instr == '-':
                 name = 'not_implemented'
+            else:
+                name = info['desciption'].replace(' ', '_').lower()
 
             arg_desc = []
             for arg in info['args']:
@@ -87,9 +89,10 @@ def main():
                     registers.add(arg)
 
             if name not in functions:
-                functions[name] = arg_desc
+                functions[name] = instr, arg_desc
             else:
-                assert functions[name] == arg_desc, \
+                _, existing_arg_desc = functions[name]
+                assert existing_arg_desc == arg_desc, \
                     "{} has non consistant arugments".format(name)
 
         #                 _     _
@@ -100,7 +103,7 @@ def main():
         #           |___/
 
         out_file.write(textwrap.dedent('''
-          #[derive(Debug)]
+          #[derive(Debug,Clone,Copy)]
           pub enum Register8080 {
         '''))
         for num, register_name in enumerate(sorted(registers) + ['Count']):
@@ -122,9 +125,10 @@ def main():
           pub trait InstructionSet8080 {
         '''))
 
-        for name, args in functions.iteritems():
+        for name, info in functions.iteritems():
+            _, args = info
             out_file.write('    '
-                'fn instruction_{}({}) -> Result<()>;\n'.format(
+                'fn {}({}) -> Result<()>;\n'.format(
                     name.lower(),
                     ', '.join(['&mut self'] + name_args(args))))
 
@@ -141,10 +145,12 @@ def main():
 
         for opcode, info in opcode_dict.iteritems():
             out_file.write('        {} => {{\n            '.format(opcode))
-            name = info['instr'].lower()
-            if name == '-':
+            instr = info['instr']
+            if instr == '-':
                 name = 'not_implemented'
-            out_file.write('try!(machine.instruction_{}({})); '.format(
+            else:
+                name = info['desciption'].replace(' ', '_').lower()
+            out_file.write('try!(machine.{}({})); '.format(
                 name, ', '.join(read_args(info['args']))))
             out_file.write('size = {}\n        }}\n'.format(info['size']))
 
@@ -197,15 +203,16 @@ def main():
             impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         '''))
 
-        for name, args in functions.iteritems():
+        for name, info in functions.iteritems():
+            instr, args = info
             out_file.write('    '
-                'fn instruction_{}({}) -> Result<()>\n    {{\n'.format(
+                'fn {}({}) -> Result<()>\n    {{\n'.format(
                     name.lower(),
                     ', '.join(['&mut self'] + name_args(args))))
             if name == 'not_implemented':
                 name = '-'
             out_file.write('        try!(write!(self.stream_out, '
-                '"{{:04}}", "{}"));\n'.format(name))
+                '"{{:04}}", "{}"));\n'.format(instr))
             for arg, arg_decl in zip(args, name_args(args)):
                 arg_type = arg[0]
                 arg_name = arg_decl.split(':')[0]

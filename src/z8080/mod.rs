@@ -1,14 +1,14 @@
 pub mod opcodes;
 
 use std::io::Result;
-use z8080::opcodes::opcode_gen::{InstructionSet8080, Register8080};
+use z8080::opcodes::opcode_gen::{InstructionSet8080, Register8080, dispatch_opcode};
 
 const MAX_ADDRESS: u16 = 0xffff;
 const ROM_ADDRESS: u16 = 0x0100;
 
 struct Z8080Emulator {
     main_memory: [u8; MAX_ADDRESS as usize + 1],
-    registers: [u8; Register8080::Count as usize]
+    _registers: [u8; Register8080::Count as usize]
 }
 
 impl Z8080Emulator {
@@ -16,341 +16,344 @@ impl Z8080Emulator {
     {
         let mut emu = Z8080Emulator {
             main_memory: [0; MAX_ADDRESS as usize + 1],
-            registers: [0; Register8080::Count as usize]
+            _registers: [0; Register8080::Count as usize]
         };
 
         emu.main_memory[
-            ROM_ADDRESS as usize..(ROM_ADDRESS as usize + rom.len() + 1)].clone_from_slice(rom);
+            ROM_ADDRESS as usize..(ROM_ADDRESS as usize + rom.len())].clone_from_slice(rom);
 
         return emu;
     }
 }
 
 impl InstructionSet8080 for Z8080Emulator {
-    fn instruction_cpi(&mut self, _data1: u8) -> Result<()>
+    fn subtract_from_accumulator(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sub(&mut self, _register1: Register8080) -> Result<()>
+    fn return_if_not_zero(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jz(&mut self, _address1: u16) -> Result<()>
+    fn add_immediate_to_accumulator(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cpo(&mut self, _address1: u16) -> Result<()>
+    fn pop_data_off_stack(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_aci(&mut self, _data1: u8) -> Result<()>
+    fn add_to_accumulator(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cmc(&mut self) -> Result<()>
+    fn jump_if_parity_even(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cpe(&mut self, _address1: u16) -> Result<()>
+    fn move_data(&mut self, _register1: Register8080, _register2: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cma(&mut self) -> Result<()>
+    fn double_add(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ani(&mut self, _data1: u8) -> Result<()>
+    fn or_immediate_with_accumulator(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jm(&mut self, _address1: u16) -> Result<()>
+    fn call_if_carry(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sbi(&mut self, _data1: u8) -> Result<()>
+    fn jump(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rz(&mut self) -> Result<()>
+    fn logical_or(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_lhld(&mut self, _address1: u16) -> Result<()>
+    fn rim(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ei(&mut self) -> Result<()>
+    fn call_if_parity_even(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_shld(&mut self, _address1: u16) -> Result<()>
+    fn jump_if_positive(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sim(&mut self) -> Result<()>
+    fn jump_if_zero(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jc(&mut self, _address1: u16) -> Result<()>
+    fn no_instruction(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_dad(&mut self, _register1: Register8080) -> Result<()>
+    fn disable_interrupts(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jnc(&mut self, _address1: u16) -> Result<()>
+    fn set_carry(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_lda(&mut self, _address1: u16) -> Result<()>
+    fn compare_with_accumulator(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rp(&mut self) -> Result<()>
+    fn call_if_not_zero(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_daa(&mut self) -> Result<()>
+    fn call_if_parity_odd(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rnz(&mut self) -> Result<()>
+    fn subtract_immediate_from_accumulator(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jmp(&mut self, _address1: u16) -> Result<()>
+    fn rotate_accumulator_left_through_carry(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_di(&mut self) -> Result<()>
+    fn load_sp_from_h_and_l(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rrc(&mut self) -> Result<()>
+    fn logical_and_with_accumulator(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_pop(&mut self, _register1: Register8080) -> Result<()>
+    fn load_h_and_l_direct(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ret(&mut self) -> Result<()>
+    fn add_immediate_with_accumulator(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rim(&mut self) -> Result<()>
+    fn exclusive_or_immediate_with_accumulator(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rpe(&mut self) -> Result<()>
+    fn call(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_dcx(&mut self, _register1: Register8080) -> Result<()>
+    fn enable_interrupts(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rc(&mut self) -> Result<()>
+    fn load_accumulator(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_xchg(&mut self) -> Result<()>
+    fn input(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rm(&mut self) -> Result<()>
+    fn jump_if_parity_odd(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cmp(&mut self, _register1: Register8080) -> Result<()>
+    fn increment_register_pair(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_dcr(&mut self, _register1: Register8080) -> Result<()>
+    fn logical_exclusive_or(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rpo(&mut self) -> Result<()>
+    fn exchange_registers(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_out(&mut self, _data1: u8) -> Result<()>
+    fn rotate_accumulator_right(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cnz(&mut self, _address1: u16) -> Result<()>
+    fn call_if_no_carry(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_xri(&mut self, _data1: u8) -> Result<()>
+    fn return_if_parity_even(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sta(&mut self, _address1: u16) -> Result<()>
+    fn call_if_zero(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cm(&mut self, _address1: u16) -> Result<()>
+    fn return_unconditionally(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_stc(&mut self) -> Result<()>
+    fn halt(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cc(&mut self, _address1: u16) -> Result<()>
+    fn call_if_plus(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jp(&mut self, _address1: u16) -> Result<()>
+    fn increment_register_or_memory(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_xra(&mut self, _register1: Register8080) -> Result<()>
+    fn compare_immediate_with_accumulator(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_push(&mut self, _register1: Register8080) -> Result<()>
+    fn load_program_counter(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_add(&mut self, _register1: Register8080) -> Result<()>
+    fn return_if_minus(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cnc(&mut self, _address1: u16) -> Result<()>
+    fn jump_if_carry(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ldax(&mut self, _register1: Register8080) -> Result<()>
+    fn call_if_minus(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_in(&mut self, _data1: u8) -> Result<()>
+    fn decimal_adjust_accumulator(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cz(&mut self, _address1: u16) -> Result<()>
+    fn load_register_pair_immediate(&mut self, _register1: Register8080, _data2: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_mvi(&mut self, _register1: Register8080, _data2: u8) -> Result<()>
+    fn move_immediate_data(&mut self, _register1: Register8080, _data2: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_cp(&mut self, _address1: u16) -> Result<()>
+    fn add_immediate_to_accumulator_with_carry(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_xthl(&mut self) -> Result<()>
+    fn return_if_plus(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_stax(&mut self, _register1: Register8080) -> Result<()>
+    fn restart(&mut self, _implicit_data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_adi(&mut self, _data1: u8) -> Result<()>
+    fn store_accumulator_direct(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sui(&mut self, _data1: u8) -> Result<()>
+    fn jump_if_not_zero(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_pchl(&mut self) -> Result<()>
+    fn jump_if_minus(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_inx(&mut self, _register1: Register8080) -> Result<()>
+    fn decrement_register_or_memory(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ana(&mut self, _register1: Register8080) -> Result<()>
+    fn output(&mut self, _data1: u8) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jpo(&mut self, _address1: u16) -> Result<()>
+    fn store_accumulator(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sphl(&mut self) -> Result<()>
+    fn add_to_accumulator_with_carry(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rnc(&mut self) -> Result<()>
+    fn return_if_carry(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jnz(&mut self, _address1: u16) -> Result<()>
+    fn complement_accumulator(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_hlt(&mut self) -> Result<()>
+    fn return_if_no_carry(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_jpe(&mut self, _address1: u16) -> Result<()>
+    fn return_if_zero(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_mov(&mut self, _register1: Register8080, _register2: Register8080) -> Result<()>
+    fn return_if_parity_odd(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_inr(&mut self, _register1: Register8080) -> Result<()>
+    fn store_h_and_l_direct(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rar(&mut self) -> Result<()>
+    fn subtract_from_accumulator_with_borrow(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_sbb(&mut self, _register1: Register8080) -> Result<()>
+    fn not_implemented(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_not_implemented(&mut self) -> Result<()>
+    fn push_data_onto_stack(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_call(&mut self, _address1: u16) -> Result<()>
+    fn jump_if_no_carry(&mut self, _address1: u16) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rlc(&mut self) -> Result<()>
+    fn sim(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ori(&mut self, _data1: u8) -> Result<()>
+    fn decrement_register_pair(&mut self, _register1: Register8080) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_rst(&mut self, _implicit_data1: u8) -> Result<()>
+    fn complement_carry(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_ora(&mut self, _register1: Register8080) -> Result<()>
+    fn rotate_accumulator_left(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_nop(&mut self) -> Result<()>
+    fn load_accumulator_direct(&mut self, _address1: u16) -> Result<()>
     {
-        // do nothing!
         Ok(())
     }
-    fn instruction_ral(&mut self) -> Result<()>
+    fn exchange_stack(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_lxi(&mut self, _register1: Register8080, _data2: u16) -> Result<()>
+    fn rotate_accumulator_right_through_carry(&mut self) -> Result<()>
     {
         Ok(())
     }
-    fn instruction_adc(&mut self, _register1: Register8080) -> Result<()>
+
+}
+
+impl Z8080Emulator {
+    fn _run_opcode(&mut self, stream: &[u8]) -> Result<u8>
     {
-        Ok(())
+        Ok(try!(dispatch_opcode(stream, self)))
     }
 }
 
