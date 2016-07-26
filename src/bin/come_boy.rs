@@ -5,7 +5,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::Read;
 
-use come_boy::z8080;
+use come_boy::emulator8080;
 
 fn main()
 {
@@ -24,6 +24,6 @@ fn main()
         let mut file = File::open(&arg).ok().expect("open fail");
         let mut rom : Vec<u8> = vec![];
         file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
-        z8080::run_emulator(&rom);
+        emulator8080::run_emulator(&rom);
     }
 }

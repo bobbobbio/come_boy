@@ -1,19 +1,27 @@
 pub mod opcodes;
 
-use z8080::opcodes::opcode_gen::{InstructionSet8080, Register8080, dispatch_opcode};
+use emulator8080::opcodes::opcode_gen::{InstructionSet8080, Register8080, dispatch_opcode};
 
 const MAX_ADDRESS: u16 = 0xffff;
 const ROM_ADDRESS: u16 = 0x0100;
 
-struct Z8080Emulator {
+enum _Flags8080 {
+    Sign = 7,
+    Zero = 6,
+    AuxiliaryCarry = 4,
+    Parity = 2,
+    Carry = 0
+}
+
+struct Emulator8080 {
     main_memory: [u8; MAX_ADDRESS as usize + 1],
     _registers: [u8; Register8080::Count as usize]
 }
 
-impl Z8080Emulator {
-    fn new(rom: &[u8]) -> Z8080Emulator
+impl Emulator8080 {
+    fn new(rom: &[u8]) -> Emulator8080
     {
-        let mut emu = Z8080Emulator {
+        let mut emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS as usize + 1],
             _registers: [0; Register8080::Count as usize]
         };
@@ -25,7 +33,7 @@ impl Z8080Emulator {
     }
 }
 
-impl InstructionSet8080 for Z8080Emulator {
+impl InstructionSet8080 for Emulator8080 {
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
@@ -349,7 +357,7 @@ impl InstructionSet8080 for Z8080Emulator {
 
 }
 
-impl Z8080Emulator {
+impl Emulator8080 {
     fn _run_opcode(&mut self, stream: &[u8]) -> u8
     {
         dispatch_opcode(stream, self)
@@ -357,5 +365,5 @@ impl Z8080Emulator {
 }
 
 pub fn run_emulator<'a>(rom: &'a [u8]) {
-    let _e = Z8080Emulator::new(rom);
+    let _e = Emulator8080::new(rom);
 }
