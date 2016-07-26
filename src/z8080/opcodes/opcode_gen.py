@@ -111,12 +111,14 @@ def main():
               H = 4,
               L = 5,
               A = 6,
-              PSW = 7, // Program Status Word
-              PC = 8, // Program Counter
-              SP = 9, // Stack Pointer
-              M = 10, // Special fake register called 'Memory'.  Represents
-                      // the data stored at address contained in HL.
-              Count = 11,
+              FLAGS = 7, // Conatins all of the condition bits.
+              SP = 8,    // Stack Pointer
+              PC = 9,    // Program Counter
+              PSW = 10,  // Special fake register called 'Program Status Word'.
+                         // It refers to register pair, A and FLAGS.
+              M = 11,    // Special fake register called 'Memory'.  Represents
+                         // the data stored at address contained in HL.
+              Count = 12,
           }
         '''))
 
