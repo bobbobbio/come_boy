@@ -67,7 +67,6 @@ def main():
         #
 
         functions = {}
-        registers = set()
         for info in opcode_dict.itervalues():
             instr = info['instr']
             if instr == '-':
@@ -86,7 +85,6 @@ def main():
                 else:
                     assert all([c.isalpha() for c in arg])
                     arg_desc.append(('register', 'Register8080'))
-                    registers.add(arg)
 
             if name not in functions:
                 functions[name] = instr, arg_desc
@@ -105,10 +103,21 @@ def main():
         out_file.write(textwrap.dedent('''
           #[derive(Debug,Clone,Copy)]
           pub enum Register8080 {
+              B = 0,
+              C = 1,
+              D = 2,
+              E = 3,
+              H = 4,
+              L = 5,
+              A = 6,
+              PSW = 7, // Program Status Word
+              PC = 8, // Program Counter
+              SP = 9, // Stack Pointer
+              M = 10, // Special fake register called 'Memory'.  Represents
+                      // the data stored at address contained in HL.
+              Count = 11,
+          }
         '''))
-        for num, register_name in enumerate(sorted(registers) + ['Count']):
-            out_file.write('    {} = {},\n'.format(register_name, num))
-        out_file.write('}\n')
 
         #  _           _                   _   _
         # (_)_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___

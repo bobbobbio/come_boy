@@ -28,17 +28,19 @@ fn read_u8<T: io::Read>(
 
 #[derive(Debug,Clone,Copy)]
 pub enum Register8080 {
-    A = 0,
-    B = 1,
-    C = 2,
-    D = 3,
-    E = 4,
-    H = 5,
-    L = 6,
-    M = 7,
-    PSW = 8,
-    SP = 9,
-    Count = 10,
+    B = 0,
+    C = 1,
+    D = 2,
+    E = 3,
+    H = 4,
+    L = 5,
+    A = 6,
+    PSW = 7, // Program Status Word
+    PC = 8, // Program Counter
+    SP = 9, // Stack Pointer
+    M = 10, // Special fake register called 'Memory'.  Represents
+            // the data stored at address contained in HL.
+    Count = 11,
 }
 
 pub trait InstructionSet8080 {
