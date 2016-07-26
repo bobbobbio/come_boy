@@ -8,9 +8,10 @@ def read_args(args):
     r_args = []
     for arg in args:
         if arg == 'adr':
-            r_args.append(('try!(read_u16(&mut stream))'))
+            r_args.append(('read_u16(&mut stream).ok().expect("")'))
         elif arg.startswith('D') and arg != 'D':
-            r_args.append('try!(read_u{}(&mut stream))'.format(arg[1:]))
+            r_args.append('read_u{}(&mut stream).ok().expect("")'.format(
+                arg[1:]))
         elif all([c.isdigit() for c in arg]):
             r_args.append('{} as u8'.format(arg))
         else:
@@ -137,7 +138,7 @@ def main():
         for name, info in functions.iteritems():
             _, args = info
             out_file.write('    '
-                'fn {}({}) -> Result<()>;\n'.format(
+                'fn {}({});\n'.format(
                     name.lower(),
                     ', '.join(['&mut self'] + name_args(args))))
 
@@ -146,10 +147,10 @@ def main():
         out_file.write(textwrap.dedent('''
             pub fn dispatch_opcode<I: InstructionSet8080>(
                 mut stream: &[u8],
-                machine: &mut I) -> Result<(u8)>
+                machine: &mut I) -> u8
             {
                 let size;
-                match try!(read_u8(&mut stream)) {
+                match read_u8(&mut stream).ok().expect("") {
         '''))
 
         for opcode, info in opcode_dict.iteritems():
@@ -159,14 +160,14 @@ def main():
                 name = 'not_implemented'
             else:
                 name = info['desciption'].replace(' ', '_').lower()
-            out_file.write('try!(machine.{}({})); '.format(
+            out_file.write('machine.{}({}); '.format(
                 name, ', '.join(read_args(info['args']))))
             out_file.write('size = {}\n        }}\n'.format(info['size']))
 
         out_file.write(textwrap.dedent('''
                    _ => panic!("Unknown opcode")
               };
-              Ok(size)
+              size
            }
         '''))
 
@@ -181,7 +182,7 @@ def main():
             pub trait OpcodePrinter<'a> {
                 fn print_opcode(
                     &mut self,
-                    stream: &[u8]) -> Result<u8>;
+                    stream: &[u8]) -> u8;
             }
             pub trait OpcodePrinterFactory<'a> {
                 type Output: OpcodePrinter<'a>;
@@ -204,9 +205,9 @@ def main():
             impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
                 fn print_opcode(
                     &mut self,
-                    stream: &[u8]) -> Result<u8>
+                    stream: &[u8]) -> u8
                 {
-                    Ok(try!(dispatch_opcode(stream, self)))
+                    dispatch_opcode(stream, self)
                 }
             }
             impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
@@ -215,29 +216,27 @@ def main():
         for name, info in functions.iteritems():
             instr, args = info
             out_file.write('    '
-                'fn {}({}) -> Result<()>\n    {{\n'.format(
-                    name.lower(),
-                    ', '.join(['&mut self'] + name_args(args))))
-            if name == 'not_implemented':
-                name = '-'
-            out_file.write('        try!(write!(self.stream_out, '
-                '"{{:04}}", "{}"));\n'.format(instr))
+                'fn {}({})\n    {{\n'.format(
+                    name.lower(), ', '.join(['&mut self'] + name_args(args))))
+            def print_to_out_file(pattern, arg_name):
+                out_file.write('        '
+                    'write!(self.stream_out, '
+                    '"{}", {}).ok().expect("{}");\n'.format(
+                        pattern, arg_name, 'Failed to Write to Stream'))
+
+            print_to_out_file("{:04}", '"{}"'.format(instr))
+
             for arg, arg_decl in zip(args, name_args(args)):
                 arg_type = arg[0]
                 arg_name = arg_decl.split(':')[0]
                 if arg_type == 'data':
-                    out_file.write('        try!(write!(self.stream_out, '
-                        '" #${{:02x}}", {}));\n'.format(arg_name))
+                    print_to_out_file(" #${:02x}", arg_name)
                 elif arg_type == 'implicit_data':
-                    out_file.write('        try!(write!(self.stream_out, '
-                        '" {{}}", {}));\n'.format(arg_name))
+                    print_to_out_file(" {}", arg_name)
                 elif arg_type == 'address':
-                    out_file.write('        try!(write!(self.stream_out, '
-                        '" ${{:02x}}", {}));\n'.format(arg_name))
+                    print_to_out_file(" ${:02x}", arg_name)
                 else:
-                    out_file.write('        try!(write!(self.stream_out, '
-                        '" {{:?}}", {}));\n'.format(arg_name))
-            out_file.write('        Ok(())\n')
+                    print_to_out_file(" {:?}", arg_name)
             out_file.write('    }\n')
         out_file.write('}')
 

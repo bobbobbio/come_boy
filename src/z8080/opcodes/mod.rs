@@ -32,7 +32,7 @@ impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> 
             let size: u8;
             {
                 let mut d = self.opcode_printer_factory.new(&mut formatted_op_buf);
-                size = try!(d.print_opcode(&self.rom[self.index as usize..]));
+                size = d.print_opcode(&self.rom[self.index as usize..]);
             }
             let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
 
@@ -65,22 +65,22 @@ struct TestOpcodePrinter<'a> {
 impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
     fn print_opcode(
         &mut self,
-        stream: &[u8]) -> Result<u8>
+        stream: &[u8]) -> u8
     {
         let size;
         match stream[0] {
             0x1 => {
-                try!(write!(self.stream_out, "TEST1")); size = 1;
+                write!(self.stream_out, "TEST1").ok().expect(""); size = 1;
             }
             0x2 => {
-                try!(write!(self.stream_out, "TEST2")); size = 2;
+                write!(self.stream_out, "TEST2").ok().expect(""); size = 2;
             }
             0x3 => {
-                try!(write!(self.stream_out, "TEST3")); size = 3;
+                write!(self.stream_out, "TEST3").ok().expect(""); size = 3;
             }
             _ => panic!("Unknown opcode")
         };
-        Ok(size)
+        size
     }
 }
 
