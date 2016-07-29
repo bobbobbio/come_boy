@@ -9,11 +9,12 @@ const ROM_ADDRESS: usize = 0x0100;
 
 #[derive(Debug,Clone,Copy)]
 enum Flag8080 {
-    Sign = 0x80,           // Bit 7
-    Zero = 0x40,           // Bit 6
-    AuxiliaryCarry = 0x10, // Bit 4
-    Parity = 0x4,          // Bit 2
-    Carry = 0x1,           // Bit 0
+                    // 76543210
+    Sign =           0b10000000,
+    Zero =           0b01000000,
+    AuxiliaryCarry = 0b00010000,
+    Parity =         0b00000100,
+    Carry =          0b00000001,
 }
 
 struct Emulator8080 {
@@ -186,19 +187,19 @@ fn calculate_parity(value: u8) -> bool
 #[test]
 fn calculate_parity_odd_parity()
 {
-    assert_eq!(calculate_parity(0x01), false);
+    assert_eq!(calculate_parity(0b00000001), false);
 }
 
 #[test]
 fn calculate_parity_even_parity()
 {
-    assert_eq!(calculate_parity(0x03), true);
+    assert_eq!(calculate_parity(0b00000011), true);
 }
 
 #[test]
 fn calculate_parity_zero_is_even_parity()
 {
-    assert_eq!(calculate_parity(0x00), true);
+    assert_eq!(calculate_parity(0b00000000), true);
 }
 
 /*
@@ -229,7 +230,7 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(register, new_value);
 
         self.set_flag(Flag8080::Zero, new_value == 0);
-        self.set_flag(Flag8080::Sign, new_value & 0x80 != 0);
+        self.set_flag(Flag8080::Sign, new_value & 0b10000000 != 0);
         self.set_flag(Flag8080::Parity, calculate_parity(new_value));
 
         // XXX This needs to be generalized and explained.
@@ -681,10 +682,6 @@ fn increment_register_or_memory_sets_parity_flag()
 fn increment_register_or_memory_sets_auxiliary_carry_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    //           76543210
-    //    (0x0f) 00001111
-    //  + (0x01) 00000001
-    //    (0x10) 00010000
     increment_register_or_memory_test(&mut e, Register8080::B, 0x0f);
 
     assert!(e.read_flag(Flag8080::AuxiliaryCarry));
