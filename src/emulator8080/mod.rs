@@ -1,9 +1,11 @@
 pub mod opcodes;
 
+use std::mem;
+
 use emulator8080::opcodes::opcode_gen::{InstructionSet8080, Register8080, dispatch_opcode};
 
-const MAX_ADDRESS: u16 = 0xffff;
-const ROM_ADDRESS: u16 = 0x0100;
+const MAX_ADDRESS: usize = 0xffff;
+const ROM_ADDRESS: usize = 0x0100;
 
 #[derive(Debug,Clone,Copy)]
 enum Flag8080 {
@@ -15,7 +17,7 @@ enum Flag8080 {
 }
 
 struct Emulator8080 {
-    main_memory: [u8; MAX_ADDRESS as usize + 1],
+    main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize]
 }
 
@@ -23,12 +25,11 @@ impl Emulator8080 {
     fn new(rom: &[u8]) -> Emulator8080
     {
         let mut emu = Emulator8080 {
-            main_memory: [0; MAX_ADDRESS as usize + 1],
+            main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Register8080::Count as usize]
         };
 
-        emu.main_memory[
-            ROM_ADDRESS as usize..(ROM_ADDRESS as usize + rom.len())].clone_from_slice(rom);
+        emu.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
 
         return emu;
     }
@@ -59,28 +60,127 @@ impl Emulator8080 {
         self.registers[Register8080::FLAGS as usize] = 0;
     }
 
-    fn set_register(&mut self, register: Register8080, value: u8)
+    fn get_register_pair(&mut self, register: Register8080) -> &mut u16
     {
-        self.registers[register as usize] = value;
+        /*
+         * 8008 Registers are laid out in a specified order in memory. (See enum
+         * Register8080 for the order).  This function allows you to read two
+         * adjacent registers together as one u16.  These two registers together
+         * are known as a 'register pair.'  The register pairs are referenced by
+         * the first in the pair.  The only valid register pairs are:
+         *     B:   B and C
+         *     D:   D and E
+         *     H:   H and L
+         *     PSW: A and FLAGS
+         */
+        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
+        unsafe {
+             register_pairs = mem::transmute(&mut self.registers);
+        }
+        match register {
+            Register8080::B | Register8080::D | Register8080::H =>
+                &mut register_pairs[register as usize / 2],
+            Register8080::PSW => &mut register_pairs[Register8080::A as usize / 2],
+            _ => panic!("Invalid register")
+        }
     }
 
-    fn read_register(&self, register: Register8080) -> u8
+    #[cfg(test)]
+    fn set_register_pair(&mut self, register: Register8080, value: u16)
     {
-        self.registers[register as usize]
+        *self.get_register_pair(register) = u16::to_be(value);
     }
+
+    fn read_register_pair(&mut self, register: Register8080) -> u16
+    {
+        u16::from_be(*self.get_register_pair(register))
+    }
+
+    fn get_register(&mut self, register: Register8080) -> &mut u8
+    {
+        match register {
+            Register8080::PSW => panic!("PSW too big"),
+            Register8080::M => {
+                /*
+                 * The M register is special and represents the byte stored at
+                 * the memory address stored in the register pair H.
+                 */
+                let address = self.read_register_pair(Register8080::H) as usize;
+                &mut self.main_memory[address]
+            },
+            _ => &mut self.registers[register as usize]
+        }
+    }
+
+    fn set_register(&mut self, register: Register8080, value: u8)
+    {
+        *self.get_register(register) = value;
+    }
+
+    fn read_register(&mut self, register: Register8080) -> u8
+    {
+        *self.get_register(register)
+    }
+}
+
+#[test]
+fn read_register_pair_b()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0x3F);
+    e.set_register(Register8080::C, 0x29);
+
+    assert_eq!(e.read_register_pair(Register8080::B), 0x3Fu16 << 8 | 0x29u16);
+}
+
+#[test]
+fn read_and_set_register_pair_d()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::D, 0xBEEF);
+
+    assert_eq!(e.read_register_pair(Register8080::D), 0xBEEF);
+}
+
+#[test]
+fn set_register_pair_h_and_read_registers()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xABCD);
+
+    assert_eq!(e.read_register(Register8080::H), 0xAB);
+    assert_eq!(e.read_register(Register8080::L), 0xCD);
+}
+
+#[test]
+fn set_register_m()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xf812);
+    e.set_register(Register8080::M, 0xAB);
+
+    assert_eq!(e.main_memory[0xf812], 0xAB);
+}
+
+#[test]
+fn set_register_m_max_address()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, MAX_ADDRESS as u16);
+    e.set_register(Register8080::M, 0xD9);
+
+    assert_eq!(e.main_memory[MAX_ADDRESS], 0xD9);
 }
 
 fn calculate_parity(value: u8) -> bool
 {
-    let mut mask = 0x1;
-    let mut parity = true;
-    while mask != 0x80 {
-        if (value & mask) != 0 {
-            parity = !parity;
-        }
-        mask = mask << 1;
-    }
-    parity
+    /*
+     * Parity for a give byte can be odd or even.  Odd parity means the byte
+     * when represented as binary has an odd number of ones.  Even means the
+     * number of ones is even.  The 8080 represents odd parity as 0 (or false)
+     * and even parity as 1 (or true).
+     */
+    value.count_ones() % 2 == 0
 }
 
 #[test]
@@ -101,6 +201,15 @@ fn calculate_parity_zero_is_even_parity()
     assert_eq!(calculate_parity(0x00), true);
 }
 
+/*
+ *  ___           _                   _   _
+ * |_ _|_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
+ *  | || '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \/ __|
+ *  | || | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | \__ \
+ * |___|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|___/
+ *
+ */
+
 impl InstructionSet8080 for Emulator8080 {
     fn complement_carry(&mut self)
     {
@@ -112,18 +221,19 @@ impl InstructionSet8080 for Emulator8080 {
     }
     fn increment_register_or_memory(&mut self, register: Register8080)
     {
-        let new_value;
-        if self.read_register(register) == 0xFF {
-            new_value = 0;
-        } else {
-            new_value = self.read_register(register) + 1;
-        }
+        let old_value = self.read_register(register);
+        let new_value = match old_value {
+            0xFF => 0,
+            _ => old_value + 1
+        };
         self.set_register(register, new_value);
 
         self.set_flag(Flag8080::Zero, new_value == 0);
         self.set_flag(Flag8080::Sign, new_value & 0x80 != 0);
         self.set_flag(Flag8080::Parity, calculate_parity(new_value));
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
+
+        // XXX This needs to be generalized and explained.
+        self.set_flag(Flag8080::AuxiliaryCarry, new_value & 0x0F < old_value & 0x0F);
     }
 
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
@@ -485,26 +595,39 @@ fn set_carry_test_true_to_true()
 }
 
 #[cfg(test)]
-fn increment_register_or_memory_test(e: &mut Emulator8080, starting_value: u8)
+fn increment_register_or_memory_test(
+    e: &mut Emulator8080,
+    register: Register8080,
+    starting_value: u8)
 {
     e.clear_all_flags();
-    e.set_register(Register8080::B, starting_value);
-    e.increment_register_or_memory(Register8080::B);
+    e.set_register(register, starting_value);
+    e.increment_register_or_memory(register);
 }
 
 #[test]
-fn increment_register_or_memory_increments()
+fn increment_register_or_memory_increments_register()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0x99);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x99);
     assert_eq!(e.read_register(Register8080::B), 0x9A);
+}
+
+#[test]
+fn increment_register_or_memory_increments_memory()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register_pair(Register8080::H, 0x1234);
+    increment_register_or_memory_test(&mut e, Register8080::M, 0x19);
+    assert_eq!(e.read_register(Register8080::M), 0x1A);
 }
 
 #[test]
 fn increment_register_or_memory_doesnt_set_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0x99);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x99);
     assert!(!e.read_flag(Flag8080::Zero));
 }
 
@@ -512,7 +635,7 @@ fn increment_register_or_memory_doesnt_set_zero_flag()
 fn increment_register_or_memory_update_sets_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0xFF);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0xFF);
     assert!(e.read_flag(Flag8080::Zero));
 }
 
@@ -520,7 +643,7 @@ fn increment_register_or_memory_update_sets_zero_flag()
 fn increment_register_or_memory_doesnt_set_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0x00);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x00);
     assert!(!e.read_flag(Flag8080::Sign));
 }
 
@@ -528,7 +651,7 @@ fn increment_register_or_memory_doesnt_set_sign_flag()
 fn increment_register_or_memory_sets_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0x7f);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x7f);
     assert!(e.read_flag(Flag8080::Sign));
 }
 
@@ -536,7 +659,9 @@ fn increment_register_or_memory_sets_sign_flag()
 fn increment_register_or_memory_clears_parity_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0x00);
+
+    e.set_flag(Flag8080::Parity, true);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x00);
 
     // 00000001 -> odd parity = false
     assert!(!e.read_flag(Flag8080::Parity));
@@ -546,10 +671,34 @@ fn increment_register_or_memory_clears_parity_flag()
 fn increment_register_or_memory_sets_parity_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    increment_register_or_memory_test(&mut e, 0x02);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x02);
 
     // 00000011 -> even parity = true
     assert!(e.read_flag(Flag8080::Parity));
+}
+
+#[test]
+fn increment_register_or_memory_sets_auxiliary_carry_flag()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    //           76543210
+    //    (0x0f) 00001111
+    //  + (0x01) 00000001
+    //    (0x10) 00010000
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x0f);
+
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn increment_register_or_memory_clears_auxiliary_carry_flag()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_flag(Flag8080::AuxiliaryCarry, true);
+    increment_register_or_memory_test(&mut e, Register8080::B, 0x00);
+
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
 }
 
 impl Emulator8080 {
