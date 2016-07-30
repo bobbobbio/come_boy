@@ -223,10 +223,7 @@ impl InstructionSet8080 for Emulator8080 {
     fn increment_register_or_memory(&mut self, register: Register8080)
     {
         let old_value = self.read_register(register);
-        let new_value = match old_value {
-            0xFF => 0,
-            _ => old_value + 1
-        };
+        let new_value = old_value.wrapping_add(1);
         self.set_register(register, new_value);
 
         self.set_flag(Flag8080::Zero, new_value == 0);
