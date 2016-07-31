@@ -96,7 +96,6 @@ impl Emulator8080 {
         self.registers[Register8080::FLAGS as usize] ^= flag as u8;
     }
 
-    #[cfg(test)]
     fn read_flag(&mut self, flag: Flag8080) -> bool
     {
         self.registers[Register8080::FLAGS as usize] & (flag as u8) == flag as u8
@@ -165,14 +164,6 @@ impl Emulator8080 {
         *self.get_register(register)
     }
 
-    fn update_auxiliary_carry_after_addition(&mut self, old_value: u8, new_value: u8)
-    {
-        /*
-         * The AuxiliaryCarry is set when a 1 is carried out of bit 3.
-         */
-        self.set_flag(Flag8080::AuxiliaryCarry, new_value & 0xF0 > old_value & 0xF0);
-    }
-
     fn update_flags_for_new_value(&mut self, new_value: u8)
     {
         self.set_flag(Flag8080::Zero, new_value == 0);
@@ -180,22 +171,34 @@ impl Emulator8080 {
         self.set_flag(Flag8080::Parity, calculate_parity(new_value));
     }
 
-    fn add_to_register(&mut self, register: Register8080, value: u8)
+    fn add_to_register(
+        &mut self,
+        register: Register8080,
+        value: u8,
+        update_carry: bool)
     {
         let old_value = self.read_register(register);
         let new_value = old_value.wrapping_add(value);
         self.set_register(register, new_value);
         self.update_flags_for_new_value(new_value);
-        self.update_auxiliary_carry_after_addition(old_value, new_value);
+
+        if update_carry {
+            self.set_flag(Flag8080::Carry, value > 0xFF - old_value);
+        }
+
+        self.set_flag(Flag8080::AuxiliaryCarry, new_value & 0x0F < old_value & 0x0F);
     }
 
-    fn subtract_from_register(&mut self, register: Register8080, value: u8)
+    fn subtract_from_register(&mut self, register: Register8080, value: u8, update_carry: bool)
     {
         let old_value = self.read_register(register);
         let new_value = old_value.wrapping_sub(value);
         self.set_register(register, new_value);
         self.update_flags_for_new_value(new_value);
         self.set_flag(Flag8080::AuxiliaryCarry, false);
+        if update_carry {
+            self.set_flag(Flag8080::Carry, false);
+        }
     }
 }
 
@@ -268,17 +271,18 @@ fn add_to_register_test(
     e: &mut Emulator8080,
     register: Register8080,
     starting_value: u8,
-    delta: u8)
+    delta: u8,
+    update_carry: bool)
 {
     e.set_register(register, starting_value);
-    e.add_to_register(register, delta);
+    e.add_to_register(register, delta, update_carry);
 }
 
 #[test]
 fn add_to_register_increments_register()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0x99, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x99, 1, true /* update carry */);
     assert_eq!(e.read_register(Register8080::B), 0x9A);
 }
 
@@ -288,15 +292,23 @@ fn add_to_register_increments_memory()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_register_pair(Register8080::H, 0x1234);
-    add_to_register_test(&mut e, Register8080::M, 0x19, 1);
+    add_to_register_test(&mut e, Register8080::M, 0x19, 1, true /* update carry */);
     assert_eq!(e.read_register(Register8080::M), 0x1A);
+}
+
+#[test]
+fn add_to_register_overflows()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    add_to_register_test(&mut e, Register8080::B, 0xFF, 1, true /* update carry */);
+    assert_eq!(e.read_register(Register8080::B), 0x00);
 }
 
 #[test]
 fn add_to_register_doesnt_set_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0x99, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x99, 1, true /* update carry */);
     assert!(!e.read_flag(Flag8080::Zero));
 }
 
@@ -304,7 +316,7 @@ fn add_to_register_doesnt_set_zero_flag()
 fn add_to_register_update_sets_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0xFF, 1);
+    add_to_register_test(&mut e, Register8080::B, 0xFF, 1, true /* update carry */);
     assert!(e.read_flag(Flag8080::Zero));
 }
 
@@ -312,7 +324,7 @@ fn add_to_register_update_sets_zero_flag()
 fn add_to_register_doesnt_set_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0x00, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x00, 1, true /* update carry */);
     assert!(!e.read_flag(Flag8080::Sign));
 }
 
@@ -320,7 +332,7 @@ fn add_to_register_doesnt_set_sign_flag()
 fn add_to_register_sets_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0x7f, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x7f, 1, true /* update carry */);
     assert!(e.read_flag(Flag8080::Sign));
 }
 
@@ -330,7 +342,7 @@ fn add_to_register_clears_parity_flag()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_flag(Flag8080::Parity, true);
-    add_to_register_test(&mut e, Register8080::B, 0x00, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x00, 1, true /* update carry */);
 
     // 00000001 -> odd parity = false
     assert!(!e.read_flag(Flag8080::Parity));
@@ -340,7 +352,7 @@ fn add_to_register_clears_parity_flag()
 fn add_to_register_sets_parity_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0x02, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x02, 1, true /* update carry */);
 
     // 00000011 -> even parity = true
     assert!(e.read_flag(Flag8080::Parity));
@@ -350,7 +362,52 @@ fn add_to_register_sets_parity_flag()
 fn add_to_register_sets_auxiliary_carry_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    add_to_register_test(&mut e, Register8080::B, 0x0F, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x0F, 1, true /* update carry */);
+
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn add_to_register_sets_auxiliary_carry_flag_when_adding_u8_max()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    add_to_register_test(&mut e, Register8080::B, 0x0F, 0xFF, true /* update carry */);
+
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn add_to_register_doesnt_set_auxiliary_carry_flag_when_incrementing_high_bits_only()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    add_to_register_test(&mut e, Register8080::B, 0xA0, 0x10, true /* update carry */);
+
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn add_to_register_doesnt_set_auxiliary_carry_flag_when_overflowing_basic()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    add_to_register_test(&mut e, Register8080::B, 0xF0, 0x10, true /* update carry */);
+
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn add_to_register_doesnt_set_auxiliary_carry_flag_when_overflowing()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    add_to_register_test(&mut e, Register8080::B, 0xFF, 0x10, true /* update carry */);
+
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn add_to_register_sets_auxiliary_carry_flag_when_overflowing()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    add_to_register_test(&mut e, Register8080::B, 0xFF, 0x11, true /* update carry */);
 
     assert!(e.read_flag(Flag8080::AuxiliaryCarry));
 }
@@ -361,9 +418,51 @@ fn add_to_register_clears_auxiliary_carry_flag()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_flag(Flag8080::AuxiliaryCarry, true);
-    add_to_register_test(&mut e, Register8080::B, 0x00, 1);
+    add_to_register_test(&mut e, Register8080::B, 0x00, 1, true /* update carry */);
 
     assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn add_to_register_sets_carry_flag()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    add_to_register_test(&mut e, Register8080::B, 0xFF, 1, true /* update carry */);
+
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_to_register_sets_carry_flag_when_adding_u8_max()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    add_to_register_test(&mut e, Register8080::B, 0xAB, 0xFF, true /* update carry */);
+
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_to_register_clears_carry_flag()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_flag(Flag8080::Carry, true);
+    add_to_register_test(&mut e, Register8080::B, 0x01, 1, true /* update carry */);
+
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_to_register_doesnt_update_carry_flag()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_flag(Flag8080::Carry, true);
+    add_to_register_test(&mut e, Register8080::B, 0x01, 1, false /* update carry */);
+
+    assert!(e.read_flag(Flag8080::Carry));
 }
 
 #[cfg(test)]
@@ -371,17 +470,18 @@ fn subtract_from_register_test(
     e: &mut Emulator8080,
     register: Register8080,
     starting_value: u8,
-    delta: u8)
+    delta: u8,
+    update_carry: bool)
 {
     e.set_register(register, starting_value);
-    e.subtract_from_register(register, delta);
+    e.subtract_from_register(register, delta, update_carry);
 }
 
 #[test]
 fn subtract_from_register_underflows()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::C, 0x00, 2);
+    subtract_from_register_test(&mut e, Register8080::C, 0x00, 2, true /* update carry */);
     assert_eq!(e.read_register(Register8080::C), 0xFE);
 }
 
@@ -389,7 +489,7 @@ fn subtract_from_register_underflows()
 fn subtract_from_register_doesnt_set_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x99, 1);
+    subtract_from_register_test(&mut e, Register8080::B, 0x99, 1, true /* update carry */);
     assert!(!e.read_flag(Flag8080::Zero));
 }
 
@@ -397,7 +497,7 @@ fn subtract_from_register_doesnt_set_zero_flag()
 fn subtract_from_register_update_sets_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x01, 1);
+    subtract_from_register_test(&mut e, Register8080::B, 0x01, 1, true /* update carry */);
     assert!(e.read_flag(Flag8080::Zero));
 }
 
@@ -405,7 +505,7 @@ fn subtract_from_register_update_sets_zero_flag()
 fn subtract_from_register_doesnt_set_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x0B, 1);
+    subtract_from_register_test(&mut e, Register8080::B, 0x0B, 1, true /* update carry */);
     assert!(!e.read_flag(Flag8080::Sign));
 }
 
@@ -413,7 +513,7 @@ fn subtract_from_register_doesnt_set_sign_flag()
 fn subtract_from_register_sets_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x00, 1);
+    subtract_from_register_test(&mut e, Register8080::B, 0x00, 1, true /* update carry */);
     assert!(e.read_flag(Flag8080::Sign));
 }
 
@@ -423,7 +523,7 @@ fn subtract_from_register_clears_parity_flag()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_flag(Flag8080::Parity, true);
-    subtract_from_register_test(&mut e, Register8080::B, 0x02, 1);
+    subtract_from_register_test(&mut e, Register8080::B, 0x02, 1, true /* update carry */);
 
     // 00000001 -> odd parity = false
     assert!(!e.read_flag(Flag8080::Parity));
@@ -433,7 +533,7 @@ fn subtract_from_register_clears_parity_flag()
 fn subtract_from_register_sets_parity_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x04, 1);
+    subtract_from_register_test(&mut e, Register8080::B, 0x04, 1, true /* update carry */);
 
     // 00000011 -> even parity = true
     assert!(e.read_flag(Flag8080::Parity));
@@ -444,9 +544,27 @@ fn subtract_from_register_never_sets_auxiliary_carry()
 {
     for delta in 0x00..0xFF {
         let mut e = Emulator8080::new(vec![].as_slice());
-        subtract_from_register_test(&mut e, Register8080::C, 0x88, delta);
+        subtract_from_register_test(&mut e, Register8080::C, 0x88, delta, true /* update carry */);
         assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
     }
+}
+
+#[test]
+fn subtract_from_register_doesnt_set_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    subtract_from_register_test(&mut e, Register8080::C, 0x88, 4, false /* update carry */);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn subtract_from_register_updates_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    subtract_from_register_test(&mut e, Register8080::C, 0x88, 4, true /* update carry */);
+    assert!(!e.read_flag(Flag8080::Carry));
 }
 
 /*
@@ -469,16 +587,43 @@ impl InstructionSet8080 for Emulator8080 {
     }
     fn increment_register_or_memory(&mut self, register: Register8080)
     {
-        self.add_to_register(register, 1);
+        self.add_to_register(register, 1, false /* update carry */);
     }
     fn decrement_register_or_memory(&mut self, register: Register8080)
     {
-        self.subtract_from_register(register, 1);
+        self.subtract_from_register(register, 1, false, /* update carry */);
     }
     fn complement_accumulator(&mut self)
     {
         let old_value = self.read_register(Register8080::A);
         self.set_register(Register8080::A, !old_value);
+    }
+    fn decimal_adjust_accumulator(&mut self)
+    {
+        /* The eight-bit hexadecimal number in the accumulator is adjusted to form two four-bit
+         * binary-coded decimal digits by the follow two step process:
+         *
+         * (1) If the least significant four bits of the accumulator represents a number greater
+         * than 9, or if the Auxiliary Carry bit is equal to one, the accumulator is incremented
+         * by six. Otherwise, no incrementing occurs.
+         */
+
+        let accumulator = self.read_register(Register8080::A);
+        if accumulator & 0x0F > 9 || self.read_flag(Flag8080::AuxiliaryCarry) {
+            self.add_to_register(Register8080::A, 6, true /* update carry */);
+        }
+        let auxiliary_carry = self.read_flag(Flag8080::AuxiliaryCarry);
+
+        /*
+         * (2) If the most significant four bits of the accumulator now represent a number greater
+         * than 9, or if the normal carry bit is equal to one, the most significant four bits of
+         * the accumulator are incremented by six. Otherwise, no incrementing occurs.
+         */
+        let accumulator = self.read_register(Register8080::A);
+        if (accumulator >> 4) & 0x0F > 9 || self.read_flag(Flag8080::Carry) {
+            self.add_to_register(Register8080::A, 6 << 4, true /* update carry */);
+        }
+        self.set_flag(Flag8080::AuxiliaryCarry, auxiliary_carry);
     }
 
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
@@ -673,10 +818,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn decimal_adjust_accumulator(&mut self)
-    {
-        panic!("Not Implemented")
-    }
     fn load_register_pair_immediate(&mut self, _register1: Register8080, _data2: u16)
     {
         panic!("Not Implemented")
@@ -841,6 +982,15 @@ fn increment_register_or_memory_increments_register()
 }
 
 #[test]
+fn increment_register_or_memory_doesnt_update_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0xFF);
+    e.increment_register_or_memory(Register8080::B);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
 fn decrement_register_or_memory_decrements_register()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
@@ -850,12 +1000,88 @@ fn decrement_register_or_memory_decrements_register()
 }
 
 #[test]
+fn decrement_register_or_memory_doesnt_update_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::B, 0x40);
+    e.decrement_register_or_memory(Register8080::B);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
 fn complement_accumulator()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     e.set_register(Register8080::A, 0b10010101);
     e.complement_accumulator();
     assert_eq!(e.read_register(Register8080::A), 0b01101010);
+}
+
+#[test]
+fn decimal_adjust_accumulator_low_and_high_bits()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    /*
+     * Suppose the accumulator contains 9BH, and both carry bits aren't set.
+     */
+    e.set_register(Register8080::A, 0x9B);
+    e.set_flag(Flag8080::Carry, false);
+    e.set_flag(Flag8080::AuxiliaryCarry, false);
+
+    e.decimal_adjust_accumulator();
+
+    /*
+     * The DAA instruction will operate as follows:
+     *
+     *     (1) Since bits 0-3 are greater than 9, add 6 to the accumulator.  This addition will
+     *         generate a carry out of the lower four bits, setting the Auxiliary Carry bit.
+     *
+     *     Accumulator = 1001 1011 = 0x9B
+     *         +6      =      0110
+     *                 ___________
+     *                   1010 0001 = 0xA1
+     *
+     *     (2) Since bits 4-7 now are greater than 9, add 6 to these bits. This addition will
+     *         generate a carry out of the upper four bits, setting the Carry bit.
+     *
+     *     Accumulator = 1010 0001 = 0xA1
+     *         +6      = 0110
+     *                 ___________
+     *                   0000 0001
+     *
+     * The Accumulator will now contain 1, and both carry bits will be set.
+     *
+     */
+    assert_eq!(e.read_register(Register8080::A), 0x01);
+    assert!(e.read_flag(Flag8080::Carry));
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn decimal_adjust_accumulator_low_bits_increment_only()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register(Register8080::A, 0x0F);
+    e.decimal_adjust_accumulator();
+
+    assert_eq!(e.read_register(Register8080::A), 0x0F + 6);
+    assert!(!e.read_flag(Flag8080::Carry));
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn decimal_adjust_accumulator_high_bits_increment_only()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register(Register8080::A, 0xA0);
+    e.decimal_adjust_accumulator();
+
+    assert_eq!(e.read_register(Register8080::A), 0xA0u8.wrapping_add(6 << 4));
+    assert!(e.read_flag(Flag8080::Carry));
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
 }
 
 impl Emulator8080 {
