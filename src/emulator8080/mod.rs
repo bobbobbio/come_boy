@@ -159,6 +159,7 @@ impl Emulator8080 {
         *self.get_register(register) = value;
     }
 
+    // XXX: This really shouldn't take a mutable reference to self.
     fn read_register(&mut self, register: Register8080) -> u8
     {
         *self.get_register(register)
@@ -474,6 +475,11 @@ impl InstructionSet8080 for Emulator8080 {
     {
         self.subtract_from_register(register, 1);
     }
+    fn complement_accumulator(&mut self)
+    {
+        let old_value = self.read_register(Register8080::A);
+        self.set_register(Register8080::A, !old_value);
+    }
 
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
     {
@@ -719,10 +725,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn complement_accumulator(&mut self)
-    {
-        panic!("Not Implemented")
-    }
     fn return_if_no_carry(&mut self)
     {
         panic!("Not Implemented")
@@ -845,6 +847,15 @@ fn decrement_register_or_memory_decrements_register()
     e.set_register(Register8080::B, 0x40);
     e.decrement_register_or_memory(Register8080::B);
     assert_eq!(e.read_register(Register8080::B), 0x3F);
+}
+
+#[test]
+fn complement_accumulator()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b10010101);
+    e.complement_accumulator();
+    assert_eq!(e.read_register(Register8080::A), 0b01101010);
 }
 
 impl Emulator8080 {
