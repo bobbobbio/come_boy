@@ -652,6 +652,11 @@ impl InstructionSet8080 for Emulator8080 {
          *
          */
     }
+    fn move_data(&mut self, dest_register: Register8080, src_register: Register8080)
+    {
+        let value = self.read_register(src_register);
+        self.set_register(dest_register, value);
+    }
 
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
     {
@@ -674,10 +679,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn jump_if_parity_even(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn move_data(&mut self, _register1: Register8080, _register2: Register8080)
     {
         panic!("Not Implemented")
     }
@@ -1112,6 +1113,40 @@ fn no_instruction()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     e.no_instruction();
+}
+
+#[test]
+fn move_data_moves_to_register()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register(Register8080::A, 0xA0);
+    e.move_data(Register8080::E, Register8080::A);
+
+    assert_eq!(e.read_register(Register8080::E), 0xA0);
+}
+
+#[test]
+fn move_data_same_destination_and_source()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register(Register8080::A, 0xA0);
+    e.move_data(Register8080::A, Register8080::A);
+
+    assert_eq!(e.read_register(Register8080::A), 0xA0);
+}
+
+#[test]
+fn move_data_moves_to_memory()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register(Register8080::A, 0xBE);
+    e.set_register_pair(Register8080::H, 0x2BE9);
+    e.move_data(Register8080::M, Register8080::A);
+
+    assert_eq!(e.main_memory[0x2BE9], 0xBE);
 }
 
 impl Emulator8080 {
