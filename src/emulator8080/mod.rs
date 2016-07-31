@@ -625,6 +625,33 @@ impl InstructionSet8080 for Emulator8080 {
         }
         self.set_flag(Flag8080::AuxiliaryCarry, auxiliary_carry);
     }
+    fn no_instruction(&mut self)
+    {
+        /*
+         * Easiest instruction to implement :)
+         *
+         * ░░░░░░░░░░▄▄▄▄▄▄▄▄▄▄▄▄▄▄░░░░░░░░░░░░░
+         * ░░░░░░▄▄█▀▀░░░░░░░░░░░░▀██▄▄▄▄▄░░░░░░
+         * ░░░░▄█▀░▄▄█▀▀▀▀░░░░░░░░░░░░▄█████▄░░░
+         * ░░▄█▀▄▄█▀░▄▀▀▀▀█▄░░░░░░░░▄▀▀░░▄██▄░░░
+         * ░▄▀░▀▀▀░▄▀░░░░░░░█░░░░░░█░░░░░▀▀░█░░░
+         * ░█░░░░░░█░▄▄▄░░░░█▄░░░░░█░░░░░░░▄█▄░░
+         * █▀░░░░░▀█▄▀█▀░░░░█░░░░░░▀▄▄▄▄▄▄██▄█░░
+         * █░░░░░░░░▀▀▄▄▄▄▄▀░░░░░░░░░▄▀░░▄▄░▀█▄░
+         * █░░░░░░░░░░░░░░░░░░░░▄░▀▀█▀░█▀░▀▀▄░█░
+         * █░░░░░░░░░░░░░░░░░░░░░░░█▀░█▀▀▀▀██░▀█
+         * █░░░░░░░░░░░░░░░░░░░░░░░█░▄█▀▀▀▀▀███░
+         * █░░░░░░░░░░░░░░░░░░░░░░░█░██░░░░░█░█░
+         * ▀█░░░░░░░░░░░░░░░░░░░░░░████░░░░█▀█▀░
+         * ░█░░░░░░░░░░░░░░░░░░░░░░███▀░░░░█░█░░
+         * ░░█░░░░░░░░░░░░░░░░░░░░░█░█░░░░░█░░█░
+         * ░░▀▄░░░░░░░░░░░░░░░░░░░▄▀░█▀▀▀▄░▀▄░█░
+         * ░░░▀▄░░░░░░░░░░░░▄▄░░░░█░░█▄▄▄▄█▄█░█░
+         * ░░░░▀▄░░░░░░░░░░░░░▀▀▄░█░░█▄██▀▄█░░█░
+         * ░░░░░▀█░░░░░░░░░░░░░░░▀█░░█▄░░▀█▀░▄▀░
+         *
+         */
+    }
 
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
     {
@@ -687,10 +714,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn jump_if_zero(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn no_instruction(&mut self)
     {
         panic!("Not Implemented")
     }
@@ -1082,6 +1105,13 @@ fn decimal_adjust_accumulator_high_bits_increment_only()
     assert_eq!(e.read_register(Register8080::A), 0xA0u8.wrapping_add(6 << 4));
     assert!(e.read_flag(Flag8080::Carry));
     assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn no_instruction()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.no_instruction();
 }
 
 impl Emulator8080 {
