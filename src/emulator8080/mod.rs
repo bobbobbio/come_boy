@@ -662,6 +662,12 @@ impl InstructionSet8080 for Emulator8080 {
         let address = self.read_register_pair(register_pair) as usize;
         self.main_memory[address] = self.read_register(Register8080::A);
     }
+    fn load_accumulator(&mut self, register_pair: Register8080)
+    {
+        let address = self.read_register_pair(register_pair) as usize;
+        let value = self.main_memory[address];
+        self.set_register(Register8080::A, value);
+    }
 
     fn subtract_from_accumulator(&mut self, _register1: Register8080)
     {
@@ -772,10 +778,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn enable_interrupts(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn load_accumulator(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
     }
@@ -1170,6 +1172,28 @@ fn store_accumulator_at_address_in_d()
     e.store_accumulator(Register8080::D);
 
     assert_eq!(e.main_memory[0x3F16], 0xAF);
+}
+
+#[test]
+fn load_accumulator_from_address_in_b()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.main_memory[0x9388] = 0xAF;
+    e.set_register_pair(Register8080::B, 0x9388);
+    e.load_accumulator(Register8080::B);
+
+    assert_eq!(e.read_register(Register8080::A), 0xAF);
+}
+
+#[test]
+fn load_accumulator_from_address_in_d()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.main_memory[0x9388] = 0xAF;
+    e.set_register_pair(Register8080::D, 0x9388);
+    e.load_accumulator(Register8080::D);
+
+    assert_eq!(e.read_register(Register8080::A), 0xAF);
 }
 
 impl Emulator8080 {
