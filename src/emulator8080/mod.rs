@@ -55,6 +55,11 @@ fn calculate_parity_zero_is_even_parity()
     assert_eq!(calculate_parity(0b00000000), true);
 }
 
+fn twos_complement(value: u8) -> u8
+{
+    (!value).wrapping_add(1)
+}
+
 /*
  *  _____                 _       _             ___   ___   ___   ___
  * | ____|_ __ ___  _   _| | __ _| |_ ___  _ __( _ ) / _ \ ( _ ) / _ \
@@ -186,19 +191,22 @@ impl Emulator8080 {
             self.set_flag(Flag8080::Carry, value > 0xFF - old_value);
         }
 
-        self.set_flag(Flag8080::AuxiliaryCarry, new_value & 0x0F < old_value & 0x0F);
+        self.set_flag(Flag8080::AuxiliaryCarry, value & 0x0F > 0x0F - (old_value & 0x0F));
     }
 
-    fn subtract_from_register(&mut self, register: Register8080, value: u8, update_carry: bool)
+    fn subtract_from_register(&mut self, register: Register8080, value: u8)
     {
         let old_value = self.read_register(register);
         let new_value = old_value.wrapping_sub(value);
         self.set_register(register, new_value);
         self.update_flags_for_new_value(new_value);
         self.set_flag(Flag8080::AuxiliaryCarry, false);
-        if update_carry {
-            self.set_flag(Flag8080::Carry, false);
-        }
+    }
+
+    fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8)
+    {
+        self.add_to_register(register, twos_complement(value), true /* update carry */);
+        self.flip_flag(Flag8080::Carry);
     }
 }
 
@@ -470,18 +478,17 @@ fn subtract_from_register_test(
     e: &mut Emulator8080,
     register: Register8080,
     starting_value: u8,
-    delta: u8,
-    update_carry: bool)
+    delta: u8)
 {
     e.set_register(register, starting_value);
-    e.subtract_from_register(register, delta, update_carry);
+    e.subtract_from_register(register, delta);
 }
 
 #[test]
 fn subtract_from_register_underflows()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::C, 0x00, 2, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::C, 0x00, 2);
     assert_eq!(e.read_register(Register8080::C), 0xFE);
 }
 
@@ -489,7 +496,7 @@ fn subtract_from_register_underflows()
 fn subtract_from_register_doesnt_set_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x99, 1, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::B, 0x99, 1);
     assert!(!e.read_flag(Flag8080::Zero));
 }
 
@@ -497,7 +504,7 @@ fn subtract_from_register_doesnt_set_zero_flag()
 fn subtract_from_register_update_sets_zero_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x01, 1, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::B, 0x01, 1);
     assert!(e.read_flag(Flag8080::Zero));
 }
 
@@ -505,7 +512,7 @@ fn subtract_from_register_update_sets_zero_flag()
 fn subtract_from_register_doesnt_set_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x0B, 1, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::B, 0x0B, 1);
     assert!(!e.read_flag(Flag8080::Sign));
 }
 
@@ -513,7 +520,7 @@ fn subtract_from_register_doesnt_set_sign_flag()
 fn subtract_from_register_sets_sign_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x00, 1, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::B, 0x00, 1);
     assert!(e.read_flag(Flag8080::Sign));
 }
 
@@ -523,7 +530,7 @@ fn subtract_from_register_clears_parity_flag()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_flag(Flag8080::Parity, true);
-    subtract_from_register_test(&mut e, Register8080::B, 0x02, 1, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::B, 0x02, 1);
 
     // 00000001 -> odd parity = false
     assert!(!e.read_flag(Flag8080::Parity));
@@ -533,20 +540,19 @@ fn subtract_from_register_clears_parity_flag()
 fn subtract_from_register_sets_parity_flag()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    subtract_from_register_test(&mut e, Register8080::B, 0x04, 1, true /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::B, 0x04, 1);
 
     // 00000011 -> even parity = true
     assert!(e.read_flag(Flag8080::Parity));
 }
 
 #[test]
-fn subtract_from_register_never_sets_auxiliary_carry()
+fn subtract_from_register_clears_auxiliary_carry()
 {
-    for delta in 0x00..0xFF {
-        let mut e = Emulator8080::new(vec![].as_slice());
-        subtract_from_register_test(&mut e, Register8080::C, 0x88, delta, true /* update carry */);
-        assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
-    }
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::AuxiliaryCarry, true);
+    subtract_from_register_test(&mut e, Register8080::C, 0x88, 0x03);
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
 }
 
 #[test]
@@ -554,17 +560,88 @@ fn subtract_from_register_doesnt_set_carry()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     e.set_flag(Flag8080::Carry, true);
-    subtract_from_register_test(&mut e, Register8080::C, 0x88, 4, false /* update carry */);
+    subtract_from_register_test(&mut e, Register8080::C, 0x88, 4);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[cfg(test)]
+fn subtract_from_register_using_twos_complement_test(
+    e: &mut Emulator8080,
+    register: Register8080,
+    starting_value: u8,
+    delta: u8)
+{
+    e.set_register(register, starting_value);
+    e.subtract_from_register_using_twos_complement(register, delta);
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_positive_from_positive()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0x88, 4);
+    assert_eq!(e.read_register(Register8080::C), 0x84);
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_positive_from_negative()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_using_twos_complement_test(
+        &mut e, Register8080::C, twos_complement(0x09), 0x02);
+    assert_eq!(e.read_register(Register8080::C), twos_complement(0x0B));
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_negative_from_positive()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_using_twos_complement_test(
+        &mut e, Register8080::C, 0x09, twos_complement(0x02));
+    assert_eq!(e.read_register(Register8080::C), 0x0B);
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_negative_from_negative()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_using_twos_complement_test(
+        &mut e, Register8080::C, twos_complement(0x09), twos_complement(0x02));
+    assert_eq!(e.read_register(Register8080::C), twos_complement(0x07));
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_clears_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0x88, 4);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_sets_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0x05, 0x06);
     assert!(e.read_flag(Flag8080::Carry));
 }
 
 #[test]
-fn subtract_from_register_updates_carry()
+fn subtract_from_register_using_twos_complement_clear_auxiliary_carry()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    e.set_flag(Flag8080::Carry, true);
-    subtract_from_register_test(&mut e, Register8080::C, 0x88, 4, true /* update carry */);
-    assert!(!e.read_flag(Flag8080::Carry));
+    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0xA5, 0x04);
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_sets_auxiliary_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::AuxiliaryCarry, true);
+    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0xA5, 0x06);
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
 }
 
 /*
@@ -591,7 +668,7 @@ impl InstructionSet8080 for Emulator8080 {
     }
     fn decrement_register_or_memory(&mut self, register: Register8080)
     {
-        self.subtract_from_register(register, 1, false, /* update carry */);
+        self.subtract_from_register(register, 1);
     }
     fn complement_accumulator(&mut self)
     {
@@ -684,7 +761,7 @@ impl InstructionSet8080 for Emulator8080 {
     fn subtract_from_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.subtract_from_register(Register8080::A, value, true /* update_carry */);
+        self.subtract_from_register_using_twos_complement(Register8080::A, value);
     }
     fn subtract_from_accumulator_with_borrow(&mut self, register: Register8080)
     {
@@ -692,7 +769,7 @@ impl InstructionSet8080 for Emulator8080 {
         if self.read_flag(Flag8080::Carry) {
             value = value.wrapping_add(1);
         }
-        self.subtract_from_register(Register8080::A, value, true /* update_carry */);
+        self.subtract_from_register_using_twos_complement(Register8080::A, value);
     }
 
     fn return_if_not_zero(&mut self)
@@ -1249,6 +1326,23 @@ fn subtract_from_accumulator_from_register()
     e.subtract_from_accumulator(Register8080::B);
 
     assert_eq!(e.read_register(Register8080::A), 0x1Au8.wrapping_sub(0xF2));
+}
+
+#[test]
+fn subtract_from_accumulator_with_borrow_condition_flags_get_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::L, 0x02);
+    e.set_register(Register8080::A, 0x04);
+    e.set_flag(Flag8080::Carry, true);
+    e.subtract_from_accumulator_with_borrow(Register8080::L);
+
+    assert_eq!(e.read_register(Register8080::A), 0x01);
+    assert!(!e.read_flag(Flag8080::Zero));
+    assert!(!e.read_flag(Flag8080::Carry));
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+    assert!(!e.read_flag(Flag8080::Parity));
+    assert!(!e.read_flag(Flag8080::Sign));
 }
 
 #[test]
