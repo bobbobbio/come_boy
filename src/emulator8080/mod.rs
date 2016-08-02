@@ -681,11 +681,12 @@ impl InstructionSet8080 for Emulator8080 {
         }
         self.add_to_register(Register8080::A, value, true /* update_carry */);
     }
-
-    fn subtract_from_accumulator(&mut self, _register1: Register8080)
+    fn subtract_from_accumulator(&mut self, register: Register8080)
     {
-        panic!("Not Implemented")
+        let value = self.read_register(register);
+        self.subtract_from_register(Register8080::A, value, true /* update_carry */);
     }
+
     fn return_if_not_zero(&mut self)
     {
         panic!("Not Implemented")
@@ -1233,6 +1234,17 @@ fn add_to_accumulator_with_carry_from_register_and_carry_not_set()
     e.add_to_accumulator_with_carry(Register8080::D);
 
     assert_eq!(e.read_register(Register8080::A), 0xBD + 0x09);
+}
+
+#[test]
+fn subtract_from_accumulator_from_register()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0xF2);
+    e.set_register(Register8080::A, 0x1A);
+    e.subtract_from_accumulator(Register8080::B);
+
+    assert_eq!(e.read_register(Register8080::A), 0x1Au8.wrapping_sub(0xF2));
 }
 
 impl Emulator8080 {
