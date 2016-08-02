@@ -686,6 +686,14 @@ impl InstructionSet8080 for Emulator8080 {
         let value = self.read_register(register);
         self.subtract_from_register(Register8080::A, value, true /* update_carry */);
     }
+    fn subtract_from_accumulator_with_borrow(&mut self, register: Register8080)
+    {
+        let mut value = self.read_register(register);
+        if self.read_flag(Flag8080::Carry) {
+            value = value.wrapping_add(1);
+        }
+        self.subtract_from_register(Register8080::A, value, true /* update_carry */);
+    }
 
     fn return_if_not_zero(&mut self)
     {
@@ -912,10 +920,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn store_h_and_l_direct(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn subtract_from_accumulator_with_borrow(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
     }
@@ -1243,6 +1247,29 @@ fn subtract_from_accumulator_from_register()
     e.set_register(Register8080::B, 0xF2);
     e.set_register(Register8080::A, 0x1A);
     e.subtract_from_accumulator(Register8080::B);
+
+    assert_eq!(e.read_register(Register8080::A), 0x1Au8.wrapping_sub(0xF2));
+}
+
+#[test]
+fn subtract_from_accumulator_with_borrow_and_carry_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0xF2);
+    e.set_register(Register8080::A, 0x1A);
+    e.set_flag(Flag8080::Carry, true);
+    e.subtract_from_accumulator_with_borrow(Register8080::B);
+
+    assert_eq!(e.read_register(Register8080::A), 0x1Au8.wrapping_sub(0xF2 + 1));
+}
+
+#[test]
+fn subtract_from_accumulator_with_borrow_and_carry_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0xF2);
+    e.set_register(Register8080::A, 0x1A);
+    e.subtract_from_accumulator_with_borrow(Register8080::B);
 
     assert_eq!(e.read_register(Register8080::A), 0x1Au8.wrapping_sub(0xF2));
 }
