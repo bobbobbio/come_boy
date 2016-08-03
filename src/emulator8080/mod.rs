@@ -771,6 +771,15 @@ impl InstructionSet8080 for Emulator8080 {
         }
         self.subtract_from_register_using_twos_complement(Register8080::A, value);
     }
+    fn logical_and_with_accumulator(&mut self, register: Register8080)
+    {
+        let value1 = self.read_register(Register8080::A);
+        let value2 = self.read_register(register);
+        let new_value = value1 & value2;
+        self.set_register(Register8080::A, new_value);
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
+    }
 
     fn return_if_not_zero(&mut self)
     {
@@ -849,10 +858,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn load_sp_from_h_and_l(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn logical_and_with_accumulator(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
     }
@@ -1366,6 +1371,58 @@ fn subtract_from_accumulator_with_borrow_and_carry_not_set()
     e.subtract_from_accumulator_with_borrow(Register8080::B);
 
     assert_eq!(e.read_register(Register8080::A), 0x1Au8.wrapping_sub(0xF2));
+}
+
+#[test]
+fn logical_and_with_accumulator()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0b00100110);
+    e.set_register(Register8080::A, 0b01000111);
+    e.logical_and_with_accumulator(Register8080::B);
+
+    assert_eq!(e.read_register(Register8080::A), 0b00000110);
+}
+
+#[test]
+fn logical_and_with_accumulator_sets_zero_flag()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0x0);
+    e.set_register(Register8080::A, 0x4F);
+    e.logical_and_with_accumulator(Register8080::B);
+    assert!(e.read_flag(Flag8080::Zero));
+}
+
+#[test]
+fn logical_and_with_accumulator_sets_parity()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0b11011100);
+    e.set_register(Register8080::A, 0b11000000);
+    e.logical_and_with_accumulator(Register8080::B);
+
+    assert!(e.read_flag(Flag8080::Parity));
+}
+
+#[test]
+fn logical_and_with_accumulator_sets_sign()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0b10000000);
+    e.set_register(Register8080::A, 0b10000000);
+    e.logical_and_with_accumulator(Register8080::B);
+
+    assert!(e.read_flag(Flag8080::Sign));
+}
+
+#[test]
+fn logical_and_with_accumulator_clears_the_carry_bit()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.logical_and_with_accumulator(Register8080::B);
+    assert!(!e.read_flag(Flag8080::Carry));
 }
 
 impl Emulator8080 {
