@@ -61,6 +61,7 @@ pub trait InstructionSet8080 {
     fn rim(&mut self);
     fn call_if_parity_even(&mut self, address1: u16);
     fn jump_if_positive(&mut self, address1: u16);
+    fn logical_exclusive_or_with_accumulator(&mut self, register1: Register8080);
     fn move_data(&mut self, register1: Register8080, register2: Register8080);
     fn no_instruction(&mut self);
     fn disable_interrupts(&mut self);
@@ -81,7 +82,7 @@ pub trait InstructionSet8080 {
     fn input(&mut self, data1: u8);
     fn jump_if_parity_odd(&mut self, address1: u16);
     fn increment_register_pair(&mut self, register1: Register8080);
-    fn logical_exclusive_or(&mut self, register1: Register8080);
+    fn return_if_no_carry(&mut self);
     fn exchange_registers(&mut self);
     fn rotate_accumulator_right(&mut self);
     fn call_if_no_carry(&mut self, address1: u16);
@@ -110,7 +111,6 @@ pub trait InstructionSet8080 {
     fn add_to_accumulator_with_carry(&mut self, register1: Register8080);
     fn jump_if_zero(&mut self, address1: u16);
     fn complement_accumulator(&mut self);
-    fn return_if_no_carry(&mut self);
     fn return_if_zero(&mut self);
     fn return_if_parity_odd(&mut self);
     fn return_unconditionally(&mut self);
@@ -357,22 +357,22 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
             machine.move_data(Register8080::C, Register8080::C); size = 1
         }
         0xaf => {
-            machine.logical_exclusive_or(Register8080::A); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::A); size = 1
         }
         0xae => {
-            machine.logical_exclusive_or(Register8080::M); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::M); size = 1
         }
         0xad => {
-            machine.logical_exclusive_or(Register8080::L); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::L); size = 1
         }
         0xac => {
-            machine.logical_exclusive_or(Register8080::H); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::H); size = 1
         }
         0xab => {
-            machine.logical_exclusive_or(Register8080::E); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::E); size = 1
         }
         0xaa => {
-            machine.logical_exclusive_or(Register8080::D); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::D); size = 1
         }
         0xe6 => {
             machine.add_immediate_with_accumulator(read_u8(&mut stream).ok().expect("")); size = 2
@@ -444,10 +444,10 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
             machine.or_immediate_with_accumulator(read_u8(&mut stream).ok().expect("")); size = 2
         }
         0xa9 => {
-            machine.logical_exclusive_or(Register8080::C); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::C); size = 1
         }
         0xa8 => {
-            machine.logical_exclusive_or(Register8080::B); size = 1
+            machine.logical_exclusive_or_with_accumulator(Register8080::B); size = 1
         }
         0xa7 => {
             machine.logical_and_with_accumulator(Register8080::A); size = 1
@@ -1013,6 +1013,11 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "JP").ok().expect("Failed to Write to Stream");
         write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
     }
+    fn logical_exclusive_or_with_accumulator(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "XRA").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+    }
     fn move_data(&mut self, register1: Register8080, register2: Register8080)
     {
         write!(self.stream_out, "{:04}", "MOV").ok().expect("Failed to Write to Stream");
@@ -1108,10 +1113,9 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "INX").ok().expect("Failed to Write to Stream");
         write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
     }
-    fn logical_exclusive_or(&mut self, register1: Register8080)
+    fn return_if_no_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "XRA").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RNC").ok().expect("Failed to Write to Stream");
     }
     fn exchange_registers(&mut self)
     {
@@ -1244,10 +1248,6 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     fn complement_accumulator(&mut self)
     {
         write!(self.stream_out, "{:04}", "CMA").ok().expect("Failed to Write to Stream");
-    }
-    fn return_if_no_carry(&mut self)
-    {
-        write!(self.stream_out, "{:04}", "RNC").ok().expect("Failed to Write to Stream");
     }
     fn return_if_zero(&mut self)
     {
