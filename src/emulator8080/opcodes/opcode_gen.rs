@@ -46,7 +46,6 @@ pub enum Register8080 {
 }
 
 pub trait InstructionSet8080 {
-    fn subtract_from_accumulator(&mut self, register1: Register8080);
     fn return_if_not_zero(&mut self);
     fn add_immediate_to_accumulator(&mut self, data1: u8);
     fn pop_data_off_stack(&mut self, register1: Register8080);
@@ -57,7 +56,7 @@ pub trait InstructionSet8080 {
     fn or_immediate_with_accumulator(&mut self, data1: u8);
     fn call_if_carry(&mut self, address1: u16);
     fn jump(&mut self, address1: u16);
-    fn logical_or(&mut self, register1: Register8080);
+    fn subtract_from_accumulator(&mut self, register1: Register8080);
     fn rim(&mut self);
     fn call_if_parity_even(&mut self, address1: u16);
     fn jump_if_positive(&mut self, address1: u16);
@@ -83,6 +82,7 @@ pub trait InstructionSet8080 {
     fn jump_if_parity_odd(&mut self, address1: u16);
     fn increment_register_pair(&mut self, register1: Register8080);
     fn return_if_no_carry(&mut self);
+    fn logical_or_with_accumulator(&mut self, register1: Register8080);
     fn exchange_registers(&mut self);
     fn rotate_accumulator_right(&mut self);
     fn call_if_no_carry(&mut self, address1: u16);
@@ -558,28 +558,28 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
             machine.not_implemented(); size = 1
         }
         0xb2 => {
-            machine.logical_or(Register8080::D); size = 1
+            machine.logical_or_with_accumulator(Register8080::D); size = 1
         }
         0xb3 => {
-            machine.logical_or(Register8080::E); size = 1
+            machine.logical_or_with_accumulator(Register8080::E); size = 1
         }
         0xb0 => {
-            machine.logical_or(Register8080::B); size = 1
+            machine.logical_or_with_accumulator(Register8080::B); size = 1
         }
         0xb1 => {
-            machine.logical_or(Register8080::C); size = 1
+            machine.logical_or_with_accumulator(Register8080::C); size = 1
         }
         0xb6 => {
-            machine.logical_or(Register8080::M); size = 1
+            machine.logical_or_with_accumulator(Register8080::M); size = 1
         }
         0xb7 => {
-            machine.logical_or(Register8080::A); size = 1
+            machine.logical_or_with_accumulator(Register8080::A); size = 1
         }
         0xb4 => {
-            machine.logical_or(Register8080::H); size = 1
+            machine.logical_or_with_accumulator(Register8080::H); size = 1
         }
         0xb5 => {
-            machine.logical_or(Register8080::L); size = 1
+            machine.logical_or_with_accumulator(Register8080::L); size = 1
         }
         0xe3 => {
             machine.exchange_stack(); size = 1
@@ -940,11 +940,6 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
     }
 }
 impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
-    fn subtract_from_accumulator(&mut self, register1: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "SUB").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
-    }
     fn return_if_not_zero(&mut self)
     {
         write!(self.stream_out, "{:04}", "RNZ").ok().expect("Failed to Write to Stream");
@@ -994,9 +989,9 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "JMP").ok().expect("Failed to Write to Stream");
         write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
     }
-    fn logical_or(&mut self, register1: Register8080)
+    fn subtract_from_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ORA").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SUB").ok().expect("Failed to Write to Stream");
         write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
     }
     fn rim(&mut self)
@@ -1116,6 +1111,11 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     fn return_if_no_carry(&mut self)
     {
         write!(self.stream_out, "{:04}", "RNC").ok().expect("Failed to Write to Stream");
+    }
+    fn logical_or_with_accumulator(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "ORA").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
     }
     fn exchange_registers(&mut self)
     {
