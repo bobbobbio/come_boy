@@ -33,6 +33,7 @@ def main():
     with open(output_file, 'w') as out_file:
         out_file.write(textwrap.dedent('''
             use std::io::{self, Result};
+            use std::mem;
 
             /*
              * Warning: This file is generated.  Don't manually edit.
@@ -42,13 +43,13 @@ def main():
             fn read_u16<T: io::Read>(
                 mut stream: T) -> Result<u16>
             {
-                let mut narg : u16;
-                let mut arg_buffer = [0; 1];
+                let narg : u16;
+                let mut arg_buffer = [0; 2];
                 try!(stream.read_exact(&mut arg_buffer));
-                narg = arg_buffer[0] as u16;
-                try!(stream.read_exact(&mut arg_buffer));
-                narg |= (arg_buffer[0] as u16) << 8;
-                Ok(narg)
+                unsafe {
+                    narg = mem::transmute(arg_buffer);
+                }
+                Ok(u16::from_le(narg))
             }
 
             fn read_u8<T: io::Read>(
