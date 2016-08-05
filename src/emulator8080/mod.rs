@@ -73,7 +73,7 @@ fn twos_complement(value: u8) -> u8
 struct Emulator8080 {
     main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
-    _program_counter: u16
+    program_counter: u16
 }
 
 impl Emulator8080 {
@@ -82,7 +82,7 @@ impl Emulator8080 {
         let mut emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Register8080::Count as usize],
-            _program_counter: 0
+            program_counter: 0
         };
 
         emu.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
@@ -949,20 +949,68 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(Register8080::H, value1);
         self.set_register(Register8080::L, value2);
     }
+    fn load_program_counter(&mut self)
+    {
+        self.program_counter = self.read_register_pair(Register8080::H);
+    }
+    fn jump(&mut self, address: u16)
+    {
+        self.program_counter = address;
+    }
+    fn jump_if_carry(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Carry) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_no_carry(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Carry) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_zero(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Zero) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_not_zero(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Zero) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_minus(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Sign) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_positive(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Sign) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_parity_even(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Parity) {
+            self.jump(address);
+        }
+    }
+    fn jump_if_parity_odd(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Parity) {
+            self.jump(address);
+        }
+    }
 
     fn return_if_not_zero(&mut self)
     {
         panic!("Not Implemented")
     }
-    fn jump_if_parity_even(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn call_if_carry(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -971,14 +1019,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn call_if_parity_even(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump_if_positive(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump_if_zero(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1006,10 +1046,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn jump_if_parity_odd(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn call_if_no_carry(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
@@ -1034,15 +1070,7 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn load_program_counter(&mut self)
-    {
-        panic!("Not Implemented")
-    }
     fn return_if_minus(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump_if_carry(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1059,14 +1087,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn restart(&mut self, _implicit_data1: u8)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump_if_not_zero(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump_if_minus(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1091,10 +1111,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn not_implemented(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn jump_if_no_carry(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1912,18 +1928,167 @@ fn load_h_and_l_direct()
     assert_eq!(e.read_register_pair(Register8080::H), 0x1234);
 }
 
+#[test]
+fn load_program_counter()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0x1234);
+    e.load_program_counter();
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_carry_when_carry_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.jump_if_carry(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_carry_when_carry_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_carry(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+#[test]
+fn jump_if_no_carry_when_carry_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.jump_if_no_carry(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn jump_if_no_carry_when_carry_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_no_carry(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_zero_when_zero_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Zero, true);
+    e.jump_if_zero(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_zero_when_zero_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_zero(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+#[test]
+fn jump_if_not_zero_when_zero_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Zero, true);
+    e.jump_if_not_zero(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn jump_if_not_zero_when_zero_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_not_zero(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_minus_when_sign_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Sign, true);
+    e.jump_if_minus(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_minus_when_sign_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_minus(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+#[test]
+fn jump_if_positive_when_sign_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Sign, true);
+    e.jump_if_positive(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn jump_if_positive_when_sign_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_positive(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_parity_even_when_parity_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Parity, true);
+    e.jump_if_parity_even(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn jump_if_parity_even_when_parity_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_parity_even(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+#[test]
+fn jump_if_parity_odd_when_parity_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Parity, true);
+    e.jump_if_parity_odd(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn jump_if_parity_odd_when_parity_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.jump_if_parity_odd(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
 impl Emulator8080 {
     fn _run_opcode(&mut self)
     {
         let mut full_opcode = vec![];
         {
-            let pc = self._program_counter as usize;
+            let pc = self.program_counter as usize;
             let opcode = self.main_memory[pc];
             let size = opcode_size(opcode) as usize;
 
             full_opcode.resize(size, 0);
             full_opcode.clone_from_slice(&self.main_memory[pc..pc + size]);
-            self._program_counter += size as u16;
+            self.program_counter += size as u16;
         }
 
         dispatch_opcode(&full_opcode, self);
@@ -1931,7 +2096,7 @@ impl Emulator8080 {
 
     fn _run(&mut self)
     {
-        self._program_counter = ROM_ADDRESS as u16;
+        self.program_counter = ROM_ADDRESS as u16;
         loop {
             self._run_opcode();
         }
