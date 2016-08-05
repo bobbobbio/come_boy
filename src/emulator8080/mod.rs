@@ -765,61 +765,42 @@ impl InstructionSet8080 for Emulator8080 {
     fn add_to_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.add_to_register(Register8080::A, value, true /* update_carry */);
+        self.add_immediate_to_accumulator(value);
     }
     fn add_to_accumulator_with_carry(&mut self, register: Register8080)
     {
-        let mut value = self.read_register(register);
-        if self.read_flag(Flag8080::Carry) {
-            value = value.wrapping_add(1);
-        }
-        self.add_to_register(Register8080::A, value, true /* update_carry */);
+        let value = self.read_register(register);
+        self.add_immediate_to_accumulator_with_carry(value);
     }
     fn subtract_from_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.subtract_from_register_using_twos_complement(Register8080::A, value);
+        self.subtract_immediate_from_accumulator(value);
     }
     fn subtract_from_accumulator_with_borrow(&mut self, register: Register8080)
     {
-        let mut value = self.read_register(register);
-        if self.read_flag(Flag8080::Carry) {
-            value = value.wrapping_add(1);
-        }
-        self.subtract_from_register_using_twos_complement(Register8080::A, value);
+        let value = self.read_register(register);
+        self.subtract_immediate_from_accumulator_with_borrow(value);
     }
     fn logical_and_with_accumulator(&mut self, register: Register8080)
     {
-        let value1 = self.read_register(Register8080::A);
-        let value2 = self.read_register(register);
-        let new_value = value1 & value2;
-        self.set_register(Register8080::A, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::Carry, false);
+        let value = self.read_register(register);
+        self.and_immediate_with_accumulator(value);
     }
     fn logical_exclusive_or_with_accumulator(&mut self, register: Register8080)
     {
-        let value1 = self.read_register(Register8080::A);
-        let value2 = self.read_register(register);
-        let new_value = value1 ^ value2;
-        self.set_register(Register8080::A, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::Carry, false);
+        let value = self.read_register(register);
+        self.exclusive_or_immediate_with_accumulator(value);
     }
     fn logical_or_with_accumulator(&mut self, register: Register8080)
     {
-        let value1 = self.read_register(Register8080::A);
-        let value2 = self.read_register(register);
-        let new_value = value1 | value2;
-        self.set_register(Register8080::A, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::Carry, false);
+        let value = self.read_register(register);
+        self.or_immediate_with_accumulator(value);
     }
     fn compare_with_accumulator(&mut self, register: Register8080)
     {
-        let accumulator = self.read_register(Register8080::A);
         let value = self.read_register(register);
-        self.perform_subtraction_using_twos_complement(accumulator, value);
+        self.compare_immediate_with_accumulator(value);
     }
     fn rotate_accumulator_left(&mut self)
     {
@@ -896,37 +877,56 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn add_immediate_to_accumulator(&mut self, _data1: u8)
+    fn add_immediate_to_accumulator(&mut self, data: u8)
     {
-        panic!("Not Implemented")
+        self.add_to_register(Register8080::A, data, true /* update_carry */);
     }
-    fn add_immediate_to_accumulator_with_carry(&mut self, _data1: u8)
+    fn add_immediate_to_accumulator_with_carry(&mut self, mut data: u8)
     {
-        panic!("Not Implemented")
+        if self.read_flag(Flag8080::Carry) {
+            data = data.wrapping_add(1);
+        }
+        self.add_to_register(Register8080::A, data, true /* update_carry */);
     }
-    fn subtract_immediate_from_accumulator(&mut self, _data1: u8)
+    fn subtract_immediate_from_accumulator(&mut self, data: u8)
     {
-        panic!("Not Implemented")
+        self.subtract_from_register_using_twos_complement(Register8080::A, data);
     }
-    fn subtract_immediate_from_accumulator_with_borrow(&mut self, _data1: u8)
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, mut data: u8)
     {
-        panic!("Not Implemented")
+        if self.read_flag(Flag8080::Carry) {
+            data = data.wrapping_add(1);
+        }
+        self.subtract_from_register_using_twos_complement(Register8080::A, data);
     }
-    fn and_immediate_with_accumulator(&mut self, _data1: u8)
+    fn and_immediate_with_accumulator(&mut self, data: u8)
     {
-        panic!("Not Implemented")
+        let value = self.read_register(Register8080::A);
+        let new_value = value & data;
+        self.set_register(Register8080::A, new_value);
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
     }
-    fn exclusive_or_immediate_with_accumulator(&mut self, _data1: u8)
+    fn exclusive_or_immediate_with_accumulator(&mut self, data: u8)
     {
-        panic!("Not Implemented")
+        let value = self.read_register(Register8080::A);
+        let new_value = value ^ data;
+        self.set_register(Register8080::A, new_value);
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
     }
-    fn or_immediate_with_accumulator(&mut self, _data1: u8)
+    fn or_immediate_with_accumulator(&mut self, data: u8)
     {
-        panic!("Not Implemented")
+        let value = self.read_register(Register8080::A);
+        let new_value = value | data;
+        self.set_register(Register8080::A, new_value);
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
     }
-    fn compare_immediate_with_accumulator(&mut self, _data1: u8)
+    fn compare_immediate_with_accumulator(&mut self, data: u8)
     {
-        panic!("Not Implemented")
+        let accumulator = self.read_register(Register8080::A);
+        self.perform_subtraction_using_twos_complement(accumulator, data);
     }
 
     fn return_if_not_zero(&mut self)
