@@ -113,7 +113,7 @@ def main():
               L = 5,
               A = 6,
               FLAGS = 7, // Conatins all of the condition bits.
-              SP = 8,    // Stack Pointer
+              SP = 8,    // Stack Pointer (2 bytes)
               PSW = 10,  // Special fake register called 'Program Status Word'.
                          // It refers to register pair, A and FLAGS.
               M = 11,    // Special fake register called 'Memory'.  Represents
