@@ -2,7 +2,8 @@ pub mod opcodes;
 
 use std::mem;
 
-use emulator8080::opcodes::opcode_gen::{InstructionSet8080, Register8080, dispatch_opcode};
+use emulator8080::opcodes::opcode_gen::{
+    InstructionSet8080, Register8080, dispatch_opcode, opcode_size};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -71,7 +72,8 @@ fn twos_complement(value: u8) -> u8
 
 struct Emulator8080 {
     main_memory: [u8; MAX_ADDRESS + 1],
-    registers: [u8; Register8080::Count as usize]
+    registers: [u8; Register8080::Count as usize],
+    _program_counter: u8
 }
 
 impl Emulator8080 {
@@ -79,7 +81,8 @@ impl Emulator8080 {
     {
         let mut emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS + 1],
-            registers: [0; Register8080::Count as usize]
+            registers: [0; Register8080::Count as usize],
+            _program_counter: 0
         };
 
         emu.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
@@ -1653,9 +1656,10 @@ fn compare_with_accumulator_sets_sign()
 }
 
 impl Emulator8080 {
-    fn _run_opcode(&mut self, stream: &[u8]) -> u8
+    fn _run_opcode(&mut self, stream: &[u8])
     {
-        dispatch_opcode(stream, self)
+        self._program_counter += opcode_size(stream[self._program_counter as usize]);
+        dispatch_opcode(stream, self);
     }
 }
 

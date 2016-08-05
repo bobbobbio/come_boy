@@ -150,27 +150,39 @@ def main():
         out_file.write(textwrap.dedent('''
             pub fn dispatch_opcode<I: InstructionSet8080>(
                 mut stream: &[u8],
-                machine: &mut I) -> u8
+                machine: &mut I)
             {
-                let size;
                 match read_u8(&mut stream).ok().expect("") {
         '''))
 
         for opcode, info in opcode_dict.iteritems():
-            out_file.write('        {} => {{\n            '.format(opcode))
+            out_file.write('        {} => '.format(opcode))
             instr = info['instr']
             if instr == '-':
                 name = 'not_implemented'
             else:
                 name = info['desciption'].replace(' ', '_').lower()
-            out_file.write('machine.{}({}); '.format(
+            out_file.write('machine.{}({}),\n'.format(
                 name, ', '.join(read_args(info['args']))))
-            out_file.write('size = {}\n        }}\n'.format(info['size']))
 
         out_file.write(textwrap.dedent('''
                    _ => panic!("Unknown opcode")
               };
-              size
+           }
+        '''))
+
+        out_file.write(textwrap.dedent('''
+            pub fn opcode_size(opcode: u8) -> u8
+            {
+                match opcode {
+        '''))
+
+        for opcode, info in opcode_dict.iteritems():
+            out_file.write('        {} => {},\n'.format(opcode, info['size']))
+
+        out_file.write(textwrap.dedent('''
+                   _ => panic!("Unknown opcode")
+              }
            }
         '''))
 
@@ -183,9 +195,8 @@ def main():
 
         out_file.write(textwrap.dedent('''
             pub trait OpcodePrinter<'a> {
-                fn print_opcode(
-                    &mut self,
-                    stream: &[u8]) -> u8;
+                fn print_opcode(&mut self, stream: &[u8]);
+                fn opcode_size(&self, opcode: u8) -> u8;
             }
             pub trait OpcodePrinterFactory<'a> {
                 type Output: OpcodePrinter<'a>;
@@ -206,11 +217,13 @@ def main():
                 }
             }
             impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
-                fn print_opcode(
-                    &mut self,
-                    stream: &[u8]) -> u8
+                fn print_opcode(&mut self, stream: &[u8])
                 {
                     dispatch_opcode(stream, self)
+                }
+                fn opcode_size(&self, opcode: u8) -> u8
+                {
+                    opcode_size(opcode)
                 }
             }
             impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {

@@ -31,8 +31,9 @@ impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> 
             let mut formatted_op_buf: Vec<u8> = vec![];
             let size: u8;
             {
-                let mut d = self.opcode_printer_factory.new(&mut formatted_op_buf);
-                size = d.print_opcode(&self.rom[self.index as usize..]);
+                let mut opcode_printer = self.opcode_printer_factory.new(&mut formatted_op_buf);
+                size = opcode_printer.opcode_size(self.rom[self.index as usize]);
+                opcode_printer.print_opcode(&self.rom[self.index as usize..]);
             }
             let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
 
@@ -41,8 +42,9 @@ impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> 
                 raw_assembly.push_str(format!("{:02x} ", code).as_str());
             }
 
-            try!(write!(self.stream_out, "{:07x} {:9}{}\n",
-                self.index, raw_assembly, formatted_opcode));
+            try!(write!(self.stream_out,
+                "{:07x} {:9}{}\n", self.index, raw_assembly, formatted_opcode));
+
             self.index += size as u64;
         }
         Ok(())
@@ -63,24 +65,23 @@ struct TestOpcodePrinter<'a> {
 
 #[cfg(test)]
 impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
-    fn print_opcode(
-        &mut self,
-        stream: &[u8]) -> u8
+    fn print_opcode(&mut self, stream: &[u8])
     {
-        let size;
         match stream[0] {
-            0x1 => {
-                write!(self.stream_out, "TEST1").ok().expect(""); size = 1;
-            }
-            0x2 => {
-                write!(self.stream_out, "TEST2").ok().expect(""); size = 2;
-            }
-            0x3 => {
-                write!(self.stream_out, "TEST3").ok().expect(""); size = 3;
-            }
+            0x1 => write!(self.stream_out, "TEST1").ok().expect(""),
+            0x2 => write!(self.stream_out, "TEST2").ok().expect(""),
+            0x3 => write!(self.stream_out, "TEST3").ok().expect(""),
             _ => panic!("Unknown opcode")
-        };
-        size
+        }
+    }
+    fn opcode_size(&self, opcode: u8) -> u8
+    {
+        match opcode {
+            0x1 => 1,
+            0x2 => 2,
+            0x3 => 3,
+            _ => panic!("Unknown opcode")
+        }
     }
 }
 
