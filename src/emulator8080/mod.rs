@@ -73,7 +73,7 @@ fn twos_complement(value: u8) -> u8
 struct Emulator8080 {
     main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
-    _program_counter: u8
+    _program_counter: u16
 }
 
 impl Emulator8080 {
@@ -1656,13 +1656,51 @@ fn compare_with_accumulator_sets_sign()
 }
 
 impl Emulator8080 {
-    fn _run_opcode(&mut self, stream: &[u8])
+    fn _run_opcode(&mut self)
     {
-        self._program_counter += opcode_size(stream[self._program_counter as usize]);
-        dispatch_opcode(stream, self);
+        let mut full_opcode = vec![];
+        {
+            let pc = self._program_counter as usize;
+            let opcode = self.main_memory[pc];
+            let size = opcode_size(opcode) as usize;
+
+            full_opcode.resize(size, 0);
+            full_opcode.clone_from_slice(&self.main_memory[pc..pc + size]);
+            self._program_counter += size as u16;
+        }
+
+        dispatch_opcode(&full_opcode, self);
+    }
+
+    fn _run(&mut self)
+    {
+        self._program_counter = ROM_ADDRESS as u16;
+        loop {
+            self._run_opcode();
+        }
     }
 }
 
 pub fn run_emulator<'a>(rom: &'a [u8]) {
     let _e = Emulator8080::new(rom);
 }
+
+// This test is disabled, but when the emulation is complete, it should pass.
+//
+// #[cfg(test)]
+// use std::fs::File;
+// #[cfg(test)]
+// use std::io::Read;
+//
+// #[test]
+// fn cpu_diagnostic_8008() {
+//     // Load up the ROM
+//     let mut rom : Vec<u8> = vec![];
+//     {
+//         let mut file = File::open("cpudiag.bin").ok().expect("open fail");
+//         file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
+//     }
+//
+//     let mut emulator = Emulator8080::new(&rom);
+//     emulator._run();
+// }
