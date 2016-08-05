@@ -822,6 +822,36 @@ impl InstructionSet8080 for Emulator8080 {
         let value = self.read_register(register);
         self.perform_subtraction_using_twos_complement(accumulator, value);
     }
+    fn rotate_accumulator_left(&mut self)
+    {
+        let accumulator = self.read_register(Register8080::A);
+        let rotated_bit = (accumulator & 0b10000000) >> 7;
+        self.set_register(Register8080::A, (accumulator << 1) | rotated_bit);
+        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+    }
+    fn rotate_accumulator_right(&mut self)
+    {
+        let accumulator = self.read_register(Register8080::A);
+        let rotated_bit = accumulator & 0x1;
+        self.set_register(Register8080::A, (accumulator >> 1) | (rotated_bit << 7));
+        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+    }
+    fn rotate_accumulator_left_through_carry(&mut self)
+    {
+        let accumulator = self.read_register(Register8080::A);
+        let rotated_bit = (accumulator & 0b10000000) >> 7;
+        let carry = self.read_flag(Flag8080::Carry);
+        self.set_register(Register8080::A, (accumulator << 1) | if carry { 0x01 } else { 0x0 });
+        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+    }
+    fn rotate_accumulator_right_through_carry(&mut self)
+    {
+        let accumulator = self.read_register(Register8080::A);
+        let rotated_bit = accumulator & 0x1;
+        let carry = self.read_flag(Flag8080::Carry);
+        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+        self.set_register(Register8080::A, (accumulator >> 1) | if carry { 0x80 } else { 0x0 });
+    }
 
     fn return_if_not_zero(&mut self)
     {
@@ -887,10 +917,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn rotate_accumulator_left_through_carry(&mut self)
-    {
-        panic!("Not Implemented")
-    }
     fn load_sp_from_h_and_l(&mut self)
     {
         panic!("Not Implemented")
@@ -928,10 +954,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn exchange_registers(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn rotate_accumulator_right(&mut self)
     {
         panic!("Not Implemented")
     }
@@ -1055,19 +1077,11 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn rotate_accumulator_left(&mut self)
-    {
-        panic!("Not Implemented")
-    }
     fn load_accumulator_direct(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
     fn exchange_stack(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn rotate_accumulator_right_through_carry(&mut self)
     {
         panic!("Not Implemented")
     }
@@ -1653,6 +1667,144 @@ fn compare_with_accumulator_sets_sign()
     e.compare_with_accumulator(Register8080::E);
 
     assert!(e.read_flag(Flag8080::Sign));
+}
+
+#[test]
+fn rotate_accumulator_left_carry_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b10100111);
+    e.rotate_accumulator_left();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01001111);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_left_carry_cleared()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0b00100111);
+    e.rotate_accumulator_left();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01001110);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_right_carry_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b10100111);
+    e.rotate_accumulator_right();
+
+    assert_eq!(e.read_register(Register8080::A), 0b11010011);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_right_carry_cleared()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0b10100110);
+    e.rotate_accumulator_right();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01010011);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_left_through_carry_and_carry_set_to_reset()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0b01100111);
+    e.rotate_accumulator_left_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b11001111);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_left_through_carry_and_carry_stays_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0b10100111);
+    e.rotate_accumulator_left_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01001111);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_left_through_carry_and_carry_reset_to_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b10100111);
+    e.rotate_accumulator_left_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01001110);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_left_through_carry_and_carry_stays_reset()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b00100111);
+    e.rotate_accumulator_left_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01001110);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_right_through_carry_and_carry_set_to_unset()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0b10100110);
+    e.rotate_accumulator_right_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b11010011);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_right_through_carry_and_carry_stays_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0b10100111);
+    e.rotate_accumulator_right_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b11010011);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_right_through_carry_and_carry_reset_to_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b10100111);
+    e.rotate_accumulator_right_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01010011);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn rotate_accumulator_right_through_carry_and_carry_stays_reset()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0b10100110);
+    e.rotate_accumulator_right_through_carry();
+
+    assert_eq!(e.read_register(Register8080::A), 0b01010011);
+    assert!(!e.read_flag(Flag8080::Carry));
 }
 
 impl Emulator8080 {
