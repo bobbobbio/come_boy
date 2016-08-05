@@ -873,9 +873,13 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
 
-    fn move_immediate_data(&mut self, _register1: Register8080, _data2: u8)
+    fn load_register_pair_immediate(&mut self, register: Register8080, data: u16)
     {
-        panic!("Not Implemented")
+        self.set_register_pair(register, data);
+    }
+    fn move_immediate_data(&mut self, dest_register: Register8080, data: u8)
+    {
+        self.set_register(dest_register, data);
     }
     fn add_immediate_to_accumulator(&mut self, data: u8)
     {
@@ -1075,10 +1079,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn call_if_minus(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn load_register_pair_immediate(&mut self, _register1: Register8080, _data2: u16)
     {
         panic!("Not Implemented")
     }
@@ -1888,6 +1888,22 @@ fn pop_psw_from_stack()
     e.pop_data_off_stack(Register8080::PSW);
     assert_eq!(e.read_register_pair(Register8080::PSW), 0x7899);
     assert_eq!(e.read_register(Register8080::SP), 0x20 + 2);
+}
+
+#[test]
+fn load_register_pair_immediate()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.load_register_pair_immediate(Register8080::B, 0x1234);
+    assert_eq!(e.read_register_pair(Register8080::B), 0x1234);
+}
+
+#[test]
+fn move_immediate_data()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.move_immediate_data(Register8080::E, 0xF1);
+    assert_eq!(e.read_register(Register8080::E), 0xF1);
 }
 
 #[test]
