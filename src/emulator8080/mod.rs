@@ -134,7 +134,6 @@ impl Emulator8080 {
         }
     }
 
-    #[cfg(test)]
     fn set_register_pair(&mut self, register: Register8080, value: u16)
     {
         *self.get_register_pair(register) = u16::to_be(value);
@@ -852,16 +851,27 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
         self.set_register(Register8080::A, (accumulator >> 1) | if carry { 0x80 } else { 0x0 });
     }
+    fn push_data_onto_stack(&mut self, register_pair: Register8080)
+    {
+        let sp = self.read_register(Register8080::SP) as usize;
+        let pair_data = self.read_register_pair(register_pair);
+        self.main_memory[sp - 1] = ((pair_data & 0xFF00) >> 8) as u8;
+        self.main_memory[sp - 2] = (pair_data & 0x00FF) as u8;
+        self.set_register(Register8080::SP, (sp - 2) as u8);
+    }
+    fn pop_data_off_stack(&mut self, register_pair: Register8080)
+    {
+        let sp = self.read_register(Register8080::SP) as usize;
+        let pair_data = self.main_memory[sp - 2] as u16 | (self.main_memory[sp - 1] as u16) << 8;
+        self.set_register_pair(register_pair, pair_data);
+        self.set_register(Register8080::SP, (sp + 2) as u8);
+    }
 
     fn return_if_not_zero(&mut self)
     {
         panic!("Not Implemented")
     }
     fn add_immediate_to_accumulator(&mut self, _data1: u8)
-    {
-        panic!("Not Implemented")
-    }
-    fn pop_data_off_stack(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
     }
@@ -1058,10 +1068,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn not_implemented(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn push_data_onto_stack(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
     }
@@ -1805,6 +1811,56 @@ fn rotate_accumulator_right_through_carry_and_carry_stays_reset()
 
     assert_eq!(e.read_register(Register8080::A), 0b01010011);
     assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn push_register_pair_onto_stack()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::B, 0x34);
+    e.set_register(Register8080::C, 0xA7);
+    e.set_register(Register8080::SP, 0x20);
+    e.push_data_onto_stack(Register8080::B);
+    assert_eq!(e.main_memory[0x20 - 1], 0x34);
+    assert_eq!(e.main_memory[0x20 - 2], 0xA7);
+    assert_eq!(e.read_register(Register8080::SP), 0x20 - 2);
+}
+
+#[test]
+fn push_psw_onto_stack()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0x34);
+    e.set_register(Register8080::FLAGS, 0xA7);
+    e.set_register(Register8080::SP, 0x20);
+    e.push_data_onto_stack(Register8080::PSW);
+    assert_eq!(e.main_memory[0x20 - 1], 0x34);
+    assert_eq!(e.main_memory[0x20 - 2], 0xA7);
+    assert_eq!(e.read_register(Register8080::SP), 0x20 - 2);
+}
+
+#[test]
+fn pop_register_pair_from_stack()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.main_memory[0x20 - 1] = 0x78;
+    e.main_memory[0x20 - 2] = 0xF2;
+    e.set_register(Register8080::SP, 0x20);
+    e.pop_data_off_stack(Register8080::B);
+    assert_eq!(e.read_register_pair(Register8080::B), 0x78F2);
+    assert_eq!(e.read_register(Register8080::SP), 0x20 + 2);
+}
+
+#[test]
+fn pop_psw_from_stack()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.main_memory[0x20 - 1] = 0x78;
+    e.main_memory[0x20 - 2] = 0x99;
+    e.set_register(Register8080::SP, 0x20);
+    e.pop_data_off_stack(Register8080::PSW);
+    assert_eq!(e.read_register_pair(Register8080::PSW), 0x7899);
+    assert_eq!(e.read_register(Register8080::SP), 0x20 + 2);
 }
 
 impl Emulator8080 {
