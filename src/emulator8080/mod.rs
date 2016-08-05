@@ -928,6 +928,27 @@ impl InstructionSet8080 for Emulator8080 {
         let accumulator = self.read_register(Register8080::A);
         self.perform_subtraction_using_twos_complement(accumulator, data);
     }
+    fn store_accumulator_direct(&mut self, address: u16)
+    {
+        self.main_memory[address as usize] = self.read_register(Register8080::A);
+    }
+    fn load_accumulator_direct(&mut self, address: u16)
+    {
+        let value = self.main_memory[address as usize];
+        self.set_register(Register8080::A, value);
+    }
+    fn store_h_and_l_direct(&mut self, address: u16)
+    {
+        self.main_memory[address as usize] = self.read_register(Register8080::H);
+        self.main_memory[address as usize + 1] = self.read_register(Register8080::L);
+    }
+    fn load_h_and_l_direct(&mut self, address: u16)
+    {
+        let value1 = self.main_memory[address as usize];
+        let value2 = self.main_memory[address as usize + 1];
+        self.set_register(Register8080::H, value1);
+        self.set_register(Register8080::L, value2);
+    }
 
     fn return_if_not_zero(&mut self)
     {
@@ -970,10 +991,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn call_if_parity_odd(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn load_h_and_l_direct(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1045,10 +1062,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn store_accumulator_direct(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn jump_if_not_zero(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
@@ -1077,10 +1090,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn store_h_and_l_direct(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn not_implemented(&mut self)
     {
         panic!("Not Implemented")
@@ -1090,10 +1099,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn sim(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn load_accumulator_direct(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1867,6 +1872,44 @@ fn pop_psw_from_stack()
     e.pop_data_off_stack(Register8080::PSW);
     assert_eq!(e.read_register_pair(Register8080::PSW), 0x7899);
     assert_eq!(e.read_register(Register8080::SP), 0x20 + 2);
+}
+
+#[test]
+fn store_accumulator_direct()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register(Register8080::A, 0x8F);
+    e.store_accumulator_direct(0x1234);
+    assert_eq!(e.main_memory[0x1234], 0x8F);
+}
+
+#[test]
+fn load_accumulator_direct()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.main_memory[0x1234] = 0x8F;
+    e.load_accumulator_direct(0x1234);
+    assert_eq!(e.read_register(Register8080::A), 0x8F);
+}
+
+#[test]
+fn store_h_and_l_direct()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0x1234);
+    e.store_h_and_l_direct(0x8888);
+    assert_eq!(e.main_memory[0x8888], 0x12);
+    assert_eq!(e.main_memory[0x8889], 0x34);
+}
+
+#[test]
+fn load_h_and_l_direct()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.main_memory[0x8888] = 0x12;
+    e.main_memory[0x8889] = 0x34;
+    e.load_h_and_l_direct(0x8888);
+    assert_eq!(e.read_register_pair(Register8080::H), 0x1234);
 }
 
 impl Emulator8080 {
