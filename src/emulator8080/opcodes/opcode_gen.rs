@@ -38,7 +38,6 @@ pub enum Register8080 {
     A = 6,
     FLAGS = 7, // Conatins all of the condition bits.
     SP = 8,    // Stack Pointer
-    PC = 9,    // Program Counter
     PSW = 10,  // Special fake register called 'Program Status Word'.
                // It refers to register pair, A and FLAGS.
     M = 11,    // Special fake register called 'Memory'.  Represents
@@ -59,22 +58,23 @@ pub trait InstructionSet8080 {
     fn jump(&mut self, address1: u16);
     fn subtract_from_accumulator(&mut self, register1: Register8080);
     fn rim(&mut self);
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8);
     fn call_if_parity_even(&mut self, address1: u16);
     fn jump_if_positive(&mut self, address1: u16);
     fn logical_exclusive_or_with_accumulator(&mut self, register1: Register8080);
     fn move_data(&mut self, register1: Register8080, register2: Register8080);
     fn no_instruction(&mut self);
-    fn disable_interrupts(&mut self);
+    fn halt(&mut self);
     fn set_carry(&mut self);
     fn compare_with_accumulator(&mut self, register1: Register8080);
     fn call_if_not_zero(&mut self, address1: u16);
     fn call_if_parity_odd(&mut self, address1: u16);
     fn subtract_immediate_from_accumulator(&mut self, data1: u8);
     fn rotate_accumulator_left_through_carry(&mut self);
+    fn disable_interrupts(&mut self);
     fn load_sp_from_h_and_l(&mut self);
     fn logical_and_with_accumulator(&mut self, register1: Register8080);
     fn load_h_and_l_direct(&mut self, address1: u16);
-    fn add_immediate_with_accumulator(&mut self, data1: u8);
     fn exclusive_or_immediate_with_accumulator(&mut self, data1: u8);
     fn call(&mut self, address1: u16);
     fn enable_interrupts(&mut self);
@@ -89,7 +89,7 @@ pub trait InstructionSet8080 {
     fn call_if_no_carry(&mut self, address1: u16);
     fn return_if_parity_even(&mut self);
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8);
-    fn halt(&mut self);
+    fn and_immediate_with_accumulator(&mut self, data1: u8);
     fn call_if_plus(&mut self, address1: u16);
     fn increment_register_or_memory(&mut self, register1: Register8080);
     fn compare_immediate_with_accumulator(&mut self, data1: u8);
@@ -214,7 +214,7 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
         0xac => machine.logical_exclusive_or_with_accumulator(Register8080::H),
         0xab => machine.logical_exclusive_or_with_accumulator(Register8080::E),
         0xaa => machine.logical_exclusive_or_with_accumulator(Register8080::D),
-        0xe6 => machine.add_immediate_with_accumulator(read_u8(&mut stream).ok().expect("")),
+        0xe6 => machine.and_immediate_with_accumulator(read_u8(&mut stream).ok().expect("")),
         0xea => machine.jump_if_parity_even(read_u16(&mut stream).ok().expect("")),
         0x4a => machine.move_data(Register8080::C, Register8080::D),
         0x4b => machine.move_data(Register8080::C, Register8080::E),
@@ -352,7 +352,7 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
         0x1c => machine.increment_register_or_memory(Register8080::E),
         0x1b => machine.decrement_register_pair(Register8080::D),
         0x1a => machine.load_accumulator(Register8080::D),
-        0xde => machine.subtract_immediate_from_accumulator(read_u8(&mut stream).ok().expect("")),
+        0xde => machine.subtract_immediate_from_accumulator_with_borrow(read_u8(&mut stream).ok().expect("")),
         0xdf => machine.restart(3 as u8),
         0xd1 => machine.pop_data_off_stack(Register8080::D),
         0xd2 => machine.jump_if_no_carry(read_u16(&mut stream).ok().expect("")),
@@ -750,6 +750,11 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     {
         write!(self.stream_out, "{:04}", "RIM").ok().expect("Failed to Write to Stream");
     }
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8)
+    {
+        write!(self.stream_out, "{:04}", "SBI").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+    }
     fn call_if_parity_even(&mut self, address1: u16)
     {
         write!(self.stream_out, "{:04}", "CPE").ok().expect("Failed to Write to Stream");
@@ -775,9 +780,9 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     {
         write!(self.stream_out, "{:04}", "NOP").ok().expect("Failed to Write to Stream");
     }
-    fn disable_interrupts(&mut self)
+    fn halt(&mut self)
     {
-        write!(self.stream_out, "{:04}", "DI").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "HLT").ok().expect("Failed to Write to Stream");
     }
     fn set_carry(&mut self)
     {
@@ -807,6 +812,10 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     {
         write!(self.stream_out, "{:04}", "RAL").ok().expect("Failed to Write to Stream");
     }
+    fn disable_interrupts(&mut self)
+    {
+        write!(self.stream_out, "{:04}", "DI").ok().expect("Failed to Write to Stream");
+    }
     fn load_sp_from_h_and_l(&mut self)
     {
         write!(self.stream_out, "{:04}", "SPHL").ok().expect("Failed to Write to Stream");
@@ -820,11 +829,6 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     {
         write!(self.stream_out, "{:04}", "LHLD").ok().expect("Failed to Write to Stream");
         write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
-    }
-    fn add_immediate_with_accumulator(&mut self, data1: u8)
-    {
-        write!(self.stream_out, "{:04}", "ANI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data1: u8)
     {
@@ -891,9 +895,10 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "ACI").ok().expect("Failed to Write to Stream");
         write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
     }
-    fn halt(&mut self)
+    fn and_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "HLT").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ANI").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
     }
     fn call_if_plus(&mut self, address1: u16)
     {

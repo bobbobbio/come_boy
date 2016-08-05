@@ -867,7 +867,32 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(Register8080::SP, (sp + 2) as u8);
     }
 
-    fn return_if_not_zero(&mut self)
+    fn double_add(&mut self, _register1: Register8080)
+    {
+        panic!("Not Implemented")
+    }
+    fn increment_register_pair(&mut self, _register1: Register8080)
+    {
+        panic!("Not Implemented")
+    }
+    fn decrement_register_pair(&mut self, _register1: Register8080)
+    {
+        panic!("Not Implemented")
+    }
+    fn exchange_registers(&mut self)
+    {
+        panic!("Not Implemented")
+    }
+    fn exchange_stack(&mut self)
+    {
+        panic!("Not Implemented")
+    }
+    fn load_sp_from_h_and_l(&mut self)
+    {
+        panic!("Not Implemented")
+    }
+
+    fn move_immediate_data(&mut self, _register1: Register8080, _data2: u8)
     {
         panic!("Not Implemented")
     }
@@ -875,15 +900,40 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn jump_if_parity_even(&mut self, _address1: u16)
+    fn add_immediate_to_accumulator_with_carry(&mut self, _data1: u8)
     {
         panic!("Not Implemented")
     }
-    fn double_add(&mut self, _register1: Register8080)
+    fn subtract_immediate_from_accumulator(&mut self, _data1: u8)
+    {
+        panic!("Not Implemented")
+    }
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, _data1: u8)
+    {
+        panic!("Not Implemented")
+    }
+    fn and_immediate_with_accumulator(&mut self, _data1: u8)
+    {
+        panic!("Not Implemented")
+    }
+    fn exclusive_or_immediate_with_accumulator(&mut self, _data1: u8)
     {
         panic!("Not Implemented")
     }
     fn or_immediate_with_accumulator(&mut self, _data1: u8)
+    {
+        panic!("Not Implemented")
+    }
+    fn compare_immediate_with_accumulator(&mut self, _data1: u8)
+    {
+        panic!("Not Implemented")
+    }
+
+    fn return_if_not_zero(&mut self)
+    {
+        panic!("Not Implemented")
+    }
+    fn jump_if_parity_even(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -923,23 +973,7 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn subtract_immediate_from_accumulator(&mut self, _data1: u8)
-    {
-        panic!("Not Implemented")
-    }
-    fn load_sp_from_h_and_l(&mut self)
-    {
-        panic!("Not Implemented")
-    }
     fn load_h_and_l_direct(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn add_immediate_with_accumulator(&mut self, _data1: u8)
-    {
-        panic!("Not Implemented")
-    }
-    fn exclusive_or_immediate_with_accumulator(&mut self, _data1: u8)
     {
         panic!("Not Implemented")
     }
@@ -956,14 +990,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn jump_if_parity_odd(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn increment_register_pair(&mut self, _register1: Register8080)
-    {
-        panic!("Not Implemented")
-    }
-    fn exchange_registers(&mut self)
     {
         panic!("Not Implemented")
     }
@@ -991,10 +1017,6 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn compare_immediate_with_accumulator(&mut self, _data1: u8)
-    {
-        panic!("Not Implemented")
-    }
     fn load_program_counter(&mut self)
     {
         panic!("Not Implemented")
@@ -1012,14 +1034,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn load_register_pair_immediate(&mut self, _register1: Register8080, _data2: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn move_immediate_data(&mut self, _register1: Register8080, _data2: u8)
-    {
-        panic!("Not Implemented")
-    }
-    fn add_immediate_to_accumulator_with_carry(&mut self, _data1: u8)
     {
         panic!("Not Implemented")
     }
@@ -1079,15 +1093,7 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn decrement_register_pair(&mut self, _register1: Register8080)
-    {
-        panic!("Not Implemented")
-    }
     fn load_accumulator_direct(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn exchange_stack(&mut self)
     {
         panic!("Not Implemented")
     }
