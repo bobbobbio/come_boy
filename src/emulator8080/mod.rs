@@ -226,6 +226,22 @@ impl Emulator8080 {
         let new_value = self.perform_subtraction_using_twos_complement(old_value, value);
         self.set_register(register, new_value);
     }
+
+    fn push_u16_onto_stack(&mut self, data: u16)
+    {
+        let sp = self.read_register_pair(Register8080::SP) as usize;
+        self.main_memory[sp - 1] = (data >> 8) as u8;
+        self.main_memory[sp - 2] = (data & 0x00FF) as u8;
+        self.set_register_pair(Register8080::SP, (sp - 2) as u16);
+    }
+
+    fn pop_u16_off_stack(&mut self) -> u16
+    {
+        let sp = self.read_register_pair(Register8080::SP) as usize;
+        let data = self.main_memory[sp] as u16 | (self.main_memory[sp + 1] as u16) << 8;
+        self.set_register_pair(Register8080::SP, (sp + 2) as u16);
+        return data;
+    }
 }
 
 /*
@@ -662,6 +678,17 @@ fn subtract_from_register_using_twos_complement_sets_auxiliary_carry()
     assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
 }
 
+#[test]
+fn push_and_pop_data()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.push_u16_onto_stack(0x1234);
+    e.push_u16_onto_stack(0xAABB);
+    assert_eq!(e.pop_u16_off_stack(), 0xAABB);
+    assert_eq!(e.pop_u16_off_stack(), 0x1234);
+}
+
 /*
  *  ___           _                   _   _
  * |_ _|_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
@@ -835,18 +862,13 @@ impl InstructionSet8080 for Emulator8080 {
     }
     fn push_data_onto_stack(&mut self, register_pair: Register8080)
     {
-        let sp = self.read_register_pair(Register8080::SP) as usize;
         let pair_data = self.read_register_pair(register_pair);
-        self.main_memory[sp - 1] = ((pair_data & 0xFF00) >> 8) as u8;
-        self.main_memory[sp - 2] = (pair_data & 0x00FF) as u8;
-        self.set_register_pair(Register8080::SP, (sp - 2) as u16);
+        self.push_u16_onto_stack(pair_data);
     }
     fn pop_data_off_stack(&mut self, register_pair: Register8080)
     {
-        let sp = self.read_register_pair(Register8080::SP) as usize;
-        let pair_data = self.main_memory[sp - 2] as u16 | (self.main_memory[sp - 1] as u16) << 8;
+        let pair_data = self.pop_u16_off_stack();
         self.set_register_pair(register_pair, pair_data);
-        self.set_register_pair(Register8080::SP, (sp + 2) as u16);
     }
 
     fn double_add(&mut self, _register1: Register8080)
@@ -1010,6 +1032,12 @@ impl InstructionSet8080 for Emulator8080 {
             self.jump(address);
         }
     }
+    fn call(&mut self, address: u16)
+    {
+        let pc = self.program_counter;
+        self.push_u16_onto_stack(pc);
+        self.jump(address);
+    }
 
     fn return_if_not_zero(&mut self)
     {
@@ -1036,10 +1064,6 @@ impl InstructionSet8080 for Emulator8080 {
         panic!("Not Implemented")
     }
     fn call_if_parity_odd(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn call(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1871,8 +1895,8 @@ fn push_psw_onto_stack()
 fn pop_register_pair_from_stack()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    e.main_memory[0x20 - 1] = 0x78;
-    e.main_memory[0x20 - 2] = 0xF2;
+    e.main_memory[0x20] = 0xF2;
+    e.main_memory[0x20 + 1] = 0x78;
     e.set_register_pair(Register8080::SP, 0x20);
     e.pop_data_off_stack(Register8080::B);
     assert_eq!(e.read_register_pair(Register8080::B), 0x78F2);
@@ -1883,8 +1907,8 @@ fn pop_register_pair_from_stack()
 fn pop_psw_from_stack()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
-    e.main_memory[0x20 - 1] = 0x78;
-    e.main_memory[0x20 - 2] = 0x99;
+    e.main_memory[0x20] = 0x99;
+    e.main_memory[0x20 + 1] = 0x78;
     e.set_register_pair(Register8080::SP, 0x20);
     e.pop_data_off_stack(Register8080::PSW);
     assert_eq!(e.read_register_pair(Register8080::PSW), 0x7899);
@@ -2092,6 +2116,17 @@ fn jump_if_parity_odd_when_parity_is_not_set()
     let mut e = Emulator8080::new(vec![].as_slice());
     e.jump_if_parity_odd(0x1234);
     assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn call()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.program_counter = 0xFF88;
+    e.call(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+    assert_eq!(e.pop_u16_off_stack(), 0xFF88);
 }
 
 impl Emulator8080 {
