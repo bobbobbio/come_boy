@@ -211,6 +211,14 @@ impl Emulator8080 {
         self.set_register(register, new_value);
     }
 
+    fn add_to_register_pair(&mut self, register: Register8080, value: u16)
+    {
+        let old_value = self.read_register_pair(register);
+        let new_value = old_value.wrapping_add(value);
+        self.set_register_pair(register, new_value);
+        self.set_flag(Flag8080::Carry, value > (0xFFFF - old_value));
+    }
+
     fn subtract_from_register(&mut self, register: Register8080, value: u8)
     {
         let old_value = self.read_register(register);
@@ -505,6 +513,67 @@ fn add_to_register_doesnt_update_carry_flag()
     add_to_register_test(&mut e, Register8080::B, 0x01, 1, false /* update carry */);
 
     assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_to_register_pair_adds_under_a_byte()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register_pair(Register8080::B, 0xAABB);
+    e.add_to_register_pair(Register8080::B, 0x0009);
+    assert_eq!(e.read_register_pair(Register8080::B), 0xAAC4);
+}
+
+#[test]
+fn add_to_register_pair_adds_over_a_byte()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register_pair(Register8080::B, 0xAABB);
+    e.add_to_register_pair(Register8080::B, 0x0101);
+    assert_eq!(e.read_register_pair(Register8080::B), 0xABBC);
+}
+
+#[test]
+fn add_to_register_pair_adds_negative()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register_pair(Register8080::B, 0xAAB9);
+    e.add_to_register_pair(Register8080::B, twos_complement(0x0003));
+    assert_eq!(e.read_register_pair(Register8080::B), 0xAAB6);
+}
+
+#[test]
+fn add_to_register_pair_overflows()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register_pair(Register8080::B, 0xFFFF);
+    e.add_to_register_pair(Register8080::B, twos_complement(0x0001));
+    assert_eq!(e.read_register_pair(Register8080::B), 0x0000);
+}
+
+#[test]
+fn add_to_register_pair_sets_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_register_pair(Register8080::B, 0xFFFF);
+    e.add_to_register_pair(Register8080::B, twos_complement(0x0001));
+    assert_eq!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_to_register_pair_clears_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register_pair(Register8080::B, 0x000F);
+    e.add_to_register_pair(Register8080::B, twos_complement(0x0001));
+    assert_eq!(!e.read_flag(Flag8080::Carry));
 }
 
 #[cfg(test)]
@@ -870,11 +939,12 @@ impl InstructionSet8080 for Emulator8080 {
         let pair_data = self.pop_u16_off_stack();
         self.set_register_pair(register_pair, pair_data);
     }
-
-    fn double_add(&mut self, _register1: Register8080)
+    fn double_add(&mut self, register: Register8080)
     {
-        panic!("Not Implemented")
+        let pair_data_a = self.read_register_pair(register);
+        self.add_to_register_pair(Register8080::H, pair_data_a);
     }
+
     fn increment_register_pair(&mut self, _register1: Register8080)
     {
         panic!("Not Implemented")
