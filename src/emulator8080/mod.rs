@@ -1078,12 +1078,11 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(Register8080::H, mem_1);
         self.set_register(Register8080::L, mem_2);
     }
-
     fn load_sp_from_h_and_l(&mut self)
     {
-        panic!("Not Implemented")
+        let h_data = self.read_register_pair(Register8080::H);
+        self.set_register_pair(Register8080::SP, h_data);
     }
-
     fn load_register_pair_immediate(&mut self, register: Register8080, data: u16)
     {
         self.set_register_pair(register, data);
@@ -2176,6 +2175,15 @@ fn exchange_stack()
     assert_eq!(e.read_register_pair(Register8080::H), 0xCCBB);
     assert_eq!(e.main_memory[0x1234], 0xEE);
     assert_eq!(e.main_memory[0x1235], 0xDD);
+}
+
+#[test]
+fn load_sp_from_h_and_l()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xDDEE);
+    e.load_sp_from_h_and_l();
+    assert_eq!(e.read_register_pair(Register8080::SP), 0xDDEE);
 }
 
 #[test]
