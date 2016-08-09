@@ -253,6 +253,12 @@ impl Emulator8080 {
         }
     }
 
+    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
+    {
+        let old_value = self.read_register_pair(register);
+        self.set_register_pair(register, old_value.wrapping_sub(value));
+    }
+
     fn subtract_from_register(&mut self, register: Register8080, value: u8)
     {
         let old_value = self.read_register(register);
@@ -641,6 +647,33 @@ fn add_to_register_pair_clears_carry()
 }
 
 #[cfg(test)]
+fn subtract_from_register_pair_test(
+    e: &mut Emulator8080,
+    register: Register8080,
+    starting_value: u16,
+    delta: u16)
+{
+    e.set_register_pair(register, starting_value);
+    e.subtract_from_register_pair(register, delta);
+}
+
+#[test]
+fn subtract_from_register_pair_subtracts()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_pair_test(&mut e, Register8080::B, 0x000F, 0x0001);
+    assert_eq!(e.read_register_pair(Register8080::B), 0x000E);
+}
+
+#[test]
+fn subtract_from_register_pair_underflows()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_pair_test(&mut e, Register8080::B, 0x0000, 0x0001);
+    assert_eq!(e.read_register_pair(Register8080::B), 0xFFFF);
+}
+
+#[cfg(test)]
 fn subtract_from_register_test(
     e: &mut Emulator8080,
     register: Register8080,
@@ -1021,11 +1054,11 @@ impl InstructionSet8080 for Emulator8080 {
     {
         self.add_to_register_pair(register, 1, false /* update carry */);
     }
-
-    fn decrement_register_pair(&mut self, _register1: Register8080)
+    fn decrement_register_pair(&mut self, register: Register8080)
     {
-        panic!("Not Implemented")
+        self.subtract_from_register_pair(register, 1);
     }
+
     fn exchange_registers(&mut self)
     {
         panic!("Not Implemented")
@@ -2094,6 +2127,15 @@ fn increment_register_pair_doesnt_update_carry()
     e.set_register_pair(Register8080::H, 0xFFFF);
     e.increment_register_pair(Register8080::H);
     assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn decrement_register_pair()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xFBCD);
+    e.decrement_register_pair(Register8080::H);
+    assert_eq!(e.read_register_pair(Register8080::H), 0xFBCC);
 }
 
 #[test]
