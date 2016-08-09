@@ -56,9 +56,33 @@ fn calculate_parity_zero_is_even_parity()
     assert_eq!(calculate_parity(0b00000000), true);
 }
 
-fn twos_complement(value: u8) -> u8
+
+trait TwosComplement<T> {
+    fn twos_complement(self) -> T;
+}
+
+impl TwosComplement<u8> for u8 {
+    fn twos_complement(self) -> u8 {
+        (!self).wrapping_add(1)
+    }
+}
+
+impl TwosComplement<u16> for u16 {
+    fn twos_complement(self) -> u16 {
+        (!self).wrapping_add(1)
+    }
+}
+
+#[test]
+fn twos_complement_u8()
 {
-    (!value).wrapping_add(1)
+    assert_eq!(0b00001010u8.twos_complement(), 0b11110110u8);
+}
+
+#[test]
+fn twos_complement_u16()
+{
+    assert_eq!(0b0111000000001010u16.twos_complement(), 0b1000111111110110u16);
 }
 
 /*
@@ -199,8 +223,16 @@ impl Emulator8080 {
         value_b: u8) -> u8
     {
         let new_value = self.perform_addition(
-            value_a, twos_complement(value_b), true /* update carry */);
-        self.flip_flag(Flag8080::Carry);
+            value_a, value_b.twos_complement(), true /* update carry */);
+
+        /*
+         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
+         * the result is positive.  If the Carry bit is set, the result is negative and present in
+         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
+         * "borrow."
+         */
+        self.set_flag(Flag8080::Carry, new_value & 0b10000000 != 0);
+
         return new_value;
     }
 
@@ -516,6 +548,18 @@ fn add_to_register_doesnt_update_carry_flag()
 }
 
 #[test]
+fn add_to_register_clears_carry_with_negative_numbers()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+
+    e.set_flag(Flag8080::Carry, true);
+    add_to_register_test(
+        &mut e, Register8080::B, 0x0C, 0x0F.twos_complement(), true /* update carry */);
+
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
 fn add_to_register_pair_adds_under_a_byte()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
@@ -541,7 +585,7 @@ fn add_to_register_pair_adds_negative()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_register_pair(Register8080::B, 0xAAB9);
-    e.add_to_register_pair(Register8080::B, twos_complement(0x0003));
+    e.add_to_register_pair(Register8080::B, 0x0003.twos_complement());
     assert_eq!(e.read_register_pair(Register8080::B), 0xAAB6);
 }
 
@@ -551,7 +595,7 @@ fn add_to_register_pair_overflows()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_register_pair(Register8080::B, 0xFFFF);
-    e.add_to_register_pair(Register8080::B, twos_complement(0x0001));
+    e.add_to_register_pair(Register8080::B, 0x0001);
     assert_eq!(e.read_register_pair(Register8080::B), 0x0000);
 }
 
@@ -561,8 +605,8 @@ fn add_to_register_pair_sets_carry()
     let mut e = Emulator8080::new(vec![].as_slice());
 
     e.set_register_pair(Register8080::B, 0xFFFF);
-    e.add_to_register_pair(Register8080::B, twos_complement(0x0001));
-    assert_eq!(e.read_flag(Flag8080::Carry));
+    e.add_to_register_pair(Register8080::B, 0x0001.twos_complement());
+    assert!(e.read_flag(Flag8080::Carry));
 }
 
 #[test]
@@ -572,8 +616,8 @@ fn add_to_register_pair_clears_carry()
 
     e.set_flag(Flag8080::Carry, true);
     e.set_register_pair(Register8080::B, 0x000F);
-    e.add_to_register_pair(Register8080::B, twos_complement(0x0001));
-    assert_eq!(!e.read_flag(Flag8080::Carry));
+    e.add_to_register_pair(Register8080::B, 0x0001);
+    assert!(!e.read_flag(Flag8080::Carry));
 }
 
 #[cfg(test)]
@@ -691,8 +735,8 @@ fn subtract_from_register_using_twos_complement_positive_from_negative()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     subtract_from_register_using_twos_complement_test(
-        &mut e, Register8080::C, twos_complement(0x09), 0x02);
-    assert_eq!(e.read_register(Register8080::C), twos_complement(0x0B));
+        &mut e, Register8080::C, 0x09.twos_complement(), 0x02);
+    assert_eq!(e.read_register(Register8080::C), 0x0B.twos_complement());
 }
 
 #[test]
@@ -700,7 +744,7 @@ fn subtract_from_register_using_twos_complement_negative_from_positive()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     subtract_from_register_using_twos_complement_test(
-        &mut e, Register8080::C, 0x09, twos_complement(0x02));
+        &mut e, Register8080::C, 0x09, 0x02.twos_complement());
     assert_eq!(e.read_register(Register8080::C), 0x0B);
 }
 
@@ -709,8 +753,17 @@ fn subtract_from_register_using_twos_complement_negative_from_negative()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     subtract_from_register_using_twos_complement_test(
-        &mut e, Register8080::C, twos_complement(0x09), twos_complement(0x02));
-    assert_eq!(e.read_register(Register8080::C), twos_complement(0x07));
+        &mut e, Register8080::C, 0x09.twos_complement(), 0x02.twos_complement());
+    assert_eq!(e.read_register(Register8080::C), 0x07.twos_complement());
+}
+
+#[test]
+fn subtract_from_register_using_twos_complement_negative_from_negative_sets_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    subtract_from_register_using_twos_complement_test(
+        &mut e, Register8080::C, 0x08.twos_complement(), 0x04);
+    assert!(e.read_flag(Flag8080::Carry));
 }
 
 #[test]
@@ -718,7 +771,7 @@ fn subtract_from_register_using_twos_complement_clears_carry()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
     e.set_flag(Flag8080::Carry, true);
-    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0x88, 4);
+    subtract_from_register_using_twos_complement_test(&mut e, Register8080::C, 0x08, 0x04);
     assert!(!e.read_flag(Flag8080::Carry));
 }
 
