@@ -1225,12 +1225,56 @@ impl InstructionSet8080 for Emulator8080 {
         self.push_u16_onto_stack(pc);
         self.jump(address);
     }
+    fn call_if_carry(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Carry) {
+            self.call(address);
+        }
+    }
+    fn call_if_no_carry(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Carry) {
+            self.call(address);
+        }
+    }
+    fn call_if_zero(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Zero) {
+            self.call(address);
+        }
+    }
+    fn call_if_not_zero(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Zero) {
+            self.call(address);
+        }
+    }
+    fn call_if_minus(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Sign) {
+            self.call(address);
+        }
+    }
+    fn call_if_plus(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Sign) {
+            self.call(address);
+        }
+    }
+    fn call_if_parity_even(&mut self, address: u16)
+    {
+        if self.read_flag(Flag8080::Parity) {
+            self.call(address);
+        }
+    }
+    fn call_if_parity_odd(&mut self, address: u16)
+    {
+        if !self.read_flag(Flag8080::Parity) {
+            self.call(address);
+        }
+    }
 
     fn return_if_not_zero(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn call_if_carry(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1238,19 +1282,7 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn call_if_parity_even(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn disable_interrupts(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn call_if_not_zero(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
-    fn call_if_parity_odd(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1262,15 +1294,7 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn call_if_no_carry(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn return_if_parity_even(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn call_if_zero(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -1282,15 +1306,7 @@ impl InstructionSet8080 for Emulator8080 {
     {
         panic!("Not Implemented")
     }
-    fn call_if_plus(&mut self, _address1: u16)
-    {
-        panic!("Not Implemented")
-    }
     fn return_if_minus(&mut self)
-    {
-        panic!("Not Implemented")
-    }
-    fn call_if_minus(&mut self, _address1: u16)
     {
         panic!("Not Implemented")
     }
@@ -2398,6 +2414,120 @@ fn call()
     e.call(0x1234);
     assert_eq!(e.program_counter, 0x1234);
     assert_eq!(e.pop_u16_off_stack(), 0xFF88);
+}
+
+#[test]
+fn call_if_carry_when_carry_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.set_flag(Flag8080::Carry, true);
+    e.call_if_carry(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn call_if_carry_when_carry_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.call_if_carry(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn call_if_zero_when_zero_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.set_flag(Flag8080::Zero, true);
+    e.call_if_zero(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn call_if_zero_when_zero_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.call_if_zero(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn call_if_minus_when_sign_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.set_flag(Flag8080::Sign, true);
+    e.call_if_minus(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn call_if_minus_when_sign_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.call_if_minus(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn call_if_plus_when_sign_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.set_flag(Flag8080::Sign, true);
+    e.call_if_plus(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn call_if_plus_when_sign_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.call_if_plus(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn call_if_parity_even_when_parity_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.set_flag(Flag8080::Parity, true);
+    e.call_if_parity_even(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
+}
+
+#[test]
+fn call_if_parity_even_when_parity_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.call_if_parity_even(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn call_if_parity_odd_when_parity_is_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.set_flag(Flag8080::Parity, true);
+    e.call_if_parity_odd(0x1234);
+    assert_eq!(e.program_counter, 0x0);
+}
+
+#[test]
+fn call_if_parity_odd_when_parity_is_not_set()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.call_if_parity_odd(0x1234);
+    assert_eq!(e.program_counter, 0x1234);
 }
 
 impl Emulator8080 {
