@@ -1,9 +1,11 @@
 pub mod opcodes;
 
 use std::mem;
+use std::collections::HashMap;
 
-use emulator8080::opcodes::opcode_gen::{
-    InstructionSet8080, Register8080, dispatch_opcode, opcode_size};
+use emulator8080::opcodes::opcode_gen::{InstructionSet8080, Register8080};
+#[cfg(test)]
+use emulator8080::opcodes::opcode_gen::{dispatch_opcode, opcode_size};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -94,19 +96,21 @@ fn twos_complement_u16()
  *
  */
 
-struct Emulator8080 {
+struct Emulator8080<'a> {
     main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
-    program_counter: u16
+    program_counter: u16,
+    call_table: HashMap<u16, &'a mut FnMut(&mut Emulator8080)>,
 }
 
-impl Emulator8080 {
-    fn new(rom: &[u8]) -> Emulator8080
+impl<'a> Emulator8080<'a> {
+    fn new(rom: &[u8]) -> Emulator8080<'a>
     {
         let mut emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Register8080::Count as usize],
-            program_counter: 0
+            program_counter: 0,
+            call_table: HashMap::new()
         };
 
         emu.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
@@ -115,16 +119,23 @@ impl Emulator8080 {
     }
 
     #[cfg(test)]
-    fn new_for_test() -> Emulator8080
+    fn new_for_test() -> Emulator8080<'a>
     {
         let mut emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Register8080::Count as usize],
-            program_counter: 0
+            program_counter: 0,
+            call_table: HashMap::new()
         };
         emu.set_register_pair(Register8080::SP, 0x0400);
 
         return emu;
+    }
+
+    #[cfg(test)]
+    fn add_routine<F: FnMut(&mut Emulator8080)>(&mut self, address: u16, func: &'a mut F)
+    {
+        self.call_table.insert(address, func);
     }
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)
@@ -885,7 +896,7 @@ fn push_and_pop_data()
  *
  */
 
-impl InstructionSet8080 for Emulator8080 {
+impl<'a> InstructionSet8080 for Emulator8080<'a> {
     fn complement_carry(&mut self)
     {
         self.flip_flag(Flag8080::Carry);
@@ -919,7 +930,7 @@ impl InstructionSet8080 for Emulator8080 {
 
         let accumulator = self.read_register(Register8080::A);
         if accumulator & 0x0F > 9 || self.read_flag(Flag8080::AuxiliaryCarry) {
-            self.add_to_register(Register8080::A, 6, true /* update carry */);
+            self.add_to_register(Register8080::A, 6, false /* update carry */);
         }
         let auxiliary_carry = self.read_flag(Flag8080::AuxiliaryCarry);
 
@@ -1132,6 +1143,7 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(Register8080::A, new_value);
         self.update_flags_for_new_value(new_value);
         self.set_flag(Flag8080::Carry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data: u8)
     {
@@ -1140,6 +1152,7 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(Register8080::A, new_value);
         self.update_flags_for_new_value(new_value);
         self.set_flag(Flag8080::Carry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
     }
     fn or_immediate_with_accumulator(&mut self, data: u8)
     {
@@ -1148,11 +1161,18 @@ impl InstructionSet8080 for Emulator8080 {
         self.set_register(Register8080::A, new_value);
         self.update_flags_for_new_value(new_value);
         self.set_flag(Flag8080::Carry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
     }
     fn compare_immediate_with_accumulator(&mut self, data: u8)
     {
         let accumulator = self.read_register(Register8080::A);
         self.perform_subtraction_using_twos_complement(accumulator, data);
+        /*
+         * When the two operands differ in sign, the sense of the carry flag is reversed.
+         */
+        if accumulator & 0x80 != data & 0x80 {
+            self.flip_flag(Flag8080::Carry);
+        }
     }
     fn store_accumulator_direct(&mut self, address: u16)
     {
@@ -1165,15 +1185,15 @@ impl InstructionSet8080 for Emulator8080 {
     }
     fn store_h_and_l_direct(&mut self, address: u16)
     {
-        self.main_memory[address as usize] = self.read_register(Register8080::H);
-        self.main_memory[address as usize + 1] = self.read_register(Register8080::L);
+        self.main_memory[address as usize] = self.read_register(Register8080::L);
+        self.main_memory[address as usize + 1] = self.read_register(Register8080::H);
     }
     fn load_h_and_l_direct(&mut self, address: u16)
     {
         let value1 = self.main_memory[address as usize];
         let value2 = self.main_memory[address as usize + 1];
-        self.set_register(Register8080::H, value1);
-        self.set_register(Register8080::L, value2);
+        self.set_register(Register8080::L, value1);
+        self.set_register(Register8080::H, value2);
     }
     fn load_program_counter(&mut self)
     {
@@ -1233,9 +1253,18 @@ impl InstructionSet8080 for Emulator8080 {
     }
     fn call(&mut self, address: u16)
     {
-        let pc = self.program_counter;
-        self.push_u16_onto_stack(pc);
-        self.jump(address);
+        let lookup = self.call_table.remove(&address);
+        match lookup {
+            Some(func) => {
+                func(self);
+                self.call_table.insert(address, func);
+            },
+            None => {
+                let pc = self.program_counter;
+                self.push_u16_onto_stack(pc);
+                self.jump(address);
+            }
+        }
     }
     fn call_if_carry(&mut self, address: u16)
     {
@@ -1534,6 +1563,43 @@ fn decimal_adjust_accumulator_high_bits_increment_only()
     assert_eq!(e.read_register(Register8080::A), 0xA0u8.wrapping_add(6 << 4));
     assert!(e.read_flag(Flag8080::Carry));
     assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn decimal_adjust_accumulator_carry_set()
+{
+    let mut e = Emulator8080::new_for_test();
+
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0x01);
+    e.decimal_adjust_accumulator();
+
+    assert_eq!(e.read_register(Register8080::A), 0x61);
+}
+
+#[test]
+fn decimal_adjust_accumulator_auxilliary_carry_set()
+{
+    let mut e = Emulator8080::new_for_test();
+
+    e.set_flag(Flag8080::AuxiliaryCarry, true);
+    e.set_register(Register8080::A, 0x01);
+    e.decimal_adjust_accumulator();
+
+    assert_eq!(e.read_register(Register8080::A), 0x07);
+}
+
+#[test]
+fn decimal_adjust_accumulator_carry_and_auxilliary_carry_set()
+{
+    let mut e = Emulator8080::new_for_test();
+
+    e.set_flag(Flag8080::Carry, true);
+    e.set_flag(Flag8080::AuxiliaryCarry, true);
+    e.set_register(Register8080::A, 0x10);
+    e.decimal_adjust_accumulator();
+
+    assert_eq!(e.read_register(Register8080::A), 0x76);
 }
 
 #[test]
@@ -1908,6 +1974,45 @@ fn compare_with_accumulator_sets_carry()
 }
 
 #[test]
+fn compare_with_accumulator_clears_carry_when_signs_differ()
+{
+    let mut e = Emulator8080::new_for_test();
+
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0xF5);
+    e.set_register(Register8080::E, 0x00);
+    e.compare_with_accumulator(Register8080::E);
+
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn compare_with_accumulator_clears_sets_when_signs_differ()
+{
+    let mut e = Emulator8080::new_for_test();
+
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0x00);
+    e.set_register(Register8080::E, 0xF5);
+    e.compare_with_accumulator(Register8080::E);
+
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn compare_with_accumulator_clears_zero_when_compared_with_zero()
+{
+    let mut e = Emulator8080::new_for_test();
+
+    e.set_flag(Flag8080::Carry, true);
+    e.set_register(Register8080::A, 0xF5);
+    e.set_register(Register8080::E, 0x00);
+    e.compare_with_accumulator(Register8080::E);
+
+    assert!(!e.read_flag(Flag8080::Zero));
+}
+
+#[test]
 fn compare_with_accumulator_clears_zero()
 {
     let mut e = Emulator8080::new_for_test();
@@ -2270,16 +2375,27 @@ fn store_h_and_l_direct()
     let mut e = Emulator8080::new_for_test();
     e.set_register_pair(Register8080::H, 0x1234);
     e.store_h_and_l_direct(0x8888);
-    assert_eq!(e.main_memory[0x8888], 0x12);
-    assert_eq!(e.main_memory[0x8889], 0x34);
+    assert_eq!(e.main_memory[0x8889], 0x12);
+    assert_eq!(e.main_memory[0x8888], 0x34);
 }
 
 #[test]
 fn load_h_and_l_direct()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x8888] = 0x12;
-    e.main_memory[0x8889] = 0x34;
+    e.main_memory[0x8889] = 0x12;
+    e.main_memory[0x8888] = 0x34;
+    e.load_h_and_l_direct(0x8888);
+    assert_eq!(e.read_register_pair(Register8080::H), 0x1234);
+}
+
+#[test]
+fn store_and_load_h_and_l()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.set_register_pair(Register8080::H, 0x1234);
+    e.store_h_and_l_direct(0x8888);
+    e.set_register_pair(Register8080::H, 0x0);
     e.load_h_and_l_direct(0x8888);
     assert_eq!(e.read_register_pair(Register8080::H), 0x1234);
 }
@@ -2708,8 +2824,9 @@ fn return_if_parity_odd_when_parity_is_not_set()
     assert_eq!(e.program_counter, 0x22FF);
 }
 
-impl Emulator8080 {
-    fn _run_opcode(&mut self)
+#[cfg(test)]
+impl<'a> Emulator8080<'a> {
+    fn run_opcode(&mut self)
     {
         let mut full_opcode = vec![];
         {
@@ -2725,11 +2842,11 @@ impl Emulator8080 {
         dispatch_opcode(&full_opcode, self);
     }
 
-    fn _run(&mut self)
+    fn run(&mut self)
     {
         self.program_counter = ROM_ADDRESS as u16;
-        loop {
-            self._run_opcode();
+        while self.program_counter != 0 {
+            self.run_opcode();
         }
     }
 }
@@ -2738,22 +2855,60 @@ pub fn run_emulator<'a>(rom: &'a [u8]) {
     let _e = Emulator8080::new(rom);
 }
 
-// This test is disabled, but when the emulation is complete, it should pass.
-//
-// #[cfg(test)]
-// use std::fs::File;
-// #[cfg(test)]
-// use std::io::Read;
-//
-// #[test]
-// fn cpu_diagnostic_8008() {
-//     // Load up the ROM
-//     let mut rom : Vec<u8> = vec![];
-//     {
-//         let mut file = File::open("cpudiag.bin").ok().expect("open fail");
-//         file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
-//     }
-//
-//     let mut emulator = Emulator8080::new(&rom);
-//     emulator._run();
-// }
+#[cfg(test)]
+use std::fs::File;
+
+#[cfg(test)]
+use std::io::{self, Read};
+
+#[cfg(test)]
+use std::str;
+
+#[cfg(test)]
+fn console_print(e: &mut Emulator8080, stream: &mut io::Write)
+{
+    match e.read_register(Register8080::C) {
+        9 => {
+            let mut msg_addr = e.read_register_pair(Register8080::D) as usize;
+            while e.main_memory[msg_addr] != '$' as u8 {
+                write!(stream, "{}", e.main_memory[msg_addr] as char).ok().expect("");
+                msg_addr += 1;
+            }
+        },
+        2 => {
+            write!(stream, "{}", e.read_register(Register8080::E) as char).ok().expect("");
+        },
+        op => panic!("{} unknown print operation", op)
+    }
+}
+
+/*
+ * This test runs a ROM entitled "MICROCOSM ASSOCIATES 8080/8085 CPU DIAGNOSTIC" stored in
+ * cpudiag.bin.  It tests most the instructions, and when an instruction doesn't behave the way it
+ * is suppose to, it will print out the address where it failed.
+ */
+#[test]
+fn cpu_diagnostic_8080() {
+    // Load up the ROM
+    let mut rom : Vec<u8> = vec![];
+    {
+        let mut file = File::open("cpudiag.bin").ok().expect("open fail");
+        file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
+    }
+
+    let mut console_buffer: Vec<u8> = vec![];
+    {
+        let mut console_print_closure =
+            |e: &mut Emulator8080| console_print(e, &mut console_buffer);
+
+        let mut emulator = Emulator8080::new(&rom);
+        // The program write to the console via a routine at address 0x0005
+        emulator.add_routine(0x0005, &mut console_print_closure);
+        emulator.run();
+    }
+    let ascii_output = str::from_utf8(&console_buffer).ok().expect("");
+
+    // When we see this string it means the program succeeded.  When it fails, we see
+    // 'CPU HAS FAILED! EXIT=xxxx' where xxxx is the address it failed at.
+    assert_eq!(ascii_output, "\u{c}\r\n CPU IS OPERATIONAL");
+}
