@@ -1058,15 +1058,27 @@ impl InstructionSet8080 for Emulator8080 {
     {
         self.subtract_from_register_pair(register, 1);
     }
-
     fn exchange_registers(&mut self)
     {
-        panic!("Not Implemented")
+        let pair_h = self.read_register_pair(Register8080::H);
+        let pair_d = self.read_register_pair(Register8080::D);
+        self.set_register_pair(Register8080::H, pair_d);
+        self.set_register_pair(Register8080::D, pair_h);
     }
     fn exchange_stack(&mut self)
     {
-        panic!("Not Implemented")
+        let h_data = self.read_register(Register8080::H);
+        let l_data = self.read_register(Register8080::L);
+        let sp = self.read_register_pair(Register8080::SP) as usize;
+        let mem_1 = self.main_memory[sp + 1];
+        let mem_2 = self.main_memory[sp];
+
+        self.main_memory[sp + 1] = h_data;
+        self.main_memory[sp] = l_data;
+        self.set_register(Register8080::H, mem_1);
+        self.set_register(Register8080::L, mem_2);
     }
+
     fn load_sp_from_h_and_l(&mut self)
     {
         panic!("Not Implemented")
@@ -2136,6 +2148,34 @@ fn decrement_register_pair()
     e.set_register_pair(Register8080::H, 0xFBCD);
     e.decrement_register_pair(Register8080::H);
     assert_eq!(e.read_register_pair(Register8080::H), 0xFBCC);
+}
+
+#[test]
+fn exchange_registers()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xFBCD);
+    e.set_register_pair(Register8080::D, 0x1122);
+    e.exchange_registers();
+    assert_eq!(e.read_register_pair(Register8080::H), 0x1122);
+    assert_eq!(e.read_register_pair(Register8080::D), 0xFBCD);
+}
+
+#[test]
+fn exchange_stack()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::SP, 0x1234);
+    e.main_memory[0x1234] = 0xBB;
+    e.main_memory[0x1235] = 0xCC;
+    e.set_register_pair(Register8080::H, 0xDDEE);
+
+    e.exchange_stack();
+
+    assert_eq!(e.read_register_pair(Register8080::SP), 0x1234);
+    assert_eq!(e.read_register_pair(Register8080::H), 0xCCBB);
+    assert_eq!(e.main_memory[0x1234], 0xEE);
+    assert_eq!(e.main_memory[0x1235], 0xDD);
 }
 
 #[test]
