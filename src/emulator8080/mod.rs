@@ -2039,6 +2039,26 @@ fn pop_psw_from_stack()
 }
 
 #[test]
+fn double_add()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xABCD);
+    e.set_register_pair(Register8080::B, 0x1001);
+    e.double_add(Register8080::B);
+    assert_eq!(e.read_register_pair(Register8080::H), 0xBBCE);
+}
+
+#[test]
+fn double_add_updates_carry()
+{
+    let mut e = Emulator8080::new(vec![].as_slice());
+    e.set_register_pair(Register8080::H, 0xFBCD);
+    e.set_register_pair(Register8080::B, 0x1000);
+    e.double_add(Register8080::B);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
 fn load_register_pair_immediate()
 {
     let mut e = Emulator8080::new(vec![].as_slice());
