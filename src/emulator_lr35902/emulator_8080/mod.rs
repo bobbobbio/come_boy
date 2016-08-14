@@ -327,8 +327,18 @@ impl<'a> Emulator8080<'a> {
         self.program_counter
     }
 
-    fn set_program_counter(&mut self, value: u16) {
-        self.program_counter = value;
+    fn set_program_counter(&mut self, address: u16) {
+        self.program_counter = address;
+
+        let lookup = self.call_table.remove(&address);
+        match lookup {
+            Some(func) => {
+                func(self);
+                self.call_table.insert(address, func);
+                self.return_unconditionally();
+            },
+            None => ()
+        }
     }
 }
 
@@ -1274,18 +1284,9 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
     }
     fn call(&mut self, address: u16)
     {
-        let lookup = self.call_table.remove(&address);
-        match lookup {
-            Some(func) => {
-                func(self);
-                self.call_table.insert(address, func);
-            },
-            None => {
-                let pc = self.read_program_counter();
-                self.push_u16_onto_stack(pc);
-                self.jump(address);
-            }
-        }
+        let pc = self.read_program_counter();
+        self.push_u16_onto_stack(pc);
+        self.jump(address);
     }
     fn call_if_carry(&mut self, address: u16)
     {
