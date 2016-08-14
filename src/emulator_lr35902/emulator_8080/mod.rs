@@ -322,6 +322,14 @@ impl<'a> Emulator8080<'a> {
         self.set_register_pair(Register8080::SP, (sp + 2) as u16);
         return data;
     }
+
+    fn read_program_counter(&mut self) -> u16 {
+        self.program_counter
+    }
+
+    fn set_program_counter(&mut self, value: u16) {
+        self.program_counter = value;
+    }
 }
 
 /*
@@ -1209,11 +1217,12 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
     }
     fn load_program_counter(&mut self)
     {
-        self.program_counter = self.read_register_pair(Register8080::H);
+        let value = self.read_register_pair(Register8080::H);
+        self.set_program_counter(value);
     }
     fn jump(&mut self, address: u16)
     {
-        self.program_counter = address;
+        self.set_program_counter(address);
     }
     fn jump_if_carry(&mut self, address: u16)
     {
@@ -1272,7 +1281,7 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
                 self.call_table.insert(address, func);
             },
             None => {
-                let pc = self.program_counter;
+                let pc = self.read_program_counter();
                 self.push_u16_onto_stack(pc);
                 self.jump(address);
             }
@@ -1328,7 +1337,8 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
     }
     fn return_unconditionally(&mut self)
     {
-        self.program_counter = self.pop_u16_off_stack();
+        let address = self.pop_u16_off_stack();
+        self.set_program_counter(address);
     }
     fn return_if_carry(&mut self)
     {
