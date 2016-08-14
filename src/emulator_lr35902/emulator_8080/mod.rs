@@ -3,9 +3,9 @@ pub mod opcodes;
 use std::mem;
 use std::collections::HashMap;
 
-use emulator_lr35902::emulator8080::opcodes::opcode_gen::{InstructionSet8080, Register8080};
+use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{InstructionSet8080, Register8080};
 #[cfg(test)]
-use emulator_lr35902::emulator8080::opcodes::opcode_gen::{dispatch_opcode, opcode_size};
+use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{dispatch_opcode, opcode_size};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;

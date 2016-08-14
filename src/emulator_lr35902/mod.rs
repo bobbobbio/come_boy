@@ -1,1 +1,1 @@
-pub mod emulator8080;
+pub mod emulator_8080;
