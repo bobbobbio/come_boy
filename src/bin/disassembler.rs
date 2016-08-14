@@ -5,7 +5,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::Read;
 
-use come_boy::emulator8080;
+use come_boy::emulator_lr35902::emulator8080;
 
 fn main()
 {

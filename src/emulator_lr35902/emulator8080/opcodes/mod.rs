@@ -3,7 +3,7 @@ use std::str;
 
 pub mod opcode_gen;
 
-use emulator8080::opcodes::opcode_gen::{OpcodePrinter, OpcodePrinterFactory8080};
+use emulator_lr35902::emulator8080::opcodes::opcode_gen::{OpcodePrinter, OpcodePrinterFactory8080};
 
 struct Disassembler<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> {
     index: u64,
