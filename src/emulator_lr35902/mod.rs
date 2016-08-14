@@ -1,21 +1,30 @@
 pub mod emulator_8080;
 
+use std::cmp;
 use emulator_lr35902::emulator_8080::{Emulator8080, InstructionSetOps, Flag8080};
 use emulator_lr35902::emulator_8080::opcodes::opcode_gen::Register8080;
 
-struct _EmulatorLR35902<'a> {
+const ROM_ADDRESS: usize = 0x0100;
+const LCD_ADDRESS: usize = 0x8000;
+
+struct EmulatorLR35902<'a> {
     e8080: Emulator8080<'a>,
 }
 
-impl<'a> _EmulatorLR35902<'a> {
-    fn _new(rom: &[u8]) -> _EmulatorLR35902<'a> {
-        return _EmulatorLR35902 {
-            e8080: Emulator8080::new(rom)
+impl<'a> EmulatorLR35902<'a> {
+    fn new() -> EmulatorLR35902<'a> {
+        return EmulatorLR35902 {
+            e8080: Emulator8080::new()
         };
+    }
+
+    fn load_rom(&mut self, rom: &[u8]) {
+        let end = cmp::min(ROM_ADDRESS + rom.len(), LCD_ADDRESS);
+        self.e8080.main_memory[ROM_ADDRESS..end].clone_from_slice(rom);
     }
 }
 
-impl<'a> InstructionSetOps for _EmulatorLR35902<'a> {
+impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
     fn read_memory(&self, address: u16) -> u8 {
         self.e8080.read_memory(address)
     }
@@ -103,4 +112,18 @@ impl<'a> InstructionSetOps for _EmulatorLR35902<'a> {
     {
         self.e8080.set_program_counter(address);
     }
+}
+
+impl<'a> EmulatorLR35902<'a> {
+    fn run(&mut self)
+    {
+        self.e8080.run();
+    }
+}
+
+pub fn run_emulator(rom: &[u8])
+{
+    let mut e = EmulatorLR35902::new();
+    e.load_rom(&rom);
+    e.run();
 }

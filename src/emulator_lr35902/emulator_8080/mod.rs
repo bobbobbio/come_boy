@@ -3,9 +3,8 @@ pub mod opcodes;
 use std::mem;
 use std::collections::HashMap;
 
-use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{InstructionSet8080, Register8080};
-#[cfg(test)]
-use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{dispatch_opcode, opcode_size};
+use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{
+    InstructionSet8080, Register8080, dispatch_opcode, opcode_size};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -118,23 +117,21 @@ pub trait InstructionSetOps {
  */
 
 pub struct Emulator8080<'a> {
-    main_memory: [u8; MAX_ADDRESS + 1],
+    pub main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
     program_counter: u16,
     call_table: HashMap<u16, &'a mut FnMut(&mut Emulator8080)>,
 }
 
 impl<'a> Emulator8080<'a> {
-    pub fn new(rom: &[u8]) -> Emulator8080<'a>
+    pub fn new() -> Emulator8080<'a>
     {
-        let mut emu = Emulator8080 {
+        let emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Register8080::Count as usize],
             program_counter: 0,
             call_table: HashMap::new()
         };
-
-        emu.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
 
         return emu;
     }
@@ -157,6 +154,11 @@ impl<'a> Emulator8080<'a> {
     fn add_routine<F: FnMut(&mut Emulator8080)>(&mut self, address: u16, func: &'a mut F)
     {
         self.call_table.insert(address, func);
+    }
+
+    #[cfg(test)]
+    fn load_rom(&mut self, rom: &[u8]) {
+        self.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
     }
 
     fn get_register_pair(&mut self, register: Register8080) -> &mut u16
@@ -2868,7 +2870,6 @@ fn return_if_parity_odd_when_parity_is_not_set()
     assert_eq!(e.program_counter, 0x22FF);
 }
 
-#[cfg(test)]
 impl<'a> Emulator8080<'a> {
     fn run_opcode(&mut self)
     {
@@ -2886,17 +2887,13 @@ impl<'a> Emulator8080<'a> {
         dispatch_opcode(&full_opcode, self);
     }
 
-    fn run(&mut self)
+    pub fn run(&mut self)
     {
         self.program_counter = ROM_ADDRESS as u16;
         while self.program_counter != 0 {
             self.run_opcode();
         }
     }
-}
-
-pub fn run_emulator<'a>(rom: &'a [u8]) {
-    let _e = Emulator8080::new(rom);
 }
 
 #[cfg(test)]
@@ -2945,7 +2942,8 @@ fn cpu_diagnostic_8080() {
         let mut console_print_closure =
             |e: &mut Emulator8080| console_print(e, &mut console_buffer);
 
-        let mut emulator = Emulator8080::new(&rom);
+        let mut emulator = Emulator8080::new();
+        emulator.load_rom(&rom);
         // The program write to the console via a routine at address 0x0005
         emulator.add_routine(0x0005, &mut console_print_closure);
         emulator.run();
