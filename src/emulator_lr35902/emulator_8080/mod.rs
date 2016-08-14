@@ -138,6 +138,14 @@ impl<'a> Emulator8080<'a> {
         self.call_table.insert(address, func);
     }
 
+    fn read_memory(&self, address: u16) -> u8 {
+        self.main_memory[address as usize]
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8) {
+        self.main_memory[address as usize] = value;
+    }
+
     fn set_flag(&mut self, flag: Flag8080, value: bool)
     {
         if value {
@@ -979,13 +987,14 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
     }
     fn store_accumulator(&mut self, register_pair: Register8080)
     {
-        let address = self.read_register_pair(register_pair) as usize;
-        self.main_memory[address] = self.read_register(Register8080::A);
+        let address = self.read_register_pair(register_pair);
+        let value = self.read_register(Register8080::A);
+        self.set_memory(address, value);
     }
     fn load_accumulator(&mut self, register_pair: Register8080)
     {
-        let address = self.read_register_pair(register_pair) as usize;
-        let value = self.main_memory[address];
+        let address = self.read_register_pair(register_pair);
+        let value = self.read_memory(address);
         self.set_register(Register8080::A, value);
     }
     fn add_to_accumulator(&mut self, register: Register8080)
@@ -1092,12 +1101,12 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
     {
         let h_data = self.read_register(Register8080::H);
         let l_data = self.read_register(Register8080::L);
-        let sp = self.read_register_pair(Register8080::SP) as usize;
-        let mem_1 = self.main_memory[sp + 1];
-        let mem_2 = self.main_memory[sp];
+        let sp = self.read_register_pair(Register8080::SP);
+        let mem_1 = self.read_memory(sp + 1);
+        let mem_2 = self.read_memory(sp);
 
-        self.main_memory[sp + 1] = h_data;
-        self.main_memory[sp] = l_data;
+        self.set_memory(sp + 1, h_data);
+        self.set_memory(sp, l_data);
         self.set_register(Register8080::H, mem_1);
         self.set_register(Register8080::L, mem_2);
     }
@@ -1176,22 +1185,25 @@ impl<'a> InstructionSet8080 for Emulator8080<'a> {
     }
     fn store_accumulator_direct(&mut self, address: u16)
     {
-        self.main_memory[address as usize] = self.read_register(Register8080::A);
+        let value = self.read_register(Register8080::A);
+        self.set_memory(address, value);
     }
     fn load_accumulator_direct(&mut self, address: u16)
     {
-        let value = self.main_memory[address as usize];
+        let value = self.read_memory(address);
         self.set_register(Register8080::A, value);
     }
     fn store_h_and_l_direct(&mut self, address: u16)
     {
-        self.main_memory[address as usize] = self.read_register(Register8080::L);
-        self.main_memory[address as usize + 1] = self.read_register(Register8080::H);
+        let value_l = self.read_register(Register8080::L);
+        let value_h = self.read_register(Register8080::H);
+        self.set_memory(address, value_l);
+        self.set_memory(address + 1, value_h);
     }
     fn load_h_and_l_direct(&mut self, address: u16)
     {
-        let value1 = self.main_memory[address as usize];
-        let value2 = self.main_memory[address as usize + 1];
+        let value1 = self.read_memory(address);
+        let value2 = self.read_memory(address + 1);
         self.set_register(Register8080::L, value1);
         self.set_register(Register8080::H, value2);
     }
@@ -1640,7 +1652,7 @@ fn move_data_moves_to_memory()
     e.set_register_pair(Register8080::H, 0x2BE9);
     e.move_data(Register8080::M, Register8080::A);
 
-    assert_eq!(e.main_memory[0x2BE9], 0xBE);
+    assert_eq!(e.read_memory(0x2BE9), 0xBE);
 }
 
 #[test]
@@ -1651,7 +1663,7 @@ fn store_accumulator_at_address_in_b()
     e.set_register_pair(Register8080::B, 0x3F16);
     e.store_accumulator(Register8080::B);
 
-    assert_eq!(e.main_memory[0x3F16], 0xAF);
+    assert_eq!(e.read_memory(0x3F16), 0xAF);
 }
 
 #[test]
@@ -1662,14 +1674,14 @@ fn store_accumulator_at_address_in_d()
     e.set_register_pair(Register8080::D, 0x3F16);
     e.store_accumulator(Register8080::D);
 
-    assert_eq!(e.main_memory[0x3F16], 0xAF);
+    assert_eq!(e.read_memory(0x3F16), 0xAF);
 }
 
 #[test]
 fn load_accumulator_from_address_in_b()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x9388] = 0xAF;
+    e.set_memory(0x9388, 0xAF);
     e.set_register_pair(Register8080::B, 0x9388);
     e.load_accumulator(Register8080::B);
 
@@ -1680,7 +1692,7 @@ fn load_accumulator_from_address_in_b()
 fn load_accumulator_from_address_in_d()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x9388] = 0xAF;
+    e.set_memory(0x9388, 0xAF);
     e.set_register_pair(Register8080::D, 0x9388);
     e.load_accumulator(Register8080::D);
 
@@ -2209,8 +2221,8 @@ fn push_register_pair_onto_stack()
     e.set_register(Register8080::C, 0xA7);
     e.set_register_pair(Register8080::SP, 0x20);
     e.push_data_onto_stack(Register8080::B);
-    assert_eq!(e.main_memory[0x20 - 1], 0x34);
-    assert_eq!(e.main_memory[0x20 - 2], 0xA7);
+    assert_eq!(e.read_memory(0x20 - 1), 0x34);
+    assert_eq!(e.read_memory(0x20 - 2), 0xA7);
     assert_eq!(e.read_register_pair(Register8080::SP), 0x20 - 2);
 }
 
@@ -2222,8 +2234,8 @@ fn push_psw_onto_stack()
     e.set_register(Register8080::FLAGS, 0xA7);
     e.set_register_pair(Register8080::SP, 0x20);
     e.push_data_onto_stack(Register8080::PSW);
-    assert_eq!(e.main_memory[0x20 - 1], 0x34);
-    assert_eq!(e.main_memory[0x20 - 2], 0xA7);
+    assert_eq!(e.read_memory(0x20 - 1), 0x34);
+    assert_eq!(e.read_memory(0x20 - 2), 0xA7);
     assert_eq!(e.read_register_pair(Register8080::SP), 0x20 - 2);
 }
 
@@ -2231,8 +2243,8 @@ fn push_psw_onto_stack()
 fn pop_register_pair_from_stack()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x20] = 0xF2;
-    e.main_memory[0x20 + 1] = 0x78;
+    e.set_memory(0x20, 0xF2);
+    e.set_memory(0x20 + 1, 0x78);
     e.set_register_pair(Register8080::SP, 0x20);
     e.pop_data_off_stack(Register8080::B);
     assert_eq!(e.read_register_pair(Register8080::B), 0x78F2);
@@ -2243,8 +2255,8 @@ fn pop_register_pair_from_stack()
 fn pop_psw_from_stack()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x20] = 0x99;
-    e.main_memory[0x20 + 1] = 0x78;
+    e.set_memory(0x20, 0x99);
+    e.set_memory(0x20 + 1, 0x78);
     e.set_register_pair(Register8080::SP, 0x20);
     e.pop_data_off_stack(Register8080::PSW);
     assert_eq!(e.read_register_pair(Register8080::PSW), 0x7899);
@@ -2314,16 +2326,16 @@ fn exchange_stack()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_register_pair(Register8080::SP, 0x1234);
-    e.main_memory[0x1234] = 0xBB;
-    e.main_memory[0x1235] = 0xCC;
+    e.set_memory(0x1234, 0xBB);
+    e.set_memory(0x1235, 0xCC);
     e.set_register_pair(Register8080::H, 0xDDEE);
 
     e.exchange_stack();
 
     assert_eq!(e.read_register_pair(Register8080::SP), 0x1234);
     assert_eq!(e.read_register_pair(Register8080::H), 0xCCBB);
-    assert_eq!(e.main_memory[0x1234], 0xEE);
-    assert_eq!(e.main_memory[0x1235], 0xDD);
+    assert_eq!(e.read_memory(0x1234), 0xEE);
+    assert_eq!(e.read_memory(0x1235), 0xDD);
 }
 
 #[test]
@@ -2357,14 +2369,14 @@ fn store_accumulator_direct()
     let mut e = Emulator8080::new_for_test();
     e.set_register(Register8080::A, 0x8F);
     e.store_accumulator_direct(0x1234);
-    assert_eq!(e.main_memory[0x1234], 0x8F);
+    assert_eq!(e.read_memory(0x1234), 0x8F);
 }
 
 #[test]
 fn load_accumulator_direct()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x1234] = 0x8F;
+    e.set_memory(0x1234, 0x8F);
     e.load_accumulator_direct(0x1234);
     assert_eq!(e.read_register(Register8080::A), 0x8F);
 }
@@ -2375,16 +2387,16 @@ fn store_h_and_l_direct()
     let mut e = Emulator8080::new_for_test();
     e.set_register_pair(Register8080::H, 0x1234);
     e.store_h_and_l_direct(0x8888);
-    assert_eq!(e.main_memory[0x8889], 0x12);
-    assert_eq!(e.main_memory[0x8888], 0x34);
+    assert_eq!(e.read_memory(0x8889), 0x12);
+    assert_eq!(e.read_memory(0x8888), 0x34);
 }
 
 #[test]
 fn load_h_and_l_direct()
 {
     let mut e = Emulator8080::new_for_test();
-    e.main_memory[0x8889] = 0x12;
-    e.main_memory[0x8888] = 0x34;
+    e.set_memory(0x8889, 0x12);
+    e.set_memory(0x8888, 0x34);
     e.load_h_and_l_direct(0x8888);
     assert_eq!(e.read_register_pair(Register8080::H), 0x1234);
 }
