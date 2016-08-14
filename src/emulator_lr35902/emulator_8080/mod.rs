@@ -91,7 +91,6 @@ pub trait InstructionSetOps {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
     fn set_flag(&mut self, flag: Flag8080, value: bool);
-    fn flip_flag(&mut self, flag: Flag8080);
     fn read_flag(&mut self, flag: Flag8080) -> bool;
     fn set_register_pair(&mut self, register: Register8080, value: u16);
     fn read_register_pair(&mut self, register: Register8080) -> u16;
@@ -220,11 +219,6 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
         } else {
             self.registers[Register8080::FLAGS as usize] &= !(flag as u8);
         }
-    }
-
-    fn flip_flag(&mut self, flag: Flag8080)
-    {
-        self.registers[Register8080::FLAGS as usize] ^= flag as u8;
     }
 
     fn read_flag(&mut self, flag: Flag8080) -> bool
@@ -950,7 +944,8 @@ fn push_and_pop_data()
 impl<I: InstructionSetOps> InstructionSet8080 for I {
     fn complement_carry(&mut self)
     {
-        self.flip_flag(Flag8080::Carry);
+        let value = self.read_flag(Flag8080::Carry);
+        self.set_flag(Flag8080::Carry, !value);
     }
     fn set_carry(&mut self)
     {
@@ -1223,7 +1218,8 @@ impl<I: InstructionSetOps> InstructionSet8080 for I {
          * When the two operands differ in sign, the sense of the carry flag is reversed.
          */
         if accumulator & 0x80 != data & 0x80 {
-            self.flip_flag(Flag8080::Carry);
+            let value = self.read_flag(Flag8080::Carry);
+            self.set_flag(Flag8080::Carry, !value);
         }
     }
     fn store_accumulator_direct(&mut self, address: u16)
