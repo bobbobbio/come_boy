@@ -117,7 +117,7 @@ pub trait InstructionSetOps {
  *
  */
 
-struct Emulator8080<'a> {
+pub struct Emulator8080<'a> {
     main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
     program_counter: u16,
@@ -125,7 +125,7 @@ struct Emulator8080<'a> {
 }
 
 impl<'a> Emulator8080<'a> {
-    fn new(rom: &[u8]) -> Emulator8080<'a>
+    pub fn new(rom: &[u8]) -> Emulator8080<'a>
     {
         let mut emu = Emulator8080 {
             main_memory: [0; MAX_ADDRESS + 1],
