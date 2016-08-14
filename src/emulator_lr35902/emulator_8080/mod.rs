@@ -11,7 +11,7 @@ const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
 
 #[derive(Debug,Clone,Copy)]
-enum Flag8080 {
+pub enum Flag8080 {
                     // 76543210
     Sign =           0b10000000,
     Zero =           0b01000000,
@@ -87,6 +87,30 @@ fn twos_complement_u16()
     assert_eq!(0b0111000000001010u16.twos_complement(), 0b1000111111110110u16);
 }
 
+pub trait InstructionSetOps {
+    fn read_memory(&self, address: u16) -> u8;
+    fn set_memory(&mut self, address: u16, value: u8);
+    fn set_flag(&mut self, flag: Flag8080, value: bool);
+    fn flip_flag(&mut self, flag: Flag8080);
+    fn read_flag(&mut self, flag: Flag8080) -> bool;
+    fn set_register_pair(&mut self, register: Register8080, value: u16);
+    fn read_register_pair(&mut self, register: Register8080) -> u16;
+    fn set_register(&mut self, register: Register8080, value: u8);
+    fn read_register(&mut self, register: Register8080) -> u8;
+    fn update_flags_for_new_value(&mut self, new_value: u8);
+    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8;
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, value_b: u8) -> u8;
+    fn add_to_register(&mut self, register: Register8080, value: u8, update_carry: bool);
+    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool);
+    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16);
+    fn subtract_from_register(&mut self, register: Register8080, value: u8);
+    fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8);
+    fn push_u16_onto_stack(&mut self, data: u16);
+    fn pop_u16_off_stack(&mut self) -> u16;
+    fn read_program_counter(&mut self) -> u16;
+    fn set_program_counter(&mut self, address: u16);
+}
+
 /*
  *  _____                 _       _             ___   ___   ___   ___
  * | ____|_ __ ___  _   _| | __ _| |_ ___  _ __( _ ) / _ \ ( _ ) / _ \
@@ -138,6 +162,51 @@ impl<'a> Emulator8080<'a> {
         self.call_table.insert(address, func);
     }
 
+    fn get_register_pair(&mut self, register: Register8080) -> &mut u16
+    {
+        /*
+         * 8008 Registers are laid out in a specified order in memory. (See enum
+         * Register8080 for the order).  This function allows you to read two
+         * adjacent registers together as one u16.  These two registers together
+         * are known as a 'register pair.'  The register pairs are referenced by
+         * the first in the pair.  The only valid register pairs are:
+         *     B:   B and C
+         *     D:   D and E
+         *     H:   H and L
+         *     PSW: A and FLAGS
+         */
+        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
+        unsafe {
+             register_pairs = mem::transmute(&mut self.registers);
+        }
+        match register {
+            Register8080::B | Register8080::D | Register8080::H | Register8080::SP =>
+                &mut register_pairs[register as usize / 2],
+            Register8080::PSW => &mut register_pairs[Register8080::A as usize / 2],
+            _ => panic!("Invalid register {:?}", register)
+        }
+    }
+
+    fn get_register(&mut self, register: Register8080) -> &mut u8
+    {
+        match register {
+            Register8080::PSW => panic!("PSW too big"),
+            Register8080::SP => panic!("SP too big"),
+            Register8080::M => {
+                /*
+                 * The M register is special and represents the byte stored at
+                 * the memory address stored in the register pair H.
+                 */
+                let address = self.read_register_pair(Register8080::H) as usize;
+                &mut self.main_memory[address]
+            },
+            _ => &mut self.registers[register as usize]
+        }
+    }
+
+}
+
+impl<'a> InstructionSetOps for Emulator8080<'a> {
     fn read_memory(&self, address: u16) -> u8 {
         self.main_memory[address as usize]
     }
@@ -165,31 +234,6 @@ impl<'a> Emulator8080<'a> {
         self.registers[Register8080::FLAGS as usize] & (flag as u8) == flag as u8
     }
 
-    fn get_register_pair(&mut self, register: Register8080) -> &mut u16
-    {
-        /*
-         * 8008 Registers are laid out in a specified order in memory. (See enum
-         * Register8080 for the order).  This function allows you to read two
-         * adjacent registers together as one u16.  These two registers together
-         * are known as a 'register pair.'  The register pairs are referenced by
-         * the first in the pair.  The only valid register pairs are:
-         *     B:   B and C
-         *     D:   D and E
-         *     H:   H and L
-         *     PSW: A and FLAGS
-         */
-        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
-        unsafe {
-             register_pairs = mem::transmute(&mut self.registers);
-        }
-        match register {
-            Register8080::B | Register8080::D | Register8080::H | Register8080::SP =>
-                &mut register_pairs[register as usize / 2],
-            Register8080::PSW => &mut register_pairs[Register8080::A as usize / 2],
-            _ => panic!("Invalid register {:?}", register)
-        }
-    }
-
     fn set_register_pair(&mut self, register: Register8080, value: u16)
     {
         *self.get_register_pair(register) = u16::to_be(value);
@@ -198,23 +242,6 @@ impl<'a> Emulator8080<'a> {
     fn read_register_pair(&mut self, register: Register8080) -> u16
     {
         u16::from_be(*self.get_register_pair(register))
-    }
-
-    fn get_register(&mut self, register: Register8080) -> &mut u8
-    {
-        match register {
-            Register8080::PSW => panic!("PSW too big"),
-            Register8080::SP => panic!("SP too big"),
-            Register8080::M => {
-                /*
-                 * The M register is special and represents the byte stored at
-                 * the memory address stored in the register pair H.
-                 */
-                let address = self.read_register_pair(Register8080::H) as usize;
-                &mut self.main_memory[address]
-            },
-            _ => &mut self.registers[register as usize]
-        }
     }
 
     fn set_register(&mut self, register: Register8080, value: u8)
@@ -922,7 +949,7 @@ fn push_and_pop_data()
  *
  */
 
-impl<'a> InstructionSet8080 for Emulator8080<'a> {
+impl<I: InstructionSetOps> InstructionSet8080 for I {
     fn complement_carry(&mut self)
     {
         self.flip_flag(Flag8080::Carry);
