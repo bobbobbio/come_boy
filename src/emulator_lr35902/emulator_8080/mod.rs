@@ -105,6 +105,7 @@ pub trait InstructionSetOps {
     fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8);
     fn read_program_counter(&mut self) -> u16;
     fn set_program_counter(&mut self, address: u16);
+    fn set_interrupt_state(&mut self, state: bool);
 }
 
 /*
@@ -120,6 +121,7 @@ pub struct Emulator8080<'a> {
     pub main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
     program_counter: u16,
+    interrupts_enabled: bool,
     call_table: HashMap<u16, &'a mut FnMut(&mut Emulator8080)>,
 }
 
@@ -130,6 +132,7 @@ impl<'a> Emulator8080<'a> {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Register8080::Count as usize],
             program_counter: 0,
+            interrupts_enabled: true,
             call_table: HashMap::new()
         };
 
@@ -139,12 +142,7 @@ impl<'a> Emulator8080<'a> {
     #[cfg(test)]
     fn new_for_test() -> Emulator8080<'a>
     {
-        let mut emu = Emulator8080 {
-            main_memory: [0; MAX_ADDRESS + 1],
-            registers: [0; Register8080::Count as usize],
-            program_counter: 0,
-            call_table: HashMap::new()
-        };
+        let mut emu = Emulator8080::new();
         emu.set_register_pair(Register8080::SP, 0x0400);
 
         return emu;
@@ -344,6 +342,9 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
             },
             None => ()
         }
+    }
+    fn set_interrupt_state(&mut self, state: bool) {
+        self.interrupts_enabled = state;
     }
 }
 
@@ -1419,11 +1420,11 @@ impl<I: InstructionSetOps> InstructionSet8080 for I {
     }
     fn disable_interrupts(&mut self)
     {
-        panic!("Not Implemented")
+        self.set_interrupt_state(false);
     }
     fn enable_interrupts(&mut self)
     {
-        panic!("Not Implemented")
+        self.set_interrupt_state(true);
     }
     fn input(&mut self, _data1: u8)
     {
@@ -1433,9 +1434,10 @@ impl<I: InstructionSetOps> InstructionSet8080 for I {
     {
         panic!("Not Implemented")
     }
-    fn restart(&mut self, _implicit_data1: u8)
+    fn restart(&mut self, implicit_data: u8)
     {
-        panic!("Not Implemented")
+        assert!(implicit_data <= 7);
+        self.call((implicit_data as u16) << 3);
     }
     fn output(&mut self, _data1: u8)
     {
@@ -2868,6 +2870,39 @@ fn return_if_parity_odd_when_parity_is_not_set()
     push_u16_onto_stack(&mut e, 0x22FF);
     e.return_if_parity_odd();
     assert_eq!(e.program_counter, 0x22FF);
+}
+
+#[test]
+fn restart_one()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.restart(1);
+    assert_eq!(e.program_counter, 1 << 3);
+}
+
+#[test]
+fn restart_seven()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.restart(7);
+    assert_eq!(e.program_counter, 7 << 3);
+}
+
+#[test]
+fn disable_interrupts()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.disable_interrupts();
+    assert!(!e.interrupts_enabled);
+}
+
+#[test]
+fn enable_interrupts()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.interrupts_enabled = false;
+    e.enable_interrupts();
+    assert!(e.interrupts_enabled);
 }
 
 impl<'a> Emulator8080<'a> {

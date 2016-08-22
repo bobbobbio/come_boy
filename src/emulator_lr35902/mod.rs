@@ -112,6 +112,11 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
     {
         self.e8080.set_program_counter(address);
     }
+
+    fn set_interrupt_state(&mut self, value: bool)
+    {
+        self.e8080.set_interrupt_state(value);
+    }
 }
 
 impl<'a> EmulatorLR35902<'a> {
