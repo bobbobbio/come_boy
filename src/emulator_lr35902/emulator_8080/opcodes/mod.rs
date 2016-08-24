@@ -7,6 +7,15 @@ mod opcode_gen;
 pub use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{
     InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
 
+/*
+ *  ____            _     _            ___   ___   ___   ___
+ * |  _ \ ___  __ _(_)___| |_ ___ _ __( _ ) / _ \ ( _ ) / _ \
+ * | |_) / _ \/ _` | / __| __/ _ \ '__/ _ \| | | |/ _ \| | | |
+ * |  _ <  __/ (_| | \__ \ ||  __/ | | (_) | |_| | (_) | |_| |
+ * |_| \_\___|\__, |_|___/\__\___|_|  \___/ \___/ \___/ \___/
+ *            |___/
+ */
+
 #[derive(Debug,Clone,Copy)]
 pub enum Register8080 {
     B = 0,
@@ -24,6 +33,15 @@ pub enum Register8080 {
                // the data stored at address contained in HL.
     Count = 12,
 }
+
+/*
+ *   ___                      _      ____       _       _
+ *  / _ \ _ __   ___ ___   __| | ___|  _ \ _ __(_)_ __ | |_ ___ _ __
+ * | | | | '_ \ / __/ _ \ / _` |/ _ \ |_) | '__| | '_ \| __/ _ \ '__|
+ * | |_| | |_) | (_| (_) | (_| |  __/  __/| |  | | | | | ||  __/ |
+ *  \___/| .__/ \___\___/ \__,_|\___|_|   |_|  |_|_| |_|\__\___|_|
+ *       |_|
+ */
 
 trait OpcodePrinter<'a> {
     fn print_opcode(&mut self, stream: &[u8]);
@@ -63,6 +81,15 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
     }
 }
 
+/*
+ *  _          _
+ * | |__   ___| |_ __   ___ _ __ ___
+ * | '_ \ / _ \ | '_ \ / _ \ '__/ __|
+ * | | | |  __/ | |_) |  __/ |  \__ \
+ * |_| |_|\___|_| .__/ \___|_|  |___/
+ *              |_|
+ */
+
 fn read_u16<T: io::Read>(
     mut stream: T) -> Result<u16>
 {
@@ -82,6 +109,15 @@ fn read_u8<T: io::Read>(
     try!(stream.read_exact(&mut arg_buffer));
     Ok(arg_buffer[0])
 }
+
+/*
+ *  ____  _                                  _     _
+ * |  _ \(_)___  __ _ ___ ___  ___ _ __ ___ | |__ | | ___ _ __
+ * | | | | / __|/ _` / __/ __|/ _ \ '_ ` _ \| '_ \| |/ _ \ '__|
+ * | |_| | \__ \ (_| \__ \__ \  __/ | | | | | |_) | |  __/ |
+ * |____/|_|___/\__,_|___/___/\___|_| |_| |_|_.__/|_|\___|_|
+ *
+ */
 
 struct Disassembler<'a, PF: for<'b> OpcodePrinterFactory<'b>> {
     index: u64,
