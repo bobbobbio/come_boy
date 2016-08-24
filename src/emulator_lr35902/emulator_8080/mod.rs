@@ -1,10 +1,11 @@
-pub mod opcodes;
+mod opcodes;
 
 use std::mem;
 use std::collections::HashMap;
 
-use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{
-    InstructionSet8080, Register8080, dispatch_opcode, opcode_size};
+pub use emulator_lr35902::emulator_8080::opcodes::{Register8080, disassemble_8080_rom};
+use emulator_lr35902::emulator_8080::opcodes::{
+    InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -2912,14 +2913,14 @@ impl<'a> Emulator8080<'a> {
         {
             let pc = self.program_counter as usize;
             let opcode = self.main_memory[pc];
-            let size = opcode_size(opcode) as usize;
+            let size = get_8080_opcode_size(opcode) as usize;
 
             full_opcode.resize(size, 0);
             full_opcode.clone_from_slice(&self.main_memory[pc..pc + size]);
             self.program_counter += size as u16;
         }
 
-        dispatch_opcode(&full_opcode, self);
+        dispatch_8080_opcode(&full_opcode, self);
     }
 
     pub fn run(&mut self)

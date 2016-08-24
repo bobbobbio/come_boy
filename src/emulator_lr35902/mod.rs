@@ -1,8 +1,7 @@
 pub mod emulator_8080;
 
 use std::cmp;
-use emulator_lr35902::emulator_8080::{Emulator8080, InstructionSetOps, Flag8080};
-use emulator_lr35902::emulator_8080::opcodes::opcode_gen::Register8080;
+use emulator_lr35902::emulator_8080::{Register8080, Emulator8080, InstructionSetOps, Flag8080};
 
 const ROM_ADDRESS: usize = 0x0100;
 const LCD_ADDRESS: usize = 0x8000;

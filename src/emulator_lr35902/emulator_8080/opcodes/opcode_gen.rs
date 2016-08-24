@@ -1,49 +1,11 @@
 
-use std::io::{self, Result};
-use std::mem;
+use emulator_lr35902::emulator_8080::opcodes::{
+    read_u16, read_u8, Register8080, OpcodePrinter8080};
 
 /*
  * Warning: This file is generated.  Don't manually edit.
  * Instead edit opcodes/opcode_gen.py
  */
-
-fn read_u16<T: io::Read>(
-    mut stream: T) -> Result<u16>
-{
-    let narg : u16;
-    let mut arg_buffer = [0; 2];
-    try!(stream.read_exact(&mut arg_buffer));
-    unsafe {
-        narg = mem::transmute(arg_buffer);
-    }
-    Ok(u16::from_le(narg))
-}
-
-fn read_u8<T: io::Read>(
-    mut stream: T) -> Result<u8>
-{
-    let mut arg_buffer = [0; 1];
-    try!(stream.read_exact(&mut arg_buffer));
-    Ok(arg_buffer[0])
-}
-
-#[derive(Debug,Clone,Copy)]
-pub enum Register8080 {
-    B = 0,
-    C = 1,
-    D = 2,
-    E = 3,
-    H = 4,
-    L = 5,
-    A = 6,
-    FLAGS = 7, // Conatins all of the condition bits.
-    SP = 8,    // Stack Pointer (2 bytes)
-    PSW = 10,  // Special fake register called 'Program Status Word'.
-               // It refers to register pair, A and FLAGS.
-    M = 11,    // Special fake register called 'Memory'.  Represents
-               // the data stored at address contained in HL.
-    Count = 12,
-}
 
 pub trait InstructionSet8080 {
     fn return_if_not_zero(&mut self);
@@ -129,7 +91,7 @@ pub trait InstructionSet8080 {
     fn rotate_accumulator_right_through_carry(&mut self);
 }
 
-pub fn dispatch_opcode<I: InstructionSet8080>(
+pub fn dispatch_8080_opcode<I: InstructionSet8080>(
     mut stream: &[u8],
     machine: &mut I)
 {
@@ -395,7 +357,7 @@ pub fn dispatch_opcode<I: InstructionSet8080>(
    };
 }
 
-pub fn opcode_size(opcode: u8) -> u8
+pub fn get_8080_opcode_size(opcode: u8) -> u8
 {
     match opcode {
         0x3e => 2,
@@ -659,38 +621,6 @@ pub fn opcode_size(opcode: u8) -> u8
    }
 }
 
-pub trait OpcodePrinter<'a> {
-    fn print_opcode(&mut self, stream: &[u8]);
-    fn opcode_size(&self, opcode: u8) -> u8;
-}
-pub trait OpcodePrinterFactory<'a> {
-    type Output: OpcodePrinter<'a>;
-    fn new(&self, &'a mut io::Write) -> Self::Output;
-}
-pub struct OpcodePrinter8080<'a> {
-    stream_out: &'a mut io::Write
-}
-pub struct OpcodePrinterFactory8080;
-impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
-    type Output = OpcodePrinter8080<'a>;
-    fn new(&self,
-        stream_out: &'a mut io::Write) -> OpcodePrinter8080<'a>
-    {
-        return OpcodePrinter8080 {
-            stream_out: stream_out
-        };
-    }
-}
-impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
-    fn print_opcode(&mut self, stream: &[u8])
-    {
-        dispatch_opcode(stream, self)
-    }
-    fn opcode_size(&self, opcode: u8) -> u8
-    {
-        opcode_size(opcode)
-    }
-}
 impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     fn return_if_not_zero(&mut self)
     {

@@ -5,7 +5,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::Read;
 
-use come_boy::emulator_lr35902::emulator_8080;
+use come_boy::emulator_lr35902::emulator_8080::{disassemble_8080_rom};
 
 fn main()
 {
@@ -25,6 +25,6 @@ fn main()
         let mut rom : Vec<u8> = vec![];
         file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
 
-        emulator_8080::opcodes::disassemble(&rom).ok().expect("Disassemble failure");
+        disassemble_8080_rom(&rom).ok().expect("Disassemble failure");
     }
 }

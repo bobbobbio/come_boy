@@ -1,18 +1,96 @@
 use std::io::{self, Result};
 use std::str;
+use std::mem;
 
-pub mod opcode_gen;
+mod opcode_gen;
 
-use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{OpcodePrinter, OpcodePrinterFactory8080};
+pub use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{
+    InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
 
-struct Disassembler<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> {
+#[derive(Debug,Clone,Copy)]
+pub enum Register8080 {
+    B = 0,
+    C = 1,
+    D = 2,
+    E = 3,
+    H = 4,
+    L = 5,
+    A = 6,
+    FLAGS = 7, // Conatins all of the condition bits.
+    SP = 8,    // Stack Pointer (2 bytes)
+    PSW = 10,  // Special fake register called 'Program Status Word'.
+               // It refers to register pair, A and FLAGS.
+    M = 11,    // Special fake register called 'Memory'.  Represents
+               // the data stored at address contained in HL.
+    Count = 12,
+}
+
+trait OpcodePrinter<'a> {
+    fn print_opcode(&mut self, stream: &[u8]);
+    fn get_opcode_size(&self, opcode: u8) -> u8;
+}
+
+trait OpcodePrinterFactory<'a> {
+    type Output: OpcodePrinter<'a>;
+    fn new(&self, &'a mut io::Write) -> Self::Output;
+}
+
+struct OpcodePrinter8080<'a> {
+    stream_out: &'a mut io::Write
+}
+
+struct OpcodePrinterFactory8080;
+
+impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
+    type Output = OpcodePrinter8080<'a>;
+    fn new(&self,
+        stream_out: &'a mut io::Write) -> OpcodePrinter8080<'a>
+    {
+        return OpcodePrinter8080 {
+            stream_out: stream_out
+        };
+    }
+}
+
+impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
+    fn print_opcode(&mut self, stream: &[u8])
+    {
+        dispatch_8080_opcode(stream, self)
+    }
+    fn get_opcode_size(&self, opcode: u8) -> u8
+    {
+        get_8080_opcode_size(opcode)
+    }
+}
+
+fn read_u16<T: io::Read>(
+    mut stream: T) -> Result<u16>
+{
+    let narg : u16;
+    let mut arg_buffer = [0; 2];
+    try!(stream.read_exact(&mut arg_buffer));
+    unsafe {
+        narg = mem::transmute(arg_buffer);
+    }
+    Ok(u16::from_le(narg))
+}
+
+fn read_u8<T: io::Read>(
+    mut stream: T) -> Result<u8>
+{
+    let mut arg_buffer = [0; 1];
+    try!(stream.read_exact(&mut arg_buffer));
+    Ok(arg_buffer[0])
+}
+
+struct Disassembler<'a, PF: for<'b> OpcodePrinterFactory<'b>> {
     index: u64,
     rom: &'a [u8],
     opcode_printer_factory: PF,
     stream_out: &'a mut io::Write
 }
 
-impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
+impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
     fn new(
         rom: &'a [u8],
         opcode_printer_factory: PF,
@@ -32,7 +110,7 @@ impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> 
             let size: u8;
             {
                 let mut opcode_printer = self.opcode_printer_factory.new(&mut formatted_op_buf);
-                size = opcode_printer.opcode_size(self.rom[self.index as usize]);
+                size = opcode_printer.get_opcode_size(self.rom[self.index as usize]);
                 opcode_printer.print_opcode(&self.rom[self.index as usize..]);
             }
             let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
@@ -51,7 +129,7 @@ impl<'a, PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>> Disassembler<'a, PF> 
     }
 }
 
-pub fn disassemble(rom: &[u8]) -> Result<()>
+pub fn disassemble_8080_rom(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
     let mut disassembler = Disassembler::new(rom, OpcodePrinterFactory8080, stdout);
@@ -74,7 +152,7 @@ impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
             _ => panic!("Unknown opcode")
         }
     }
-    fn opcode_size(&self, opcode: u8) -> u8
+    fn get_opcode_size(&self, opcode: u8) -> u8
     {
         match opcode {
             0x1 => 1,
@@ -89,7 +167,7 @@ impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
 struct TestOpcodePrinterFactory;
 
 #[cfg(test)]
-impl<'a> opcode_gen::OpcodePrinterFactory<'a> for TestOpcodePrinterFactory {
+impl<'a> OpcodePrinterFactory<'a> for TestOpcodePrinterFactory {
     type Output = TestOpcodePrinter<'a>;
     fn new(&self,
         stream_out: &'a mut io::Write) -> TestOpcodePrinter<'a>
@@ -101,7 +179,7 @@ impl<'a> opcode_gen::OpcodePrinterFactory<'a> for TestOpcodePrinterFactory {
 }
 
 #[cfg(test)]
-fn do_disassembler_test<PF: for<'b> opcode_gen::OpcodePrinterFactory<'b>>(
+fn do_disassembler_test<PF: for<'b> OpcodePrinterFactory<'b>>(
     opcode_printer_factory: PF,
     test_rom: &[u8],
     expected_str: &str)
