@@ -4,6 +4,8 @@ import json
 import textwrap
 import os
 
+INSTRUCTION_SET_NAME = '8080'
+
 def read_args(args, stream):
     '''
     Translate an array of description of arguments (adr, D8, D16, A, M) into a
@@ -20,7 +22,7 @@ def read_args(args, stream):
             r_args.append('{} as u8'.format(arg))
         else:
             assert all([c.isalpha() for c in arg])
-            r_args.append('Register8080::' + arg)
+            r_args.append('Register{}::{}'.format(INSTRUCTION_SET_NAME, arg))
     return r_args
 
 def name_args(args):
@@ -36,14 +38,14 @@ def main():
 
     with open(output_file, 'w') as out_file:
         out_file.write(textwrap.dedent('''
-            use emulator_lr35902::emulator_8080::opcodes::{
-                read_u16, read_u8, Register8080, OpcodePrinter8080};
+            use emulator_lr35902::emulator_{0}::opcodes::{{
+                read_u16, read_u8, Register{0}, OpcodePrinter{0}}};
 
             /*
              * Warning: This file is generated.  Don't manually edit.
              * Instead edit opcodes/opcode_gen.py
              */
-        '''))
+        '''.format(INSTRUCTION_SET_NAME)))
 
         #   __                  _   _               _        _     _
         #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
@@ -70,7 +72,8 @@ def main():
                     arg_desc.append(('implicit_data', 'u8'))
                 else:
                     assert all([c.isalpha() for c in arg])
-                    arg_desc.append(('register', 'Register8080'))
+                    arg_desc.append(('register',
+                        'Register{}'.format(INSTRUCTION_SET_NAME)))
 
             if name not in functions:
                 functions[name] = instr, arg_desc
@@ -91,8 +94,8 @@ def main():
         #  \__|_|  \__,_|_|\__|
 
         out_file.write(textwrap.dedent('''
-          pub trait InstructionSet8080 {
-        '''))
+          pub trait InstructionSet{} {{
+        '''.format(INSTRUCTION_SET_NAME)))
 
         for name, info in functions.iteritems():
             _, args = info
@@ -104,12 +107,12 @@ def main():
         out_file.write('}\n')
 
         out_file.write(textwrap.dedent('''
-            pub fn dispatch_8080_opcode<I: InstructionSet8080>(
+            pub fn dispatch_{0}_opcode<I: InstructionSet{0}>(
                 mut stream: &[u8],
                 machine: &mut I)
-            {
-                match read_u8(&mut stream).ok().expect("") {
-        '''))
+            {{
+                match read_u8(&mut stream).ok().expect("") {{
+        '''.format(INSTRUCTION_SET_NAME)))
 
         for opcode, info in opcode_dict.iteritems():
             out_file.write('        {} => '.format(opcode))
@@ -128,10 +131,10 @@ def main():
         '''))
 
         out_file.write(textwrap.dedent('''
-            pub fn get_8080_opcode_size(opcode: u8) -> u8
-            {
-                match opcode {
-        '''))
+            pub fn get_{}_opcode_size(opcode: u8) -> u8
+            {{
+                match opcode {{
+        '''.format(INSTRUCTION_SET_NAME)))
 
         for opcode, info in opcode_dict.iteritems():
             out_file.write('        {} => {},\n'.format(opcode, info['size']))
@@ -150,8 +153,8 @@ def main():
         #       |_|                          |_|
 
         out_file.write(textwrap.dedent('''
-            impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
-        '''))
+            impl<'a> InstructionSet{0} for OpcodePrinter{0}<'a> {{
+        '''.format(INSTRUCTION_SET_NAME)))
 
         for name, info in functions.iteritems():
             instr, args = info
