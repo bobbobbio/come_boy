@@ -2,6 +2,9 @@
 
 set -ex
 
+# Run pylint on all the python
+pylint --rcfile=./pylintrc --reports=n $(find . -name "*.py")
+
 # Run all *_test.py
 for testfile in $(find . -name "*_test.py"); do
     $testfile;
