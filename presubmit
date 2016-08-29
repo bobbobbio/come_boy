@@ -2,6 +2,15 @@
 
 set -ex
 
-python src/emulator_lr35902/emulator_8080/opcodes/opcode_gen.py
+# Run all *_test.py
+for testfile in $(find . -name "*_test.py"); do
+    $testfile;
+done
+
+# Run all *_gen.py
+for genfile in $(find . -name "*_gen.py"); do
+    $genfile;
+done
+
 cargo build
 cargo test
