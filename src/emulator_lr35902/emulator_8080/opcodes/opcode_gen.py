@@ -4,14 +4,18 @@ import json
 import textwrap
 import os
 
-def read_args(args):
+def read_args(args, stream):
+    '''
+    Translate an array of description of arguments (adr, D8, D16, A, M) into a
+    function call to read that argument out of stream, or appropriate literal.
+    '''
     r_args = []
     for arg in args:
         if arg == 'adr':
-            r_args.append(('read_u16(&mut stream).ok().expect("")'))
+            r_args.append(('read_u16({}).ok().expect("")').format(stream))
         elif arg.startswith('D') and arg != 'D':
-            r_args.append('read_u{}(&mut stream).ok().expect("")'.format(
-                arg[1:]))
+            r_args.append(
+                'read_u{}({}).ok().expect("")'.format(arg[1:], stream))
         elif all([c.isdigit() for c in arg]):
             r_args.append('{} as u8'.format(arg))
         else:
@@ -115,7 +119,7 @@ def main():
             else:
                 name = info['desciption'].replace(' ', '_').lower()
             out_file.write('machine.{}({}),\n'.format(
-                name, ', '.join(read_args(info['args']))))
+                name, ', '.join(read_args(info['args'], '&mut stream'))))
 
         out_file.write(textwrap.dedent('''
                    _ => panic!("Unknown opcode")
