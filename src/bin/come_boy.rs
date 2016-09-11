@@ -21,9 +21,9 @@ fn main()
     }
 
     for arg in &files {
-        let mut file = File::open(&arg).ok().expect("open fail");
+        let mut file = File::open(&arg).unwrap();
         let mut rom : Vec<u8> = vec![];
-        file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
+        file.read_to_end(&mut rom).unwrap();
         emulator_lr35902::run_emulator(&rom);
     }
 }

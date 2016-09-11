@@ -2963,12 +2963,12 @@ fn console_print(e: &mut Emulator8080, stream: &mut io::Write)
         9 => {
             let mut msg_addr = e.read_register_pair(Register8080::D) as usize;
             while e.main_memory[msg_addr] != '$' as u8 {
-                write!(stream, "{}", e.main_memory[msg_addr] as char).ok().expect("");
+                write!(stream, "{}", e.main_memory[msg_addr] as char).unwrap();
                 msg_addr += 1;
             }
         },
         2 => {
-            write!(stream, "{}", e.read_register(Register8080::E) as char).ok().expect("");
+            write!(stream, "{}", e.read_register(Register8080::E) as char).unwrap();
         },
         op => panic!("{} unknown print operation", op)
     }
@@ -2984,8 +2984,8 @@ fn cpu_diagnostic_8080() {
     // Load up the ROM
     let mut rom : Vec<u8> = vec![];
     {
-        let mut file = File::open("cpudiag.bin").ok().expect("open fail");
-        file.read_to_end(&mut rom).ok().expect("Failed to read ROM");
+        let mut file = File::open("cpudiag.bin").unwrap();
+        file.read_to_end(&mut rom).unwrap();
     }
 
     let mut console_buffer: Vec<u8> = vec![];
@@ -2999,7 +2999,7 @@ fn cpu_diagnostic_8080() {
         emulator.add_routine(0x0005, &mut console_print_closure);
         emulator.run();
     }
-    let ascii_output = str::from_utf8(&console_buffer).ok().expect("");
+    let ascii_output = str::from_utf8(&console_buffer).unwrap();
 
     // When we see this string it means the program succeeded.  When it fails, we see
     // 'CPU HAS FAILED! EXIT=xxxx' where xxxx is the address it failed at.

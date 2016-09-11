@@ -149,7 +149,7 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
                 size = opcode_printer.get_opcode_size(self.rom[self.index as usize]);
                 opcode_printer.print_opcode(&self.rom[self.index as usize..]);
             }
-            let formatted_opcode = str::from_utf8(&formatted_op_buf).ok().expect("");
+            let formatted_opcode = str::from_utf8(&formatted_op_buf).unwrap();
 
             let mut raw_assembly = String::new();
             for code in &self.rom[self.index as usize .. (self.index + size as u64) as usize] {
@@ -182,9 +182,9 @@ impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
     fn print_opcode(&mut self, stream: &[u8])
     {
         match stream[0] {
-            0x1 => write!(self.stream_out, "TEST1").ok().expect(""),
-            0x2 => write!(self.stream_out, "TEST2").ok().expect(""),
-            0x3 => write!(self.stream_out, "TEST3").ok().expect(""),
+            0x1 => write!(self.stream_out, "TEST1").unwrap(),
+            0x2 => write!(self.stream_out, "TEST2").unwrap(),
+            0x3 => write!(self.stream_out, "TEST3").unwrap(),
             _ => panic!("Unknown opcode")
         }
     }
@@ -223,9 +223,9 @@ fn do_disassembler_test<PF: for<'b> OpcodePrinterFactory<'b>>(
     let mut output = vec![];
     {
         let mut disassembler = Disassembler::new(test_rom, opcode_printer_factory, &mut output);
-        disassembler.disassemble().ok().expect("");
+        disassembler.disassemble().unwrap();
     }
-    assert_eq!(str::from_utf8(&output).ok().expect(""), expected_str);
+    assert_eq!(str::from_utf8(&output).unwrap(), expected_str);
 }
 
 #[test]

@@ -81,10 +81,10 @@ def read_args(args, stream):
     r_args = []
     for arg in args:
         if arg == 'adr':
-            r_args.append(('read_u16({}).ok().expect("")').format(stream))
+            r_args.append(('read_u16({}).unwrap()').format(stream))
         elif arg.startswith('D') and arg != 'D':
             r_args.append(
-                'read_u{}({}).ok().expect("")'.format(arg[1:], stream))
+                'read_u{}({}).unwrap()'.format(arg[1:], stream))
         elif all([c.isdigit() for c in arg]):
             r_args.append('{} as u8'.format(arg))
         else:
@@ -161,7 +161,7 @@ def generate(opcode_dict, out_file):
             mut stream: &[u8],
             machine: &mut I)
         {{
-            match read_u8(&mut stream).ok().expect("") {{
+            match read_u8(&mut stream).unwrap() {{
     '''.format(INSTRUCTION_SET_NAME)))
 
     for opcode, info in opcode_dict.iteritems():
@@ -213,8 +213,7 @@ def generate(opcode_dict, out_file):
 
         def print_to_out_file(pattern, arg_name):
             out_file.write('        '
-                'write!(self.stream_out, '
-                '"{}", {}).ok().expect("");\n'.format(
+                'write!(self.stream_out, "{}", {}).unwrap();\n'.format(
                     pattern, arg_name))
 
         print_to_out_file("{:04}", '"{}"'.format(instr))
