@@ -624,382 +624,382 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
 impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     fn return_if_not_zero(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RNZ").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RNZ").ok().expect("");
     }
     fn add_immediate_to_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ADI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ADI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn pop_data_off_stack(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "POP").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "POP").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn add_to_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ADD").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ADD").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn jump_if_parity_even(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JPE").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JPE").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn call_if_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CZ").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CZ").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn double_add(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "DAD").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "DAD").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn or_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ORI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ORI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn call_if_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CC").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CC").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn jump(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JMP").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JMP").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn subtract_from_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SUB").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SUB").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn rim(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RIM").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RIM").ok().expect("");
     }
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "SBI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SBI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn call_if_parity_even(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CPE").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CPE").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn jump_if_positive(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JP").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JP").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn logical_exclusive_or_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "XRA").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "XRA").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn move_data(&mut self, register1: Register8080, register2: Register8080)
     {
-        write!(self.stream_out, "{:04}", "MOV").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register2).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "MOV").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
+        write!(self.stream_out, " {:?}", register2).ok().expect("");
     }
     fn no_instruction(&mut self)
     {
-        write!(self.stream_out, "{:04}", "NOP").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "NOP").ok().expect("");
     }
     fn halt(&mut self)
     {
-        write!(self.stream_out, "{:04}", "HLT").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "HLT").ok().expect("");
     }
     fn set_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "STC").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "STC").ok().expect("");
     }
     fn compare_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "CMP").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CMP").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn call_if_not_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CNZ").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CNZ").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn call_if_parity_odd(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CPO").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CPO").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn subtract_immediate_from_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "SUI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SUI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn rotate_accumulator_left_through_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RAL").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RAL").ok().expect("");
     }
     fn disable_interrupts(&mut self)
     {
-        write!(self.stream_out, "{:04}", "DI").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "DI").ok().expect("");
     }
     fn load_sp_from_h_and_l(&mut self)
     {
-        write!(self.stream_out, "{:04}", "SPHL").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SPHL").ok().expect("");
     }
     fn logical_and_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ANA").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ANA").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn load_h_and_l_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "LHLD").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "LHLD").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "XRI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "XRI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn call(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CALL").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CALL").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn enable_interrupts(&mut self)
     {
-        write!(self.stream_out, "{:04}", "EI").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "EI").ok().expect("");
     }
     fn load_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "LDAX").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "LDAX").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn input(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "IN").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "IN").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn jump_if_parity_odd(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JPO").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JPO").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn increment_register_pair(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "INX").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "INX").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn return_if_no_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RNC").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RNC").ok().expect("");
     }
     fn logical_or_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ORA").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ORA").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn exchange_registers(&mut self)
     {
-        write!(self.stream_out, "{:04}", "XCHG").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "XCHG").ok().expect("");
     }
     fn rotate_accumulator_right(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RRC").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RRC").ok().expect("");
     }
     fn call_if_no_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CNC").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CNC").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn return_if_parity_even(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RPE").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RPE").ok().expect("");
     }
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ACI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ACI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn and_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ANI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ANI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn call_if_plus(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CP").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CP").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn increment_register_or_memory(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "INR").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "INR").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn compare_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "CPI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CPI").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn load_program_counter(&mut self)
     {
-        write!(self.stream_out, "{:04}", "PCHL").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "PCHL").ok().expect("");
     }
     fn return_if_minus(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RM").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RM").ok().expect("");
     }
     fn jump_if_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JC").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JC").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn call_if_minus(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CM").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CM").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn decimal_adjust_accumulator(&mut self)
     {
-        write!(self.stream_out, "{:04}", "DAA").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "DAA").ok().expect("");
     }
     fn load_register_pair_immediate(&mut self, register1: Register8080, data2: u16)
     {
-        write!(self.stream_out, "{:04}", "LXI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data2).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "LXI").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
+        write!(self.stream_out, " #${:02x}", data2).ok().expect("");
     }
     fn move_immediate_data(&mut self, register1: Register8080, data2: u8)
     {
-        write!(self.stream_out, "{:04}", "MVI").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data2).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "MVI").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
+        write!(self.stream_out, " #${:02x}", data2).ok().expect("");
     }
     fn return_if_plus(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RP").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RP").ok().expect("");
     }
     fn restart(&mut self, implicit_data1: u8)
     {
-        write!(self.stream_out, "{:04}", "RST").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {}", implicit_data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RST").ok().expect("");
+        write!(self.stream_out, " {}", implicit_data1).ok().expect("");
     }
     fn return_if_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RC").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RC").ok().expect("");
     }
     fn store_accumulator_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "STA").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "STA").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn jump_if_not_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JNZ").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JNZ").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn jump_if_minus(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JM").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JM").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn decrement_register_or_memory(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "DCR").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "DCR").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn output(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "OUT").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " #${:02x}", data1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "OUT").ok().expect("");
+        write!(self.stream_out, " #${:02x}", data1).ok().expect("");
     }
     fn store_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "STAX").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "STAX").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn add_to_accumulator_with_carry(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ADC").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "ADC").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn jump_if_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JZ").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JZ").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn complement_accumulator(&mut self)
     {
-        write!(self.stream_out, "{:04}", "CMA").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CMA").ok().expect("");
     }
     fn return_if_zero(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RZ").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RZ").ok().expect("");
     }
     fn return_if_parity_odd(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RPO").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RPO").ok().expect("");
     }
     fn return_unconditionally(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RET").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RET").ok().expect("");
     }
     fn store_h_and_l_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "SHLD").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SHLD").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn subtract_from_accumulator_with_borrow(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SBB").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SBB").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn not_implemented(&mut self)
     {
-        write!(self.stream_out, "{:04}", "-").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "-").ok().expect("");
     }
     fn push_data_onto_stack(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "PUSH").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "PUSH").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn jump_if_no_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JNC").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "JNC").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn sim(&mut self)
     {
-        write!(self.stream_out, "{:04}", "SIM").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "SIM").ok().expect("");
     }
     fn decrement_register_pair(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "DCX").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " {:?}", register1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "DCX").ok().expect("");
+        write!(self.stream_out, " {:?}", register1).ok().expect("");
     }
     fn complement_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "CMC").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "CMC").ok().expect("");
     }
     fn rotate_accumulator_left(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RLC").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RLC").ok().expect("");
     }
     fn load_accumulator_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "LDA").ok().expect("Failed to Write to Stream");
-        write!(self.stream_out, " ${:02x}", address1).ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "LDA").ok().expect("");
+        write!(self.stream_out, " ${:02x}", address1).ok().expect("");
     }
     fn exchange_stack(&mut self)
     {
-        write!(self.stream_out, "{:04}", "XTHL").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "XTHL").ok().expect("");
     }
     fn rotate_accumulator_right_through_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RAR").ok().expect("Failed to Write to Stream");
+        write!(self.stream_out, "{:04}", "RAR").ok().expect("");
     }
 }

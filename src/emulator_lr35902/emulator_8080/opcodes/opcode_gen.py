@@ -6,6 +6,73 @@ import os
 
 INSTRUCTION_SET_NAME = '8080'
 
+class Argument(object):
+    def __init__(self):
+        self.var_name = None
+        self.type = None
+
+    def arg_name(self, num):
+        return "{}{}".format(self.var_name, num)
+
+    def format(self, num):
+        return "{}: {}".format(self.arg_name(num), self.type)
+
+    def fmt_representation(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self.var_name == other.var_name and self.type == other.type
+
+    def __neq__(self, other):
+        return self != other
+
+class AddressArgument(Argument):
+    def __init__(self):
+        super(AddressArgument, self).__init__()
+        self.var_name = 'address'
+        self.type = 'u16'
+
+    def fmt_representation(self):
+        return "${:02x}"
+
+class DataArgument(Argument):
+    def __init__(self, size):
+        super(DataArgument, self).__init__()
+        self.var_name = 'data'
+        self.type = 'u' + str(size)
+
+    def fmt_representation(self):
+        return "#${:02x}"
+
+class ImplicitDataArgument(Argument):
+    def __init__(self):
+        super(ImplicitDataArgument, self).__init__()
+        self.var_name = 'implicit_data'
+        self.type = 'u8'
+
+    def fmt_representation(self):
+        return "{}"
+
+class RegisterArgument(Argument):
+    def __init__(self):
+        super(RegisterArgument, self).__init__()
+        self.var_name = 'register'
+        self.type = 'Register{}'.format(INSTRUCTION_SET_NAME)
+
+    def fmt_representation(self):
+        return "{:?}"
+
+def argument_factory(arg):
+    if arg == 'adr':
+        return AddressArgument()
+    elif arg.startswith('D') and arg != 'D':
+        return DataArgument(int(arg[1:]))
+    elif all([c.isdigit() for c in arg]):
+        return ImplicitDataArgument()
+    else:
+        assert all([c.isalpha() for c in arg])
+        return RegisterArgument()
+
 def read_args(args, stream):
     '''
     Translate an array of description of arguments (adr, D8, D16, A, M) into a
@@ -24,10 +91,6 @@ def read_args(args, stream):
             assert all([c.isalpha() for c in arg])
             r_args.append('Register{}::{}'.format(INSTRUCTION_SET_NAME, arg))
     return r_args
-
-def name_args(args):
-    return ['{}{}: {}'.format(arg[0], num + 1, arg[1])
-        for num, arg in enumerate(args)]
 
 def generate(opcode_dict, out_file):
     out_file.write(textwrap.dedent('''
@@ -57,23 +120,14 @@ def generate(opcode_dict, out_file):
 
         arg_desc = []
         for arg in info['args']:
-            if arg == 'adr':
-                arg_desc.append(('address', 'u16'))
-            elif arg.startswith('D') and arg != 'D':
-                arg_desc.append(('data', 'u' + arg[1:]))
-            elif all([c.isdigit() for c in arg]):
-                arg_desc.append(('implicit_data', 'u8'))
-            else:
-                assert all([c.isalpha() for c in arg])
-                arg_desc.append(('register',
-                    'Register{}'.format(INSTRUCTION_SET_NAME)))
+            arg_desc.append(argument_factory(arg))
 
         if name not in functions:
             functions[name] = instr, arg_desc
         else:
             _, existing_arg_desc = functions[name]
             assert existing_arg_desc == arg_desc, \
-                "{} has non consistant arugments".format(name)
+                "{} has non consistent arguments".format(name)
 
     #  _           _                   _   _
     # (_)_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
@@ -90,12 +144,15 @@ def generate(opcode_dict, out_file):
       pub trait InstructionSet{} {{
     '''.format(INSTRUCTION_SET_NAME)))
 
+    def function_declaration(name, args):
+        named_args = \
+            ['&mut self'] + [a.format(n + 1) for n, a in enumerate(args)]
+        return '    fn {}({})'.format(name, ', '.join(named_args))
+
     for name, info in functions.iteritems():
         _, args = info
-        out_file.write('    '
-            'fn {}({});\n'.format(
-                name.lower(),
-                ', '.join(['&mut self'] + name_args(args))))
+        out_file.write(function_declaration(name.lower(), args))
+        out_file.write(';\n')
 
     out_file.write('}\n')
 
@@ -151,9 +208,9 @@ def generate(opcode_dict, out_file):
 
     for name, info in functions.iteritems():
         instr, args = info
-        out_file.write('    '
-            'fn {}({})\n    {{\n'.format(
-                name.lower(), ', '.join(['&mut self'] + name_args(args))))
+        out_file.write(function_declaration(name.lower(), args))
+        out_file.write('\n    {\n')
+
         def print_to_out_file(pattern, arg_name):
             out_file.write('        '
                 'write!(self.stream_out, '
@@ -162,17 +219,9 @@ def generate(opcode_dict, out_file):
 
         print_to_out_file("{:04}", '"{}"'.format(instr))
 
-        for arg, arg_decl in zip(args, name_args(args)):
-            arg_type = arg[0]
-            arg_name = arg_decl.split(':')[0]
-            if arg_type == 'data':
-                print_to_out_file(" #${:02x}", arg_name)
-            elif arg_type == 'implicit_data':
-                print_to_out_file(" {}", arg_name)
-            elif arg_type == 'address':
-                print_to_out_file(" ${:02x}", arg_name)
-            else:
-                print_to_out_file(" {:?}", arg_name)
+        for num, arg in enumerate(args):
+            print_to_out_file(
+                ' ' + arg.fmt_representation(), arg.arg_name(num + 1))
         out_file.write('    }\n')
     out_file.write('}')
 
