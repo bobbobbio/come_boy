@@ -6,7 +6,7 @@ import os
 
 INSTRUCTION_SET_NAME = '8080'
 
-class Argument(object):
+class ArgumentType(object):
     def __init__(self):
         self.var_name = None
         self.type = None
@@ -20,79 +20,133 @@ class Argument(object):
     def fmt_representation(self):
         return str(self)
 
+    def make_expression(self, _stream, _value):
+        return str(self)
+
     def __eq__(self, other):
-        return self.var_name == other.var_name and self.type == other.type
+        return self.__class__ == other.__class__ and \
+               self.var_name == other.var_name and \
+               self.type == other.type
 
     def __neq__(self, other):
         return self != other
 
-class AddressArgument(Argument):
+class AddressArgumentType(ArgumentType):
     def __init__(self):
-        super(AddressArgument, self).__init__()
+        super(AddressArgumentType, self).__init__()
         self.var_name = 'address'
         self.type = 'u16'
 
     def fmt_representation(self):
         return "${:02x}"
 
-class DataArgument(Argument):
+    def make_expression(self, stream, _value):
+        return 'read_u16({}).unwrap()'.format(stream)
+
+class DataArgumentType(ArgumentType):
     def __init__(self, size):
-        super(DataArgument, self).__init__()
+        super(DataArgumentType, self).__init__()
         self.var_name = 'data'
+        self.size = size
         self.type = 'u' + str(size)
 
     def fmt_representation(self):
         return "#${:02x}"
 
-class ImplicitDataArgument(Argument):
+    def make_expression(self, stream, _value):
+        return 'read_u{}({}).unwrap()'.format(self.size, stream)
+
+class ImplicitDataArgumentType(ArgumentType):
     def __init__(self):
-        super(ImplicitDataArgument, self).__init__()
+        super(ImplicitDataArgumentType, self).__init__()
         self.var_name = 'implicit_data'
         self.type = 'u8'
 
     def fmt_representation(self):
         return "{}"
 
-class RegisterArgument(Argument):
+    def make_expression(self, _stream, value):
+        return '{} as u8'.format(value)
+
+class RegisterArgumentType(ArgumentType):
     def __init__(self):
-        super(RegisterArgument, self).__init__()
+        super(RegisterArgumentType, self).__init__()
         self.var_name = 'register'
         self.type = 'Register{}'.format(INSTRUCTION_SET_NAME)
 
     def fmt_representation(self):
         return "{:?}"
 
+    def make_expression(self, _stream, value):
+        return '{}::{}'.format(self.type, value)
+
+class Argument(object):
+    def __init__(self, arg_type, value):
+        self.value = value
+        self.type = arg_type
+
+    def make_expression(self, stream):
+        return self.type.make_expression(stream, self.value)
+
 def argument_factory(arg):
     if arg == 'adr':
-        return AddressArgument()
+        return Argument(AddressArgumentType(), None)
     elif arg.startswith('D') and arg != 'D':
-        return DataArgument(int(arg[1:]))
+        return Argument(DataArgumentType(int(arg[1:])), None)
     elif all([c.isdigit() for c in arg]):
-        return ImplicitDataArgument()
+        return Argument(ImplicitDataArgumentType(), int(arg))
     else:
         assert all([c.isalpha() for c in arg])
-        return RegisterArgument()
+        return Argument(RegisterArgumentType(), arg)
+
+class OpcodeFunction(object):
+    def __init__(self, name, shorthand, arguments):
+        self.name = name
+        self.shorthand = shorthand
+        self.arguments = arguments
+
+    def __eq__(self, other):
+        return self.__class__ == other.__class__ and \
+               self.name == other.name and \
+               self.shorthand == other.shorthand and \
+               self.arguments == other.arguments
+
+    def __neq__(self, other):
+        return self != other
+
+    def make_declaration(self):
+        named_args = \
+            ['&mut self'] + [a.format(n + 1)
+                for n, a in enumerate(self.arguments)]
+        return '    fn {}({})'.format(self.name.lower(), ', '.join(named_args))
+
+class OpcodeFunctionCall(object):
+    def __init__(self, function, arguments):
+        self.function = function
+        self.arguments = arguments
+
+    def generate(self, stream):
+        arguments = [a.make_expression(stream) for a in self.arguments]
+        return '{}({})'.format(self.function.name, ', '.join(arguments))
+
+class Opcode(object):
+    def __init__(self, value, size, function_call):
+        self.value = value
+        self.size = size
+        self.function_call = function_call
+
+class Opcodes(object):
+    def __init__(self, opcodes, functions):
+        self.opcodes = opcodes
+        self.functions = functions
 
 def read_args(args, stream):
-    '''
-    Translate an array of description of arguments (adr, D8, D16, A, M) into a
-    function call to read that argument out of stream, or appropriate literal.
-    '''
     r_args = []
     for arg in args:
-        if arg == 'adr':
-            r_args.append(('read_u16({}).unwrap()').format(stream))
-        elif arg.startswith('D') and arg != 'D':
-            r_args.append(
-                'read_u{}({}).unwrap()'.format(arg[1:], stream))
-        elif all([c.isdigit() for c in arg]):
-            r_args.append('{} as u8'.format(arg))
-        else:
-            assert all([c.isalpha() for c in arg])
-            r_args.append('Register{}::{}'.format(INSTRUCTION_SET_NAME, arg))
+        r_args.append(arg.make_expression(stream))
     return r_args
 
-def generate(opcode_dict, out_file):
+def generate_preamble(out_file):
     out_file.write(textwrap.dedent('''
         use emulator_lr35902::emulator_{0}::opcodes::{{
             read_u16, read_u8, Register{0}, OpcodePrinter{0}}};
@@ -103,59 +157,67 @@ def generate(opcode_dict, out_file):
          */
     '''.format(INSTRUCTION_SET_NAME)))
 
-    #   __                  _   _               _        _     _
-    #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
-    # | |_| | | | '_ \ / __| __| |/ _ \| '_ \  | __/ _` | '_ \| |/ _ \
-    # |  _| |_| | | | | (__| |_| | (_) | | | | | || (_| | |_) | |  __/
-    # |_|  \__,_|_| |_|\___|\__|_|\___/|_| |_|  \__\__,_|_.__/|_|\___|
-    #
+#   __                  _   _               _        _     _
+#  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
+# | |_| | | | '_ \ / __| __| |/ _ \| '_ \  | __/ _` | '_ \| |/ _ \
+# |  _| |_| | | | | (__| |_| | (_) | | | | | || (_| | |_) | |  __/
+# |_|  \__,_|_| |_|\___|\__|_|\___/|_| |_|  \__\__,_|_.__/|_|\___|
+#
 
+def create_opcodes(opcode_dict):
     functions = {}
-    for info in opcode_dict.itervalues():
+    opcodes = []
+    for opcode, info in opcode_dict.iteritems():
         instr = info['instr']
         if instr == '-':
             name = 'not_implemented'
         else:
             name = info['description'].replace(' ', '_').lower()
 
-        arg_desc = []
+        args = []
         for arg in info['args']:
-            arg_desc.append(argument_factory(arg))
+            args.append(argument_factory(arg))
 
+        arg_types = []
+        for arg in args:
+            arg_types.append(arg.type)
+
+        function = OpcodeFunction(name, instr, arg_types)
         if name not in functions:
-            functions[name] = instr, arg_desc
+            functions[name] = function
         else:
-            _, existing_arg_desc = functions[name]
-            assert existing_arg_desc == arg_desc, \
+            existing_function = functions[name]
+            assert existing_function == function, \
                 "{} has non consistent arguments".format(name)
 
-    #  _           _                   _   _
-    # (_)_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
-    # | | '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \/ __|
-    # | | | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | \__ \
-    # |_|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|___/
-    #  _             _ _
-    # | |_ _ __ __ _(_) |_
-    # | __| '__/ _` | | __|
-    # | |_| | | (_| | | |_
-    #  \__|_|  \__,_|_|\__|
+        function_call = OpcodeFunctionCall(function, args)
+        opcodes.append(Opcode(opcode, info['size'], function_call))
 
+    return Opcodes(opcodes, functions.values())
+
+#  _           _                   _   _
+# (_)_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
+# | | '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \/ __|
+# | | | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | \__ \
+# |_|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|___/
+#  _             _ _
+# | |_ _ __ __ _(_) |_
+# | __| '__/ _` | | __|
+# | |_| | | (_| | | |_
+#  \__|_|  \__,_|_|\__|
+
+def generate_instructions_trait(out_file, opcodes):
     out_file.write(textwrap.dedent('''
       pub trait InstructionSet{} {{
     '''.format(INSTRUCTION_SET_NAME)))
 
-    def function_declaration(name, args):
-        named_args = \
-            ['&mut self'] + [a.format(n + 1) for n, a in enumerate(args)]
-        return '    fn {}({})'.format(name, ', '.join(named_args))
-
-    for name, info in functions.iteritems():
-        _, args = info
-        out_file.write(function_declaration(name.lower(), args))
+    for function in opcodes.functions:
+        out_file.write(function.make_declaration())
         out_file.write(';\n')
 
     out_file.write('}\n')
 
+def generate_opcode_dispatch(out_file, opcodes):
     out_file.write(textwrap.dedent('''
         pub fn dispatch_{0}_opcode<I: InstructionSet{0}>(
             mut stream: &[u8],
@@ -164,15 +226,10 @@ def generate(opcode_dict, out_file):
             match read_u8(&mut stream).unwrap() {{
     '''.format(INSTRUCTION_SET_NAME)))
 
-    for opcode, info in opcode_dict.iteritems():
-        out_file.write('        {} => '.format(opcode))
-        instr = info['instr']
-        if instr == '-':
-            name = 'not_implemented'
-        else:
-            name = info['description'].replace(' ', '_').lower()
-        out_file.write('machine.{}({}),\n'.format(
-            name, ', '.join(read_args(info['args'], '&mut stream'))))
+    for opcode in opcodes.opcodes:
+        out_file.write('        {} => '.format(opcode.value))
+        out_file.write('machine.{},\n'.format(
+            opcode.function_call.generate('&mut stream')))
 
     out_file.write(textwrap.dedent('''
                _ => panic!("Unknown opcode")
@@ -180,14 +237,15 @@ def generate(opcode_dict, out_file):
        }
     '''))
 
+def generate_opcode_size(out_file, opcodes):
     out_file.write(textwrap.dedent('''
         pub fn get_{}_opcode_size(opcode: u8) -> u8
         {{
             match opcode {{
     '''.format(INSTRUCTION_SET_NAME)))
 
-    for opcode, info in opcode_dict.iteritems():
-        out_file.write('        {} => {},\n'.format(opcode, info['size']))
+    for opcode in opcodes.opcodes:
+        out_file.write('        {} => {},\n'.format(opcode.value, opcode.size))
 
     out_file.write(textwrap.dedent('''
                _ => panic!("Unknown opcode")
@@ -195,20 +253,20 @@ def generate(opcode_dict, out_file):
        }
     '''))
 
-    #                            _                   _       _
-    #   ___  _ __   ___ ___   __| | ___   _ __  _ __(_)_ __ | |_ ___ _ __
-    #  / _ \| '_ \ / __/ _ \ / _` |/ _ \ | '_ \| '__| | '_ \| __/ _ \ '__|
-    # | (_) | |_) | (_| (_) | (_| |  __/ | |_) | |  | | | | | ||  __/ |
-    #  \___/| .__/ \___\___/ \__,_|\___| | .__/|_|  |_|_| |_|\__\___|_|
-    #       |_|                          |_|
+#                            _                   _       _
+#   ___  _ __   ___ ___   __| | ___   _ __  _ __(_)_ __ | |_ ___ _ __
+#  / _ \| '_ \ / __/ _ \ / _` |/ _ \ | '_ \| '__| | '_ \| __/ _ \ '__|
+# | (_) | |_) | (_| (_) | (_| |  __/ | |_) | |  | | | | | ||  __/ |
+#  \___/| .__/ \___\___/ \__,_|\___| | .__/|_|  |_|_| |_|\__\___|_|
+#       |_|                          |_|
 
+def generate_opcode_printer(out_file, opcodes):
     out_file.write(textwrap.dedent('''
         impl<'a> InstructionSet{0} for OpcodePrinter{0}<'a> {{
     '''.format(INSTRUCTION_SET_NAME)))
 
-    for name, info in functions.iteritems():
-        instr, args = info
-        out_file.write(function_declaration(name.lower(), args))
+    for function in opcodes.functions:
+        out_file.write(function.make_declaration())
         out_file.write('\n    {\n')
 
         def print_to_out_file(pattern, arg_name):
@@ -216,13 +274,23 @@ def generate(opcode_dict, out_file):
                 'write!(self.stream_out, "{}", {}).unwrap();\n'.format(
                     pattern, arg_name))
 
-        print_to_out_file("{:04}", '"{}"'.format(instr))
+        print_to_out_file("{:04}", '"{}"'.format(function.shorthand))
 
-        for num, arg in enumerate(args):
+        for num, arg in enumerate(function.arguments):
             print_to_out_file(
                 ' ' + arg.fmt_representation(), arg.arg_name(num + 1))
         out_file.write('    }\n')
     out_file.write('}')
+
+def generate(opcode_dict, out_file):
+    generate_preamble(out_file)
+
+    opcodes = create_opcodes(opcode_dict)
+
+    generate_instructions_trait(out_file, opcodes)
+    generate_opcode_dispatch(out_file, opcodes)
+    generate_opcode_size(out_file, opcodes)
+    generate_opcode_printer(out_file, opcodes)
 
 def main():
     script_dir = os.path.dirname(os.path.realpath(__file__))
