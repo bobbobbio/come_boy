@@ -4,7 +4,7 @@ use std::mem;
 
 mod opcode_gen;
 
-pub use emulator_lr35902::emulator_8080::opcodes::opcode_gen::{
+pub use emulator_8080::opcodes::opcode_gen::{
     InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
 
 /*

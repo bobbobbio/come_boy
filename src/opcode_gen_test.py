@@ -23,7 +23,7 @@ class OpcodeGenFullTest(unittest.TestCase):
         }
         OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
-        use emulator_lr35902::emulator_8080::opcodes::{
+        use emulator_8080::opcodes::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
 
         /*
@@ -82,7 +82,7 @@ class OpcodeGenFullTest(unittest.TestCase):
         }
         OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
-        use emulator_lr35902::emulator_8080::opcodes::{
+        use emulator_8080::opcodes::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
 
         /*
@@ -133,7 +133,7 @@ class OpcodeGenFullTest(unittest.TestCase):
         }
         OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
-        use emulator_lr35902::emulator_8080::opcodes::{
+        use emulator_8080::opcodes::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
 
         /*

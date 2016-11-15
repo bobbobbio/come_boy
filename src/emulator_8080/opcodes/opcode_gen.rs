@@ -1,5 +1,5 @@
 
-use emulator_lr35902::emulator_8080::opcodes::{
+use emulator_8080::opcodes::{
     read_u16, read_u8, Register8080, OpcodePrinter8080};
 
 /*

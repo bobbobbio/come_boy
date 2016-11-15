@@ -3,8 +3,8 @@ mod opcodes;
 use std::mem;
 use std::collections::HashMap;
 
-pub use emulator_lr35902::emulator_8080::opcodes::{Register8080, disassemble_8080_rom};
-use emulator_lr35902::emulator_8080::opcodes::{
+pub use emulator_8080::opcodes::{Register8080, disassemble_8080_rom};
+use emulator_8080::opcodes::{
     InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
 
 const MAX_ADDRESS: usize = 0xffff;

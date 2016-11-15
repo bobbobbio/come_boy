@@ -5,7 +5,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::Read;
 
-use come_boy::emulator_lr35902::emulator_8080::{disassemble_8080_rom};
+use come_boy::emulator_8080::{disassemble_8080_rom};
 
 fn main()
 {

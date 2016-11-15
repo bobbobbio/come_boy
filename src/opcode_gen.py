@@ -151,7 +151,7 @@ class OpcodeCodeGenerator(object):
 
     def generate_preamble(self):
         self.out_file.write(textwrap.dedent('''
-            use emulator_lr35902::emulator_{0}::opcodes::{{
+            use emulator_{0}::opcodes::{{
                 read_u16, read_u8, Register{0}, OpcodePrinter{0}}};
 
             /*
