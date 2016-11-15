@@ -2,6 +2,10 @@ import json
 import textwrap
 import os
 
+SRC_PATH = os.path.dirname(os.path.realpath(__file__))
+while os.path.basename(SRC_PATH) != 'src':
+    SRC_PATH = os.path.dirname(SRC_PATH)
+
 class ArgumentType(object):
     def __init__(self):
         self.var_name = None
@@ -143,22 +147,27 @@ def read_args(args, stream):
     return r_args
 
 class OpcodeCodeGenerator(object):
-    def __init__(self, out_file, opcode_dict, instruction_set_name):
+    def __init__(
+            self, out_file, opcode_dict, instruction_set_name, module_path):
         self.out_file = out_file
         self.opcode_dict = opcode_dict
         self.instruction_set_name = instruction_set_name
+        self.module_path = module_path
         self.opcodes = self.create_opcodes()
 
     def generate_preamble(self):
         self.out_file.write(textwrap.dedent('''
-            use emulator_{0}::opcodes::{{
-                read_u16, read_u8, Register{0}, OpcodePrinter{0}}};
+            use {}::{{
+                read_u16, read_u8, Register8080, OpcodePrinter{}}};
 
             /*
              * Warning: This file is generated.  Don't manually edit.
-             * Instead edit opcodes/opcode_gen.py
+             * Instead edit {}
              */
-        '''.format(self.instruction_set_name)))
+        '''.format(
+            self.module_path,
+            self.instruction_set_name,
+            os.path.relpath(__file__, SRC_PATH))))
 
     #   __                  _   _               _        _     _
     #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
@@ -298,7 +307,9 @@ def generate_opcode_rs(path, instruction_set_name):
         opcode_dict = json.loads(f.read())
     output_file = os.path.join(path, 'opcode_gen.rs')
 
+    module_path = '::'.join(os.path.relpath(path, SRC_PATH).split('/'))
+
     with open(output_file, 'w') as out_file:
         generator = OpcodeCodeGenerator(
-            out_file, opcode_dict, instruction_set_name)
+            out_file, opcode_dict, instruction_set_name, module_path)
         generator.generate()

@@ -10,6 +10,9 @@ class OpcodeGenFullTest(unittest.TestCase):
     def setUp(self):
         self.outfile = StringIO.StringIO()
 
+    def generate(self, opcode_dict):
+        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080', 'foo').generate()
+
     def test_opcodes_no_args(self):
         opcode_dict = {
             "0x00": {"instr": "HELLO",
@@ -21,14 +24,14 @@ class OpcodeGenFullTest(unittest.TestCase):
                      "args": [],
                      "size": 1}
         }
-        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
+        self.generate(opcode_dict)
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
-        use emulator_8080::opcodes::{
+        use foo::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
 
         /*
          * Warning: This file is generated.  Don't manually edit.
-         * Instead edit opcodes/opcode_gen.py
+         * Instead edit opcode_gen.py
          */
 
         pub trait InstructionSet8080 {
@@ -80,14 +83,14 @@ class OpcodeGenFullTest(unittest.TestCase):
                      "args": ["2"],
                      "size": 1}
         }
-        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
+        self.generate(opcode_dict)
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
-        use emulator_8080::opcodes::{
+        use foo::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
 
         /*
          * Warning: This file is generated.  Don't manually edit.
-         * Instead edit opcodes/opcode_gen.py
+         * Instead edit opcode_gen.py
          */
 
         pub trait InstructionSet8080 {
@@ -131,14 +134,14 @@ class OpcodeGenFullTest(unittest.TestCase):
                      "args": ["1", "A", "D8", "D16"],
                      "size": 4},
         }
-        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
+        self.generate(opcode_dict)
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
-        use emulator_8080::opcodes::{
+        use foo::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
 
         /*
          * Warning: This file is generated.  Don't manually edit.
-         * Instead edit opcodes/opcode_gen.py
+         * Instead edit opcode_gen.py
          */
 
         pub trait InstructionSet8080 {

@@ -4,7 +4,7 @@ use emulator_8080::opcodes::{
 
 /*
  * Warning: This file is generated.  Don't manually edit.
- * Instead edit opcodes/opcode_gen.py
+ * Instead edit opcode_gen.py
  */
 
 pub trait InstructionSet8080 {
