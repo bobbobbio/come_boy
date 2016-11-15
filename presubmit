@@ -3,13 +3,13 @@
 set -ex
 
 # Run pylint on all the python
-./pylint
+$( dirname $0 )/pylint
 
 # Run the python tests
-./pytest
+$( dirname $0 )/pytest
 
 # Generate any generated code
-./code_gen
+$( dirname $0 )/code_gen
 
 cargo build
 cargo test

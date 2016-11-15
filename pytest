@@ -5,6 +5,6 @@ set -ex
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH=$( dirname $0 )/src
 
-for testfile in $(find . -name "*_test.py"); do
+for testfile in $(find $( dirname $0 ) -name "*_test.py"); do
     $testfile;
 done
