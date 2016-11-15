@@ -227,7 +227,7 @@ class OpcodeCodeGenerator(object):
                 machine: &mut I)
             {{
                 match read_u8(&mut stream).unwrap() {{
-        '''.format(INSTRUCTION_SET_NAME)))
+        '''.format(self.instruction_set_name)))
 
         for opcode in self.opcodes.opcodes:
             self.out_file.write('        {} => '.format(opcode.value))
@@ -245,7 +245,7 @@ class OpcodeCodeGenerator(object):
             pub fn get_{}_opcode_size(opcode: u8) -> u8
             {{
                 match opcode {{
-        '''.format(INSTRUCTION_SET_NAME)))
+        '''.format(self.instruction_set_name)))
 
         for opcode in self.opcodes.opcodes:
             self.out_file.write('        {} => {},\n'.format(
@@ -267,7 +267,7 @@ class OpcodeCodeGenerator(object):
     def generate_opcode_printer(self):
         self.out_file.write(textwrap.dedent('''
             impl<'a> InstructionSet{0} for OpcodePrinter{0}<'a> {{
-        '''.format(INSTRUCTION_SET_NAME)))
+        '''.format(self.instruction_set_name)))
 
         for function in self.opcodes.functions:
             self.out_file.write(function.make_declaration())
