@@ -1,0 +1,3 @@
+#!/bin/bash
+
+pylint --rcfile=./pylintrc --reports=n $(find . -name "*.py")

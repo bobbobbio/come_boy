@@ -3,17 +3,15 @@
 set -ex
 
 # Run pylint on all the python
-pylint --rcfile=./pylintrc --reports=n $(find . -name "*.py")
+./pylint
 
 # Run all *_test.py
 for testfile in $(find . -name "*_test.py"); do
     $testfile;
 done
 
-# Run all *_gen.py
-for genfile in $(find . -name "*_gen.py"); do
-    $genfile;
-done
+# Generate any generated code
+./code_gen
 
 cargo build
 cargo test

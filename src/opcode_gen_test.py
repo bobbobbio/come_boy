@@ -4,7 +4,7 @@ import StringIO
 import textwrap
 import unittest
 
-import opcode_gen
+from opcode_gen import OpcodeCodeGenerator
 
 class OpcodeGenFullTest(unittest.TestCase):
     def setUp(self):
@@ -21,7 +21,7 @@ class OpcodeGenFullTest(unittest.TestCase):
                      "args": [],
                      "size": 1}
         }
-        opcode_gen.generate(opcode_dict, self.outfile)
+        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
         use emulator_lr35902::emulator_8080::opcodes::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
@@ -80,7 +80,7 @@ class OpcodeGenFullTest(unittest.TestCase):
                      "args": ["2"],
                      "size": 1}
         }
-        opcode_gen.generate(opcode_dict, self.outfile)
+        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
         use emulator_lr35902::emulator_8080::opcodes::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
@@ -131,7 +131,7 @@ class OpcodeGenFullTest(unittest.TestCase):
                      "args": ["1", "A", "D8", "D16"],
                      "size": 4},
         }
-        opcode_gen.generate(opcode_dict, self.outfile)
+        OpcodeCodeGenerator(self.outfile, opcode_dict, '8080').generate()
         self.assertEqual(self.outfile.getvalue(), textwrap.dedent('''
         use emulator_lr35902::emulator_8080::opcodes::{
             read_u16, read_u8, Register8080, OpcodePrinter8080};
