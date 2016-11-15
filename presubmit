@@ -5,10 +5,8 @@ set -ex
 # Run pylint on all the python
 ./pylint
 
-# Run all *_test.py
-for testfile in $(find . -name "*_test.py"); do
-    $testfile;
-done
+# Run the python tests
+./pytest
 
 # Generate any generated code
 ./code_gen
