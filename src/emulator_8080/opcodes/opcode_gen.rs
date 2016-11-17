@@ -1,6 +1,6 @@
 
-use emulator_8080::opcodes::{
-    read_u16, read_u8, Register8080, OpcodePrinter8080};
+use emulator_8080::opcodes::{Register8080, OpcodePrinter8080};
+use util::{read_u16, read_u8};
 
 /*
  * Warning: This file is generated.  Don't manually edit.

@@ -157,8 +157,8 @@ class OpcodeCodeGenerator(object):
 
     def generate_preamble(self):
         self.out_file.write(textwrap.dedent('''
-            use {}::{{
-                read_u16, read_u8, Register8080, OpcodePrinter{}}};
+            use {}::{{Register8080, OpcodePrinter{}}};
+            use util::{{read_u16, read_u8}};
 
             /*
              * Warning: This file is generated.  Don't manually edit.
@@ -167,7 +167,7 @@ class OpcodeCodeGenerator(object):
         '''.format(
             self.module_path,
             self.instruction_set_name,
-            os.path.relpath(__file__, SRC_PATH))))
+            os.path.relpath(__file__, SRC_PATH))).strip())
 
     #   __                  _   _               _        _     _
     #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
