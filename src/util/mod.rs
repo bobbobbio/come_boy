@@ -24,13 +24,11 @@ pub fn read_u8<T: io::Read>(
 #[test]
 fn read_u8_test()
 {
-    let data = [0x0f];
-    assert_eq!(read_u8(data.as_ref()).unwrap(), 0x0f);
+    assert_eq!(read_u8(&[0x0f][..]).unwrap(), 0x0f);
 }
 
 #[test]
 fn read_u16_test()
 {
-    let data = [0x0f, 0x08];
-    assert_eq!(read_u16(data.as_ref()).unwrap(), 0x080f);
+    assert_eq!(read_u16(&[0x0f, 0x08][..]).unwrap(), 0x080f);
 }

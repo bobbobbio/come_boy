@@ -167,7 +167,7 @@ class OpcodeCodeGenerator(object):
         '''.format(
             self.module_path,
             self.instruction_set_name,
-            os.path.relpath(__file__, SRC_PATH))).strip())
+            os.path.relpath(__file__, SRC_PATH))).lstrip())
 
     #   __                  _   _               _        _     _
     #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
