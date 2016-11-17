@@ -5,7 +5,7 @@ use std::mem;
 mod opcode_gen;
 
 pub use emulator_8080::opcodes::opcode_gen::{
-    InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
+    InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
 
 /*
  *  ____            _     _            ___   ___   ___   ___
@@ -45,7 +45,7 @@ pub enum Register8080 {
 
 trait OpcodePrinter<'a> {
     fn print_opcode(&mut self, stream: &[u8]);
-    fn get_opcode_size(&self, opcode: u8) -> u8;
+    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;
 }
 
 trait OpcodePrinterFactory<'a> {
@@ -73,11 +73,11 @@ impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
 impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
     fn print_opcode(&mut self, stream: &[u8])
     {
-        dispatch_8080_opcode(stream, self)
+        dispatch_8080_instruction(stream, self)
     }
-    fn get_opcode_size(&self, opcode: u8) -> u8
+    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        get_8080_opcode_size(opcode)
+        get_8080_instruction(stream)
     }
 }
 
@@ -142,24 +142,37 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
     fn disassemble(&mut self) -> Result<()>
     {
         while (self.index as usize) < self.rom.len() {
-            let mut formatted_op_buf: Vec<u8> = vec![];
-            let size: u8;
+            let mut printed_instr: Vec<u8> = vec![];
+            let instr: Vec<u8>;
+            let printed;
             {
-                let mut opcode_printer = self.opcode_printer_factory.new(&mut formatted_op_buf);
-                size = opcode_printer.get_opcode_size(self.rom[self.index as usize]);
-                opcode_printer.print_opcode(&self.rom[self.index as usize..]);
+                let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
+                printed = match opcode_printer.get_instruction(&self.rom[self.index as usize..]) {
+                    Some(res) => {
+                        opcode_printer.print_opcode(&res);
+                        instr = res;
+                        true
+                    },
+                    None => {
+                        instr = vec![self.rom[self.index as usize]];
+                        false
+                    }
+                };
             }
-            let formatted_opcode = str::from_utf8(&formatted_op_buf).unwrap();
+
+            let str_instr = match printed {
+                true => str::from_utf8(&printed_instr).unwrap(),
+                false => "-   "
+            };
 
             let mut raw_assembly = String::new();
-            for code in &self.rom[self.index as usize .. (self.index + size as u64) as usize] {
+            for code in &instr {
                 raw_assembly.push_str(format!("{:02x} ", code).as_str());
             }
 
-            try!(write!(self.stream_out,
-                "{:07x} {:9}{}\n", self.index, raw_assembly, formatted_opcode));
+            try!(write!(self.stream_out, "{:07x} {:9}{}\n", self.index, raw_assembly, str_instr));
 
-            self.index += size as u64;
+            self.index += instr.len() as u64;
         }
         Ok(())
     }
@@ -185,17 +198,21 @@ impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
             0x1 => write!(self.stream_out, "TEST1").unwrap(),
             0x2 => write!(self.stream_out, "TEST2").unwrap(),
             0x3 => write!(self.stream_out, "TEST3").unwrap(),
-            _ => panic!("Unknown opcode")
-        }
+            _ => panic!("Unkown Opcode {}", stream[0])
+        };
     }
-    fn get_opcode_size(&self, opcode: u8) -> u8
+    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        match opcode {
+        let size = match stream[0] {
             0x1 => 1,
             0x2 => 2,
             0x3 => 3,
-            _ => panic!("Unknown opcode")
-        }
+            _ => return None
+        };
+        let mut instruction = vec![];
+        instruction.resize(size, 0);
+        instruction.clone_from_slice(&stream[0..size]);
+        return Some(instruction);
     }
 }
 

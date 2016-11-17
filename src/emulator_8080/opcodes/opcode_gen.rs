@@ -31,7 +31,7 @@ pub trait InstructionSet8080 {
     fn compare_with_accumulator(&mut self, register1: Register8080);
     fn call_if_not_zero(&mut self, address1: u16);
     fn call_if_parity_odd(&mut self, address1: u16);
-    fn subtract_immediate_from_accumulator(&mut self, data1: u8);
+    fn return_if_zero(&mut self);
     fn rotate_accumulator_left_through_carry(&mut self);
     fn disable_interrupts(&mut self);
     fn load_sp_from_h_and_l(&mut self);
@@ -64,7 +64,6 @@ pub trait InstructionSet8080 {
     fn move_immediate_data(&mut self, register1: Register8080, data2: u8);
     fn return_if_plus(&mut self);
     fn restart(&mut self, implicit_data1: u8);
-    fn return_if_carry(&mut self);
     fn store_accumulator_direct(&mut self, address1: u16);
     fn jump_if_not_zero(&mut self, address1: u16);
     fn jump_if_minus(&mut self, address1: u16);
@@ -74,12 +73,12 @@ pub trait InstructionSet8080 {
     fn add_to_accumulator_with_carry(&mut self, register1: Register8080);
     fn jump_if_zero(&mut self, address1: u16);
     fn complement_accumulator(&mut self);
-    fn return_if_zero(&mut self);
+    fn return_if_carry(&mut self);
     fn return_if_parity_odd(&mut self);
     fn return_unconditionally(&mut self);
     fn store_h_and_l_direct(&mut self, address1: u16);
     fn subtract_from_accumulator_with_borrow(&mut self, register1: Register8080);
-    fn not_implemented(&mut self);
+    fn subtract_immediate_from_accumulator(&mut self, data1: u8);
     fn push_data_onto_stack(&mut self, register1: Register8080);
     fn jump_if_no_carry(&mut self, address1: u16);
     fn sim(&mut self);
@@ -91,11 +90,12 @@ pub trait InstructionSet8080 {
     fn rotate_accumulator_right_through_carry(&mut self);
 }
 
-pub fn dispatch_8080_opcode<I: InstructionSet8080>(
+pub fn dispatch_8080_instruction<I: InstructionSet8080>(
     mut stream: &[u8],
     machine: &mut I)
 {
-    match read_u8(&mut stream).unwrap() {
+    let opcode = read_u8(&mut stream).unwrap();
+    match opcode {
         0x3e => machine.move_immediate_data(Register8080::A, read_u8(&mut stream).unwrap()),
         0x3d => machine.decrement_register_or_memory(Register8080::A),
         0xe4 => machine.call_if_parity_odd(read_u16(&mut stream).unwrap()),
@@ -107,7 +107,6 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xfa => machine.jump_if_minus(read_u16(&mut stream).unwrap()),
         0xda => machine.jump_if_carry(read_u16(&mut stream).unwrap()),
         0xec => machine.call_if_parity_even(read_u16(&mut stream).unwrap()),
-        0x28 => machine.not_implemented(),
         0x29 => machine.double_add(Register8080::H),
         0xcf => machine.restart(1 as u8),
         0xf8 => machine.return_if_minus(),
@@ -124,7 +123,6 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xef => machine.restart(5 as u8),
         0xe2 => machine.jump_if_parity_odd(read_u16(&mut stream).unwrap()),
         0xee => machine.exclusive_or_immediate_with_accumulator(read_u8(&mut stream).unwrap()),
-        0xed => machine.not_implemented(),
         0xdc => machine.call_if_carry(read_u16(&mut stream).unwrap()),
         0x35 => machine.decrement_register_or_memory(Register8080::M),
         0x34 => machine.increment_register_or_memory(Register8080::M),
@@ -134,19 +132,15 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0x30 => machine.sim(),
         0x33 => machine.increment_register_pair(Register8080::SP),
         0x32 => machine.store_accumulator_direct(read_u16(&mut stream).unwrap()),
-        0xd4 => machine.call_if_no_carry(read_u16(&mut stream).unwrap()),
         0xe8 => machine.return_if_parity_even(),
         0x39 => machine.double_add(Register8080::SP),
-        0x38 => machine.not_implemented(),
         0xc0 => machine.return_if_not_zero(),
         0xe1 => machine.pop_data_off_stack(Register8080::H),
         0xfe => machine.compare_immediate_with_accumulator(read_u8(&mut stream).unwrap()),
         0x88 => machine.add_to_accumulator_with_carry(Register8080::B),
-        0xdd => machine.not_implemented(),
         0x89 => machine.add_to_accumulator_with_carry(Register8080::C),
         0x2b => machine.decrement_register_pair(Register8080::H),
         0x2c => machine.increment_register_or_memory(Register8080::L),
-        0xfd => machine.not_implemented(),
         0x2a => machine.load_h_and_l_direct(read_u16(&mut stream).unwrap()),
         0x2f => machine.complement_accumulator(),
         0xfc => machine.call_if_minus(read_u16(&mut stream).unwrap()),
@@ -155,7 +149,6 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0x5c => machine.move_data(Register8080::E, Register8080::H),
         0x5b => machine.move_data(Register8080::E, Register8080::E),
         0x5a => machine.move_data(Register8080::E, Register8080::D),
-        0xba => machine.compare_with_accumulator(Register8080::D),
         0x5f => machine.move_data(Register8080::E, Register8080::A),
         0x5e => machine.move_data(Register8080::E, Register8080::M),
         0x5d => machine.move_data(Register8080::E, Register8080::L),
@@ -236,7 +229,6 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xb9 => machine.compare_with_accumulator(Register8080::C),
         0xca => machine.jump_if_zero(read_u16(&mut stream).unwrap()),
         0xcc => machine.call_if_zero(read_u16(&mut stream).unwrap()),
-        0xcb => machine.not_implemented(),
         0xb2 => machine.logical_or_with_accumulator(Register8080::D),
         0xb3 => machine.logical_or_with_accumulator(Register8080::E),
         0xb0 => machine.logical_or_with_accumulator(Register8080::B),
@@ -273,7 +265,7 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xc2 => machine.jump_if_not_zero(read_u16(&mut stream).unwrap()),
         0xbb => machine.compare_with_accumulator(Register8080::E),
         0xbc => machine.compare_with_accumulator(Register8080::H),
-        0x8c => machine.add_to_accumulator_with_carry(Register8080::H),
+        0xba => machine.compare_with_accumulator(Register8080::D),
         0xbf => machine.compare_with_accumulator(Register8080::A),
         0xc8 => machine.return_if_zero(),
         0xbd => machine.compare_with_accumulator(Register8080::L),
@@ -281,14 +273,13 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xf1 => machine.pop_data_off_stack(Register8080::PSW),
         0xe9 => machine.load_program_counter(),
         0xd8 => machine.return_if_carry(),
-        0xd9 => machine.not_implemented(),
         0xf7 => machine.restart(6 as u8),
         0xf3 => machine.disable_interrupts(),
         0xd0 => machine.return_if_no_carry(),
         0x9f => machine.subtract_from_accumulator_with_borrow(Register8080::A),
         0x9e => machine.subtract_from_accumulator_with_borrow(Register8080::M),
         0x9d => machine.subtract_from_accumulator_with_borrow(Register8080::L),
-        0x08 => machine.not_implemented(),
+        0x9c => machine.subtract_from_accumulator_with_borrow(Register8080::H),
         0x09 => machine.double_add(Register8080::B),
         0x9a => machine.subtract_from_accumulator_with_borrow(Register8080::D),
         0xd7 => machine.restart(2 as u8),
@@ -319,7 +310,7 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xd1 => machine.pop_data_off_stack(Register8080::D),
         0xd2 => machine.jump_if_no_carry(read_u16(&mut stream).unwrap()),
         0xd3 => machine.output(read_u8(&mut stream).unwrap()),
-        0x9c => machine.subtract_from_accumulator_with_borrow(Register8080::H),
+        0xd4 => machine.call_if_no_carry(read_u16(&mut stream).unwrap()),
         0x9b => machine.subtract_from_accumulator_with_borrow(Register8080::E),
         0x8d => machine.add_to_accumulator_with_carry(Register8080::L),
         0x8e => machine.add_to_accumulator_with_carry(Register8080::M),
@@ -328,7 +319,7 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0xe7 => machine.restart(4 as u8),
         0x8a => machine.add_to_accumulator_with_carry(Register8080::D),
         0x19 => machine.double_add(Register8080::D),
-        0x18 => machine.not_implemented(),
+        0x8c => machine.add_to_accumulator_with_carry(Register8080::H),
         0x17 => machine.rotate_accumulator_left_through_carry(),
         0x16 => machine.move_immediate_data(Register8080::D, read_u8(&mut stream).unwrap()),
         0x15 => machine.decrement_register_or_memory(Register8080::D),
@@ -336,7 +327,6 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0x13 => machine.increment_register_pair(Register8080::D),
         0x12 => machine.store_accumulator(Register8080::D),
         0x11 => machine.load_register_pair_immediate(Register8080::D, read_u16(&mut stream).unwrap()),
-        0x10 => machine.not_implemented(),
         0x97 => machine.subtract_from_accumulator(Register8080::A),
         0x96 => machine.subtract_from_accumulator(Register8080::M),
         0x95 => machine.subtract_from_accumulator(Register8080::L),
@@ -353,13 +343,13 @@ pub fn dispatch_8080_opcode<I: InstructionSet8080>(
         0x0b => machine.decrement_register_pair(Register8080::B),
         0x0c => machine.increment_register_or_memory(Register8080::C),
 
-        _ => panic!("Unknown opcode")
+        _ => panic!("Unknown opcode {}", opcode)
    };
 }
 
-pub fn get_8080_opcode_size(opcode: u8) -> u8
+pub fn get_8080_instruction(stream: &[u8]) -> Option<Vec<u8>>
 {
-    match opcode {
+    let size = match stream[0] {
         0x3e => 2,
         0x3d => 1,
         0xe4 => 3,
@@ -371,7 +361,6 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xfa => 3,
         0xda => 3,
         0xec => 3,
-        0x28 => 1,
         0x29 => 1,
         0xcf => 1,
         0xf8 => 1,
@@ -388,7 +377,6 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xef => 1,
         0xe2 => 3,
         0xee => 2,
-        0xed => 1,
         0xdc => 3,
         0x35 => 1,
         0x34 => 1,
@@ -398,19 +386,15 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0x30 => 1,
         0x33 => 1,
         0x32 => 3,
-        0xd4 => 3,
         0xe8 => 1,
         0x39 => 1,
-        0x38 => 1,
         0xc0 => 1,
         0xe1 => 1,
         0xfe => 2,
         0x88 => 1,
-        0xdd => 1,
         0x89 => 1,
         0x2b => 1,
         0x2c => 1,
-        0xfd => 1,
         0x2a => 3,
         0x2f => 1,
         0xfc => 3,
@@ -419,7 +403,6 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0x5c => 1,
         0x5b => 1,
         0x5a => 1,
-        0xba => 1,
         0x5f => 1,
         0x5e => 1,
         0x5d => 1,
@@ -500,7 +483,6 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xb9 => 1,
         0xca => 3,
         0xcc => 3,
-        0xcb => 1,
         0xb2 => 1,
         0xb3 => 1,
         0xb0 => 1,
@@ -537,7 +519,7 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xc2 => 3,
         0xbb => 1,
         0xbc => 1,
-        0x8c => 1,
+        0xba => 1,
         0xbf => 1,
         0xc8 => 1,
         0xbd => 1,
@@ -545,14 +527,13 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xf1 => 1,
         0xe9 => 1,
         0xd8 => 1,
-        0xd9 => 1,
         0xf7 => 1,
         0xf3 => 1,
         0xd0 => 1,
         0x9f => 1,
         0x9e => 1,
         0x9d => 1,
-        0x08 => 1,
+        0x9c => 1,
         0x09 => 1,
         0x9a => 1,
         0xd7 => 1,
@@ -583,7 +564,7 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xd1 => 1,
         0xd2 => 3,
         0xd3 => 2,
-        0x9c => 1,
+        0xd4 => 3,
         0x9b => 1,
         0x8d => 1,
         0x8e => 1,
@@ -592,7 +573,7 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0xe7 => 1,
         0x8a => 1,
         0x19 => 1,
-        0x18 => 1,
+        0x8c => 1,
         0x17 => 1,
         0x16 => 2,
         0x15 => 1,
@@ -600,7 +581,6 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0x13 => 1,
         0x12 => 1,
         0x11 => 3,
-        0x10 => 1,
         0x97 => 1,
         0x96 => 1,
         0x95 => 1,
@@ -617,8 +597,12 @@ pub fn get_8080_opcode_size(opcode: u8) -> u8
         0x0b => 1,
         0x0c => 1,
 
-        _ => panic!("Unknown opcode")
-   }
+        _ => return None
+    };
+    let mut instruction = vec![];
+    instruction.resize(size, 0);
+    instruction.clone_from_slice(&stream[0..size]);
+    return Some(instruction);
 }
 
 impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
@@ -733,10 +717,9 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "CPO").unwrap();
         write!(self.stream_out, " ${:02x}", address1).unwrap();
     }
-    fn subtract_immediate_from_accumulator(&mut self, data1: u8)
+    fn return_if_zero(&mut self)
     {
-        write!(self.stream_out, "{:04}", "SUI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        write!(self.stream_out, "{:04}", "RZ").unwrap();
     }
     fn rotate_accumulator_left_through_carry(&mut self)
     {
@@ -888,10 +871,6 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "RST").unwrap();
         write!(self.stream_out, " {}", implicit_data1).unwrap();
     }
-    fn return_if_carry(&mut self)
-    {
-        write!(self.stream_out, "{:04}", "RC").unwrap();
-    }
     fn store_accumulator_direct(&mut self, address1: u16)
     {
         write!(self.stream_out, "{:04}", "STA").unwrap();
@@ -936,9 +915,9 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     {
         write!(self.stream_out, "{:04}", "CMA").unwrap();
     }
-    fn return_if_zero(&mut self)
+    fn return_if_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RZ").unwrap();
+        write!(self.stream_out, "{:04}", "RC").unwrap();
     }
     fn return_if_parity_odd(&mut self)
     {
@@ -958,9 +937,10 @@ impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
         write!(self.stream_out, "{:04}", "SBB").unwrap();
         write!(self.stream_out, " {:?}", register1).unwrap();
     }
-    fn not_implemented(&mut self)
+    fn subtract_immediate_from_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "-").unwrap();
+        write!(self.stream_out, "{:04}", "SUI").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
     }
     fn push_data_onto_stack(&mut self, register1: Register8080)
     {

@@ -181,10 +181,7 @@ class OpcodeCodeGenerator(object):
         opcodes = []
         for opcode, info in self.opcode_dict.iteritems():
             instr = info['instr']
-            if instr == '-':
-                name = 'not_implemented'
-            else:
-                name = info['description'].replace(' ', '_').lower()
+            name = info['description'].replace(' ', '_').lower()
 
             args = []
             for arg in info['args']:
@@ -229,13 +226,14 @@ class OpcodeCodeGenerator(object):
 
         self.out_file.write('}\n')
 
-    def generate_opcode_dispatch(self):
+    def generate_instruction_dispatch(self):
         self.out_file.write(textwrap.dedent('''
-            pub fn dispatch_{0}_opcode<I: InstructionSet{0}>(
+            pub fn dispatch_{0}_instruction<I: InstructionSet{0}>(
                 mut stream: &[u8],
                 machine: &mut I)
             {{
-                match read_u8(&mut stream).unwrap() {{
+                let opcode = read_u8(&mut stream).unwrap();
+                match opcode {{
         '''.format(self.instruction_set_name)))
 
         for opcode in self.opcodes.opcodes:
@@ -244,16 +242,16 @@ class OpcodeCodeGenerator(object):
                 opcode.function_call.generate('&mut stream')))
 
         self.out_file.write(textwrap.dedent('''
-                   _ => panic!("Unknown opcode")
+                   _ => panic!("Unknown opcode {}", opcode)
               };
            }
         '''))
 
-    def generate_opcode_size(self):
+    def generate_get_instruction(self):
         self.out_file.write(textwrap.dedent('''
-            pub fn get_{}_opcode_size(opcode: u8) -> u8
+            pub fn get_{}_instruction(stream: &[u8]) -> Option<Vec<u8>>
             {{
-                match opcode {{
+                let size = match stream[0] {{
         '''.format(self.instruction_set_name)))
 
         for opcode in self.opcodes.opcodes:
@@ -261,9 +259,13 @@ class OpcodeCodeGenerator(object):
                 opcode.value, opcode.size))
 
         self.out_file.write(textwrap.dedent('''
-                   _ => panic!("Unknown opcode")
-              }
-           }
+                    _ => return None
+                };
+                let mut instruction = vec![];
+                instruction.resize(size, 0);
+                instruction.clone_from_slice(&stream[0..size]);
+                return Some(instruction);
+            }
         '''))
 
     #                            _                   _       _
@@ -298,8 +300,8 @@ class OpcodeCodeGenerator(object):
     def generate(self):
         self.generate_preamble()
         self.generate_instructions_trait()
-        self.generate_opcode_dispatch()
-        self.generate_opcode_size()
+        self.generate_instruction_dispatch()
+        self.generate_get_instruction()
         self.generate_opcode_printer()
 
 def generate_opcode_rs(path, instruction_set_name):

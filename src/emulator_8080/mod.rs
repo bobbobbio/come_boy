@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 pub use emulator_8080::opcodes::{Register8080, disassemble_8080_rom};
 use emulator_8080::opcodes::{
-    InstructionSet8080, dispatch_8080_opcode, get_8080_opcode_size};
+    InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -1456,10 +1456,6 @@ impl<I: InstructionSetOps> InstructionSet8080 for I {
         self.call((implicit_data as u16) << 3);
     }
     fn output(&mut self, _data1: u8)
-    {
-        panic!("Not Implemented")
-    }
-    fn not_implemented(&mut self)
     {
         panic!("Not Implemented")
     }
@@ -2924,18 +2920,15 @@ fn enable_interrupts()
 impl<'a> Emulator8080<'a> {
     fn run_opcode(&mut self)
     {
-        let mut full_opcode = vec![];
-        {
-            let pc = self.program_counter as usize;
-            let opcode = self.main_memory[pc];
-            let size = get_8080_opcode_size(opcode) as usize;
+        let pc = self.program_counter as usize;
+        let instruction = match get_8080_instruction(&self.main_memory[pc..]) {
+            Some(res) => res,
+            None => panic!("Unknown Opcode {}", self.main_memory[pc])
+        };
 
-            full_opcode.resize(size, 0);
-            full_opcode.clone_from_slice(&self.main_memory[pc..pc + size]);
-            self.program_counter += size as u16;
-        }
+        self.program_counter += instruction.len() as u16;
 
-        dispatch_8080_opcode(&full_opcode, self);
+        dispatch_8080_instruction(&instruction, self);
     }
 
     pub fn run(&mut self)
