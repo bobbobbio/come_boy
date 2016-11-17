@@ -60,7 +60,7 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
         self.e8080.set_register_pair(register, value);
     }
 
-    fn read_register_pair(&mut self, register: Register8080) -> u16
+    fn read_register_pair(&self, register: Register8080) -> u16
     {
         self.e8080.read_register_pair(register)
     }
@@ -70,7 +70,7 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
         self.e8080.set_register(register, value);
     }
 
-    fn read_register(&mut self, register: Register8080) -> u8
+    fn read_register(&self, register: Register8080) -> u8
     {
         self.e8080.read_register(register)
     }

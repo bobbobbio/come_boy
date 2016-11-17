@@ -6,6 +6,7 @@ use std::collections::HashMap;
 pub use emulator_8080::opcodes::{Register8080, disassemble_8080_rom};
 use emulator_8080::opcodes::{
     InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
+use util::unsafe_add_mut;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -108,9 +109,9 @@ pub trait InstructionSetOps {
     fn set_flag(&mut self, flag: Flag8080, value: bool);
     fn read_flag(&mut self, flag: Flag8080) -> bool;
     fn set_register_pair(&mut self, register: Register8080, value: u16);
-    fn read_register_pair(&mut self, register: Register8080) -> u16;
+    fn read_register_pair(&self, register: Register8080) -> u16;
     fn set_register(&mut self, register: Register8080, value: u8);
-    fn read_register(&mut self, register: Register8080) -> u8;
+    fn read_register(&self, register: Register8080) -> u8;
     fn update_flags_for_new_value(&mut self, new_value: u8);
     fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8;
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, value_b: u8) -> u8;
@@ -247,9 +248,9 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
         *self.get_register_pair(register) = u16::to_be(value);
     }
 
-    fn read_register_pair(&mut self, register: Register8080) -> u16
+    fn read_register_pair(&self, register: Register8080) -> u16
     {
-        u16::from_be(*self.get_register_pair(register))
+        u16::from_be(*unsafe_add_mut(self).get_register_pair(register))
     }
 
     fn set_register(&mut self, register: Register8080, value: u8)
@@ -257,10 +258,9 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
         *self.get_register(register) = value;
     }
 
-    // XXX: This really shouldn't take a mutable reference to self.
-    fn read_register(&mut self, register: Register8080) -> u8
+    fn read_register(&self, register: Register8080) -> u8
     {
-        *self.get_register(register)
+        *unsafe_add_mut(self).get_register(register)
     }
 
     fn update_flags_for_new_value(&mut self, new_value: u8)
