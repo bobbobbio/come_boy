@@ -6,7 +6,7 @@ use std::collections::HashMap;
 pub use emulator_8080::opcodes::{Register8080, disassemble_8080_rom};
 use emulator_8080::opcodes::{
     InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
-use util::unsafe_add_mut;
+use util::add_mut;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -250,17 +250,21 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
 
     fn read_register_pair(&self, register: Register8080) -> u16
     {
-        u16::from_be(*unsafe_add_mut(self).get_register_pair(register))
+        unsafe {
+            return u16::from_be(*add_mut(self).get_register_pair(register))
+        }
     }
 
     fn set_register(&mut self, register: Register8080, value: u8)
     {
-        *self.get_register(register) = value;
+            *self.get_register(register) = value;
     }
 
     fn read_register(&self, register: Register8080) -> u8
     {
-        *unsafe_add_mut(self).get_register(register)
+        unsafe {
+            return *add_mut(self).get_register(register)
+        }
     }
 
     fn update_flags_for_new_value(&mut self, new_value: u8)
