@@ -135,6 +135,9 @@ class Opcode(object):
         self.size = size
         self.function_call = function_call
 
+    def __lt__(self, other):
+        return self.value < other.value
+
 class Opcodes(object):
     def __init__(self, opcodes, functions):
         self.opcodes = opcodes
@@ -154,9 +157,14 @@ class OpcodeCodeGenerator(object):
         self.instruction_set_name = instruction_set_name
         self.module_path = module_path
         self.opcodes = self.create_opcodes()
+        self.indent = 0
+
+    def out(self, msg):
+        self.out_file.write(self.indent * 4 * ' ')
+        self.out_file.write(textwrap.dedent(msg))
 
     def generate_preamble(self):
-        self.out_file.write(textwrap.dedent('''
+        self.out('''
             use emulator_common::Register8080;
             use {}::OpcodePrinter{};
             use util::{{read_u16, read_u8}};
@@ -168,7 +176,7 @@ class OpcodeCodeGenerator(object):
         '''.format(
             self.module_path,
             self.instruction_set_name,
-            os.path.relpath(__file__, SRC_PATH))).lstrip())
+            os.path.relpath(__file__, SRC_PATH)).lstrip('\n'))
 
     #   __                  _   _               _        _     _
     #  / _|_   _ _ __   ___| |_(_) ___  _ __   | |_ __ _| |__ | | ___
@@ -201,7 +209,7 @@ class OpcodeCodeGenerator(object):
                     "{} has non consistent arguments".format(name)
 
             function_call = OpcodeFunctionCall(function, args)
-            opcodes.append(Opcode(opcode, info['size'], function_call))
+            opcodes.append(Opcode(int(opcode, 16), info['size'], function_call))
 
         return Opcodes(opcodes, functions.values())
 
@@ -217,57 +225,98 @@ class OpcodeCodeGenerator(object):
     #  \__|_|  \__,_|_|\__|
 
     def generate_instructions_trait(self):
-        self.out_file.write(textwrap.dedent('''
+        self.out('''
           pub trait InstructionSet{} {{
-        '''.format(self.instruction_set_name)))
+        '''.format(self.instruction_set_name))
 
+        self.indent += 1
         for function in self.opcodes.functions:
-            self.out_file.write(function.make_declaration())
-            self.out_file.write(';\n')
+            self.out(function.make_declaration() + ';\n')
+        self.indent -= 1
 
-        self.out_file.write('}\n')
+        self.out('}\n')
+
+    def iterate_opcodes(self, failure=None):
+        if failure is None:
+            failure_case = 'v => panic!("Unknown opcode {}", v)'
+        else:
+            failure_case = '_ => {}'.format(failure)
+        def start_two_byte(opcode):
+            self.out(('0x{0:02X} => ' +
+                'match (0x{0:02X} as u16) << 8 |\n')
+                .format(opcode.value >> 8, failure))
+            self.indent += 1
+            if failure is None:
+                self.out('read_u8(&mut stream).unwrap() as u16 {\n')
+            else:
+                self.out(('match read_u8(&mut stream) {{ ' +
+                    'Ok(x) => x, _ => {} }} as u16' +
+                    '{{\n').format(failure))
+
+        def end_two_byte():
+            self.out('{}\n'.format(failure_case))
+            self.indent -= 1
+            self.out('},\n')
+
+        two_byte_opcode = False
+        for opcode in sorted(self.opcodes.opcodes):
+            if opcode.value > 0xFF and not two_byte_opcode:
+                two_byte_opcode = True
+                start_two_byte(opcode)
+            elif opcode.value <= 0xFF and two_byte_opcode:
+                two_byte_opcode = False
+                end_two_byte()
+
+            yield opcode
+
+        if two_byte_opcode:
+            end_two_byte()
+
+        self.out('{}\n'.format(failure_case))
 
     def generate_instruction_dispatch(self):
-        self.out_file.write(textwrap.dedent('''
+        self.out('''
             pub fn dispatch_{0}_instruction<I: InstructionSet{0}>(
                 mut stream: &[u8],
                 machine: &mut I)
             {{
                 let opcode = read_u8(&mut stream).unwrap();
                 match opcode {{
-        '''.format(self.instruction_set_name)))
+        '''.format(self.instruction_set_name))
 
-        for opcode in self.opcodes.opcodes:
-            self.out_file.write('        {} => '.format(opcode.value))
-            self.out_file.write('machine.{},\n'.format(
+        self.indent += 2
+        for opcode in self.iterate_opcodes():
+            self.out('0x{:02X} => machine.{},\n'.format(
+                opcode.value,
                 opcode.function_call.generate('&mut stream')))
 
-        self.out_file.write(textwrap.dedent('''
-                   _ => panic!("Unknown opcode {}", opcode)
-              };
-           }
-        '''))
+        self.indent -= 1
+        self.out('};\n')
+        self.indent -= 1
+        self.out('}\n')
 
     def generate_get_instruction(self):
-        self.out_file.write(textwrap.dedent('''
-            pub fn get_{}_instruction(stream: &[u8]) -> Option<Vec<u8>>
+        self.out('''
+            pub fn get_{}_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
             {{
-                let size = match stream[0] {{
-        '''.format(self.instruction_set_name)))
+                let mut stream = original_stream;
+                let size = match read_u8(&mut stream).unwrap() {{
+        '''.format(self.instruction_set_name))
 
-        for opcode in self.opcodes.opcodes:
-            self.out_file.write('        {} => {},\n'.format(
-                opcode.value, opcode.size))
+        self.indent += 2
+        for opcode in self.iterate_opcodes(failure='return None'):
+            self.out('0x{:02X} => {},\n'.format(opcode.value, opcode.size))
 
-        self.out_file.write(textwrap.dedent('''
-                    _ => return None
-                };
+        self.indent -= 1
+        self.out('};\n')
+        self.indent -= 1
+
+        self.out('''
                 let mut instruction = vec![];
                 instruction.resize(size, 0);
-                instruction.clone_from_slice(&stream[0..size]);
+                instruction.clone_from_slice(&original_stream[0..size]);
                 return Some(instruction);
-            }
-        '''))
+            }\n''')
 
     #                            _                   _       _
     #   ___  _ __   ___ ___   __| | ___   _ __  _ __(_)_ __ | |_ ___ _ __
@@ -277,26 +326,29 @@ class OpcodeCodeGenerator(object):
     #       |_|                          |_|
 
     def generate_opcode_printer(self):
-        self.out_file.write(textwrap.dedent('''
+        self.out('''
             impl<'a> InstructionSet{0} for OpcodePrinter{0}<'a> {{
-        '''.format(self.instruction_set_name)))
+        '''.format(self.instruction_set_name))
 
+        self.indent += 1
         for function in self.opcodes.functions:
-            self.out_file.write(function.make_declaration())
-            self.out_file.write('\n    {\n')
+            self.out(function.make_declaration() + '\n')
+            self.out('{\n')
+            self.indent += 1
 
             def print_to_out_file(pattern, arg_name):
-                self.out_file.write('        '
-                    'write!(self.stream_out, "{}", {}).unwrap();\n'.format(
-                        pattern, arg_name))
+                self.out('write!(self.stream_out, "{}", {}).unwrap();\n'.format(
+                    pattern, arg_name))
 
             print_to_out_file("{:04}", '"{}"'.format(function.shorthand))
 
             for num, arg in enumerate(function.arguments):
                 print_to_out_file(
                     ' ' + arg.fmt_representation(), arg.arg_name(num + 1))
-            self.out_file.write('    }\n')
-        self.out_file.write('}')
+            self.indent -= 1
+            self.out('}\n')
+        self.indent -= 1
+        self.out('}\n')
 
     def generate(self):
         self.generate_preamble()

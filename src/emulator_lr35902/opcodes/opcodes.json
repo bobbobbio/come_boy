@@ -1,3 +1,19 @@
 {
-"0x13": {"instr": "DERP",  "description": "Derping", "args": ["A", "D8", "D16"], "size": 4}
+"0xcb80": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "B"], "size": 2},
+"0xcb81": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "C"], "size": 2},
+"0xcb82": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "D"], "size": 2},
+"0xcb83": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "E"], "size": 2},
+"0xcb84": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "H"], "size": 2},
+"0xcb85": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "L"], "size": 2},
+"0xcb86": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "M"], "size": 2},
+"0xcb87": {"instr": "RES",  "description": "Reset Bit", "args": ["0", "A"], "size": 2},
+"0xcb88": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "B"], "size": 2},
+"0xcb89": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "C"], "size": 2},
+"0xcb8a": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "D"], "size": 2},
+"0xcb8b": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "E"], "size": 2},
+"0xcb8c": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "H"], "size": 2},
+"0xcb8d": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "L"], "size": 2},
+"0xcb8e": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "M"], "size": 2},
+"0xcb8f": {"instr": "RES",  "description": "Reset Bit", "args": ["1", "A"], "size": 2},
+"0x01": {"instr": "TEST",  "description": "TEST", "args": ["D8", "D16"], "size": 4}
 }
