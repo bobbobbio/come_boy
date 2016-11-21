@@ -1,0 +1,3 @@
+{
+"0x13": {"instr": "DERP",  "description": "Derping", "args": ["A", "D8", "D16"], "size": 4}
+}

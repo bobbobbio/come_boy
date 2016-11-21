@@ -157,7 +157,8 @@ class OpcodeCodeGenerator(object):
 
     def generate_preamble(self):
         self.out_file.write(textwrap.dedent('''
-            use {}::{{Register8080, OpcodePrinter{}}};
+            use emulator_common::Register8080;
+            use {}::OpcodePrinter{};
             use util::{{read_u16, read_u8}};
 
             /*

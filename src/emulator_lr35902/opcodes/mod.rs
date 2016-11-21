@@ -3,51 +3,61 @@ use std::io::{self, Result};
 mod opcode_gen;
 
 use emulator_common::{OpcodePrinter, OpcodePrinterFactory, Disassembler};
-pub use emulator_8080::opcodes::opcode_gen::{
-    InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
+use emulator_lr35902::opcodes::opcode_gen::{
+    dispatch_lr35902_instruction, get_lr35902_instruction};
 
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
 
-struct OpcodePrinter8080<'a> {
+/*
+ *   ___                      _      ____       _       _
+ *  / _ \ _ __   ___ ___   __| | ___|  _ \ _ __(_)_ __ | |_ ___ _ __
+ * | | | | '_ \ / __/ _ \ / _` |/ _ \ |_) | '__| | '_ \| __/ _ \ '__|
+ * | |_| | |_) | (_| (_) | (_| |  __/  __/| |  | | | | | ||  __/ |
+ *  \___/| .__/ \___\___/ \__,_|\___|_|   |_|  |_|_| |_|\__\___|_|
+ *       |_|
+ */
+
+struct OpcodePrinterlr35902<'a> {
     stream_out: &'a mut io::Write
 }
 
-struct OpcodePrinterFactory8080;
+struct OpcodePrinterFactorylr35902;
 
-impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
-    type Output = OpcodePrinter8080<'a>;
+impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactorylr35902 {
+    type Output = OpcodePrinterlr35902<'a>;
     fn new(&self,
-        stream_out: &'a mut io::Write) -> OpcodePrinter8080<'a>
+        stream_out: &'a mut io::Write) -> OpcodePrinterlr35902<'a>
     {
-        return OpcodePrinter8080 {
+        return OpcodePrinterlr35902 {
             stream_out: stream_out
         };
     }
 }
 
-impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
+impl<'a> OpcodePrinter<'a> for OpcodePrinterlr35902<'a> {
     fn print_opcode(&mut self, stream: &[u8])
     {
-        dispatch_8080_instruction(stream, self)
+        dispatch_lr35902_instruction(stream, self)
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        get_8080_instruction(stream)
+        get_lr35902_instruction(stream)
     }
 }
 
-pub fn disassemble_8080_rom(rom: &[u8]) -> Result<()>
+pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = Disassembler::new(rom, OpcodePrinterFactory8080, stdout);
+    let mut disassembler = Disassembler::new(rom, OpcodePrinterFactorylr35902, stdout);
     disassembler.disassemble()
 }
 
+/*
 #[test]
-fn disassembler_8080_test() {
+fn disassembler_lr35902_test() {
     do_disassembler_test(
-        OpcodePrinterFactory8080,
+        OpcodePrinterFactorylr35902,
         &vec![
             0xcd, 0xd6, 0x35, 0x21, 0x2d, 0xd7, 0xcb, 0xae, 0xcd, 0x29, 0x24, 0x21, 0x26, 0xd1,
             0xcb, 0xee, 0xcb, 0xf6, 0xaf, 0xea, 0x6b, 0xcd, 0xcd, 0xaf, 0x20, 0xcd, 0xaf, 0x20,
@@ -57,22 +67,20 @@ fn disassembler_8080_test() {
         ], "\
             0000000 cd d6 35 CALL $35d6\n\
             0000003 21 2d d7 LXI  H #$d72d\n\
-            0000006 cb       -   \n\
-            0000007 ae       XRA  M\n\
+            0000006 cb ae    RES  5 H \n\
             0000008 cd 29 24 CALL $2429\n\
             000000b 21 26 d1 LXI  H #$d126\n\
-            000000e cb       -   \n\
-            000000f ee cb    XRI  #$cb\n\
-            0000011 f6 af    ORI  #$af\n\
-            0000013 ea 6b cd JPE  $cd6b\n\
+            000000e cb ee    SET  5 H\n\
+            0000010 cb f6    SET  6 H\n\
+            0000012 af       XOR  A\n\
+            0000013 ea 6b cd LDM  $cd6b A\n\
             0000016 cd af 20 CALL $20af\n\
             0000019 cd af 20 CALL $20af\n\
             000001c cd ba 20 CALL $20ba\n\
-            000001f fa 36 d7 JM   $d736\n\
-            0000022 cb       -   \n\
-            0000023 77       MOV  M A\n\
+            000001f fa 36 d7 LDD  A $d736\n\
+            0000022 cb 77    BIT  6 A\n\
             0000024 c4 9e 03 CNZ  $39e\n\
-            0000027 fa c5 cf JM   $cfc5\n\
+            0000027 fa c5 cf LDD  A $cfc5\n\
             000002a a7       ANA  A\n\
             000002b c2 b5 05 JNZ  $5b5\n\
             000002e cd 4d 0f CALL $f4d\n\
@@ -81,3 +89,4 @@ fn disassembler_8080_test() {
             0000036 cd d6 35 CALL $35d6\n\
     ");
 }
+*/
