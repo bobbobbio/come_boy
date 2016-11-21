@@ -6,8 +6,10 @@ use emulator_common::{OpcodePrinter, OpcodePrinterFactory, Disassembler};
 use emulator_lr35902::opcodes::opcode_gen::{
     dispatch_lr35902_instruction, get_lr35902_instruction};
 
+/*
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
+*/
 
 /*
  *   ___                      _      ____       _       _
