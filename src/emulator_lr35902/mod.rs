@@ -138,7 +138,63 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
 }
 
 impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
+    fn load_accumulator_and_increment(&mut self)
+    {
+        unimplemented!();
+    }
+    fn load_accumulator_and_decrement(&mut self)
+    {
+        unimplemented!();
+    }
+    fn load_memory_direct(&mut self, _address: u16)
+    {
+        unimplemented!();
+    }
+    fn load_accumulator_direct(&mut self, _address: u16)
+    {
+        unimplemented!();
+    }
     fn reset_bit(&mut self, _bit: u8, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn shift_register_right_with_zero(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn swap_register(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn rotate_register_left(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn shift_register_right(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn rotate_register_left_through_carry(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn rotate_register_right(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn set_bit(&mut self, _bit: u8, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn shift_register_left(&mut self, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn test_bit(&mut self, _bit: u8, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn rotate_register_right_through_carry(&mut self, _register: Register8080)
     {
         unimplemented!();
     }

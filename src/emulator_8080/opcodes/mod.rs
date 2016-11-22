@@ -9,11 +9,11 @@ pub use emulator_8080::opcodes::opcode_gen::{
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
 
-struct OpcodePrinter8080<'a> {
+pub struct OpcodePrinter8080<'a> {
     stream_out: &'a mut io::Write
 }
 
-struct OpcodePrinterFactory8080;
+pub struct OpcodePrinterFactory8080;
 
 impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
     type Output = OpcodePrinter8080<'a>;

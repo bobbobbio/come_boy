@@ -4,9 +4,8 @@ use std::mem;
 use std::collections::HashMap;
 
 use emulator_common::Register8080;
-pub use emulator_8080::opcodes::{disassemble_8080_rom};
-pub use emulator_8080::opcodes::{
-    InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
+pub use emulator_8080::opcodes::{disassemble_8080_rom, InstructionSet8080,
+    dispatch_8080_instruction, get_8080_instruction, OpcodePrinterFactory8080};
 use util::add_mut;
 
 const MAX_ADDRESS: usize = 0xffff;
