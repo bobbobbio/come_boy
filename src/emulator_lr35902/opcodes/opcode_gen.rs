@@ -1,5 +1,5 @@
 use emulator_common::Register8080;
-use emulator_lr35902::opcodes::OpcodePrinterlr35902;
+use emulator_lr35902::opcodes::OpcodePrinterLR35902;
 use util::{read_u16, read_u8};
 
 /*
@@ -7,12 +7,12 @@ use util::{read_u16, read_u8};
  * Instead edit opcode_gen.py
  */
 
-pub trait InstructionSetlr35902 {
+pub trait InstructionSetLR35902 {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Register8080);
     fn test(&mut self, data1: u8, data2: u16);
 }
 
-pub fn dispatch_lr35902_instruction<I: InstructionSetlr35902>(
+pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
     mut stream: &[u8],
     machine: &mut I)
 {
@@ -77,7 +77,7 @@ pub fn get_lr35902_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
     return Some(instruction);
 }
 
-impl<'a> InstructionSetlr35902 for OpcodePrinterlr35902<'a> {
+impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Register8080)
     {
         write!(self.stream_out, "{:04}", "RES").unwrap();

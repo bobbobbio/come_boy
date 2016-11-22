@@ -276,13 +276,14 @@ class OpcodeCodeGenerator(object):
 
     def generate_instruction_dispatch(self):
         self.out('''
-            pub fn dispatch_{0}_instruction<I: InstructionSet{0}>(
+            pub fn dispatch_{}_instruction<I: InstructionSet{}>(
                 mut stream: &[u8],
                 machine: &mut I)
             {{
                 let opcode = read_u8(&mut stream).unwrap();
                 match opcode {{
-        '''.format(self.instruction_set_name))
+        '''.format(
+            self.instruction_set_name.lower(), self.instruction_set_name))
 
         self.indent += 2
         for opcode in self.iterate_opcodes():
@@ -301,7 +302,7 @@ class OpcodeCodeGenerator(object):
             {{
                 let mut stream = original_stream;
                 let size = match read_u8(&mut stream).unwrap() {{
-        '''.format(self.instruction_set_name))
+        '''.format(self.instruction_set_name.lower()))
 
         self.indent += 2
         for opcode in self.iterate_opcodes(failure='return None'):

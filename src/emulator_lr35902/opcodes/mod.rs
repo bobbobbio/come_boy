@@ -3,8 +3,8 @@ use std::io::{self, Result};
 mod opcode_gen;
 
 use emulator_common::{OpcodePrinter, OpcodePrinterFactory, Disassembler};
-use emulator_lr35902::opcodes::opcode_gen::{
-    dispatch_lr35902_instruction, get_lr35902_instruction};
+pub use emulator_lr35902::opcodes::opcode_gen::{
+    dispatch_lr35902_instruction, get_lr35902_instruction, InstructionSetLR35902};
 
 /*
 #[cfg(test)]
@@ -20,24 +20,24 @@ use emulator_common::do_disassembler_test;
  *       |_|
  */
 
-struct OpcodePrinterlr35902<'a> {
+struct OpcodePrinterLR35902<'a> {
     stream_out: &'a mut io::Write
 }
 
-struct OpcodePrinterFactorylr35902;
+struct OpcodePrinterFactoryLR35902;
 
-impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactorylr35902 {
-    type Output = OpcodePrinterlr35902<'a>;
+impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactoryLR35902 {
+    type Output = OpcodePrinterLR35902<'a>;
     fn new(&self,
-        stream_out: &'a mut io::Write) -> OpcodePrinterlr35902<'a>
+        stream_out: &'a mut io::Write) -> OpcodePrinterLR35902<'a>
     {
-        return OpcodePrinterlr35902 {
+        return OpcodePrinterLR35902 {
             stream_out: stream_out
         };
     }
 }
 
-impl<'a> OpcodePrinter<'a> for OpcodePrinterlr35902<'a> {
+impl<'a> OpcodePrinter<'a> for OpcodePrinterLR35902<'a> {
     fn print_opcode(&mut self, stream: &[u8])
     {
         dispatch_lr35902_instruction(stream, self)
@@ -51,7 +51,7 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinterlr35902<'a> {
 pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = Disassembler::new(rom, OpcodePrinterFactorylr35902, stdout);
+    let mut disassembler = Disassembler::new(rom, OpcodePrinterFactoryLR35902, stdout);
     disassembler.disassemble()
 }
 

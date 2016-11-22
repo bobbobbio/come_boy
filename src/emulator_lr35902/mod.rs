@@ -4,6 +4,8 @@ use std::cmp;
 use emulator_common::Register8080;
 use emulator_8080::{Emulator8080, InstructionSetOps, Flag8080};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
+use emulator_lr35902::opcodes::{
+    get_lr35902_instruction, dispatch_lr35902_instruction, InstructionSetLR35902};
 
 const ROM_ADDRESS: usize = 0x0100;
 const LCD_ADDRESS: usize = 0x8000;
@@ -54,7 +56,7 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
         self.e8080.set_flag(flag, value);
     }
 
-    fn read_flag(&mut self, flag: Flag8080) -> bool
+    fn read_flag(&self, flag: Flag8080) -> bool
     {
         self.e8080.read_flag(flag)
     }
@@ -119,7 +121,7 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
         self.e8080.subtract_from_register_using_twos_complement(register, value);
     }
 
-    fn read_program_counter(&mut self) -> u16
+    fn read_program_counter(&self) -> u16
     {
         self.e8080.read_program_counter()
     }
@@ -135,10 +137,41 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
     }
 }
 
+impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
+    fn reset_bit(&mut self, _bit: u8, _register: Register8080)
+    {
+        unimplemented!();
+    }
+    fn test(&mut self, _data1: u8, _data2: u16)
+    {
+        unimplemented!();
+    }
+}
+
 impl<'a> EmulatorLR35902<'a> {
+    fn run_one_instruction(&mut self) -> bool
+    {
+        let pc = self.read_program_counter() as usize;
+        let instruction = match get_lr35902_instruction(&self.e8080.main_memory[pc..]) {
+            Some(res) => res,
+            None => { return false; }
+        };
+
+        self.set_program_counter((pc + instruction.len()) as u16);
+
+        dispatch_lr35902_instruction(&instruction, self);
+
+        return true;
+    }
+
     fn run(&mut self)
     {
-        self.e8080.run();
+        self.set_program_counter(ROM_ADDRESS as u16);
+        while self.read_program_counter() != 0 {
+            if !self.run_one_instruction() {
+                self.e8080.run_one_instruction();
+            }
+        }
     }
 }
 

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 
 use emulator_common::Register8080;
 pub use emulator_8080::opcodes::{disassemble_8080_rom};
-use emulator_8080::opcodes::{
+pub use emulator_8080::opcodes::{
     InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
 use util::add_mut;
 
@@ -108,7 +108,7 @@ pub trait InstructionSetOps {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
     fn set_flag(&mut self, flag: Flag8080, value: bool);
-    fn read_flag(&mut self, flag: Flag8080) -> bool;
+    fn read_flag(&self, flag: Flag8080) -> bool;
     fn set_register_pair(&mut self, register: Register8080, value: u16);
     fn read_register_pair(&self, register: Register8080) -> u16;
     fn set_register(&mut self, register: Register8080, value: u8);
@@ -121,7 +121,7 @@ pub trait InstructionSetOps {
     fn subtract_from_register_pair(&mut self, register: Register8080, value: u16);
     fn subtract_from_register(&mut self, register: Register8080, value: u8);
     fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8);
-    fn read_program_counter(&mut self) -> u16;
+    fn read_program_counter(&self) -> u16;
     fn set_program_counter(&mut self, address: u16);
     fn set_interrupt_state(&mut self, state: bool);
 }
@@ -239,7 +239,7 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
         }
     }
 
-    fn read_flag(&mut self, flag: Flag8080) -> bool
+    fn read_flag(&self, flag: Flag8080) -> bool
     {
         self.registers[Register8080::FLAGS as usize] & (flag as u8) == flag as u8
     }
@@ -347,7 +347,7 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
         self.set_register(register, new_value);
     }
 
-    fn read_program_counter(&mut self) -> u16 {
+    fn read_program_counter(&self) -> u16 {
         self.program_counter
     }
 
@@ -2923,7 +2923,7 @@ fn enable_interrupts()
 }
 
 impl<'a> Emulator8080<'a> {
-    fn run_opcode(&mut self)
+    pub fn run_one_instruction(&mut self)
     {
         let pc = self.program_counter as usize;
         let instruction = match get_8080_instruction(&self.main_memory[pc..]) {
@@ -2940,7 +2940,7 @@ impl<'a> Emulator8080<'a> {
     {
         self.program_counter = ROM_ADDRESS as u16;
         while self.program_counter != 0 {
-            self.run_opcode();
+            self.run_one_instruction();
         }
     }
 }
