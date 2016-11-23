@@ -138,6 +138,34 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
 }
 
 impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
+    fn halt_until_button_press(&mut self)
+    {
+        unimplemented!();
+    }
+    fn jump_after_adding(&mut self, _n: u8)
+    {
+        unimplemented!();
+    }
+    fn jump_after_adding_if_zero(&mut self, _n: u8)
+    {
+        unimplemented!();
+    }
+    fn jump_after_adding_if_not_zero(&mut self, _n: u8)
+    {
+        unimplemented!();
+    }
+    fn jump_after_adding_if_carry(&mut self, _n: u8)
+    {
+        unimplemented!();
+    }
+    fn jump_after_adding_if_not_carry(&mut self, _n: u8)
+    {
+        unimplemented!();
+    }
+    fn store_sp_direct(&mut self, _address: u16)
+    {
+        unimplemented!();
+    }
     fn load_accumulator_and_increment(&mut self)
     {
         unimplemented!();

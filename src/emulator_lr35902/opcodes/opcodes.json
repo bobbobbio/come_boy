@@ -256,6 +256,14 @@
 "0xcbfe": {"instr": "SET",  "description": "Set Bit", "args": ["7", "M"], "size": 2},
 "0xcbff": {"instr": "SET",  "description": "Set Bit", "args": ["7", "A"], "size": 2},
 
+"0x08": {"instr": "SSPD",  "description": "Store SP Direct", "args": ["adr"], "size": 3},
+"0x18": {"instr": "JRN",  "description": "Jump After Adding", "args": ["D8"], "size": 2},
+"0x28": {"instr": "JR",  "description": "Jump After Adding If Zero", "args": ["D8"], "size": 2},
+"0x38": {"instr": "JR",  "description": "Jump After Adding If Carry", "args": ["D8"], "size": 2},
+"0x20": {"instr": "JR",  "description": "Jump After Adding If Not Zero", "args": ["D8"], "size": 2},
+"0x30": {"instr": "JR",  "description": "Jump After Adding If Not Carry", "args": ["D8"], "size": 2},
+"0x1000": {"instr": "STOP",  "description": "Halt Until Button Press", "args": [], "size": 2},
+
 "0x2a": {"instr": "LDA+", "description": "Load Accumulator and Increment","args": [], "size": 1},
 "0x3a": {"instr": "LDA-",  "description": "Load Accumulator and Decrement", "args": [], "size": 1},
 "0xea": {"instr": "LDMD",  "description": "Load Memory Direct", "args": ["adr"], "size": 3},

@@ -258,14 +258,14 @@ class OpcodeCodeGenerator(object):
             self.indent -= 1
             self.out('},\n')
 
-        two_byte_opcode = False
+        two_byte_opcode = None
         for opcode in sorted(self.opcodes.opcodes):
-            if opcode.value > 0xFF and not two_byte_opcode:
-                two_byte_opcode = True
-                start_two_byte(opcode)
-            elif opcode.value <= 0xFF and two_byte_opcode:
-                two_byte_opcode = False
+            if two_byte_opcode != None and two_byte_opcode != opcode.value >> 8:
+                two_byte_opcode = None
                 end_two_byte()
+            if opcode.value > 0xFF and two_byte_opcode != opcode.value >> 8:
+                two_byte_opcode = opcode.value >> 8
+                start_two_byte(opcode)
 
             yield opcode
 

@@ -9,21 +9,28 @@ use util::{read_u16, read_u8};
 
 pub trait InstructionSetLR35902 {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Register8080);
+    fn halt_until_button_press(&mut self);
+    fn load_accumulator_and_increment(&mut self);
+    fn shift_register_right(&mut self, register1: Register8080);
+    fn rotate_register_left_through_carry(&mut self, register1: Register8080);
+    fn store_sp_direct(&mut self, address1: u16);
+    fn jump_after_adding_if_not_carry(&mut self, data1: u8);
+    fn jump_after_adding(&mut self, data1: u8);
+    fn jump_after_adding_if_zero(&mut self, data1: u8);
+    fn test(&mut self, data1: u8, data2: u16);
     fn shift_register_right_with_zero(&mut self, register1: Register8080);
+    fn jump_after_adding_if_carry(&mut self, data1: u8);
+    fn set_bit(&mut self, implicit_data1: u8, register2: Register8080);
+    fn jump_after_adding_if_not_zero(&mut self, data1: u8);
+    fn rotate_register_right(&mut self, register1: Register8080);
+    fn load_memory_direct(&mut self, address1: u16);
+    fn shift_register_left(&mut self, register1: Register8080);
+    fn rotate_register_right_through_carry(&mut self, register1: Register8080);
     fn swap_register(&mut self, register1: Register8080);
     fn rotate_register_left(&mut self, register1: Register8080);
-    fn shift_register_right(&mut self, register1: Register8080);
-    fn load_accumulator_and_increment(&mut self);
-    fn shift_register_left(&mut self, register1: Register8080);
-    fn rotate_register_left_through_carry(&mut self, register1: Register8080);
-    fn test(&mut self, data1: u8, data2: u16);
     fn load_accumulator_and_decrement(&mut self);
-    fn load_memory_direct(&mut self, address1: u16);
     fn load_accumulator_direct(&mut self, address1: u16);
-    fn set_bit(&mut self, implicit_data1: u8, register2: Register8080);
     fn test_bit(&mut self, implicit_data1: u8, register2: Register8080);
-    fn rotate_register_right_through_carry(&mut self, register1: Register8080);
-    fn rotate_register_right(&mut self, register1: Register8080);
 }
 
 pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
@@ -33,10 +40,21 @@ pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
     let opcode = read_u8(&mut stream).unwrap();
     match opcode {
         0x01 => machine.test(read_u8(&mut stream).unwrap(), read_u16(&mut stream).unwrap()),
+        0x08 => machine.store_sp_direct(read_u16(&mut stream).unwrap()),
+        0x18 => machine.jump_after_adding(read_u8(&mut stream).unwrap()),
+        0x20 => machine.jump_after_adding_if_not_zero(read_u8(&mut stream).unwrap()),
+        0x28 => machine.jump_after_adding_if_zero(read_u8(&mut stream).unwrap()),
         0x2A => machine.load_accumulator_and_increment(),
+        0x30 => machine.jump_after_adding_if_not_carry(read_u8(&mut stream).unwrap()),
+        0x38 => machine.jump_after_adding_if_carry(read_u8(&mut stream).unwrap()),
         0x3A => machine.load_accumulator_and_decrement(),
         0xEA => machine.load_memory_direct(read_u16(&mut stream).unwrap()),
         0xFA => machine.load_accumulator_direct(read_u16(&mut stream).unwrap()),
+        0x10 => match (0x10 as u16) << 8 |
+            read_u8(&mut stream).unwrap() as u16 {
+            0x1000 => machine.halt_until_button_press(),
+            v => panic!("Unknown opcode {}", v)
+        },
         0xCB => match (0xCB as u16) << 8 |
             read_u8(&mut stream).unwrap() as u16 {
             0xCB00 => machine.rotate_register_left(Register8080::B),
@@ -306,10 +324,21 @@ pub fn get_lr35902_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
     let mut stream = original_stream;
     let size = match read_u8(&mut stream).unwrap() {
         0x01 => 4,
+        0x08 => 3,
+        0x18 => 2,
+        0x20 => 2,
+        0x28 => 2,
         0x2A => 1,
+        0x30 => 2,
+        0x38 => 2,
         0x3A => 1,
         0xEA => 3,
         0xFA => 3,
+        0x10 => match (0x10 as u16) << 8 |
+            match read_u8(&mut stream) { Ok(x) => x, _ => return None } as u16{
+            0x1000 => 2,
+            _ => return None
+        },
         0xCB => match (0xCB as u16) << 8 |
             match read_u8(&mut stream) { Ok(x) => x, _ => return None } as u16{
             0xCB00 => 2,
@@ -586,9 +615,89 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
         write!(self.stream_out, " {}", implicit_data1).unwrap();
         write!(self.stream_out, " {:?}", register2).unwrap();
     }
+    fn halt_until_button_press(&mut self)
+    {
+        write!(self.stream_out, "{:04}", "STOP").unwrap();
+    }
+    fn load_accumulator_and_increment(&mut self)
+    {
+        write!(self.stream_out, "{:04}", "LDA+").unwrap();
+    }
+    fn shift_register_right(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "SRA").unwrap();
+        write!(self.stream_out, " {:?}", register1).unwrap();
+    }
+    fn rotate_register_left_through_carry(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "RL").unwrap();
+        write!(self.stream_out, " {:?}", register1).unwrap();
+    }
+    fn store_sp_direct(&mut self, address1: u16)
+    {
+        write!(self.stream_out, "{:04}", "SSPD").unwrap();
+        write!(self.stream_out, " ${:02x}", address1).unwrap();
+    }
+    fn jump_after_adding_if_not_carry(&mut self, data1: u8)
+    {
+        write!(self.stream_out, "{:04}", "JR").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
+    }
+    fn jump_after_adding(&mut self, data1: u8)
+    {
+        write!(self.stream_out, "{:04}", "JRN").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
+    }
+    fn jump_after_adding_if_zero(&mut self, data1: u8)
+    {
+        write!(self.stream_out, "{:04}", "JR").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
+    }
+    fn test(&mut self, data1: u8, data2: u16)
+    {
+        write!(self.stream_out, "{:04}", "TEST").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        write!(self.stream_out, " #${:02x}", data2).unwrap();
+    }
     fn shift_register_right_with_zero(&mut self, register1: Register8080)
     {
         write!(self.stream_out, "{:04}", "SRL").unwrap();
+        write!(self.stream_out, " {:?}", register1).unwrap();
+    }
+    fn jump_after_adding_if_carry(&mut self, data1: u8)
+    {
+        write!(self.stream_out, "{:04}", "JR").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
+    }
+    fn set_bit(&mut self, implicit_data1: u8, register2: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "SET").unwrap();
+        write!(self.stream_out, " {}", implicit_data1).unwrap();
+        write!(self.stream_out, " {:?}", register2).unwrap();
+    }
+    fn jump_after_adding_if_not_zero(&mut self, data1: u8)
+    {
+        write!(self.stream_out, "{:04}", "JR").unwrap();
+        write!(self.stream_out, " #${:02x}", data1).unwrap();
+    }
+    fn rotate_register_right(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "RRC").unwrap();
+        write!(self.stream_out, " {:?}", register1).unwrap();
+    }
+    fn load_memory_direct(&mut self, address1: u16)
+    {
+        write!(self.stream_out, "{:04}", "LDMD").unwrap();
+        write!(self.stream_out, " ${:02x}", address1).unwrap();
+    }
+    fn shift_register_left(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "SLA").unwrap();
+        write!(self.stream_out, " {:?}", register1).unwrap();
+    }
+    fn rotate_register_right_through_carry(&mut self, register1: Register8080)
+    {
+        write!(self.stream_out, "{:04}", "RR").unwrap();
         write!(self.stream_out, " {:?}", register1).unwrap();
     }
     fn swap_register(&mut self, register1: Register8080)
@@ -601,65 +710,19 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
         write!(self.stream_out, "{:04}", "RLC").unwrap();
         write!(self.stream_out, " {:?}", register1).unwrap();
     }
-    fn shift_register_right(&mut self, register1: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "SRA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-    }
-    fn load_accumulator_and_increment(&mut self)
-    {
-        write!(self.stream_out, "{:04}", "LDA+").unwrap();
-    }
-    fn shift_register_left(&mut self, register1: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "SLA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-    }
-    fn rotate_register_left_through_carry(&mut self, register1: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "RL").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-    }
-    fn test(&mut self, data1: u8, data2: u16)
-    {
-        write!(self.stream_out, "{:04}", "TEST").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
-        write!(self.stream_out, " #${:02x}", data2).unwrap();
-    }
     fn load_accumulator_and_decrement(&mut self)
     {
         write!(self.stream_out, "{:04}", "LDA-").unwrap();
-    }
-    fn load_memory_direct(&mut self, address1: u16)
-    {
-        write!(self.stream_out, "{:04}", "LDMD").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
     }
     fn load_accumulator_direct(&mut self, address1: u16)
     {
         write!(self.stream_out, "{:04}", "LDAD").unwrap();
         write!(self.stream_out, " ${:02x}", address1).unwrap();
     }
-    fn set_bit(&mut self, implicit_data1: u8, register2: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "SET").unwrap();
-        write!(self.stream_out, " {}", implicit_data1).unwrap();
-        write!(self.stream_out, " {:?}", register2).unwrap();
-    }
     fn test_bit(&mut self, implicit_data1: u8, register2: Register8080)
     {
         write!(self.stream_out, "{:04}", "BIT").unwrap();
         write!(self.stream_out, " {}", implicit_data1).unwrap();
         write!(self.stream_out, " {:?}", register2).unwrap();
-    }
-    fn rotate_register_right_through_carry(&mut self, register1: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "RR").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-    }
-    fn rotate_register_right(&mut self, register1: Register8080)
-    {
-        write!(self.stream_out, "{:04}", "RRC").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
     }
 }
