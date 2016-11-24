@@ -87,7 +87,7 @@ fn disassembler_lr35902_test() {
             000000e cb ee    SET  5 M\n\
             0000010 cb f6    SET  6 M\n\
             0000012 af       XRA  A\n\
-            0000013 ea 6b cd LDMD $cd6b\n\
+            0000013 ea 6b cd STAD $cd6b\n\
             0000016 cd af 20 CALL $20af\n\
             0000019 cd af 20 CALL $20af\n\
             000001c cd ba 20 CALL $20ba\n\

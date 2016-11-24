@@ -255,7 +255,6 @@
 "0xcbfd": {"instr": "SET",  "description": "Set Bit", "args": ["7", "L"], "size": 2},
 "0xcbfe": {"instr": "SET",  "description": "Set Bit", "args": ["7", "M"], "size": 2},
 "0xcbff": {"instr": "SET",  "description": "Set Bit", "args": ["7", "A"], "size": 2},
-
 "0x08": {"instr": "SSPD",  "description": "Store SP Direct", "args": ["adr"], "size": 3},
 "0x18": {"instr": "JRN",  "description": "Jump After Adding", "args": ["D8"], "size": 2},
 "0x28": {"instr": "JR",  "description": "Jump After Adding If Zero", "args": ["D8"], "size": 2},
@@ -263,11 +262,16 @@
 "0x20": {"instr": "JR",  "description": "Jump After Adding If Not Zero", "args": ["D8"], "size": 2},
 "0x30": {"instr": "JR",  "description": "Jump After Adding If Not Carry", "args": ["D8"], "size": 2},
 "0x1000": {"instr": "STOP",  "description": "Halt Until Button Press", "args": [], "size": 2},
-
-"0x2a": {"instr": "LDA+", "description": "Load Accumulator and Increment","args": [], "size": 1},
-"0x3a": {"instr": "LDA-",  "description": "Load Accumulator and Decrement", "args": [], "size": 1},
-"0xea": {"instr": "LDMD",  "description": "Load Memory Direct", "args": ["adr"], "size": 3},
+"0x2a": {"instr": "MVM+", "description": "Move and Increment M","args": ["A", "M"], "size": 1},
+"0x3a": {"instr": "MVM-",  "description": "Move and Decrement M", "args": ["A", "M"], "size": 1},
+"0x22": {"instr": "MVM+", "description": "Move and Increment M","args": ["M", "A"], "size": 1},
+"0x32": {"instr": "MVM-",  "description": "Move and Decrement M", "args": ["M", "A"], "size": 1},
+"0xea": {"instr": "STAD",  "description": "Store Accumulator Direct", "args": ["adr"], "size": 3},
 "0xfa": {"instr": "LDAD",  "description": "Load Accumulator Direct", "args": ["adr"], "size": 3},
-
+"0xe0": {"instr": "STAB",  "description": "Store Accumulator Direct One Byte", "args": ["D8"], "size": 2},
+"0xf0": {"instr": "LDAB",  "description": "Load Accumulator Direct One Byte", "args": ["D8"], "size": 2},
+"0xd9": {"instr": "RETI",  "description": "Return and Enable Interrupts", "args": [], "size": 1},
+"0xe8": {"instr": "ADDS",  "description": "Add Immediate to SP", "args": ["D8"], "size": 2},
+"0xf8": {"instr": "STSP",  "description": "Store SP Plus Immediate", "args": ["D8"], "size": 2},
 "0x01": {"instr": "TEST",  "description": "TEST", "args": ["D8", "D16"], "size": 4}
 }

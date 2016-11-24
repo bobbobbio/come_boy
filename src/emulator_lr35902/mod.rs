@@ -138,6 +138,38 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
 }
 
 impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
+    fn move_and_increment_m(&mut self, _dest: Register8080, _src: Register8080)
+    {
+        unimplemented!();
+    }
+    fn move_and_decrement_m(&mut self, _dest: Register8080, _src: Register8080)
+    {
+        unimplemented!();
+    }
+    fn store_accumulator_direct(&mut self, _address: u16)
+    {
+        unimplemented!();
+    }
+    fn store_sp_plus_immediate(&mut self, _data: u8)
+    {
+        unimplemented!();
+    }
+    fn add_immediate_to_sp(&mut self, _data: u8)
+    {
+        unimplemented!();
+    }
+    fn store_accumulator_direct_one_byte(&mut self, _address: u8)
+    {
+        unimplemented!();
+    }
+    fn load_accumulator_direct_one_byte(&mut self, _address: u8)
+    {
+        unimplemented!();
+    }
+    fn return_and_enable_interrupts(&mut self)
+    {
+        unimplemented!();
+    }
     fn halt_until_button_press(&mut self)
     {
         unimplemented!();
@@ -163,18 +195,6 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
         unimplemented!();
     }
     fn store_sp_direct(&mut self, _address: u16)
-    {
-        unimplemented!();
-    }
-    fn load_accumulator_and_increment(&mut self)
-    {
-        unimplemented!();
-    }
-    fn load_accumulator_and_decrement(&mut self)
-    {
-        unimplemented!();
-    }
-    fn load_memory_direct(&mut self, _address: u16)
     {
         unimplemented!();
     }
