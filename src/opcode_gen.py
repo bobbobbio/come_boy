@@ -337,15 +337,16 @@ class OpcodeCodeGenerator(object):
             self.out('{\n')
             self.indent += 1
 
-            def print_to_out_file(pattern, arg_name):
-                self.out('write!(self.stream_out, "{}", {}).unwrap();\n'.format(
-                    pattern, arg_name))
-
-            print_to_out_file("{:04}", '"{}"'.format(function.shorthand))
+            pattern = "{:04}"
+            args = '"{}"'.format(function.shorthand)
 
             for num, arg in enumerate(function.arguments):
-                print_to_out_file(
-                    ' ' + arg.fmt_representation(), arg.arg_name(num + 1))
+                pattern += ' ' + arg.fmt_representation()
+                args += ', ' + arg.arg_name(num + 1)
+
+            self.out('self.error = write!(self.stream_out, "{}", {});\n'
+                .format(pattern, args))
+
             self.indent -= 1
             self.out('}\n')
         self.indent -= 1

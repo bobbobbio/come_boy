@@ -39,7 +39,7 @@ pub enum Register8080 {
  */
 
 pub trait OpcodePrinter<'a> {
-    fn print_opcode(&mut self, stream: &[u8]);
+    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>;
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;
 }
 
@@ -87,7 +87,7 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
                 let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
                 printed = match opcode_printer.get_instruction(&self.rom[self.index as usize..]) {
                     Some(res) => {
-                        opcode_printer.print_opcode(&res);
+                        try!(opcode_printer.print_opcode(&res));
                         instr = res;
                         true
                     },
@@ -123,7 +123,7 @@ struct TestOpcodePrinter<'a> {
 
 #[cfg(test)]
 impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
-    fn print_opcode(&mut self, stream: &[u8])
+    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
     {
         match stream[0] {
             0x1 => write!(self.stream_out, "TEST1").unwrap(),
@@ -131,6 +131,7 @@ impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
             0x3 => write!(self.stream_out, "TEST3").unwrap(),
             _ => panic!("Unkown Opcode {}", stream[0])
         };
+        Ok(())
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {

@@ -611,118 +611,94 @@ pub fn get_lr35902_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
 impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Register8080)
     {
-        write!(self.stream_out, "{:04}", "RES").unwrap();
-        write!(self.stream_out, " {}", implicit_data1).unwrap();
-        write!(self.stream_out, " {:?}", register2).unwrap();
+        self.error = write!(self.stream_out, "{:04} {} {:?}", "RES", implicit_data1, register2);
     }
     fn halt_until_button_press(&mut self)
     {
-        write!(self.stream_out, "{:04}", "STOP").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "STOP");
     }
     fn load_accumulator_and_increment(&mut self)
     {
-        write!(self.stream_out, "{:04}", "LDA+").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "LDA+");
     }
     fn shift_register_right(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SRA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "SRA", register1);
     }
     fn rotate_register_left_through_carry(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "RL").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "RL", register1);
     }
     fn store_sp_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "SSPD").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "SSPD", address1);
     }
     fn jump_after_adding_if_not_carry(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "JR").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
     }
     fn jump_after_adding(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "JRN").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "JRN", data1);
     }
     fn jump_after_adding_if_zero(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "JR").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
     }
     fn test(&mut self, data1: u8, data2: u16)
     {
-        write!(self.stream_out, "{:04}", "TEST").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
-        write!(self.stream_out, " #${:02x}", data2).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x} #${:02x}", "TEST", data1, data2);
     }
     fn shift_register_right_with_zero(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SRL").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "SRL", register1);
     }
     fn jump_after_adding_if_carry(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "JR").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
     }
     fn set_bit(&mut self, implicit_data1: u8, register2: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SET").unwrap();
-        write!(self.stream_out, " {}", implicit_data1).unwrap();
-        write!(self.stream_out, " {:?}", register2).unwrap();
+        self.error = write!(self.stream_out, "{:04} {} {:?}", "SET", implicit_data1, register2);
     }
     fn jump_after_adding_if_not_zero(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "JR").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
     }
     fn rotate_register_right(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "RRC").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "RRC", register1);
     }
     fn load_memory_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "LDMD").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "LDMD", address1);
     }
     fn shift_register_left(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SLA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "SLA", register1);
     }
     fn rotate_register_right_through_carry(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "RR").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "RR", register1);
     }
     fn swap_register(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SWAP").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "SWAP", register1);
     }
     fn rotate_register_left(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "RLC").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "RLC", register1);
     }
     fn load_accumulator_and_decrement(&mut self)
     {
-        write!(self.stream_out, "{:04}", "LDA-").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "LDA-");
     }
     fn load_accumulator_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "LDAD").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "LDAD", address1);
     }
     fn test_bit(&mut self, implicit_data1: u8, register2: Register8080)
     {
-        write!(self.stream_out, "{:04}", "BIT").unwrap();
-        write!(self.stream_out, " {}", implicit_data1).unwrap();
-        write!(self.stream_out, " {:?}", register2).unwrap();
+        self.error = write!(self.stream_out, "{:04} {} {:?}", "BIT", implicit_data1, register2);
     }
 }

@@ -1,4 +1,5 @@
 use std::io::{self, Result};
+use std::mem;
 
 mod opcode_gen;
 
@@ -20,7 +21,8 @@ use emulator_common::do_disassembler_test;
  */
 
 struct OpcodePrinterLR35902<'a> {
-    stream_out: &'a mut io::Write
+    stream_out: &'a mut io::Write,
+    error: Result<()>
 }
 
 struct OpcodePrinterFactoryLR35902;
@@ -30,21 +32,25 @@ impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactoryLR35902 {
     fn new(&self, stream_out: &'a mut io::Write) -> OpcodePrinterLR35902<'a>
     {
         return OpcodePrinterLR35902 {
-            stream_out: stream_out
+            stream_out: stream_out,
+            error: Ok(())
         };
     }
 }
 
 impl<'a> OpcodePrinter<'a> for OpcodePrinterLR35902<'a> {
-    fn print_opcode(&mut self, stream: &[u8])
+    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
     {
         match get_lr35902_instruction(stream) {
-            Some(_) => dispatch_lr35902_instruction(stream, self),
+            Some(_) => {
+                dispatch_lr35902_instruction(stream, self);
+                mem::replace(&mut self.error, Ok(()))
+            },
             None => {
                 let mut op = OpcodePrinterFactory8080.new(self.stream_out);
-                op.print_opcode(stream);
+                op.print_opcode(stream)
             }
-        };
+        }
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {

@@ -608,378 +608,322 @@ pub fn get_8080_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
 impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
     fn return_if_not_zero(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RNZ").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RNZ");
     }
     fn add_immediate_to_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ADI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "ADI", data1);
     }
     fn pop_data_off_stack(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "POP").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "POP", register1);
     }
     fn add_to_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ADD").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "ADD", register1);
     }
     fn jump_if_parity_even(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JPE").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JPE", address1);
     }
     fn call_if_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CZ").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CZ", address1);
     }
     fn double_add(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "DAD").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "DAD", register1);
     }
     fn or_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ORI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "ORI", data1);
     }
     fn call_if_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CC").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CC", address1);
     }
     fn jump(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JMP").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JMP", address1);
     }
     fn subtract_from_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SUB").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "SUB", register1);
     }
     fn rim(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RIM").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RIM");
     }
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "SBI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "SBI", data1);
     }
     fn call_if_parity_even(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CPE").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CPE", address1);
     }
     fn jump_if_positive(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JP").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JP", address1);
     }
     fn logical_exclusive_or_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "XRA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "XRA", register1);
     }
     fn move_data(&mut self, register1: Register8080, register2: Register8080)
     {
-        write!(self.stream_out, "{:04}", "MOV").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-        write!(self.stream_out, " {:?}", register2).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?} {:?}", "MOV", register1, register2);
     }
     fn no_instruction(&mut self)
     {
-        write!(self.stream_out, "{:04}", "NOP").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "NOP");
     }
     fn halt(&mut self)
     {
-        write!(self.stream_out, "{:04}", "HLT").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "HLT");
     }
     fn set_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "STC").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "STC");
     }
     fn compare_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "CMP").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "CMP", register1);
     }
     fn call_if_not_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CNZ").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CNZ", address1);
     }
     fn call_if_parity_odd(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CPO").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CPO", address1);
     }
     fn return_if_zero(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RZ").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RZ");
     }
     fn rotate_accumulator_left_through_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RAL").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RAL");
     }
     fn disable_interrupts(&mut self)
     {
-        write!(self.stream_out, "{:04}", "DI").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "DI");
     }
     fn load_sp_from_h_and_l(&mut self)
     {
-        write!(self.stream_out, "{:04}", "SPHL").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "SPHL");
     }
     fn logical_and_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ANA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "ANA", register1);
     }
     fn load_h_and_l_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "LHLD").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "LHLD", address1);
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "XRI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "XRI", data1);
     }
     fn call(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CALL").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CALL", address1);
     }
     fn enable_interrupts(&mut self)
     {
-        write!(self.stream_out, "{:04}", "EI").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "EI");
     }
     fn load_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "LDAX").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "LDAX", register1);
     }
     fn input(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "IN").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "IN", data1);
     }
     fn jump_if_parity_odd(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JPO").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JPO", address1);
     }
     fn increment_register_pair(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "INX").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "INX", register1);
     }
     fn return_if_no_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RNC").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RNC");
     }
     fn logical_or_with_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ORA").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "ORA", register1);
     }
     fn exchange_registers(&mut self)
     {
-        write!(self.stream_out, "{:04}", "XCHG").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "XCHG");
     }
     fn rotate_accumulator_right(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RRC").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RRC");
     }
     fn call_if_no_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CNC").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CNC", address1);
     }
     fn return_if_parity_even(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RPE").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RPE");
     }
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ACI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "ACI", data1);
     }
     fn and_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "ANI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "ANI", data1);
     }
     fn call_if_plus(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CP").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CP", address1);
     }
     fn increment_register_or_memory(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "INR").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "INR", register1);
     }
     fn compare_immediate_with_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "CPI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "CPI", data1);
     }
     fn load_program_counter(&mut self)
     {
-        write!(self.stream_out, "{:04}", "PCHL").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "PCHL");
     }
     fn return_if_minus(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RM").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RM");
     }
     fn jump_if_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JC").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JC", address1);
     }
     fn call_if_minus(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "CM").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "CM", address1);
     }
     fn decimal_adjust_accumulator(&mut self)
     {
-        write!(self.stream_out, "{:04}", "DAA").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "DAA");
     }
     fn load_register_pair_immediate(&mut self, register1: Register8080, data2: u16)
     {
-        write!(self.stream_out, "{:04}", "LXI").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-        write!(self.stream_out, " #${:02x}", data2).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?} #${:02x}", "LXI", register1, data2);
     }
     fn move_immediate_data(&mut self, register1: Register8080, data2: u8)
     {
-        write!(self.stream_out, "{:04}", "MVI").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
-        write!(self.stream_out, " #${:02x}", data2).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?} #${:02x}", "MVI", register1, data2);
     }
     fn return_if_plus(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RP").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RP");
     }
     fn restart(&mut self, implicit_data1: u8)
     {
-        write!(self.stream_out, "{:04}", "RST").unwrap();
-        write!(self.stream_out, " {}", implicit_data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {}", "RST", implicit_data1);
     }
     fn store_accumulator_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "STA").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "STA", address1);
     }
     fn jump_if_not_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JNZ").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JNZ", address1);
     }
     fn jump_if_minus(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JM").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JM", address1);
     }
     fn decrement_register_or_memory(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "DCR").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "DCR", register1);
     }
     fn output(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "OUT").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "OUT", data1);
     }
     fn store_accumulator(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "STAX").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "STAX", register1);
     }
     fn add_to_accumulator_with_carry(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "ADC").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "ADC", register1);
     }
     fn jump_if_zero(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JZ").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JZ", address1);
     }
     fn complement_accumulator(&mut self)
     {
-        write!(self.stream_out, "{:04}", "CMA").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "CMA");
     }
     fn return_if_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RC").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RC");
     }
     fn return_if_parity_odd(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RPO").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RPO");
     }
     fn return_unconditionally(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RET").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RET");
     }
     fn store_h_and_l_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "SHLD").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "SHLD", address1);
     }
     fn subtract_from_accumulator_with_borrow(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "SBB").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "SBB", register1);
     }
     fn subtract_immediate_from_accumulator(&mut self, data1: u8)
     {
-        write!(self.stream_out, "{:04}", "SUI").unwrap();
-        write!(self.stream_out, " #${:02x}", data1).unwrap();
+        self.error = write!(self.stream_out, "{:04} #${:02x}", "SUI", data1);
     }
     fn push_data_onto_stack(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "PUSH").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "PUSH", register1);
     }
     fn jump_if_no_carry(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "JNC").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "JNC", address1);
     }
     fn sim(&mut self)
     {
-        write!(self.stream_out, "{:04}", "SIM").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "SIM");
     }
     fn decrement_register_pair(&mut self, register1: Register8080)
     {
-        write!(self.stream_out, "{:04}", "DCX").unwrap();
-        write!(self.stream_out, " {:?}", register1).unwrap();
+        self.error = write!(self.stream_out, "{:04} {:?}", "DCX", register1);
     }
     fn complement_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "CMC").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "CMC");
     }
     fn rotate_accumulator_left(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RLC").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RLC");
     }
     fn load_accumulator_direct(&mut self, address1: u16)
     {
-        write!(self.stream_out, "{:04}", "LDA").unwrap();
-        write!(self.stream_out, " ${:02x}", address1).unwrap();
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "LDA", address1);
     }
     fn exchange_stack(&mut self)
     {
-        write!(self.stream_out, "{:04}", "XTHL").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "XTHL");
     }
     fn rotate_accumulator_right_through_carry(&mut self)
     {
-        write!(self.stream_out, "{:04}", "RAR").unwrap();
+        self.error = write!(self.stream_out, "{:04}", "RAR");
     }
 }

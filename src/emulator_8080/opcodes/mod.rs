@@ -1,4 +1,5 @@
 use std::io::{self, Result};
+use std::mem;
 
 mod opcode_gen;
 
@@ -10,7 +11,8 @@ pub use emulator_8080::opcodes::opcode_gen::{
 use emulator_common::do_disassembler_test;
 
 pub struct OpcodePrinter8080<'a> {
-    stream_out: &'a mut io::Write
+    stream_out: &'a mut io::Write,
+    error: Result<()>
 }
 
 pub struct OpcodePrinterFactory8080;
@@ -21,15 +23,17 @@ impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactory8080 {
         stream_out: &'a mut io::Write) -> OpcodePrinter8080<'a>
     {
         return OpcodePrinter8080 {
-            stream_out: stream_out
+            stream_out: stream_out,
+            error: Ok(())
         };
     }
 }
 
 impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
-    fn print_opcode(&mut self, stream: &[u8])
+    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
     {
-        dispatch_8080_instruction(stream, self)
+        dispatch_8080_instruction(stream, self);
+        return mem::replace(&mut self.error, Ok(()));
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
