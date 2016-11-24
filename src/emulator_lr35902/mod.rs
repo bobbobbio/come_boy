@@ -246,10 +246,6 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
     {
         unimplemented!();
     }
-    fn test(&mut self, _data1: u8, _data2: u16)
-    {
-        unimplemented!();
-    }
 }
 
 impl<'a> EmulatorLR35902<'a> {

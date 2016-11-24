@@ -19,7 +19,6 @@ pub trait InstructionSetLR35902 {
     fn move_and_increment_m(&mut self, register1: Register8080, register2: Register8080);
     fn jump_after_adding(&mut self, data1: u8);
     fn jump_after_adding_if_zero(&mut self, data1: u8);
-    fn test(&mut self, data1: u8, data2: u16);
     fn shift_register_right_with_zero(&mut self, register1: Register8080);
     fn jump_after_adding_if_carry(&mut self, data1: u8);
     fn return_and_enable_interrupts(&mut self);
@@ -44,7 +43,6 @@ pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
 {
     let opcode = read_u8(&mut stream).unwrap();
     match opcode {
-        0x01 => machine.test(read_u8(&mut stream).unwrap(), read_u16(&mut stream).unwrap()),
         0x08 => machine.store_sp_direct(read_u16(&mut stream).unwrap()),
         0x18 => machine.jump_after_adding(read_u8(&mut stream).unwrap()),
         0x20 => machine.jump_after_adding_if_not_zero(read_u8(&mut stream).unwrap()),
@@ -335,7 +333,6 @@ pub fn get_lr35902_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
 {
     let mut stream = original_stream;
     let size = match read_u8(&mut stream).unwrap() {
-        0x01 => 4,
         0x08 => 3,
         0x18 => 2,
         0x20 => 2,
@@ -671,10 +668,6 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     fn jump_after_adding_if_zero(&mut self, data1: u8)
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
-    }
-    fn test(&mut self, data1: u8, data2: u16)
-    {
-        self.error = write!(self.stream_out, "{:04} #${:02x} #${:02x}", "TEST", data1, data2);
     }
     fn shift_register_right_with_zero(&mut self, register1: Register8080)
     {

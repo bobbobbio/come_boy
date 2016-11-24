@@ -272,6 +272,5 @@
 "0xf0": {"instr": "LDAB",  "description": "Load Accumulator Direct One Byte", "args": ["D8"], "size": 2},
 "0xd9": {"instr": "RETI",  "description": "Return and Enable Interrupts", "args": [], "size": 1},
 "0xe8": {"instr": "ADDS",  "description": "Add Immediate to SP", "args": ["D8"], "size": 2},
-"0xf8": {"instr": "STSP",  "description": "Store SP Plus Immediate", "args": ["D8"], "size": 2},
-"0x01": {"instr": "TEST",  "description": "TEST", "args": ["D8", "D16"], "size": 4}
+"0xf8": {"instr": "STSP",  "description": "Store SP Plus Immediate", "args": ["D8"], "size": 2}
 }
