@@ -2,7 +2,7 @@ mod opcodes;
 
 use std::cmp;
 use emulator_common::Register8080;
-use emulator_8080::{Emulator8080, InstructionSetOps, Flag8080};
+use emulator_8080::{Emulator8080, InstructionSetOps, Flag8080, InstructionSet8080};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
 use emulator_lr35902::opcodes::{
     get_lr35902_instruction, dispatch_lr35902_instruction, InstructionSetLR35902};
@@ -138,21 +138,25 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
 }
 
 impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
-    fn move_and_increment_m(&mut self, _dest: Register8080, _src: Register8080)
+    fn move_and_increment_m(&mut self, dest_register: Register8080, src_register: Register8080)
     {
-        unimplemented!();
+        self.move_data(dest_register, src_register);
+        self.add_to_register(Register8080::M, 1, false /* update carry */);
     }
-    fn move_and_decrement_m(&mut self, _dest: Register8080, _src: Register8080)
+    fn move_and_decrement_m(&mut self, dest_register: Register8080, src_register: Register8080)
     {
-        unimplemented!();
+        self.move_data(dest_register, src_register);
+        self.subtract_from_register(Register8080::M, 1);
     }
-    fn store_accumulator_direct(&mut self, _address: u16)
+    fn store_accumulator_direct_two_bytes(&mut self, address: u16)
     {
-        unimplemented!();
+        self.store_accumulator_direct(address);
     }
-    fn store_sp_plus_immediate(&mut self, _data: u8)
+    fn store_sp_plus_immediate(&mut self, data: u8)
     {
-        unimplemented!();
+        let address = self.read_register_pair(Register8080::SP) + data as u16;
+        let v = self.read_memory(address);
+        self.set_register(Register8080::M, v);
     }
     fn add_immediate_to_sp(&mut self, _data: u8)
     {
@@ -246,6 +250,46 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
     {
         unimplemented!();
     }
+}
+
+#[test]
+fn move_and_increment_m()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::M, 0x99);
+    e.move_and_increment_m(Register8080::A, Register8080::M);
+    assert_eq!(e.read_register(Register8080::A), 0x99);
+    assert_eq!(e.read_register(Register8080::M), 0x9a);
+}
+
+#[test]
+fn move_and_decrement_m()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::M, 0x99);
+    e.move_and_decrement_m(Register8080::A, Register8080::M);
+    assert_eq!(e.read_register(Register8080::A), 0x99);
+    assert_eq!(e.read_register(Register8080::M), 0x98);
+}
+
+#[test]
+fn store_accumulator_direct_two_bytes()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x44);
+    e.store_accumulator_direct(0x5588);
+    assert_eq!(e.read_memory(0x5588), 0x44);
+}
+
+#[test]
+fn store_sp_plus_immediate()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x4488);
+    e.set_register_pair(Register8080::H, 0x4433);
+    e.set_memory(0x4488 + 0x77, 0x99);
+    e.store_sp_plus_immediate(0x77);
+    assert_eq!(e.read_register(Register8080::M), 0x99);
 }
 
 impl<'a> EmulatorLR35902<'a> {

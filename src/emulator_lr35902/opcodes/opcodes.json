@@ -269,7 +269,7 @@
 "0xd9":   {"instr": "RETI", "description": "Return and Enable Interrupts",       "args": [],         "size": 1},
 "0xe0":   {"instr": "STAB", "description": "Store Accumulator Direct One Byte",  "args": ["D8"],     "size": 2},
 "0xe8":   {"instr": "ADDS", "description": "Add Immediate to SP",                "args": ["D8"],     "size": 2},
-"0xea":   {"instr": "STAD", "description": "Store Accumulator Direct",           "args": ["adr"],    "size": 3},
+"0xea":   {"instr": "STA",  "description": "Store Accumulator Direct Two Bytes", "args": ["adr"],    "size": 3},
 "0xf0":   {"instr": "LDAB", "description": "Load Accumulator Direct One Byte",   "args": ["D8"],     "size": 2},
 "0xf8":   {"instr": "STSP", "description": "Store SP Plus Immediate",            "args": ["D8"],     "size": 2},
 "0xfa":   {"instr": "LDAD", "description": "Load Accumulator Direct",            "args": ["adr"],    "size": 3}

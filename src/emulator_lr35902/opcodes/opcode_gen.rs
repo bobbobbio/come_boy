@@ -19,6 +19,7 @@ pub trait InstructionSetLR35902 {
     fn move_and_increment_m(&mut self, register1: Register8080, register2: Register8080);
     fn jump_after_adding(&mut self, data1: u8);
     fn jump_after_adding_if_zero(&mut self, data1: u8);
+    fn store_accumulator_direct_two_bytes(&mut self, address1: u16);
     fn shift_register_right_with_zero(&mut self, register1: Register8080);
     fn jump_after_adding_if_carry(&mut self, data1: u8);
     fn return_and_enable_interrupts(&mut self);
@@ -27,7 +28,6 @@ pub trait InstructionSetLR35902 {
     fn rotate_register_right(&mut self, register1: Register8080);
     fn shift_register_left(&mut self, register1: Register8080);
     fn rotate_register_right_through_carry(&mut self, register1: Register8080);
-    fn store_accumulator_direct(&mut self, address1: u16);
     fn swap_register(&mut self, register1: Register8080);
     fn jump_after_adding_if_not_zero(&mut self, data1: u8);
     fn rotate_register_left(&mut self, register1: Register8080);
@@ -56,7 +56,7 @@ pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
         0xD9 => machine.return_and_enable_interrupts(),
         0xE0 => machine.store_accumulator_direct_one_byte(read_u8(&mut stream).unwrap()),
         0xE8 => machine.add_immediate_to_sp(read_u8(&mut stream).unwrap()),
-        0xEA => machine.store_accumulator_direct(read_u16(&mut stream).unwrap()),
+        0xEA => machine.store_accumulator_direct_two_bytes(read_u16(&mut stream).unwrap()),
         0xF0 => machine.load_accumulator_direct_one_byte(read_u8(&mut stream).unwrap()),
         0xF8 => machine.store_sp_plus_immediate(read_u8(&mut stream).unwrap()),
         0xFA => machine.load_accumulator_direct(read_u16(&mut stream).unwrap()),
@@ -669,6 +669,10 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
     }
+    fn store_accumulator_direct_two_bytes(&mut self, address1: u16)
+    {
+        self.error = write!(self.stream_out, "{:04} ${:02x}", "STA", address1);
+    }
     fn shift_register_right_with_zero(&mut self, register1: Register8080)
     {
         self.error = write!(self.stream_out, "{:04} {:?}", "SRL", register1);
@@ -700,10 +704,6 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     fn rotate_register_right_through_carry(&mut self, register1: Register8080)
     {
         self.error = write!(self.stream_out, "{:04} {:?}", "RR", register1);
-    }
-    fn store_accumulator_direct(&mut self, address1: u16)
-    {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "STAD", address1);
     }
     fn swap_register(&mut self, register1: Register8080)
     {
