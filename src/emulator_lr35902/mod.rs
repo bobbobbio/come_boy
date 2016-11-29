@@ -1,6 +1,7 @@
 mod opcodes;
 
 use std::cmp;
+use std::mem;
 use emulator_common::Register8080;
 use emulator_8080::{Emulator8080, InstructionSetOps, Flag8080, InstructionSet8080};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
@@ -40,14 +41,43 @@ impl<'a> EmulatorLR35902<'a> {
         let end = cmp::min(ROM_ADDRESS + rom.len(), LCD_ADDRESS);
         self.e8080.main_memory[ROM_ADDRESS..end].clone_from_slice(rom);
     }
+
+    #[cfg(test)]
+    fn read_memory_u16(&mut self, address: u16) -> u16
+    {
+        if address == 0xFFFF {
+            return self.read_memory(address) as u16;
+        }
+
+        let main_memory: &u16;
+        unsafe {
+            main_memory = mem::transmute(&self.e8080.main_memory[address as usize]);
+        }
+        return u16::from_be(*main_memory);
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        if address == 0xFFFF {
+            return self.set_memory(address, (value >> 8) as u8);
+        }
+
+        let main_memory: &mut u16;
+        unsafe {
+            main_memory = mem::transmute(&mut self.e8080.main_memory[address as usize]);
+        }
+        *main_memory = u16::to_be(value);
+    }
 }
 
 impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
-    fn read_memory(&self, address: u16) -> u8 {
+    fn read_memory(&self, address: u16) -> u8
+    {
         self.e8080.read_memory(address)
     }
 
-    fn set_memory(&mut self, address: u16, value: u8) {
+    fn set_memory(&mut self, address: u16, value: u8)
+    {
         self.e8080.set_memory(address, value);
     }
 
@@ -103,7 +133,14 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
 
     fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
     {
+        let old_value = self.read_register_pair(register);
         self.e8080.add_to_register_pair(register, value, update_carry);
+
+        // LR35902 updates the Auxiliary Carry when adding 16 bit numbers.
+        if update_carry {
+            self.set_flag(
+                Flag8080::AuxiliaryCarry, value & 0x00FF > 0x00FF - (old_value & 0x00FF));
+        }
     }
 
     fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
@@ -131,9 +168,14 @@ impl<'a> InstructionSetOps for EmulatorLR35902<'a> {
         self.e8080.set_program_counter(address);
     }
 
-    fn set_interrupt_state(&mut self, value: bool)
+    fn set_interrupts_enabled(&mut self, value: bool)
     {
-        self.e8080.set_interrupt_state(value);
+        self.e8080.set_interrupts_enabled(value);
+    }
+
+    fn get_interrupts_enabled(&self) -> bool
+    {
+        self.e8080.get_interrupts_enabled()
     }
 }
 
@@ -143,69 +185,94 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
         self.move_data(dest_register, src_register);
         self.add_to_register(Register8080::M, 1, false /* update carry */);
     }
+
     fn move_and_decrement_m(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         self.move_data(dest_register, src_register);
         self.subtract_from_register(Register8080::M, 1);
     }
+
     fn store_accumulator_direct_two_bytes(&mut self, address: u16)
     {
         self.store_accumulator_direct(address);
     }
+
     fn store_sp_plus_immediate(&mut self, data: u8)
     {
         let address = self.read_register_pair(Register8080::SP) + data as u16;
         let v = self.read_memory(address);
         self.set_register(Register8080::M, v);
     }
-    fn add_immediate_to_sp(&mut self, _data: u8)
+
+    fn add_immediate_to_sp(&mut self, data: u8)
     {
-        unimplemented!();
+        self.add_to_register_pair(Register8080::SP, data as u16, true /* update_carry */);
     }
-    fn store_accumulator_direct_one_byte(&mut self, _address: u8)
+
+    fn store_accumulator_direct_one_byte(&mut self, relative_address: u8)
     {
-        unimplemented!();
+        let value = self.read_register(Register8080::A);
+        self.set_memory(0xFF00 | relative_address as u16, value);
     }
-    fn load_accumulator_direct_one_byte(&mut self, _address: u8)
+
+    fn load_accumulator_direct_one_byte(&mut self, relative_address: u8)
     {
-        unimplemented!();
+        let value = self.read_memory(0xFF00 | relative_address as u16);
+        self.set_register(Register8080::A, value);
     }
+
     fn return_and_enable_interrupts(&mut self)
     {
-        unimplemented!();
+        self.return_unconditionally();
+        self.enable_interrupts();
     }
+
     fn halt_until_button_press(&mut self)
     {
         unimplemented!();
     }
-    fn jump_after_adding(&mut self, _n: u8)
+
+    fn jump_relative(&mut self, n: u8)
     {
-        unimplemented!();
+        let pc = self.read_program_counter();
+        self.jump(pc.wrapping_add(n as u16));
     }
-    fn jump_after_adding_if_zero(&mut self, _n: u8)
+
+    fn jump_relative_if_zero(&mut self, n: u8)
     {
-        unimplemented!();
+        let pc = self.read_program_counter();
+        self.jump_if_zero(pc.wrapping_add(n as u16));
     }
-    fn jump_after_adding_if_not_zero(&mut self, _n: u8)
+
+    fn jump_relative_if_not_zero(&mut self, n: u8)
     {
-        unimplemented!();
+        let pc = self.read_program_counter();
+        self.jump_if_not_zero(pc.wrapping_add(n as u16));
     }
-    fn jump_after_adding_if_carry(&mut self, _n: u8)
+
+    fn jump_relative_if_carry(&mut self, n: u8)
     {
-        unimplemented!();
+        let pc = self.read_program_counter();
+        self.jump_if_carry(pc.wrapping_add(n as u16));
     }
-    fn jump_after_adding_if_not_carry(&mut self, _n: u8)
+
+    fn jump_relative_if_no_carry(&mut self, n: u8)
     {
-        unimplemented!();
+        let pc = self.read_program_counter();
+        self.jump_if_no_carry(pc.wrapping_add(n as u16));
     }
-    fn store_sp_direct(&mut self, _address: u16)
+
+    fn store_sp_direct(&mut self, address: u16)
     {
-        unimplemented!();
+        let value = self.read_register_pair(Register8080::SP);
+        self.set_memory_u16(address, value);
     }
-    fn load_accumulator_direct(&mut self, _address: u16)
+
+    fn load_accumulator_direct(&mut self, address: u16)
     {
-        unimplemented!();
+        InstructionSet8080::load_accumulator_direct(self, address);
     }
+
     fn reset_bit(&mut self, _bit: u8, _register: Register8080)
     {
         unimplemented!();
@@ -290,6 +357,150 @@ fn store_sp_plus_immediate()
     e.set_memory(0x4488 + 0x77, 0x99);
     e.store_sp_plus_immediate(0x77);
     assert_eq!(e.read_register(Register8080::M), 0x99);
+}
+
+#[test]
+fn add_immediate_to_sp()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x4488);
+    e.add_immediate_to_sp(0x22);
+    assert_eq!(e.read_register_pair(Register8080::SP), 0x44aa);
+    assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_immediate_to_sp_updates_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0xFFFF);
+    e.add_immediate_to_sp(0x01);
+    assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn add_immediate_to_sp_updates_auxiliary_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x00FF);
+    e.add_immediate_to_sp(0x01);
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn double_add_updates_auxiliary_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::H, 0x00FF);
+    e.set_register_pair(Register8080::B, 0x0001);
+    e.double_add(Register8080::B);
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn double_add_does_not_update_auxiliary_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::H, 0x000F);
+    e.set_register_pair(Register8080::B, 0x0001);
+    e.double_add(Register8080::B);
+    assert!(!e.read_flag(Flag8080::AuxiliaryCarry));
+}
+
+#[test]
+fn store_accumulator_direct_one_byte()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x34);
+    e.store_accumulator_direct_one_byte(0x22);
+    assert_eq!(e.read_memory(0xFF22), 0x34);
+}
+
+#[test]
+fn load_accumulator_direct_one_byte()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_memory(0xFF22, 0x34);
+    e.load_accumulator_direct_one_byte(0x22);
+    assert_eq!(e.read_register(Register8080::A), 0x34);
+}
+
+#[test]
+fn return_and_enable_interrupts()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x0400);
+    e.return_and_enable_interrupts();
+    assert_eq!(e.read_program_counter(), 0x0000);
+    assert_eq!(e.read_register_pair(Register8080::SP), 0x0402);
+    assert!(e.get_interrupts_enabled());
+}
+
+#[test]
+fn jump_relative()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_program_counter(0x1234);
+    e.jump_relative(0x11);
+    assert_eq!(e.read_program_counter(), 0x1245);
+}
+
+#[test]
+fn jump_relative_if_zero()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(Flag8080::Zero, true);
+    e.set_program_counter(0x1234);
+    e.jump_relative_if_zero(0x11);
+    assert_eq!(e.read_program_counter(), 0x1245);
+}
+
+#[test]
+fn jump_relative_if_not_zero()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_program_counter(0x1234);
+    e.jump_relative_if_not_zero(0x11);
+    assert_eq!(e.read_program_counter(), 0x1245);
+}
+
+#[test]
+fn jump_relative_if_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(Flag8080::Carry, true);
+    e.set_program_counter(0x1234);
+    e.jump_relative_if_carry(0x11);
+    assert_eq!(e.read_program_counter(), 0x1245);
+}
+
+#[test]
+fn jump_relative_if_no_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_program_counter(0x1234);
+    e.jump_relative_if_no_carry(0x11);
+    assert_eq!(e.read_program_counter(), 0x1245);
+}
+
+#[test]
+fn store_sp_direct()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x9923);
+    e.store_sp_direct(0x8833);
+    assert_eq!(e.read_memory_u16(0x8833), 0x9923);
+}
+
+#[test]
+fn store_sp_at_ffff()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x9923);
+    e.store_sp_direct(0xFFFF);
+
+    // This address is the Interrupt Enable Flag, so this test isn't quite legit.
+    assert_eq!(e.read_memory(0xFFFF), 0x99);
 }
 
 impl<'a> EmulatorLR35902<'a> {

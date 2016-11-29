@@ -122,7 +122,8 @@ pub trait InstructionSetOps {
     fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8);
     fn read_program_counter(&self) -> u16;
     fn set_program_counter(&mut self, address: u16);
-    fn set_interrupt_state(&mut self, state: bool);
+    fn set_interrupts_enabled(&mut self, state: bool);
+    fn get_interrupts_enabled(&self) -> bool;
 }
 
 /*
@@ -363,8 +364,11 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
             None => ()
         }
     }
-    fn set_interrupt_state(&mut self, state: bool) {
+    fn set_interrupts_enabled(&mut self, state: bool) {
         self.interrupts_enabled = state;
+    }
+    fn get_interrupts_enabled(&self) -> bool {
+        self.interrupts_enabled
     }
 }
 
@@ -1440,11 +1444,11 @@ impl<I: InstructionSetOps> InstructionSet8080 for I {
     }
     fn disable_interrupts(&mut self)
     {
-        self.set_interrupt_state(false);
+        self.set_interrupts_enabled(false);
     }
     fn enable_interrupts(&mut self)
     {
-        self.set_interrupt_state(true);
+        self.set_interrupts_enabled(true);
     }
     fn input(&mut self, _data1: u8)
     {
