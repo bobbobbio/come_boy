@@ -1,15 +1,15 @@
 mod opcodes;
 
-use std::cmp;
-use std::mem;
+use std::{mem, io, fmt};
 use emulator_common::Register8080;
 use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
+use emulator_lr35902::opcodes::create_disassembler;
 use emulator_lr35902::opcodes::{
     get_lr35902_instruction, dispatch_lr35902_instruction, InstructionSetLR35902};
 
 const ROM_ADDRESS: usize = 0x0100;
-const LCD_ADDRESS: usize = 0x8000;
+// const LCD_ADDRESS: usize = 0x8000;
 
 /*
  *  _____                 _       _
@@ -47,8 +47,7 @@ impl<'a> EmulatorLR35902<'a> {
     }
 
     fn load_rom(&mut self, rom: &[u8]) {
-        let end = cmp::min(ROM_ADDRESS + rom.len(), LCD_ADDRESS);
-        self.e8080.main_memory[ROM_ADDRESS..end].clone_from_slice(rom);
+        self.e8080.main_memory[0..rom.len()].clone_from_slice(rom);
     }
 
     #[cfg(test)]
@@ -102,7 +101,6 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)
     {
-        println!("set_flag {:?}", flag);
         match flag {
             Flag8080::Zero =>           self.set_flag(FlagLR35902::Zero, value),
             Flag8080::AuxiliaryCarry => self.set_flag(FlagLR35902::HalfCarry, value),
@@ -679,7 +677,38 @@ fn rotate_register_left_through_carry()
     assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
+impl<'a> fmt::Debug for EmulatorLR35902<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        try!(writeln!(f, "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
+            self.read_register(Register8080::B),
+            self.read_register(Register8080::C),
+            self.read_register(Register8080::D),
+            self.read_register(Register8080::E),
+            self.read_register(Register8080::H),
+            self.read_register(Register8080::L),
+            self.read_register(Register8080::A)));
+        try!(writeln!(f, "Zero: {}, Subtract: {}, HalfCarry: {}, Carry: {}",
+            self.read_flag(FlagLR35902::Zero),
+            self.read_flag(FlagLR35902::Subtract),
+            self.read_flag(FlagLR35902::HalfCarry),
+            self.read_flag(FlagLR35902::Carry)));
+        try!(write!(f, "PC: {:x}, SP: {:x}, M: {:x}",
+            self.read_program_counter(),
+            self.read_register_pair(Register8080::SP),
+            self.read_register(Register8080::M)));
+        Ok(())
+    }
+}
+
 impl<'a> EmulatorLR35902<'a> {
+    fn print_current_instruction(&self)
+    {
+        let mut stdout = io::stdout();
+        let mut dis = create_disassembler(&self.e8080.main_memory, &mut stdout);
+        dis.index = self.read_program_counter() as u64;
+        dis.disassemble_one().unwrap();
+    }
     fn run_one_instruction(&mut self) -> bool
     {
         let pc = self.read_program_counter() as usize;
@@ -697,8 +726,13 @@ impl<'a> EmulatorLR35902<'a> {
 
     fn run(&mut self)
     {
+        self.set_register_pair(Register8080::SP, 0xFFFE);
         self.set_program_counter(ROM_ADDRESS as u16);
         while self.read_program_counter() != 0 {
+            println!("{:?}", self);
+            self.print_current_instruction();
+            println!("");
+
             if !self.run_one_instruction() {
                 self.e8080.run_one_instruction();
             }

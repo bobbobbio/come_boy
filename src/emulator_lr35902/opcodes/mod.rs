@@ -20,12 +20,12 @@ use emulator_common::do_disassembler_test;
  *       |_|
  */
 
-struct OpcodePrinterLR35902<'a> {
+pub struct OpcodePrinterLR35902<'a> {
     stream_out: &'a mut io::Write,
     error: Result<()>
 }
 
-struct OpcodePrinterFactoryLR35902;
+pub struct OpcodePrinterFactoryLR35902;
 
 impl<'a> OpcodePrinterFactory<'a> for OpcodePrinterFactoryLR35902 {
     type Output = OpcodePrinterLR35902<'a>;
@@ -61,10 +61,16 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinterLR35902<'a> {
     }
 }
 
+pub fn create_disassembler<'a>(rom: &'a [u8], stream_out: &'a mut io::Write)
+    -> Disassembler<'a, OpcodePrinterFactoryLR35902>
+{
+    Disassembler::new(rom, OpcodePrinterFactoryLR35902, stream_out)
+}
+
 pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = Disassembler::new(rom, OpcodePrinterFactoryLR35902, stdout);
+    let mut disassembler = create_disassembler(rom, stdout);
     disassembler.disassemble()
 }
 

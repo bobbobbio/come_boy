@@ -58,7 +58,7 @@ pub trait OpcodePrinterFactory<'a> {
  */
 
 pub struct Disassembler<'a, PF: for<'b> OpcodePrinterFactory<'b>> {
-    index: u64,
+    pub index: u64,
     rom: &'a [u8],
     opcode_printer_factory: PF,
     stream_out: &'a mut io::Write
@@ -77,40 +77,47 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
             stream_out: stream_out
         }
     }
+    pub fn disassemble_one(&mut self) -> Result<()>
+    {
+        let mut printed_instr: Vec<u8> = vec![];
+        let instr: Vec<u8>;
+        let printed;
+        {
+            let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
+            printed = match opcode_printer.get_instruction(&self.rom[self.index as usize..]) {
+                Some(res) => {
+                    try!(opcode_printer.print_opcode(&res));
+                    instr = res;
+                    true
+                },
+                None => {
+                    instr = vec![self.rom[self.index as usize]];
+                    false
+                }
+            };
+        }
+
+        let str_instr = match printed {
+            true => str::from_utf8(&printed_instr).unwrap(),
+            false => "-   "
+        };
+
+        let mut raw_assembly = String::new();
+        for code in &instr {
+            raw_assembly.push_str(format!("{:02x} ", code).as_str());
+        }
+
+        try!(write!(self.stream_out, "{:07x} {:9}{}\n", self.index, raw_assembly, str_instr));
+
+        self.index += instr.len() as u64;
+
+        Ok(())
+    }
+
     pub fn disassemble(&mut self) -> Result<()>
     {
         while (self.index as usize) < self.rom.len() {
-            let mut printed_instr: Vec<u8> = vec![];
-            let instr: Vec<u8>;
-            let printed;
-            {
-                let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
-                printed = match opcode_printer.get_instruction(&self.rom[self.index as usize..]) {
-                    Some(res) => {
-                        try!(opcode_printer.print_opcode(&res));
-                        instr = res;
-                        true
-                    },
-                    None => {
-                        instr = vec![self.rom[self.index as usize]];
-                        false
-                    }
-                };
-            }
-
-            let str_instr = match printed {
-                true => str::from_utf8(&printed_instr).unwrap(),
-                false => "-   "
-            };
-
-            let mut raw_assembly = String::new();
-            for code in &instr {
-                raw_assembly.push_str(format!("{:02x} ", code).as_str());
-            }
-
-            try!(write!(self.stream_out, "{:07x} {:9}{}\n", self.index, raw_assembly, str_instr));
-
-            self.index += instr.len() as u64;
+            try!(self.disassemble_one());
         }
         Ok(())
     }
