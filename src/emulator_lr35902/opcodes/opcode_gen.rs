@@ -12,19 +12,19 @@ pub trait InstructionSetLR35902 {
     fn halt_until_button_press(&mut self);
     fn store_sp_plus_immediate(&mut self, data1: u8);
     fn jump_relative(&mut self, data1: u8);
-    fn shift_register_right(&mut self, register1: Register8080);
+    fn shift_register_left(&mut self, register1: Register8080);
     fn rotate_register_left_through_carry(&mut self, register1: Register8080);
     fn add_immediate_to_sp(&mut self, data1: u8);
     fn store_sp_direct(&mut self, address1: u16);
     fn move_and_increment_m(&mut self, register1: Register8080, register2: Register8080);
     fn store_accumulator_direct_two_bytes(&mut self, address1: u16);
-    fn shift_register_right_with_zero(&mut self, register1: Register8080);
     fn return_and_enable_interrupts(&mut self);
     fn jump_relative_if_no_carry(&mut self, data1: u8);
     fn set_bit(&mut self, implicit_data1: u8, register2: Register8080);
     fn load_accumulator_direct_one_byte(&mut self, data1: u8);
     fn rotate_register_right(&mut self, register1: Register8080);
-    fn shift_register_left(&mut self, register1: Register8080);
+    fn shift_register_right_signed(&mut self, register1: Register8080);
+    fn shift_register_right(&mut self, register1: Register8080);
     fn rotate_register_right_through_carry(&mut self, register1: Register8080);
     fn jump_relative_if_zero(&mut self, data1: u8);
     fn swap_register(&mut self, register1: Register8080);
@@ -107,14 +107,14 @@ pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
             0xCB25 => machine.shift_register_left(Register8080::L),
             0xCB26 => machine.shift_register_left(Register8080::M),
             0xCB27 => machine.shift_register_left(Register8080::A),
-            0xCB28 => machine.shift_register_right(Register8080::B),
-            0xCB29 => machine.shift_register_right(Register8080::C),
-            0xCB2A => machine.shift_register_right(Register8080::D),
-            0xCB2B => machine.shift_register_right(Register8080::E),
-            0xCB2C => machine.shift_register_right(Register8080::H),
-            0xCB2D => machine.shift_register_right(Register8080::L),
-            0xCB2E => machine.shift_register_right(Register8080::M),
-            0xCB2F => machine.shift_register_right(Register8080::A),
+            0xCB28 => machine.shift_register_right_signed(Register8080::B),
+            0xCB29 => machine.shift_register_right_signed(Register8080::C),
+            0xCB2A => machine.shift_register_right_signed(Register8080::D),
+            0xCB2B => machine.shift_register_right_signed(Register8080::E),
+            0xCB2C => machine.shift_register_right_signed(Register8080::H),
+            0xCB2D => machine.shift_register_right_signed(Register8080::L),
+            0xCB2E => machine.shift_register_right_signed(Register8080::M),
+            0xCB2F => machine.shift_register_right_signed(Register8080::A),
             0xCB30 => machine.swap_register(Register8080::B),
             0xCB31 => machine.swap_register(Register8080::C),
             0xCB32 => machine.swap_register(Register8080::D),
@@ -123,14 +123,14 @@ pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
             0xCB35 => machine.swap_register(Register8080::L),
             0xCB36 => machine.swap_register(Register8080::M),
             0xCB37 => machine.swap_register(Register8080::A),
-            0xCB38 => machine.shift_register_right_with_zero(Register8080::B),
-            0xCB39 => machine.shift_register_right_with_zero(Register8080::C),
-            0xCB3A => machine.shift_register_right_with_zero(Register8080::D),
-            0xCB3B => machine.shift_register_right_with_zero(Register8080::E),
-            0xCB3C => machine.shift_register_right_with_zero(Register8080::H),
-            0xCB3D => machine.shift_register_right_with_zero(Register8080::L),
-            0xCB3E => machine.shift_register_right_with_zero(Register8080::M),
-            0xCB3F => machine.shift_register_right_with_zero(Register8080::A),
+            0xCB38 => machine.shift_register_right(Register8080::B),
+            0xCB39 => machine.shift_register_right(Register8080::C),
+            0xCB3A => machine.shift_register_right(Register8080::D),
+            0xCB3B => machine.shift_register_right(Register8080::E),
+            0xCB3C => machine.shift_register_right(Register8080::H),
+            0xCB3D => machine.shift_register_right(Register8080::L),
+            0xCB3E => machine.shift_register_right(Register8080::M),
+            0xCB3F => machine.shift_register_right(Register8080::A),
             0xCB40 => machine.test_bit(0 as u8, Register8080::B),
             0xCB41 => machine.test_bit(0 as u8, Register8080::C),
             0xCB42 => machine.test_bit(0 as u8, Register8080::D),
@@ -641,9 +641,9 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "JRN", data1);
     }
-    fn shift_register_right(&mut self, register1: Register8080)
+    fn shift_register_left(&mut self, register1: Register8080)
     {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SRA", register1);
+        self.error = write!(self.stream_out, "{:04} {:?}", "SLA", register1);
     }
     fn rotate_register_left_through_carry(&mut self, register1: Register8080)
     {
@@ -665,10 +665,6 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} ${:02x}", "STA", address1);
     }
-    fn shift_register_right_with_zero(&mut self, register1: Register8080)
-    {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SRL", register1);
-    }
     fn return_and_enable_interrupts(&mut self)
     {
         self.error = write!(self.stream_out, "{:04}", "RETI");
@@ -689,9 +685,13 @@ impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} {:?}", "RRC", register1);
     }
-    fn shift_register_left(&mut self, register1: Register8080)
+    fn shift_register_right_signed(&mut self, register1: Register8080)
     {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SLA", register1);
+        self.error = write!(self.stream_out, "{:04} {:?}", "SRA", register1);
+    }
+    fn shift_register_right(&mut self, register1: Register8080)
+    {
+        self.error = write!(self.stream_out, "{:04} {:?}", "SRL", register1);
     }
     fn rotate_register_right_through_carry(&mut self, register1: Register8080)
     {

@@ -103,7 +103,8 @@ fn twos_complement_u16()
  *       |_|
  */
 
-pub trait InstructionSetOps {
+
+pub trait InstructionSetOps8080 {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
     fn set_flag(&mut self, flag: Flag8080, value: bool);
@@ -112,18 +113,89 @@ pub trait InstructionSetOps {
     fn read_register_pair(&self, register: Register8080) -> u16;
     fn set_register(&mut self, register: Register8080, value: u8);
     fn read_register(&self, register: Register8080) -> u8;
-    fn update_flags_for_new_value(&mut self, new_value: u8);
-    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8;
-    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, value_b: u8) -> u8;
-    fn add_to_register(&mut self, register: Register8080, value: u8, update_carry: bool);
-    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool);
-    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16);
-    fn subtract_from_register(&mut self, register: Register8080, value: u8);
-    fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8);
     fn read_program_counter(&self) -> u16;
     fn set_program_counter(&mut self, address: u16);
     fn set_interrupts_enabled(&mut self, state: bool);
     fn get_interrupts_enabled(&self) -> bool;
+
+    fn update_flags_for_new_value(&mut self, new_value: u8)
+    {
+        self.set_flag(Flag8080::Zero, new_value == 0);
+        self.set_flag(Flag8080::Sign, new_value & 0b10000000 != 0);
+        self.set_flag(Flag8080::Parity, calculate_parity(new_value));
+    }
+
+    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
+    {
+        let new_value = value_a.wrapping_add(value_b);
+        self.update_flags_for_new_value(new_value);
+
+        if update_carry {
+            self.set_flag(Flag8080::Carry, value_b > 0xFF - value_a);
+        }
+
+        self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+
+        return new_value;
+    }
+
+    fn perform_subtraction_using_twos_complement(
+        &mut self,
+        value_a: u8,
+        value_b: u8) -> u8
+    {
+        let new_value = self.perform_addition(
+            value_a, value_b.twos_complement(), true /* update carry */);
+
+        /*
+         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
+         * the result is positive.  If the Carry bit is set, the result is negative and present in
+         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
+         * "borrow."
+         */
+        self.set_flag(Flag8080::Carry, new_value & 0b10000000 != 0);
+
+        return new_value;
+    }
+
+    fn add_to_register(&mut self, register: Register8080, value: u8, update_carry: bool)
+    {
+        let old_value = self.read_register(register);
+        let new_value = self.perform_addition(old_value, value, update_carry);
+        self.set_register(register, new_value);
+    }
+
+    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
+    {
+        let old_value = self.read_register_pair(register);
+        let new_value = old_value.wrapping_add(value);
+        self.set_register_pair(register, new_value);
+        if update_carry {
+            self.set_flag(Flag8080::Carry, value > (0xFFFF - old_value));
+        }
+    }
+
+    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
+    {
+        let old_value = self.read_register_pair(register);
+        self.set_register_pair(register, old_value.wrapping_sub(value));
+    }
+
+    fn subtract_from_register(&mut self, register: Register8080, value: u8)
+    {
+        let old_value = self.read_register(register);
+        let new_value = old_value.wrapping_sub(value);
+        self.set_register(register, new_value);
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
+    }
+
+    fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8)
+    {
+        let old_value = self.read_register(register);
+        let new_value = self.perform_subtraction_using_twos_complement(old_value, value);
+        self.set_register(register, new_value);
+    }
 }
 
 /*
@@ -219,9 +291,22 @@ impl<'a> Emulator8080<'a> {
         }
     }
 
+    pub fn set_flag_u8(&mut self, flag: u8, value: bool)
+    {
+        if value {
+            self.registers[Register8080::FLAGS as usize] |= flag;
+        } else {
+            self.registers[Register8080::FLAGS as usize] &= !flag;
+        }
+    }
+
+    pub fn read_flag_u8(&self, flag: u8) -> bool
+    {
+        self.registers[Register8080::FLAGS as usize] & flag == flag
+    }
 }
 
-impl<'a> InstructionSetOps for Emulator8080<'a> {
+impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
     fn read_memory(&self, address: u16) -> u8 {
         self.main_memory[address as usize]
     }
@@ -232,16 +317,12 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)
     {
-        if value {
-            self.registers[Register8080::FLAGS as usize] |= flag as u8;
-        } else {
-            self.registers[Register8080::FLAGS as usize] &= !(flag as u8);
-        }
+        self.set_flag_u8(flag as u8, value);
     }
 
     fn read_flag(&self, flag: Flag8080) -> bool
     {
-        self.registers[Register8080::FLAGS as usize] & (flag as u8) == flag as u8
+        self.read_flag_u8(flag as u8)
     }
 
     fn set_register_pair(&mut self, register: Register8080, value: u16)
@@ -258,7 +339,7 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
 
     fn set_register(&mut self, register: Register8080, value: u8)
     {
-            *self.get_register(register) = value;
+        *self.get_register(register) = value;
     }
 
     fn read_register(&self, register: Register8080) -> u8
@@ -266,85 +347,6 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
         unsafe {
             return *add_mut(self).get_register(register)
         }
-    }
-
-    fn update_flags_for_new_value(&mut self, new_value: u8)
-    {
-        self.set_flag(Flag8080::Zero, new_value == 0);
-        self.set_flag(Flag8080::Sign, new_value & 0b10000000 != 0);
-        self.set_flag(Flag8080::Parity, calculate_parity(new_value));
-    }
-
-    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
-    {
-        let new_value = value_a.wrapping_add(value_b);
-        self.update_flags_for_new_value(new_value);
-
-        if update_carry {
-            self.set_flag(Flag8080::Carry, value_b > 0xFF - value_a);
-        }
-
-        self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
-
-        return new_value;
-    }
-
-    fn perform_subtraction_using_twos_complement(
-        &mut self,
-        value_a: u8,
-        value_b: u8) -> u8
-    {
-        let new_value = self.perform_addition(
-            value_a, value_b.twos_complement(), true /* update carry */);
-
-        /*
-         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
-         * the result is positive.  If the Carry bit is set, the result is negative and present in
-         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
-         * "borrow."
-         */
-        self.set_flag(Flag8080::Carry, new_value & 0b10000000 != 0);
-
-        return new_value;
-    }
-
-    fn add_to_register(&mut self, register: Register8080, value: u8, update_carry: bool)
-    {
-        let old_value = self.read_register(register);
-        let new_value = self.perform_addition(old_value, value, update_carry);
-        self.set_register(register, new_value);
-    }
-
-    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
-    {
-        let old_value = self.read_register_pair(register);
-        let new_value = old_value.wrapping_add(value);
-        self.set_register_pair(register, new_value);
-        if update_carry {
-            self.set_flag(Flag8080::Carry, value > (0xFFFF - old_value));
-        }
-    }
-
-    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
-    {
-        let old_value = self.read_register_pair(register);
-        self.set_register_pair(register, old_value.wrapping_sub(value));
-    }
-
-    fn subtract_from_register(&mut self, register: Register8080, value: u8)
-    {
-        let old_value = self.read_register(register);
-        let new_value = old_value.wrapping_sub(value);
-        self.set_register(register, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
-    }
-
-    fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8)
-    {
-        let old_value = self.read_register(register);
-        let new_value = self.perform_subtraction_using_twos_complement(old_value, value);
-        self.set_register(register, new_value);
     }
 
     fn read_program_counter(&self) -> u16 {
@@ -372,7 +374,7 @@ impl<'a> InstructionSetOps for Emulator8080<'a> {
     }
 }
 
-fn push_u16_onto_stack<I: InstructionSetOps>(ops: &mut I, data: u16)
+fn push_u16_onto_stack<I: InstructionSetOps8080>(ops: &mut I, data: u16)
 {
     let sp = ops.read_register_pair(Register8080::SP);
     ops.set_memory(sp - 1, (data >> 8) as u8);
@@ -380,7 +382,7 @@ fn push_u16_onto_stack<I: InstructionSetOps>(ops: &mut I, data: u16)
     ops.set_register_pair(Register8080::SP, sp - 2);
 }
 
-fn pop_u16_off_stack<I: InstructionSetOps>(ops: &mut I) -> u16
+fn pop_u16_off_stack<I: InstructionSetOps8080>(ops: &mut I) -> u16
 {
     let sp = ops.read_register_pair(Register8080::SP);
     let data = ops.read_memory(sp) as u16 | (ops.read_memory(sp + 1) as u16) << 8;
@@ -968,7 +970,7 @@ fn push_and_pop_data()
  *
  */
 
-impl<I: InstructionSetOps> InstructionSet8080 for I {
+impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     fn complement_carry(&mut self)
     {
         let value = self.read_flag(Flag8080::Carry);
