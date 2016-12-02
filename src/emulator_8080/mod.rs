@@ -107,6 +107,8 @@ fn twos_complement_u16()
 pub trait InstructionSetOps8080 {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
+    fn read_memory_u16(&self, address: u16) -> u16;
+    fn set_memory_u16(&mut self, address: u16, value: u16);
     fn set_flag(&mut self, flag: Flag8080, value: bool);
     fn read_flag(&self, flag: Flag8080) -> bool;
     fn set_register_pair(&mut self, register: Register8080, value: u16);
@@ -195,6 +197,20 @@ pub trait InstructionSetOps8080 {
         let old_value = self.read_register(register);
         let new_value = self.perform_subtraction_using_twos_complement(old_value, value);
         self.set_register(register, new_value);
+    }
+
+    fn push_u16_onto_stack(&mut self, data: u16)
+    {
+        let sp = self.read_register_pair(Register8080::SP);
+        self.set_memory_u16(sp - 2, data.swap_bytes());
+        self.set_register_pair(Register8080::SP, sp - 2);
+    }
+
+    fn pop_u16_off_stack(&mut self) -> u16
+    {
+        let sp = self.read_register_pair(Register8080::SP);
+        self.set_register_pair(Register8080::SP, sp + 2);
+        self.read_memory_u16(sp).swap_bytes()
     }
 }
 
@@ -315,6 +331,32 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
         self.main_memory[address as usize] = value;
     }
 
+    fn read_memory_u16(&self, address: u16) -> u16
+    {
+        if address == 0xFFFF {
+            return self.read_memory(address) as u16;
+        }
+
+        let main_memory: &u16;
+        unsafe {
+            main_memory = mem::transmute(&self.main_memory[address as usize]);
+        }
+        return u16::from_be(*main_memory);
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        if address == 0xFFFF {
+            return self.set_memory(address, (value >> 8) as u8);
+        }
+
+        let main_memory: &mut u16;
+        unsafe {
+            main_memory = mem::transmute(&mut self.main_memory[address as usize]);
+        }
+        *main_memory = u16::to_be(value);
+    }
+
     fn set_flag(&mut self, flag: Flag8080, value: bool)
     {
         self.set_flag_u8(flag as u8, value);
@@ -372,22 +414,6 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
     fn get_interrupts_enabled(&self) -> bool {
         self.interrupts_enabled
     }
-}
-
-fn push_u16_onto_stack<I: InstructionSetOps8080>(ops: &mut I, data: u16)
-{
-    let sp = ops.read_register_pair(Register8080::SP);
-    ops.set_memory(sp - 1, (data >> 8) as u8);
-    ops.set_memory(sp - 2, (data & 0x00FF) as u8);
-    ops.set_register_pair(Register8080::SP, sp - 2);
-}
-
-fn pop_u16_off_stack<I: InstructionSetOps8080>(ops: &mut I) -> u16
-{
-    let sp = ops.read_register_pair(Register8080::SP);
-    let data = ops.read_memory(sp) as u16 | (ops.read_memory(sp + 1) as u16) << 8;
-    ops.set_register_pair(Register8080::SP, sp + 2);
-    return data;
 }
 
 /*
@@ -955,10 +981,10 @@ fn subtract_from_register_using_twos_complement_sets_auxiliary_carry()
 fn push_and_pop_data()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x1234);
-    push_u16_onto_stack(&mut e, 0xAABB);
-    assert_eq!(pop_u16_off_stack(&mut e), 0xAABB);
-    assert_eq!(pop_u16_off_stack(&mut e), 0x1234);
+    e.push_u16_onto_stack(0x1234);
+    e.push_u16_onto_stack(0xAABB);
+    assert_eq!(e.pop_u16_off_stack(), 0xAABB);
+    assert_eq!(e.pop_u16_off_stack(), 0x1234);
 }
 
 #[test]
@@ -966,7 +992,7 @@ fn push_byte_order()
 {
     let mut e = Emulator8080::new_for_test();
     let sp = e.read_register_pair(Register8080::SP);
-    push_u16_onto_stack(&mut e, 0x1234);
+    e.push_u16_onto_stack(0x1234);
     assert_eq!(e.read_memory(sp - 2), 0x34);
     assert_eq!(e.read_memory(sp - 1), 0x12);
 }
@@ -1147,11 +1173,11 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     fn push_data_onto_stack(&mut self, register_pair: Register8080)
     {
         let pair_data = self.read_register_pair(register_pair);
-        push_u16_onto_stack(self, pair_data);
+        self.push_u16_onto_stack(pair_data);
     }
     fn pop_data_off_stack(&mut self, register_pair: Register8080)
     {
-        let pair_data = pop_u16_off_stack(self);
+        let pair_data = self.pop_u16_off_stack();
         self.set_register_pair(register_pair, pair_data);
     }
     fn double_add(&mut self, register: Register8080)
@@ -1345,7 +1371,7 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     fn call(&mut self, address: u16)
     {
         let pc = self.read_program_counter();
-        push_u16_onto_stack(self, pc);
+        self.push_u16_onto_stack(pc);
         self.jump(address);
     }
     fn call_if_carry(&mut self, address: u16)
@@ -1398,7 +1424,7 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     }
     fn return_unconditionally(&mut self)
     {
-        let address = pop_u16_off_stack(self);
+        let address = self.pop_u16_off_stack();
         self.set_program_counter(address);
     }
     fn return_if_carry(&mut self)
@@ -2636,7 +2662,7 @@ fn call()
     e.program_counter = 0xFF88;
     e.call(0x1234);
     assert_eq!(e.program_counter, 0x1234);
-    assert_eq!(pop_u16_off_stack(&mut e), 0xFF88);
+    assert_eq!(e.pop_u16_off_stack(), 0xFF88);
 }
 
 #[test]
@@ -2746,7 +2772,7 @@ fn return_unconditionally()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_register_pair(Register8080::SP, 0x0400);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_unconditionally();
     assert_eq!(e.program_counter, 0x22FF);
     assert_eq!(e.read_register_pair(Register8080::SP), 0x0400);
@@ -2757,7 +2783,7 @@ fn return_if_carry_when_carry_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Carry, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_carry();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2766,7 +2792,7 @@ fn return_if_carry_when_carry_is_set()
 fn return_if_carry_when_carry_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_carry();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2776,7 +2802,7 @@ fn return_if_no_carry_when_carry_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Carry, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_no_carry();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2785,7 +2811,7 @@ fn return_if_no_carry_when_carry_is_set()
 fn return_if_no_carry_when_carry_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_no_carry();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2795,7 +2821,7 @@ fn return_if_zero_when_zero_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Zero, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_zero();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2804,7 +2830,7 @@ fn return_if_zero_when_zero_is_set()
 fn return_if_zero_when_zero_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_zero();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2814,7 +2840,7 @@ fn return_if_not_zero_when_zero_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Zero, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_not_zero();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2823,7 +2849,7 @@ fn return_if_not_zero_when_zero_is_set()
 fn return_if_not_zero_when_zero_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_not_zero();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2833,7 +2859,7 @@ fn return_if_minus_when_sign_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Sign, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_minus();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2842,7 +2868,7 @@ fn return_if_minus_when_sign_is_set()
 fn return_if_minus_when_sign_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_minus();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2852,7 +2878,7 @@ fn return_if_plus_when_sign_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Sign, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_plus();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2861,7 +2887,7 @@ fn return_if_plus_when_sign_is_set()
 fn return_if_plus_when_sign_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_plus();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2871,7 +2897,7 @@ fn return_if_parity_even_when_parity_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Parity, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_parity_even();
     assert_eq!(e.program_counter, 0x22FF);
 }
@@ -2880,7 +2906,7 @@ fn return_if_parity_even_when_parity_is_set()
 fn return_if_parity_even_when_parity_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_parity_even();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2890,7 +2916,7 @@ fn return_if_parity_odd_when_parity_is_set()
 {
     let mut e = Emulator8080::new_for_test();
     e.set_flag(Flag8080::Parity, true);
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_parity_odd();
     assert_eq!(e.program_counter, 0x0);
 }
@@ -2899,7 +2925,7 @@ fn return_if_parity_odd_when_parity_is_set()
 fn return_if_parity_odd_when_parity_is_not_set()
 {
     let mut e = Emulator8080::new_for_test();
-    push_u16_onto_stack(&mut e, 0x22FF);
+    e.push_u16_onto_stack(0x22FF);
     e.return_if_parity_odd();
     assert_eq!(e.program_counter, 0x22FF);
 }

@@ -1,6 +1,6 @@
 mod opcodes;
 
-use std::{fmt, mem, str};
+use std::{fmt, str};
 use emulator_common::Register8080;
 use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
@@ -50,33 +50,6 @@ impl<'a> EmulatorLR35902<'a> {
         self.e8080.main_memory[0..rom.len()].clone_from_slice(rom);
     }
 
-    #[cfg(test)]
-    fn read_memory_u16(&mut self, address: u16) -> u16
-    {
-        if address == 0xFFFF {
-            return self.read_memory(address) as u16;
-        }
-
-        let main_memory: &u16;
-        unsafe {
-            main_memory = mem::transmute(&self.e8080.main_memory[address as usize]);
-        }
-        return u16::from_be(*main_memory);
-    }
-
-    fn set_memory_u16(&mut self, address: u16, value: u16)
-    {
-        if address == 0xFFFF {
-            return self.set_memory(address, (value >> 8) as u8);
-        }
-
-        let main_memory: &mut u16;
-        unsafe {
-            main_memory = mem::transmute(&mut self.e8080.main_memory[address as usize]);
-        }
-        *main_memory = u16::to_be(value);
-    }
-
     fn set_flag(&mut self, flag: FlagLR35902, value: bool)
     {
         self.e8080.set_flag_u8(flag as u8, value);
@@ -97,6 +70,16 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
     fn set_memory(&mut self, address: u16, value: u8)
     {
         self.e8080.set_memory(address, value);
+    }
+
+    fn read_memory_u16(&self, address: u16) -> u16
+    {
+        self.e8080.read_memory_u16(address)
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        self.e8080.set_memory_u16(address, value)
     }
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)
