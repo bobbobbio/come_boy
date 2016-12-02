@@ -1,6 +1,6 @@
 mod opcodes;
 
-use std::{mem, io, fmt};
+use std::{fmt, mem, str};
 use emulator_common::Register8080;
 use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
@@ -693,22 +693,24 @@ impl<'a> fmt::Debug for EmulatorLR35902<'a> {
             self.read_flag(FlagLR35902::Subtract),
             self.read_flag(FlagLR35902::HalfCarry),
             self.read_flag(FlagLR35902::Carry)));
-        try!(write!(f, "PC: {:x}, SP: {:x}, M: {:x}",
+        try!(writeln!(f, "PC: {:x}, SP: {:x}, M: {:x}",
             self.read_program_counter(),
             self.read_register_pair(Register8080::SP),
             self.read_register(Register8080::M)));
+
+        let mut buffer = vec![];
+        {
+            let mut dis = create_disassembler(&self.e8080.main_memory, &mut buffer);
+            dis.index = self.read_program_counter() as u64;
+            dis.disassemble_one().unwrap();
+        }
+        try!(write!(f, "{}", str::from_utf8(&buffer).unwrap()));
+
         Ok(())
     }
 }
 
 impl<'a> EmulatorLR35902<'a> {
-    fn print_current_instruction(&self)
-    {
-        let mut stdout = io::stdout();
-        let mut dis = create_disassembler(&self.e8080.main_memory, &mut stdout);
-        dis.index = self.read_program_counter() as u64;
-        dis.disassemble_one().unwrap();
-    }
     fn run_one_instruction(&mut self) -> bool
     {
         let pc = self.read_program_counter() as usize;
@@ -730,8 +732,6 @@ impl<'a> EmulatorLR35902<'a> {
         self.set_program_counter(ROM_ADDRESS as u16);
         while self.read_program_counter() != 0 {
             println!("{:?}", self);
-            self.print_current_instruction();
-            println!("");
 
             if !self.run_one_instruction() {
                 self.e8080.run_one_instruction();
