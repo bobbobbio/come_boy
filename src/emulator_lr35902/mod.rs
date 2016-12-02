@@ -7,6 +7,7 @@ pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
 use emulator_lr35902::opcodes::create_disassembler;
 use emulator_lr35902::opcodes::{
     get_lr35902_instruction, dispatch_lr35902_instruction, InstructionSetLR35902};
+use util::TwosComplement;
 
 const ROM_ADDRESS: usize = 0x0100;
 // const LCD_ADDRESS: usize = 0x8000;
@@ -122,15 +123,67 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
         self.e8080.read_register(register)
     }
 
-    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
+    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
     {
-        let old_value = self.read_register_pair(register);
-        let new_value = old_value.wrapping_add(value);
-        self.set_register_pair(register, new_value);
+        let new_value = value_a.wrapping_add(value_b);
+
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
         if update_carry {
-            self.set_flag(FlagLR35902::Carry, value > (0xFFFF - old_value));
-            self.set_flag(FlagLR35902::HalfCarry, value & 0x00FF > 0x00FF - (old_value & 0x00FF));
+            self.set_flag(FlagLR35902::Carry, value_b > 0xFF - value_a);
         }
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+        self.set_flag(FlagLR35902::Subtract, false);
+
+        return new_value;
+    }
+
+    fn perform_addition_u16(&mut self, value_a: u16, value_b: u16, update_carry: bool) -> u16
+    {
+        let new_value = value_a.wrapping_add(value_b);
+
+        if update_carry {
+            self.set_flag(FlagLR35902::Carry, value_b > (0xFFFF - value_a));
+        }
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x00FF > 0x00FF - (value_a & 0x00FF));
+        self.set_flag(FlagLR35902::Subtract, false);
+
+        return new_value;
+    }
+
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
+    {
+        value_b = value_b.twos_complement();
+        let new_value = value_a.wrapping_add(value_b);
+
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, true);
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+
+        /*
+         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
+         * the result is positive.  If the Carry bit is set, the result is negative and present in
+         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
+         * "borrow."
+         */
+        self.set_flag(FlagLR35902::Carry, new_value & 0b10000000 != 0);
+
+        return new_value;
+    }
+
+    fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a.wrapping_sub(value_b);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+        self.set_flag(FlagLR35902::Subtract, true);
+        return new_value;
+    }
+
+    fn perform_subtraction_u16(&mut self, value_a: u16, value_b: u16) -> u16
+    {
+        let new_value = value_a.wrapping_sub(value_b);
+        self.set_flag(FlagLR35902::Subtract, true);
+        return new_value;
     }
 
     fn read_program_counter(&self) -> u16

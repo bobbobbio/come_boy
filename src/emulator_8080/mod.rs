@@ -6,7 +6,7 @@ use std::collections::HashMap;
 use emulator_common::Register8080;
 pub use emulator_8080::opcodes::{disassemble_8080_rom, InstructionSet8080,
     dispatch_8080_instruction, get_8080_instruction, OpcodePrinterFactory8080};
-use util::add_mut;
+use util::{add_mut, TwosComplement};
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -57,35 +57,6 @@ fn calculate_parity_even_parity()
 fn calculate_parity_zero_is_even_parity()
 {
     assert_eq!(calculate_parity(0b00000000), true);
-}
-
-
-trait TwosComplement<T> {
-    fn twos_complement(self) -> T;
-}
-
-impl TwosComplement<u8> for u8 {
-    fn twos_complement(self) -> u8 {
-        (!self).wrapping_add(1)
-    }
-}
-
-impl TwosComplement<u16> for u16 {
-    fn twos_complement(self) -> u16 {
-        (!self).wrapping_add(1)
-    }
-}
-
-#[test]
-fn twos_complement_u8()
-{
-    assert_eq!(0b00001010u8.twos_complement(), 0b11110110u8);
-}
-
-#[test]
-fn twos_complement_u16()
-{
-    assert_eq!(0b0111000000001010u16.twos_complement(), 0b1000111111110110u16);
 }
 
 /*
@@ -141,13 +112,36 @@ pub trait InstructionSetOps8080 {
         return new_value;
     }
 
-    fn perform_subtraction_using_twos_complement(
-        &mut self,
-        value_a: u8,
-        value_b: u8) -> u8
+    fn add_to_register(&mut self, register: Register8080, value: u8, update_carry: bool)
     {
-        let new_value = self.perform_addition(
-            value_a, value_b.twos_complement(), true /* update carry */);
+        let old_value = self.read_register(register);
+        let new_value = self.perform_addition(old_value, value, update_carry);
+        self.set_register(register, new_value);
+    }
+
+    fn perform_addition_u16(&mut self, value_a: u16, value_b: u16, update_carry: bool) -> u16
+    {
+        let new_value = value_a.wrapping_add(value_b);
+        if update_carry {
+            self.set_flag(Flag8080::Carry, value_b > (0xFFFF - value_a));
+        };
+        return new_value;
+    }
+
+    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
+    {
+        let old_value = self.read_register_pair(register);
+        let new_value = self.perform_addition_u16(old_value, value, update_carry);
+        self.set_register_pair(register, new_value);
+    }
+
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
+    {
+        value_b = value_b.twos_complement();
+        let new_value = value_a.wrapping_add(value_b);
+        self.update_flags_for_new_value(new_value);
+
+        self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
 
         /*
          * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
@@ -160,43 +154,38 @@ pub trait InstructionSetOps8080 {
         return new_value;
     }
 
-    fn add_to_register(&mut self, register: Register8080, value: u8, update_carry: bool)
-    {
-        let old_value = self.read_register(register);
-        let new_value = self.perform_addition(old_value, value, update_carry);
-        self.set_register(register, new_value);
-    }
-
-    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
-    {
-        let old_value = self.read_register_pair(register);
-        let new_value = old_value.wrapping_add(value);
-        self.set_register_pair(register, new_value);
-        if update_carry {
-            self.set_flag(Flag8080::Carry, value > (0xFFFF - old_value));
-        }
-    }
-
-    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
-    {
-        let old_value = self.read_register_pair(register);
-        self.set_register_pair(register, old_value.wrapping_sub(value));
-    }
-
-    fn subtract_from_register(&mut self, register: Register8080, value: u8)
-    {
-        let old_value = self.read_register(register);
-        let new_value = old_value.wrapping_sub(value);
-        self.set_register(register, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
-    }
-
     fn subtract_from_register_using_twos_complement(&mut self, register: Register8080, value: u8)
     {
         let old_value = self.read_register(register);
         let new_value = self.perform_subtraction_using_twos_complement(old_value, value);
         self.set_register(register, new_value);
+    }
+
+    fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a.wrapping_sub(value_b);
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
+        return new_value;
+    }
+
+    fn subtract_from_register(&mut self, register: Register8080, value: u8)
+    {
+        let old_value = self.read_register(register);
+        let new_value = self.perform_subtraction(old_value, value);
+        self.set_register(register, new_value);
+    }
+
+    fn perform_subtraction_u16(&mut self, value_a: u16, value_b: u16) -> u16
+    {
+        value_a.wrapping_sub(value_b)
+    }
+
+    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
+    {
+        let old_value = self.read_register_pair(register);
+        let new_value = self.perform_subtraction_u16(old_value, value);
+        self.set_register_pair(register, new_value);
     }
 
     fn push_u16_onto_stack(&mut self, data: u16)

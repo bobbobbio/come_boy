@@ -51,3 +51,31 @@ fn add_mut_test()
 
     assert_eq!(*g, v);
 }
+
+pub trait TwosComplement<T> {
+    fn twos_complement(self) -> T;
+}
+
+impl TwosComplement<u8> for u8 {
+    fn twos_complement(self) -> u8 {
+        (!self).wrapping_add(1)
+    }
+}
+
+impl TwosComplement<u16> for u16 {
+    fn twos_complement(self) -> u16 {
+        (!self).wrapping_add(1)
+    }
+}
+
+#[test]
+fn twos_complement_u8()
+{
+    assert_eq!(0b00001010u8.twos_complement(), 0b11110110u8);
+}
+
+#[test]
+fn twos_complement_u16()
+{
+    assert_eq!(0b0111000000001010u16.twos_complement(), 0b1000111111110110u16);
+}
