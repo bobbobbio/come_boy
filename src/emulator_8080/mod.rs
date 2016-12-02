@@ -166,6 +166,7 @@ pub trait InstructionSetOps8080 {
         let new_value = value_a.wrapping_sub(value_b);
         self.update_flags_for_new_value(new_value);
         self.set_flag(Flag8080::AuxiliaryCarry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
         return new_value;
     }
 
@@ -186,6 +187,59 @@ pub trait InstructionSetOps8080 {
         let old_value = self.read_register_pair(register);
         let new_value = self.perform_subtraction_u16(old_value, value);
         self.set_register_pair(register, new_value);
+    }
+
+    fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a & value_b;
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
+        return new_value;
+    }
+
+    fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a ^ value_b;
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
+        return new_value;
+    }
+
+    fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a | value_b;
+        self.update_flags_for_new_value(new_value);
+        self.set_flag(Flag8080::Carry, false);
+        self.set_flag(Flag8080::AuxiliaryCarry, false);
+        return new_value;
+    }
+
+    fn perform_rotate_left(&mut self, value: u8) -> u8
+    {
+        self.set_flag(Flag8080::Carry, value & (1u8 << 7) != 0);
+        return value.rotate_left(1);
+    }
+
+    fn perform_rotate_right(&mut self, value: u8) -> u8
+    {
+        self.set_flag(Flag8080::Carry, value & 1 != 0);
+        return value.rotate_right(1);
+    }
+
+    fn perform_rotate_left_through_carry(&mut self, value: u8) -> u8
+    {
+        let carry = if self.read_flag(Flag8080::Carry) { 1 } else { 0 };
+        self.set_flag(Flag8080::Carry, (value & (1u8 << 7)) != 0);
+        return (value << 1) | carry;
+    }
+
+    fn perform_rotate_right_through_carry(&mut self, value: u8) -> u8
+    {
+        let carry = if self.read_flag(Flag8080::Carry) { 1 } else { 0 };
+        self.set_flag(Flag8080::Carry, value & 1 != 0);
+        return (value >> 1) | (carry << 7);
     }
 
     fn push_u16_onto_stack(&mut self, data: u16)
@@ -1131,33 +1185,27 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     }
     fn rotate_accumulator_left(&mut self)
     {
-        let accumulator = self.read_register(Register8080::A);
-        let rotated_bit = (accumulator & 0b10000000) >> 7;
-        self.set_register(Register8080::A, (accumulator << 1) | rotated_bit);
-        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+        let value = self.read_register(Register8080::A);
+        let new_value = self.perform_rotate_left(value);
+        self.set_register(Register8080::A, new_value);
     }
     fn rotate_accumulator_right(&mut self)
     {
-        let accumulator = self.read_register(Register8080::A);
-        let rotated_bit = accumulator & 0x1;
-        self.set_register(Register8080::A, (accumulator >> 1) | (rotated_bit << 7));
-        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+        let value = self.read_register(Register8080::A);
+        let new_value = self.perform_rotate_right(value);
+        self.set_register(Register8080::A, new_value);
     }
     fn rotate_accumulator_left_through_carry(&mut self)
     {
-        let accumulator = self.read_register(Register8080::A);
-        let rotated_bit = (accumulator & 0b10000000) >> 7;
-        let carry = self.read_flag(Flag8080::Carry);
-        self.set_register(Register8080::A, (accumulator << 1) | if carry { 0x01 } else { 0x0 });
-        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
+        let value = self.read_register(Register8080::A);
+        let new_value = self.perform_rotate_left_through_carry(value);
+        self.set_register(Register8080::A, new_value);
     }
     fn rotate_accumulator_right_through_carry(&mut self)
     {
-        let accumulator = self.read_register(Register8080::A);
-        let rotated_bit = accumulator & 0x1;
-        let carry = self.read_flag(Flag8080::Carry);
-        self.set_flag(Flag8080::Carry, rotated_bit == 0x01);
-        self.set_register(Register8080::A, (accumulator >> 1) | if carry { 0x80 } else { 0x0 });
+        let value = self.read_register(Register8080::A);
+        let new_value = self.perform_rotate_right_through_carry(value);
+        self.set_register(Register8080::A, new_value);
     }
     fn push_data_onto_stack(&mut self, register_pair: Register8080)
     {
@@ -1240,29 +1288,20 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     fn and_immediate_with_accumulator(&mut self, data: u8)
     {
         let value = self.read_register(Register8080::A);
-        let new_value = value & data;
+        let new_value = self.perform_and(value, data);
         self.set_register(Register8080::A, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::Carry, false);
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data: u8)
     {
         let value = self.read_register(Register8080::A);
-        let new_value = value ^ data;
+        let new_value = self.perform_exclusive_or(value, data);
         self.set_register(Register8080::A, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::Carry, false);
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
     }
     fn or_immediate_with_accumulator(&mut self, data: u8)
     {
         let value = self.read_register(Register8080::A);
-        let new_value = value | data;
+        let new_value = self.perform_or(value, data);
         self.set_register(Register8080::A, new_value);
-        self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::Carry, false);
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
     }
     fn compare_immediate_with_accumulator(&mut self, data: u8)
     {

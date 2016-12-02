@@ -174,15 +174,38 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
     {
         let new_value = value_a.wrapping_sub(value_b);
         self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::HalfCarry, false);
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
         self.set_flag(FlagLR35902::Subtract, true);
         return new_value;
     }
 
-    fn perform_subtraction_u16(&mut self, value_a: u16, value_b: u16) -> u16
+    fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8
     {
-        let new_value = value_a.wrapping_sub(value_b);
-        self.set_flag(FlagLR35902::Subtract, true);
+        let new_value = value_a & value_b;
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Carry, false);
+        self.set_flag(FlagLR35902::HalfCarry, true);
+        return new_value;
+    }
+
+    fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a ^ value_b;
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Carry, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+        return new_value;
+    }
+
+    fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a | value_b;
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Carry, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
         return new_value;
     }
 
@@ -354,25 +377,29 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
     fn rotate_register_right(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.set_register(register, value.rotate_right(1));
-        self.set_flag(FlagLR35902::Carry, (value & 1) != 0);
+        let new_value = self.perform_rotate_right(value);
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
     }
 
     fn rotate_register_left(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.set_register(register, value.rotate_left(1));
-        self.set_flag(FlagLR35902::Carry, (value & (1u8 << 7)) != 0);
+        let new_value = self.perform_rotate_left(value);
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
     }
 
     fn rotate_register_right_through_carry(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        let carry = if self.read_flag(FlagLR35902::Carry) { 1 } else { 0 };
-        let res = (value >> 1) | (carry << 7);
-        self.set_register(register, res);
-        self.set_flag(FlagLR35902::Carry, (value & 1) != 0);
-        self.set_flag(FlagLR35902::Zero, res == 0);
+        let new_value = self.perform_rotate_right_through_carry(value);
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
         self.set_flag(FlagLR35902::Subtract, false);
         self.set_flag(FlagLR35902::HalfCarry, false);
     }
@@ -380,12 +407,40 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
     fn rotate_register_left_through_carry(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        let carry = if self.read_flag(FlagLR35902::Carry) { 1 } else { 0 };
-        let res = (value << 1) | carry;
-        self.set_register(register, res);
-        self.set_flag(FlagLR35902::Carry, (value & (1u8 << 7)) != 0);
-        self.set_flag(FlagLR35902::Zero, res == 0);
+        let new_value = self.perform_rotate_left_through_carry(value);
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
         self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+    }
+
+    fn rotate_accumulator_right(&mut self)
+    {
+        self.rotate_register_right(Register8080::A);
+        self.set_flag(FlagLR35902::Zero, false);
+    }
+
+    fn rotate_accumulator_left(&mut self)
+    {
+        self.rotate_register_left(Register8080::A);
+        self.set_flag(FlagLR35902::Zero, false);
+    }
+
+    fn rotate_accumulator_right_through_carry(&mut self)
+    {
+        self.rotate_register_right_through_carry(Register8080::A);
+        self.set_flag(FlagLR35902::Zero, false);
+    }
+
+    fn rotate_accumulator_left_through_carry(&mut self)
+    {
+        self.rotate_register_left_through_carry(Register8080::A);
+        self.set_flag(FlagLR35902::Zero, false);
+    }
+
+    fn decimal_adjust_accumulator(&mut self)
+    {
+        InstructionSet8080::decimal_adjust_accumulator(self);
         self.set_flag(FlagLR35902::HalfCarry, false);
     }
 }
