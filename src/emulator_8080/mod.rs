@@ -202,14 +202,14 @@ pub trait InstructionSetOps8080 {
     fn push_u16_onto_stack(&mut self, data: u16)
     {
         let sp = self.read_register_pair(Register8080::SP);
-        self.set_memory_u16(sp - 2, data.swap_bytes());
-        self.set_register_pair(Register8080::SP, sp - 2);
+        self.set_memory_u16(sp.wrapping_sub(2), data.swap_bytes());
+        self.set_register_pair(Register8080::SP, sp.wrapping_sub(2));
     }
 
     fn pop_u16_off_stack(&mut self) -> u16
     {
         let sp = self.read_register_pair(Register8080::SP);
-        self.set_register_pair(Register8080::SP, sp + 2);
+        self.set_register_pair(Register8080::SP, sp.wrapping_add(2));
         self.read_memory_u16(sp).swap_bytes()
     }
 }
@@ -2305,6 +2305,25 @@ fn rotate_accumulator_right_through_carry_and_carry_stays_reset()
 
     assert_eq!(e.read_register(Register8080::A), 0b01010011);
     assert!(!e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn push_when_sp_zero()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.set_register_pair(Register8080::SP, 0);
+    e.set_register_pair(Register8080::B, 0xFBEE);
+    e.push_data_onto_stack(Register8080::B);
+    assert_eq!(e.read_register_pair(Register8080::SP), 0xFFFE);
+}
+
+#[test]
+fn pop_when_sp_ffff()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.set_register_pair(Register8080::SP, 0xFFFF);
+    e.pop_data_off_stack(Register8080::B);
+    assert_eq!(e.read_register_pair(Register8080::SP), 0x0001);
 }
 
 #[test]
