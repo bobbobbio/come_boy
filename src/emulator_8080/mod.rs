@@ -961,6 +961,16 @@ fn push_and_pop_data()
     assert_eq!(pop_u16_off_stack(&mut e), 0x1234);
 }
 
+#[test]
+fn push_byte_order()
+{
+    let mut e = Emulator8080::new_for_test();
+    let sp = e.read_register_pair(Register8080::SP);
+    push_u16_onto_stack(&mut e, 0x1234);
+    assert_eq!(e.read_memory(sp - 2), 0x34);
+    assert_eq!(e.read_memory(sp - 1), 0x12);
+}
+
 /*
  *  ___           _                   _   _
  * |_ _|_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
