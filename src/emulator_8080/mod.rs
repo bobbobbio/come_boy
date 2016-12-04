@@ -11,7 +11,7 @@ use util::{add_mut, TwosComplement};
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy,PartialEq)]
 pub enum Flag8080 {
                     // 76543210
     Sign =           0b10000000,

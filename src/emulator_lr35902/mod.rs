@@ -2,7 +2,8 @@ mod opcodes;
 
 use std::{fmt, str};
 use emulator_common::Register8080;
-use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080};
+use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080,
+    dispatch_8080_instruction, get_8080_instruction};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
 use emulator_lr35902::opcodes::create_disassembler;
 use emulator_lr35902::opcodes::{
@@ -27,7 +28,7 @@ const ROM_ADDRESS: usize = 0x0100;
  *
  */
 
-#[derive(Debug,Clone,Copy)]
+#[derive(Debug,Clone,Copy,PartialEq)]
 pub enum FlagLR35902 {
                     // 76543210
     Zero =           0b10000000,
@@ -59,6 +60,11 @@ impl<'a> EmulatorLR35902<'a> {
     fn read_flag(&self, flag: FlagLR35902) -> bool
     {
         self.e8080.read_flag_u8(flag as u8)
+    }
+
+    fn get_relative_address(&self, n: u8) -> u16
+    {
+        self.read_program_counter().wrapping_add(((n as i8) as i16) as u16)
     }
 }
 
@@ -285,32 +291,32 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
 
     fn jump_relative(&mut self, n: u8)
     {
-        let pc = self.read_program_counter();
-        self.jump(pc.wrapping_add(n as u16));
+        let address = self.get_relative_address(n);
+        self.jump(address);
     }
 
     fn jump_relative_if_zero(&mut self, n: u8)
     {
-        let pc = self.read_program_counter();
-        self.jump_if_zero(pc.wrapping_add(n as u16));
+        let address = self.get_relative_address(n);
+        self.jump_if_zero(address);
     }
 
     fn jump_relative_if_not_zero(&mut self, n: u8)
     {
-        let pc = self.read_program_counter();
-        self.jump_if_not_zero(pc.wrapping_add(n as u16));
+        let address = self.get_relative_address(n);
+        self.jump_if_not_zero(address);
     }
 
     fn jump_relative_if_carry(&mut self, n: u8)
     {
-        let pc = self.read_program_counter();
-        self.jump_if_carry(pc.wrapping_add(n as u16));
+        let address = self.get_relative_address(n);
+        self.jump_if_carry(address);
     }
 
     fn jump_relative_if_no_carry(&mut self, n: u8)
     {
-        let pc = self.read_program_counter();
-        self.jump_if_no_carry(pc.wrapping_add(n as u16));
+        let address = self.get_relative_address(n);
+        self.jump_if_no_carry(address);
     }
 
     fn store_sp_direct(&mut self, address: u16)
@@ -802,31 +808,44 @@ impl<'a> fmt::Debug for EmulatorLR35902<'a> {
 }
 
 impl<'a> EmulatorLR35902<'a> {
-    fn run_one_instruction(&mut self) -> bool
+    fn run_lr35902_instruction(&mut self, instruction: &[u8])
     {
         let pc = self.read_program_counter() as usize;
-        let instruction = match get_lr35902_instruction(&self.e8080.main_memory[pc..]) {
-            Some(res) => res,
-            None => { return false; }
-        };
-
         self.set_program_counter((pc + instruction.len()) as u16);
-
         dispatch_lr35902_instruction(&instruction, self);
+    }
 
-        return true;
+    fn run_8080_instruction(&mut self, instruction: &[u8])
+    {
+        let pc = self.read_program_counter() as usize;
+        self.set_program_counter((pc + instruction.len()) as u16);
+        dispatch_8080_instruction(&instruction, self);
+    }
+
+    fn run_one_instruction(&mut self)
+    {
+        let pc = self.read_program_counter() as usize;
+        let mut instr = get_lr35902_instruction(&self.e8080.main_memory[pc..]);
+        match instr {
+            Some(res) => {
+                self.run_lr35902_instruction(&res);
+                return;
+            }
+            None => { }
+        }
+        instr = get_8080_instruction(&self.e8080.main_memory[pc..]);
+        match instr {
+            Some(res) => self.run_8080_instruction(&res),
+            None => panic!("Unknown instruction at address {}", pc)
+        };
     }
 
     fn run(&mut self)
     {
         self.set_register_pair(Register8080::SP, 0xFFFE);
         self.set_program_counter(ROM_ADDRESS as u16);
-        while self.read_program_counter() != 0 {
-            println!("{:?}", self);
-
-            if !self.run_one_instruction() {
-                self.e8080.run_one_instruction();
-            }
+        loop {
+            self.run_one_instruction();
         }
     }
 }
