@@ -40,6 +40,12 @@ pub enum Register8080 {
  *       |_|
  */
 
+pub enum InstructionOption<T> {
+    NotImplemented,
+    NoInstruction,
+    SomeInstruction(T)
+}
+
 pub trait OpcodePrinter<'a> {
     fn print_opcode(&mut self, stream: &[u8]) -> Result<()>;
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;

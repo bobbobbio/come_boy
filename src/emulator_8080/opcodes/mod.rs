@@ -4,6 +4,7 @@ use std::mem;
 mod opcode_gen;
 
 use emulator_common::{OpcodePrinter, OpcodePrinterFactory, Disassembler};
+use emulator_common::InstructionOption::*;
 pub use emulator_8080::opcodes::opcode_gen::{
     InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
 
@@ -37,7 +38,10 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinter8080<'a> {
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        get_8080_instruction(stream)
+        match get_8080_instruction(stream) {
+            SomeInstruction(x) => Some(x),
+            _ => None
+        }
     }
 }
 
@@ -52,7 +56,7 @@ pub fn disassemble_8080_rom(rom: &[u8]) -> Result<()>
 fn disassembler_8080_test() {
     do_disassembler_test(
         OpcodePrinterFactory8080,
-        &vec![
+        &[
             0xcd, 0xd6, 0x35, 0x21, 0x2d, 0xd7, 0xcb, 0xae, 0xcd, 0x29, 0x24, 0x21, 0x26, 0xd1,
             0xcb, 0xee, 0xcb, 0xf6, 0xaf, 0xea, 0x6b, 0xcd, 0xcd, 0xaf, 0x20, 0xcd, 0xaf, 0x20,
             0xcd, 0xba, 0x20, 0xfa, 0x36, 0xd7, 0xcb, 0x77, 0xc4, 0x9e, 0x03, 0xfa, 0xc5, 0xcf,

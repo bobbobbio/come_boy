@@ -4,6 +4,7 @@ use std::mem;
 use std::collections::HashMap;
 
 use emulator_common::Register8080;
+use emulator_common::InstructionOption::*;
 pub use emulator_8080::opcodes::{disassemble_8080_rom, InstructionSet8080,
     dispatch_8080_instruction, get_8080_instruction, OpcodePrinterFactory8080};
 use util::{add_mut, TwosComplement};
@@ -3015,8 +3016,8 @@ impl<'a> Emulator8080<'a> {
     {
         let pc = self.program_counter as usize;
         let instruction = match get_8080_instruction(&self.main_memory[pc..]) {
-            Some(res) => res,
-            None => panic!("Unknown Opcode {}", self.main_memory[pc])
+            SomeInstruction(res) => res,
+            _ => panic!("Unknown Opcode {}", self.main_memory[pc])
         };
 
         self.program_counter += instruction.len() as u16;

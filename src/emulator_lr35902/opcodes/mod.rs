@@ -4,6 +4,7 @@ use std::mem;
 mod opcode_gen;
 
 use emulator_common::{OpcodePrinter, OpcodePrinterFactory, Disassembler};
+use emulator_common::InstructionOption::*;
 pub use emulator_lr35902::opcodes::opcode_gen::{
     dispatch_lr35902_instruction, get_lr35902_instruction, InstructionSetLR35902};
 use emulator_8080::{get_8080_instruction, OpcodePrinterFactory8080};
@@ -42,11 +43,11 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinterLR35902<'a> {
     fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
     {
         match get_lr35902_instruction(stream) {
-            Some(_) => {
+            SomeInstruction(_) | NotImplemented => {
                 dispatch_lr35902_instruction(stream, self);
                 mem::replace(&mut self.error, Ok(()))
             },
-            None => {
+            NoInstruction => {
                 let mut op = OpcodePrinterFactory8080.new(self.stream_out);
                 op.print_opcode(stream)
             }
@@ -55,8 +56,14 @@ impl<'a> OpcodePrinter<'a> for OpcodePrinterLR35902<'a> {
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
         match get_lr35902_instruction(stream) {
-            Some(x) => Some(x),
-            None => get_8080_instruction(stream)
+            SomeInstruction(x) => Some(x),
+            NotImplemented => None,
+            NoInstruction => {
+                match get_8080_instruction(stream) {
+                    SomeInstruction(x) => Some(x),
+                    _ => None
+                }
+            }
         }
     }
 }
@@ -78,7 +85,7 @@ pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
 fn disassembler_lr35902_test() {
     do_disassembler_test(
         OpcodePrinterFactoryLR35902,
-        &vec![
+        &[
             0xcd, 0xd6, 0x35, 0x21, 0x2d, 0xd7, 0xcb, 0xae, 0xcd, 0x29, 0x24, 0x21, 0x26, 0xd1,
             0xcb, 0xee, 0xcb, 0xf6, 0xaf, 0xea, 0x6b, 0xcd, 0xcd, 0xaf, 0x20, 0xcd, 0xaf, 0x20,
             0xcd, 0xba, 0x20, 0xfa, 0x36, 0xd7, 0xcb, 0x77, 0xc4, 0x9e, 0x03, 0xfa, 0xc5, 0xcf,
@@ -107,5 +114,17 @@ fn disassembler_lr35902_test() {
             0000031 06 07    MVI  B #$07\n\
             0000033 21 88 69 LXI  H #$6988\n\
             0000036 cd d6 35 CALL $35d6\n\
+    ");
+}
+
+#[test]
+fn disassembler_lr35902_prints_not_implemented_instructions_correctly() {
+    do_disassembler_test(
+        OpcodePrinterFactoryLR35902,
+        &[0xd3, 0xe3, 0xe4, 0xf4], "\
+            0000000 d3       -   \n\
+            0000001 e3       -   \n\
+            0000002 e4       -   \n\
+            0000003 f4       -   \n\
     ");
 }

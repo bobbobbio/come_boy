@@ -3,6 +3,7 @@ mod opcodes;
 use std::{fmt, str};
 use std::io::{self, Result};
 use emulator_common::{Register8080, DebuggerOps, Debugger};
+use emulator_common::InstructionOption::*;
 use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080,
     dispatch_8080_instruction, get_8080_instruction};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
@@ -1062,16 +1063,19 @@ impl<'a> EmulatorLR35902<'a> {
         let pc = self.read_program_counter() as usize;
         let mut instr = get_lr35902_instruction(&self.e8080.main_memory[pc..]);
         match instr {
-            Some(res) => {
+            SomeInstruction(res) => {
                 self.run_lr35902_instruction(&res);
                 return;
-            }
-            None => { }
+            },
+            NoInstruction => { },
+            NotImplemented => {
+                panic!("Unknown instruction at address {}", pc);
+            },
         }
         instr = get_8080_instruction(&self.e8080.main_memory[pc..]);
         match instr {
-            Some(res) => self.run_8080_instruction(&res),
-            None => panic!("Unknown instruction at address {}", pc)
+            SomeInstruction(res) => self.run_8080_instruction(&res),
+            _ => panic!("Unknown instruction at address {}", pc)
         };
     }
 

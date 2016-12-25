@@ -166,6 +166,8 @@ class OpcodeCodeGenerator(object):
     def generate_preamble(self):
         self.out('''
             use emulator_common::Register8080;
+            use emulator_common::InstructionOption;
+            use emulator_common::InstructionOption::*;
             use {}::OpcodePrinter{};
             use util::{{read_u16, read_u8}};
 
@@ -231,7 +233,8 @@ class OpcodeCodeGenerator(object):
 
         self.indent += 1
         for function in self.opcodes.functions:
-            self.out(function.make_declaration() + ';\n')
+            if function.shorthand != '-':
+                self.out(function.make_declaration() + ';\n')
         self.indent -= 1
 
         self.out('}\n')
@@ -287,9 +290,10 @@ class OpcodeCodeGenerator(object):
 
         self.indent += 2
         for opcode in self.iterate_opcodes():
-            self.out('0x{:02X} => machine.{},\n'.format(
-                opcode.value,
-                opcode.function_call.generate('&mut stream')))
+            if opcode.function_call.function.shorthand != '-':
+                self.out('0x{:02X} => machine.{},\n'.format(
+                    opcode.value,
+                    opcode.function_call.generate('&mut stream')))
 
         self.indent -= 1
         self.out('};\n')
@@ -298,15 +302,20 @@ class OpcodeCodeGenerator(object):
 
     def generate_get_instruction(self):
         self.out('''
-            pub fn get_{}_instruction(original_stream: &[u8]) -> Option<Vec<u8>>
+            pub fn get_{}_instruction(
+                original_stream: &[u8]) -> InstructionOption<Vec<u8>>
             {{
                 let mut stream = original_stream;
                 let size = match read_u8(&mut stream).unwrap() {{
         '''.format(self.instruction_set_name.lower()))
 
         self.indent += 2
-        for opcode in self.iterate_opcodes(failure='return None'):
-            self.out('0x{:02X} => {},\n'.format(opcode.value, opcode.size))
+        for opcode in self.iterate_opcodes(failure='return NoInstruction'):
+            self.out('0x{:02X} => '.format(opcode.value))
+            if opcode.function_call.function.shorthand == '-':
+                self.out('return NotImplemented,\n')
+            else:
+                self.out('{},\n'.format(opcode.size))
 
         self.indent -= 1
         self.out('};\n')
@@ -316,7 +325,7 @@ class OpcodeCodeGenerator(object):
                 let mut instruction = vec![];
                 instruction.resize(size, 0);
                 instruction.clone_from_slice(&original_stream[0..size]);
-                return Some(instruction);
+                return SomeInstruction(instruction);
             }\n''')
 
     #                            _                   _       _
@@ -333,6 +342,8 @@ class OpcodeCodeGenerator(object):
 
         self.indent += 1
         for function in self.opcodes.functions:
+            if function.shorthand == '-':
+                continue
             self.out(function.make_declaration() + '\n')
             self.out('{\n')
             self.indent += 1
