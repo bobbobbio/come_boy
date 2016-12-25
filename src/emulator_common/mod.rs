@@ -239,6 +239,7 @@ pub trait DebuggerOps {
     fn format<'a> (&self, &'a mut io::Write) -> Result<()>;
     fn next(&mut self);
     fn current_address(&self) -> u16;
+    fn crashed(&self) -> Option<&String>;
 }
 
 pub struct Debugger<'a> {
@@ -272,8 +273,12 @@ impl<'a> Debugger<'a> {
         writeln!(self.out, "").unwrap();
     }
 
-    fn check_for_breakpoint(&mut self) -> bool
+    fn check_for_breakpoint_or_crash(&mut self) -> bool
     {
+        if self.emulator.crashed().is_some() {
+            writeln!(self.out, "Emulator crashed: {}", self.emulator.crashed().unwrap()).unwrap();
+            return false;
+        }
         if Some(self.emulator.current_address()) == self.breakpoint {
             writeln!(self.out, "Hit breakpoint").unwrap();
             return false;
@@ -285,7 +290,7 @@ impl<'a> Debugger<'a> {
     {
         self.emulator.next();
         self.state();
-        self.check_for_breakpoint();
+        self.check_for_breakpoint_or_crash();
     }
 
     fn exit(&mut self)
@@ -302,7 +307,7 @@ impl<'a> Debugger<'a> {
     fn run_emulator(&mut self)
     {
         self.emulator.next();
-        while self.check_for_breakpoint() {
+        while self.check_for_breakpoint_or_crash() {
             self.emulator.next();
         }
         self.state();
@@ -388,10 +393,10 @@ impl<'a> Debugger<'a> {
 }
 
 #[cfg(test)]
-#[derive(Debug)]
 struct TestDebuggerOps {
     current_address: u16,
-    memory: HashMap<u16, u8>
+    memory: HashMap<u16, u8>,
+    crash_message: Option<String>
 }
 
 #[cfg(test)]
@@ -399,7 +404,8 @@ impl TestDebuggerOps {
     fn new() -> TestDebuggerOps {
         TestDebuggerOps {
             current_address: 0,
-            memory: HashMap::new()
+            memory: HashMap::new(),
+            crash_message: None
         }
     }
 }
@@ -415,31 +421,43 @@ impl DebuggerOps for TestDebuggerOps {
     }
     fn format<'a> (&self, s: &'a mut io::Write) -> Result<()>
     {
-        write!(s, "{:?}", self)
+        write!(s, "TestDebuggerOps pc={}", self.current_address)
     }
     fn next(&mut self)
     {
-        self.current_address += 1;
+        if self.crashed().is_none() {
+            self.current_address += 1;
+        }
     }
     fn current_address(&self) -> u16
     {
         self.current_address
     }
+    fn crashed(&self) -> Option<&String>
+    {
+        self.crash_message.as_ref()
+    }
+}
+
+#[cfg(test)]
+fn run_debugger_test_with_ops(ops: &mut DebuggerOps, input: &[&str], expected_output: &str)
+{
+    let mut output_bytes = vec![];
+    let input_str = input.join("\n") + "\n";
+    let mut input_bytes = input_str.as_bytes();
+    {
+        let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, ops);
+        debugger.run();
+    }
+
+    assert_eq!(str::from_utf8(&output_bytes).unwrap(), expected_output);
 }
 
 #[cfg(test)]
 fn run_debugger_test(input: &[&str], expected_output: &str)
 {
     let mut test_ops = TestDebuggerOps::new();
-    let mut output_bytes = vec![];
-    let input_str = input.join("\n") + "\n";
-    let mut input_bytes = input_str.as_bytes();
-    {
-        let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, &mut test_ops);
-        debugger.run();
-    }
-
-    assert_eq!(str::from_utf8(&output_bytes).unwrap(), expected_output);
+    run_debugger_test_with_ops(&mut test_ops, input, expected_output)
 }
 
 #[test]
@@ -448,7 +466,7 @@ fn debugger_state()
     run_debugger_test(
         &["state"], "\
         (debugger) \
-        TestDebuggerOps { current_address: 0, memory: {} }\n\
+        TestDebuggerOps pc=0\n\
         (debugger) \
         exiting\n\
     ");
@@ -460,7 +478,7 @@ fn debugger_next()
     run_debugger_test(
         &["next"], "\
         (debugger) \
-        TestDebuggerOps { current_address: 1, memory: {} }\n\
+        TestDebuggerOps pc=1\n\
         (debugger) \
         exiting\n\
     ");
@@ -483,9 +501,9 @@ fn debugger_stops_on_breakpoint_when_calling_next()
         &["break 2", "next", "next"], "\
         (debugger) \
         (debugger) \
-        TestDebuggerOps { current_address: 1, memory: {} }\n\
+        TestDebuggerOps pc=1\n\
         (debugger) \
-        TestDebuggerOps { current_address: 2, memory: {} }\n\
+        TestDebuggerOps pc=2\n\
         Hit breakpoint\n\
         (debugger) \
         exiting\n\
@@ -500,7 +518,7 @@ fn debugger_stops_on_breakpoint_when_calling_run()
         (debugger) \
         (debugger) \
         Hit breakpoint\n\
-        TestDebuggerOps { current_address: 2, memory: {} }\n\
+        TestDebuggerOps pc=2\n\
         (debugger) \
         exiting\n\
     ");
@@ -548,9 +566,9 @@ fn debugger_repeats_last_command()
     run_debugger_test(
         &["next", ""], "\
         (debugger) \
-        TestDebuggerOps { current_address: 1, memory: {} }\n\
+        TestDebuggerOps pc=1\n\
         (debugger) \
-        TestDebuggerOps { current_address: 2, memory: {} }\n\
+        TestDebuggerOps pc=2\n\
         (debugger) \
         exiting\n\
     ");
@@ -563,6 +581,22 @@ fn debugger_errors_on_empty_command()
         &[""], "\
         (debugger) \
         empty command\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_stops_when_emulator_crashes()
+{
+    let mut test_ops = TestDebuggerOps::new();
+    test_ops.crash_message = Some("test crash".to_string());
+    run_debugger_test_with_ops(
+        &mut test_ops,
+        &["run"], "\
+        (debugger) \
+        Emulator crashed: test crash\n\
+        TestDebuggerOps pc=0\n\
         (debugger) \
         exiting\n\
     ");

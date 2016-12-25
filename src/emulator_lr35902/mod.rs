@@ -2,15 +2,22 @@ mod opcodes;
 
 use std::{fmt, str};
 use std::io::{self, Result};
+
+pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
+
+use util::TwosComplement;
 use emulator_common::{Register8080, DebuggerOps, Debugger};
 use emulator_common::InstructionOption::*;
-use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080,
-    dispatch_8080_instruction, get_8080_instruction};
-pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
+use emulator_8080::{
+    Emulator8080,
+    Flag8080,
+    InstructionSet8080,
+    InstructionSetOps8080,
+    dispatch_8080_instruction,
+    get_8080_instruction};
 use emulator_lr35902::opcodes::create_disassembler;
 use emulator_lr35902::opcodes::{
     get_lr35902_instruction, dispatch_lr35902_instruction, InstructionSetLR35902};
-use util::TwosComplement;
 
 const ROM_ADDRESS: usize = 0x0100;
 // const LCD_ADDRESS: usize = 0x8000;
@@ -41,13 +48,15 @@ pub enum FlagLR35902 {
 
 struct EmulatorLR35902<'a> {
     e8080: Emulator8080<'a>,
+    crash_message: Option<String>
 }
 
 impl<'a> EmulatorLR35902<'a> {
     fn new() -> EmulatorLR35902<'a>
     {
         return EmulatorLR35902 {
-            e8080: Emulator8080::new()
+            e8080: Emulator8080::new(),
+            crash_message: None
         };
     }
 
@@ -1044,6 +1053,14 @@ impl<'a> fmt::Debug for EmulatorLR35902<'a> {
 }
 
 impl<'a> EmulatorLR35902<'a> {
+    fn crash(&mut self, message: String)
+    {
+        self.crash_message = Some(message);
+    }
+    fn crashed(&self) -> bool
+    {
+        self.crash_message.is_some()
+    }
     fn run_lr35902_instruction(&mut self, instruction: &[u8])
     {
         let pc = self.read_program_counter() as usize;
@@ -1069,22 +1086,34 @@ impl<'a> EmulatorLR35902<'a> {
             },
             NoInstruction => { },
             NotImplemented => {
-                panic!("Unknown instruction at address {}", pc);
+                self.crash(format!("Unknown opcode at address {:x}", pc));
+                return;
             },
         }
         instr = get_8080_instruction(&self.e8080.main_memory[pc..]);
         match instr {
             SomeInstruction(res) => self.run_8080_instruction(&res),
-            _ => panic!("Unknown instruction at address {}", pc)
+            _ => self.crash(format!("Unknown opcode at address {:x}", pc))
         };
     }
 
     fn run(&mut self)
     {
-        loop {
+        while !self.crashed() {
             self.run_one_instruction();
         }
+        println!("Emulator crashed: {}", self.crash_message.as_ref().unwrap());
     }
+}
+
+#[test]
+fn emulator_crashes_on_unkown_opcode()
+{
+    let mut e = EmulatorLR35902::new();
+    e.load_rom(&[0xfc]);
+    e.set_program_counter(0);
+    e.run();
+    assert_eq!(e.crash_message.unwrap(), "Unknown opcode at address 0");
 }
 
 impl<'a> DebuggerOps for EmulatorLR35902<'a> {
@@ -1103,6 +1132,10 @@ impl<'a> DebuggerOps for EmulatorLR35902<'a> {
     fn current_address(&self) -> u16
     {
         self.read_program_counter()
+    }
+    fn crashed(&self) -> Option<&String>
+    {
+        self.crash_message.as_ref()
     }
 }
 
