@@ -1,7 +1,7 @@
 use emulator_common::Register8080;
 use emulator_common::InstructionOption;
 use emulator_common::InstructionOption::*;
-use emulator_lr35902::opcodes::OpcodePrinterLR35902;
+use emulator_lr35902::opcodes::InstructionPrinterLR35902;
 use util::{read_u16, read_u8};
 
 /*
@@ -653,7 +653,7 @@ pub fn get_lr35902_instruction(
     return SomeInstruction(instruction);
 }
 
-impl<'a> InstructionSetLR35902 for OpcodePrinterLR35902<'a> {
+impl<'a> InstructionSetLR35902 for InstructionPrinterLR35902<'a> {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Register8080)
     {
         self.error = write!(self.stream_out, "{:04} {} {:?}", "RES", implicit_data1, register2);

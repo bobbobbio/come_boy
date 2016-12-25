@@ -46,13 +46,13 @@ pub enum InstructionOption<T> {
     SomeInstruction(T)
 }
 
-pub trait OpcodePrinter<'a> {
+pub trait InstructionPrinter<'a> {
     fn print_opcode(&mut self, stream: &[u8]) -> Result<()>;
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;
 }
 
-pub trait OpcodePrinterFactory<'a> {
-    type Output: OpcodePrinter<'a>;
+pub trait InstructionPrinterFactory<'a> {
+    type Output: InstructionPrinter<'a>;
     fn new(&self, &'a mut io::Write) -> Self::Output;
 }
 
@@ -65,14 +65,14 @@ pub trait OpcodePrinterFactory<'a> {
  *
  */
 
-pub struct Disassembler<'a, PF: for<'b> OpcodePrinterFactory<'b>> {
+pub struct Disassembler<'a, PF: for<'b> InstructionPrinterFactory<'b>> {
     pub index: u64,
     rom: &'a [u8],
     opcode_printer_factory: PF,
     stream_out: &'a mut io::Write
 }
 
-impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
+impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
     pub fn new(
         rom: &'a [u8],
         opcode_printer_factory: PF,
@@ -133,12 +133,12 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
 }
 
 #[cfg(test)]
-struct TestOpcodePrinter<'a> {
+struct TestInstructionPrinter<'a> {
     stream_out: &'a mut io::Write
 }
 
 #[cfg(test)]
-impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
+impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
     fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
     {
         match stream[0] {
@@ -165,22 +165,22 @@ impl<'a> OpcodePrinter<'a> for TestOpcodePrinter<'a> {
 }
 
 #[cfg(test)]
-struct TestOpcodePrinterFactory;
+struct TestInstructionPrinterFactory;
 
 #[cfg(test)]
-impl<'a> OpcodePrinterFactory<'a> for TestOpcodePrinterFactory {
-    type Output = TestOpcodePrinter<'a>;
+impl<'a> InstructionPrinterFactory<'a> for TestInstructionPrinterFactory {
+    type Output = TestInstructionPrinter<'a>;
     fn new(&self,
-        stream_out: &'a mut io::Write) -> TestOpcodePrinter<'a>
+        stream_out: &'a mut io::Write) -> TestInstructionPrinter<'a>
     {
-        return TestOpcodePrinter {
+        return TestInstructionPrinter {
             stream_out: stream_out
         };
     }
 }
 
 #[cfg(test)]
-pub fn do_disassembler_test<PF: for<'b> OpcodePrinterFactory<'b>>(
+pub fn do_disassembler_test<PF: for<'b> InstructionPrinterFactory<'b>>(
     opcode_printer_factory: PF,
     test_rom: &[u8],
     expected_str: &str)
@@ -196,7 +196,7 @@ pub fn do_disassembler_test<PF: for<'b> OpcodePrinterFactory<'b>>(
 #[test]
 fn disassembler_test_single_byte_instructions() {
     do_disassembler_test(
-        TestOpcodePrinterFactory,
+        TestInstructionPrinterFactory,
         &[0x1, 0x1, 0x1], "\
         0000000 01       TEST1\n\
         0000001 01       TEST1\n\
@@ -207,7 +207,7 @@ fn disassembler_test_single_byte_instructions() {
 #[test]
 fn disassembler_test_multiple_byte_instructions() {
     do_disassembler_test(
-        TestOpcodePrinterFactory,
+        TestInstructionPrinterFactory,
         &[0x1, 0x2, 0x0, 0x3, 0x0, 0x0], "\
         0000000 01       TEST1\n\
         0000001 02 00    TEST2\n\
@@ -218,7 +218,7 @@ fn disassembler_test_multiple_byte_instructions() {
 #[test]
 fn disassembler_test_instruction_arguments_are_printed() {
     do_disassembler_test(
-        TestOpcodePrinterFactory,
+        TestInstructionPrinterFactory,
         &[0x3, 0xff, 0xfe, 0x3, 0xfd, 0xfc], "\
         0000000 03 ff fe TEST3\n\
         0000003 03 fd fc TEST3\n\

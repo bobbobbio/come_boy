@@ -1,7 +1,7 @@
 use emulator_common::Register8080;
 use emulator_common::InstructionOption;
 use emulator_common::InstructionOption::*;
-use emulator_8080::opcodes::OpcodePrinter8080;
+use emulator_8080::opcodes::InstructionPrinter8080;
 use util::{read_u16, read_u8};
 
 /*
@@ -608,7 +608,7 @@ pub fn get_8080_instruction(
     return SomeInstruction(instruction);
 }
 
-impl<'a> InstructionSet8080 for OpcodePrinter8080<'a> {
+impl<'a> InstructionSet8080 for InstructionPrinter8080<'a> {
     fn return_if_not_zero(&mut self)
     {
         self.error = write!(self.stream_out, "{:04}", "RNZ");

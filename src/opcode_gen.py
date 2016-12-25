@@ -168,7 +168,7 @@ class OpcodeCodeGenerator(object):
             use emulator_common::Register8080;
             use emulator_common::InstructionOption;
             use emulator_common::InstructionOption::*;
-            use {}::OpcodePrinter{};
+            use {}::InstructionPrinter{};
             use util::{{read_u16, read_u8}};
 
             /*
@@ -337,7 +337,7 @@ class OpcodeCodeGenerator(object):
 
     def generate_opcode_printer(self):
         self.out('''
-            impl<'a> InstructionSet{0} for OpcodePrinter{0}<'a> {{
+            impl<'a> InstructionSet{0} for InstructionPrinter{0}<'a> {{
         '''.format(self.instruction_set_name))
 
         self.indent += 1
