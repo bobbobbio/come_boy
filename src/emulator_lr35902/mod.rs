@@ -1,7 +1,8 @@
 mod opcodes;
 
 use std::{fmt, str};
-use emulator_common::Register8080;
+use std::io::{self, Result};
+use emulator_common::{Register8080, DebuggerOps, Debugger};
 use emulator_8080::{Emulator8080, InstructionSetOps8080, Flag8080, InstructionSet8080,
     dispatch_8080_instruction, get_8080_instruction};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
@@ -42,14 +43,18 @@ struct EmulatorLR35902<'a> {
 }
 
 impl<'a> EmulatorLR35902<'a> {
-    fn new() -> EmulatorLR35902<'a> {
+    fn new() -> EmulatorLR35902<'a>
+    {
         return EmulatorLR35902 {
             e8080: Emulator8080::new()
         };
     }
 
-    fn load_rom(&mut self, rom: &[u8]) {
+    fn load_rom(&mut self, rom: &[u8])
+    {
         self.e8080.main_memory[0..rom.len()].clone_from_slice(rom);
+        self.set_register_pair(Register8080::SP, 0xFFFE);
+        self.set_program_counter(ROM_ADDRESS as u16);
     }
 
     fn set_flag(&mut self, flag: FlagLR35902, value: bool)
@@ -1072,11 +1077,28 @@ impl<'a> EmulatorLR35902<'a> {
 
     fn run(&mut self)
     {
-        self.set_register_pair(Register8080::SP, 0xFFFE);
-        self.set_program_counter(ROM_ADDRESS as u16);
         loop {
             self.run_one_instruction();
         }
+    }
+}
+
+impl<'a> DebuggerOps for EmulatorLR35902<'a> {
+    fn read_address(&self, address: u16) -> u8
+    {
+        self.read_memory(address)
+    }
+    fn format<'b>(&self, s: &'b mut io::Write) -> Result<()>
+    {
+        write!(s, "{:?}", self)
+    }
+    fn next(&mut self)
+    {
+        self.run_one_instruction();
+    }
+    fn current_address(&self) -> u16
+    {
+        self.read_program_counter()
     }
 }
 
@@ -1085,4 +1107,15 @@ pub fn run_emulator(rom: &[u8])
     let mut e = EmulatorLR35902::new();
     e.load_rom(&rom);
     e.run();
+}
+
+pub fn run_debugger(rom: &[u8])
+{
+    let mut e = EmulatorLR35902::new();
+    e.load_rom(&rom);
+    let stdin = &mut io::stdin();
+    let stdin_locked = &mut stdin.lock();
+    let mut stdout = &mut io::stdout();
+    let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
+    debugger.run();
 }

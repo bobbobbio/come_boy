@@ -1,6 +1,8 @@
-use std::io::Result;
-use std::io;
+use std::io::{self, Result};
 use std::str;
+
+#[cfg(test)]
+use std::collections::HashMap;
 
 /*
  *  ____            _     _            ___   ___   ___   ___
@@ -107,7 +109,7 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
             raw_assembly.push_str(format!("{:02x} ", code).as_str());
         }
 
-        try!(write!(self.stream_out, "{:07x} {:9}{}\n", self.index, raw_assembly, str_instr));
+        try!(write!(self.stream_out, "{:07x} {:9}{}", self.index, raw_assembly, str_instr));
 
         self.index += instr.len() as u64;
 
@@ -118,6 +120,7 @@ impl<'a, PF: for<'b> OpcodePrinterFactory<'b>> Disassembler<'a, PF> {
     {
         while (self.index as usize) < self.rom.len() {
             try!(self.disassemble_one());
+            try!(writeln!(self.stream_out, ""));
         }
         Ok(())
     }
@@ -188,7 +191,7 @@ pub fn do_disassembler_test<PF: for<'b> OpcodePrinterFactory<'b>>(
 fn disassembler_test_single_byte_instructions() {
     do_disassembler_test(
         TestOpcodePrinterFactory,
-        &vec![0x1, 0x1, 0x1], "\
+        &[0x1, 0x1, 0x1], "\
         0000000 01       TEST1\n\
         0000001 01       TEST1\n\
         0000002 01       TEST1\n\
@@ -199,7 +202,7 @@ fn disassembler_test_single_byte_instructions() {
 fn disassembler_test_multiple_byte_instructions() {
     do_disassembler_test(
         TestOpcodePrinterFactory,
-        &vec![0x1, 0x2, 0x0, 0x3, 0x0, 0x0], "\
+        &[0x1, 0x2, 0x0, 0x3, 0x0, 0x0], "\
         0000000 01       TEST1\n\
         0000001 02 00    TEST2\n\
         0000003 03 00 00 TEST3\n\
@@ -210,8 +213,351 @@ fn disassembler_test_multiple_byte_instructions() {
 fn disassembler_test_instruction_arguments_are_printed() {
     do_disassembler_test(
         TestOpcodePrinterFactory,
-        &vec![0x3, 0xff, 0xfe, 0x3, 0xfd, 0xfc], "\
+        &[0x3, 0xff, 0xfe, 0x3, 0xfd, 0xfc], "\
         0000000 03 ff fe TEST3\n\
         0000003 03 fd fc TEST3\n\
+    ");
+}
+
+/*
+ *  ____       _
+ * |  _ \  ___| |__  _   _  __ _  __ _  ___ _ __
+ * | | | |/ _ \ '_ \| | | |/ _` |/ _` |/ _ \ '__|
+ * | |_| |  __/ |_) | |_| | (_| | (_| |  __/ |
+ * |____/ \___|_.__/ \__,_|\__, |\__, |\___|_|
+ *                         |___/ |___/
+ */
+
+pub trait DebuggerOps {
+    fn read_address(&self, address: u16) -> u8;
+    fn format<'a> (&self, &'a mut io::Write) -> Result<()>;
+    fn next(&mut self);
+    fn current_address(&self) -> u16;
+}
+
+pub struct Debugger<'a> {
+    emulator: &'a mut DebuggerOps,
+    running: bool,
+    last_command: String,
+    breakpoint: Option<u16>,
+    input: &'a mut io::BufRead,
+    out: &'a mut io::Write
+}
+
+impl<'a> Debugger<'a> {
+    pub fn new(
+        input: &'a mut io::BufRead,
+        out: &'a mut io::Write,
+        emulator: &'a mut DebuggerOps) -> Debugger<'a>
+    {
+        Debugger {
+            emulator: emulator,
+            running: false,
+            last_command: String::new(),
+            breakpoint: None,
+            input: input,
+            out: out
+        }
+    }
+
+    fn state(&mut self)
+    {
+        self.emulator.format(self.out).unwrap();
+        writeln!(self.out, "").unwrap();
+    }
+
+    fn check_for_breakpoint(&mut self) -> bool
+    {
+        if Some(self.emulator.current_address()) == self.breakpoint {
+            writeln!(self.out, "Hit breakpoint").unwrap();
+            return false;
+        }
+        return true;
+    }
+
+    fn next(&mut self)
+    {
+        self.emulator.next();
+        self.state();
+        self.check_for_breakpoint();
+    }
+
+    fn exit(&mut self)
+    {
+        self.running = false;
+        writeln!(self.out, "exiting").unwrap();
+    }
+
+    fn set_breakpoint(&mut self, address: u16)
+    {
+        self.breakpoint = Some(address);
+    }
+
+    fn run_emulator(&mut self)
+    {
+        self.emulator.next();
+        while self.check_for_breakpoint() {
+            self.emulator.next();
+        }
+        self.state();
+    }
+
+    fn dispatch_break(&mut self, iter: &mut str::SplitWhitespace)
+    {
+        let address: u16 = match iter.next() {
+            None => {
+                writeln!(self.out, "provide an address").unwrap();
+                return;
+            },
+            Some(x) => {
+                match u16::from_str_radix(x, 16) {
+                    Err(_) => {
+                        writeln!(self.out, "{} is not a valid address", x).unwrap();
+                        return;
+                    },
+                    Ok(x) => x
+                }
+            }
+        };
+        self.set_breakpoint(address);
+    }
+
+    fn dispatch_command(&mut self, command: &str)
+    {
+        let mut iter = command.split_whitespace();
+        let func = match iter.next() {
+            None => "",
+            Some(x) => x
+        };
+        match func {
+            "state" => self.state(),
+            "next" => self.next(),
+            "exit" => self.exit(),
+            "run" => self.run_emulator(),
+            "break" => self.dispatch_break(&mut iter),
+            "" => {
+                let c = self.last_command.clone();
+                if c == "" {
+                    writeln!(self.out, "empty command").unwrap();
+                } else {
+                    self.dispatch_command(&c);
+                }
+                return;
+            },
+            _ => {
+                writeln!(self.out, "Unknown command {}", func).unwrap();
+                return;
+            }
+        }
+
+        self.last_command = String::from(func);
+    }
+
+    fn process_command(&mut self)
+    {
+        write!(self.out, "(debugger) ").unwrap();
+        self.out.flush().unwrap();
+
+        let mut buffer = String::new();
+        self.input.read_line(&mut buffer).unwrap();
+
+        // If we got EOF, cleanly exit
+        if buffer.len() == 0 {
+            self.exit();
+            return;
+        }
+
+        let command = &buffer[0..buffer.len() - 1];
+
+        self.dispatch_command(command);
+    }
+
+    pub fn run(&mut self)
+    {
+        self.running = true;
+        while self.running {
+            self.process_command();
+        }
+    }
+}
+
+#[cfg(test)]
+#[derive(Debug)]
+struct TestDebuggerOps {
+    current_address: u16,
+    memory: HashMap<u16, u8>
+}
+
+#[cfg(test)]
+impl TestDebuggerOps {
+    fn new() -> TestDebuggerOps {
+        TestDebuggerOps {
+            current_address: 0,
+            memory: HashMap::new()
+        }
+    }
+}
+
+#[cfg(test)]
+impl DebuggerOps for TestDebuggerOps {
+    fn read_address(&self, address: u16) -> u8
+    {
+        match self.memory.get(&address) {
+            Some(data) => *data,
+            None => 0
+        }
+    }
+    fn format<'a> (&self, s: &'a mut io::Write) -> Result<()>
+    {
+        write!(s, "{:?}", self)
+    }
+    fn next(&mut self)
+    {
+        self.current_address += 1;
+    }
+    fn current_address(&self) -> u16
+    {
+        self.current_address
+    }
+}
+
+#[cfg(test)]
+fn run_debugger_test(input: &[&str], expected_output: &str)
+{
+    let mut test_ops = TestDebuggerOps::new();
+    let mut output_bytes = vec![];
+    let input_str = input.join("\n") + "\n";
+    let mut input_bytes = input_str.as_bytes();
+    {
+        let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, &mut test_ops);
+        debugger.run();
+    }
+
+    assert_eq!(str::from_utf8(&output_bytes).unwrap(), expected_output);
+}
+
+#[test]
+fn debugger_state()
+{
+    run_debugger_test(
+        &["state"], "\
+        (debugger) \
+        TestDebuggerOps { current_address: 0, memory: {} }\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_next()
+{
+    run_debugger_test(
+        &["next"], "\
+        (debugger) \
+        TestDebuggerOps { current_address: 1, memory: {} }\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_exit()
+{
+    run_debugger_test(
+        &["exit"], "\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_stops_on_breakpoint_when_calling_next()
+{
+    run_debugger_test(
+        &["break 2", "next", "next"], "\
+        (debugger) \
+        (debugger) \
+        TestDebuggerOps { current_address: 1, memory: {} }\n\
+        (debugger) \
+        TestDebuggerOps { current_address: 2, memory: {} }\n\
+        Hit breakpoint\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_stops_on_breakpoint_when_calling_run()
+{
+    run_debugger_test(
+        &["break 2", "run"], "\
+        (debugger) \
+        (debugger) \
+        Hit breakpoint\n\
+        TestDebuggerOps { current_address: 2, memory: {} }\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_errors_when_setting_breakpoint_without_address()
+{
+    run_debugger_test(
+        &["break"], "\
+        (debugger) \
+        provide an address\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_errors_when_setting_breakpoint_without_invalid_address()
+{
+    run_debugger_test(
+        &["break derp"], "\
+        (debugger) \
+        derp is not a valid address\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_errors_when_given_unknown_command()
+{
+    run_debugger_test(
+        &["derp"], "\
+        (debugger) \
+        Unknown command derp\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_repeats_last_command()
+{
+    run_debugger_test(
+        &["next", ""], "\
+        (debugger) \
+        TestDebuggerOps { current_address: 1, memory: {} }\n\
+        (debugger) \
+        TestDebuggerOps { current_address: 2, memory: {} }\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_errors_on_empty_command()
+{
+    run_debugger_test(
+        &[""], "\
+        (debugger) \
+        empty command\n\
+        (debugger) \
+        exiting\n\
     ");
 }
