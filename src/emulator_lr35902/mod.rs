@@ -1,7 +1,8 @@
 mod opcodes;
 
-use std::{fmt, str};
+use std::collections::HashSet;
 use std::io::{self, Result};
+use std::{fmt, str};
 
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
 
@@ -48,7 +49,8 @@ pub enum FlagLR35902 {
 
 struct EmulatorLR35902<'a> {
     e8080: Emulator8080<'a>,
-    crash_message: Option<String>
+    crash_message: Option<String>,
+    memory_changed: HashSet<u16>
 }
 
 impl<'a> EmulatorLR35902<'a> {
@@ -56,7 +58,8 @@ impl<'a> EmulatorLR35902<'a> {
     {
         return EmulatorLR35902 {
             e8080: Emulator8080::new(),
-            crash_message: None
+            crash_message: None,
+            memory_changed: HashSet::new()
         };
     }
 
@@ -92,6 +95,7 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
     fn set_memory(&mut self, address: u16, value: u8)
     {
         self.e8080.set_memory(address, value);
+        self.memory_changed.insert(address);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16
@@ -101,7 +105,9 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
 
     fn set_memory_u16(&mut self, address: u16, value: u16)
     {
-        self.e8080.set_memory_u16(address, value)
+        self.e8080.set_memory_u16(address, value);
+        self.memory_changed.insert(address);
+        self.memory_changed.insert(address.wrapping_add(1));
     }
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)
@@ -1077,6 +1083,7 @@ impl<'a> EmulatorLR35902<'a> {
 
     fn run_one_instruction(&mut self)
     {
+        self.memory_changed.clear();
         let pc = self.read_program_counter() as usize;
         let mut instr = get_lr35902_instruction(&self.e8080.main_memory[pc..]);
         match instr {
@@ -1121,21 +1128,30 @@ impl<'a> DebuggerOps for EmulatorLR35902<'a> {
     {
         self.read_memory(address)
     }
+
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()>
     {
         write!(s, "{:?}", self)
     }
+
     fn next(&mut self)
     {
         self.run_one_instruction();
     }
+
     fn current_address(&self) -> u16
     {
         self.read_program_counter()
     }
+
     fn crashed(&self) -> Option<&String>
     {
         self.crash_message.as_ref()
+    }
+
+    fn memory_changed(&self) -> &HashSet<u16>
+    {
+        &self.memory_changed
     }
 }
 

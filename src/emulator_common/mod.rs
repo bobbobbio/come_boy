@@ -3,6 +3,7 @@ use std::str;
 
 #[cfg(test)]
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 /*
  *  ____            _     _            ___   ___   ___   ___
@@ -240,6 +241,7 @@ pub trait DebuggerOps {
     fn next(&mut self);
     fn current_address(&self) -> u16;
     fn crashed(&self) -> Option<&String>;
+    fn memory_changed(&self) -> &HashSet<u16>;
 }
 
 pub struct Debugger<'a> {
@@ -247,6 +249,7 @@ pub struct Debugger<'a> {
     running: bool,
     last_command: String,
     breakpoint: Option<u16>,
+    watchpoint: Option<u16>,
     input: &'a mut io::BufRead,
     out: &'a mut io::Write
 }
@@ -262,6 +265,7 @@ impl<'a> Debugger<'a> {
             running: false,
             last_command: String::new(),
             breakpoint: None,
+            watchpoint: None,
             input: input,
             out: out
         }
@@ -282,6 +286,12 @@ impl<'a> Debugger<'a> {
         if Some(self.emulator.current_address()) == self.breakpoint {
             writeln!(self.out, "Hit breakpoint").unwrap();
             return false;
+        }
+        for address in self.emulator.memory_changed() {
+            if Some(*address) == self.watchpoint {
+                writeln!(self.out, "Hit watchpoint").unwrap();
+                return false;
+            }
         }
         return true;
     }
@@ -304,6 +314,11 @@ impl<'a> Debugger<'a> {
         self.breakpoint = Some(address);
     }
 
+    fn set_watchpoint(&mut self, address: u16)
+    {
+        self.watchpoint = Some(address);
+    }
+
     fn run_emulator(&mut self)
     {
         self.emulator.next();
@@ -313,24 +328,23 @@ impl<'a> Debugger<'a> {
         self.state();
     }
 
-    fn dispatch_break(&mut self, iter: &mut str::SplitWhitespace)
+    fn read_address(&mut self, iter: &mut str::SplitWhitespace) -> Option<u16>
     {
-        let address: u16 = match iter.next() {
+        match iter.next() {
             None => {
                 writeln!(self.out, "provide an address").unwrap();
-                return;
+                return None;
             },
             Some(x) => {
                 match u16::from_str_radix(x, 16) {
                     Err(_) => {
                         writeln!(self.out, "{} is not a valid address", x).unwrap();
-                        return;
+                        return None;
                     },
-                    Ok(x) => x
+                    Ok(x) => Some(x)
                 }
             }
-        };
-        self.set_breakpoint(address);
+        }
     }
 
     fn dispatch_command(&mut self, command: &str)
@@ -345,7 +359,18 @@ impl<'a> Debugger<'a> {
             "next" => self.next(),
             "exit" => self.exit(),
             "run" => self.run_emulator(),
-            "break" => self.dispatch_break(&mut iter),
+            "break" => {
+                let address = self.read_address(&mut iter);
+                if address.is_some() {
+                    self.set_breakpoint(address.unwrap())
+                }
+            },
+            "watch" => {
+                let address = self.read_address(&mut iter);
+                if address.is_some() {
+                    self.set_watchpoint(address.unwrap())
+                }
+            },
             "" => {
                 let c = self.last_command.clone();
                 if c == "" {
@@ -396,7 +421,8 @@ impl<'a> Debugger<'a> {
 struct TestDebuggerOps {
     current_address: u16,
     memory: HashMap<u16, u8>,
-    crash_message: Option<String>
+    crash_message: Option<String>,
+    memory_changed: HashSet<u16>
 }
 
 #[cfg(test)]
@@ -405,7 +431,8 @@ impl TestDebuggerOps {
         TestDebuggerOps {
             current_address: 0,
             memory: HashMap::new(),
-            crash_message: None
+            crash_message: None,
+            memory_changed: HashSet::new()
         }
     }
 }
@@ -419,23 +446,32 @@ impl DebuggerOps for TestDebuggerOps {
             None => 0
         }
     }
+
     fn format<'a> (&self, s: &'a mut io::Write) -> Result<()>
     {
         write!(s, "TestDebuggerOps pc={}", self.current_address)
     }
+
     fn next(&mut self)
     {
         if self.crashed().is_none() {
             self.current_address += 1;
         }
     }
+
     fn current_address(&self) -> u16
     {
         self.current_address
     }
+
     fn crashed(&self) -> Option<&String>
     {
         self.crash_message.as_ref()
+    }
+
+    fn memory_changed(&self) -> &HashSet<u16>
+    {
+        &self.memory_changed
     }
 }
 
@@ -519,6 +555,23 @@ fn debugger_stops_on_breakpoint_when_calling_run()
         (debugger) \
         Hit breakpoint\n\
         TestDebuggerOps pc=2\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_stops_on_watchpoint_when_calling_run()
+{
+    let mut test_ops = TestDebuggerOps::new();
+    test_ops.memory_changed.insert(0x3);
+    run_debugger_test_with_ops(
+        &mut test_ops,
+        &["watch 3", "run"], "\
+        (debugger) \
+        (debugger) \
+        Hit watchpoint\n\
+        TestDebuggerOps pc=1\n\
         (debugger) \
         exiting\n\
     ");
