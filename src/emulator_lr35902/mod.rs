@@ -258,13 +258,13 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
 }
 
 impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
-    fn move_and_increment_m(&mut self, dest_register: Register8080, src_register: Register8080)
+    fn move_and_increment_hl(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         self.move_data(dest_register, src_register);
         self.add_to_register_pair(Register8080::H, 1, false /* update_carry */);
     }
 
-    fn move_and_decrement_m(&mut self, dest_register: Register8080, src_register: Register8080)
+    fn move_and_decrement_hl(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         self.move_data(dest_register, src_register);
         self.subtract_from_register_pair(Register8080::H, 1);
@@ -473,23 +473,23 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
 }
 
 #[test]
-fn move_and_increment_m()
+fn move_and_increment_hl()
 {
     let mut e = EmulatorLR35902::new();
     e.set_register_pair(Register8080::H, 0x1122);
     e.set_register(Register8080::M, 0x99);
-    e.move_and_increment_m(Register8080::A, Register8080::M);
+    e.move_and_increment_hl(Register8080::A, Register8080::M);
     assert_eq!(e.read_register(Register8080::A), 0x99);
     assert_eq!(e.read_register_pair(Register8080::H), 0x1123);
 }
 
 #[test]
-fn move_and_decrement_m()
+fn move_and_decrement_hl()
 {
     let mut e = EmulatorLR35902::new();
     e.set_register_pair(Register8080::H, 0x1122);
     e.set_register(Register8080::M, 0x99);
-    e.move_and_decrement_m(Register8080::A, Register8080::M);
+    e.move_and_decrement_hl(Register8080::A, Register8080::M);
     assert_eq!(e.read_register(Register8080::A), 0x99);
     assert_eq!(e.read_register_pair(Register8080::H), 0x1121);
 }
