@@ -31,7 +31,7 @@ impl<'a> InstructionPrinterFactory<'a> for InstructionPrinterFactory8080 {
 }
 
 impl<'a> InstructionPrinter<'a> for InstructionPrinter8080<'a> {
-    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
+    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
     {
         dispatch_8080_instruction(stream, self);
         return mem::replace(&mut self.error, Ok(()));

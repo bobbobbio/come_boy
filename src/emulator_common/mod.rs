@@ -47,7 +47,7 @@ pub enum InstructionOption<T> {
 }
 
 pub trait InstructionPrinter<'a> {
-    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>;
+    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>;
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;
 }
 
@@ -94,7 +94,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
             printed = match opcode_printer.get_instruction(&self.rom[self.index as usize..]) {
                 Some(res) => {
-                    try!(opcode_printer.print_opcode(&res));
+                    try!(opcode_printer.print_instruction(&res));
                     instr = res;
                     true
                 },
@@ -139,7 +139,7 @@ struct TestInstructionPrinter<'a> {
 
 #[cfg(test)]
 impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
-    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
+    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
     {
         match stream[0] {
             0x1 => write!(self.stream_out, "TEST1").unwrap(),

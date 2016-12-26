@@ -31,7 +31,7 @@ impl<'a> InstructionPrinterFactory<'a> for InstructionPrinterFactoryLR35902 {
 }
 
 impl<'a> InstructionPrinter<'a> for InstructionPrinterLR35902<'a> {
-    fn print_opcode(&mut self, stream: &[u8]) -> Result<()>
+    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
     {
         match get_lr35902_instruction(stream) {
             SomeInstruction(_) | NotImplemented => {
@@ -40,7 +40,7 @@ impl<'a> InstructionPrinter<'a> for InstructionPrinterLR35902<'a> {
             },
             NoInstruction => {
                 let mut op = InstructionPrinterFactory8080.new(self.stream_out);
-                op.print_opcode(stream)
+                op.print_instruction(stream)
             }
         }
     }
