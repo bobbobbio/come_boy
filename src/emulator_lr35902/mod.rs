@@ -1,6 +1,6 @@
 mod opcodes;
 
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::io::{self, Result};
 use std::{fmt, str};
 
@@ -50,7 +50,8 @@ pub enum FlagLR35902 {
 struct EmulatorLR35902<'a> {
     e8080: Emulator8080<'a>,
     crash_message: Option<String>,
-    memory_changed: HashSet<u16>
+    memory_changed: HashSet<u16>,
+    pc_trail: VecDeque<u16>
 }
 
 impl<'a> EmulatorLR35902<'a> {
@@ -59,7 +60,8 @@ impl<'a> EmulatorLR35902<'a> {
         return EmulatorLR35902 {
             e8080: Emulator8080::new(),
             crash_message: None,
-            memory_changed: HashSet::new()
+            memory_changed: HashSet::new(),
+            pc_trail: VecDeque::new()
         };
     }
 
@@ -243,6 +245,12 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
 
     fn set_program_counter(&mut self, address: u16)
     {
+        let pc = self.read_program_counter();
+        self.pc_trail.push_front(pc);
+        if self.pc_trail.len() > 5 {
+            self.pc_trail.pop_back();
+        }
+
         self.e8080.set_program_counter(address);
     }
 
@@ -1047,6 +1055,7 @@ impl<'a> fmt::Debug for EmulatorLR35902<'a> {
             self.read_program_counter(),
             self.read_register_pair(Register8080::SP),
             self.read_register(Register8080::M)));
+        try!(writeln!(f, "PC trail = {}", self.format_pc_trail()));
 
         let mut buffer = vec![];
         {
@@ -1083,6 +1092,22 @@ impl<'a> EmulatorLR35902<'a> {
         dispatch_8080_instruction(&instruction, self);
     }
 
+    fn format_pc_trail(&self) -> String
+    {
+        let mut message = String::new();
+        for pc in &self.pc_trail {
+            message.push_str(format!("{:x}, ", pc).as_str());
+        }
+        return message;
+    }
+
+    fn crash_from_unkown_opcode(&mut self)
+    {
+        let pc = self.read_program_counter();
+        let pc_trail = self.format_pc_trail();
+        self.crash(format!("Unknown opcode at address {:x}, trail = {}", pc, pc_trail));
+    }
+
     fn run_one_instruction(&mut self)
     {
         self.memory_changed.clear();
@@ -1095,14 +1120,14 @@ impl<'a> EmulatorLR35902<'a> {
             },
             NoInstruction => { },
             NotImplemented => {
-                self.crash(format!("Unknown opcode at address {:x}", pc));
+                self.crash_from_unkown_opcode();
                 return;
             },
         }
         instr = get_8080_instruction(&self.e8080.main_memory[pc..]);
         match instr {
             SomeInstruction(res) => self.run_8080_instruction(&res),
-            _ => self.crash(format!("Unknown opcode at address {:x}", pc))
+            _ => self.crash_from_unkown_opcode()
         };
     }
 
@@ -1122,7 +1147,7 @@ fn emulator_crashes_on_unkown_opcode()
     e.load_rom(&[0xfc]);
     e.set_program_counter(0);
     e.run();
-    assert_eq!(e.crash_message.unwrap(), "Unknown opcode at address 0");
+    assert_eq!(e.crash_message.unwrap(), "Unknown opcode at address 0, trail = 100, 0, ");
 }
 
 impl<'a> DebuggerOps for EmulatorLR35902<'a> {
@@ -1154,6 +1179,11 @@ impl<'a> DebuggerOps for EmulatorLR35902<'a> {
     fn memory_changed(&self) -> &HashSet<u16>
     {
         &self.memory_changed
+    }
+
+    fn set_current_address(&mut self, address: u16)
+    {
+        self.set_program_counter(address)
     }
 }
 

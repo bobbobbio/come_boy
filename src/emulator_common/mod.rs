@@ -242,6 +242,7 @@ pub trait DebuggerOps {
     fn current_address(&self) -> u16;
     fn crashed(&self) -> Option<&String>;
     fn memory_changed(&self) -> &HashSet<u16>;
+    fn set_current_address(&mut self, address: u16);
 }
 
 pub struct Debugger<'a> {
@@ -360,17 +361,34 @@ impl<'a> Debugger<'a> {
             "exit" => self.exit(),
             "run" => self.run_emulator(),
             "break" => {
-                let address = self.read_address(&mut iter);
-                if address.is_some() {
-                    self.set_breakpoint(address.unwrap())
+                match self.read_address(&mut iter) {
+                    Some(address) => self.set_breakpoint(address),
+                    None => {}
                 }
             },
             "watch" => {
-                let address = self.read_address(&mut iter);
-                if address.is_some() {
-                    self.set_watchpoint(address.unwrap())
+                match self.read_address(&mut iter) {
+                    Some(address) => self.set_watchpoint(address),
+                    None => {}
                 }
             },
+            "set" => {
+                match iter.next() {
+                    Some("pc") => {},
+                    Some(o) => {
+                        writeln!(self.out, "Unknown operand {}", o).unwrap();
+                        return;
+                    },
+                    None => {
+                        writeln!(self.out, "Missing operand").unwrap();
+                        return;
+                    }
+                }
+                match self.read_address(&mut iter) {
+                    Some(address) => self.emulator.set_current_address(address),
+                    None => {}
+                }
+            }
             "" => {
                 let c = self.last_command.clone();
                 if c == "" {
@@ -449,7 +467,7 @@ impl DebuggerOps for TestDebuggerOps {
 
     fn format<'a> (&self, s: &'a mut io::Write) -> Result<()>
     {
-        write!(s, "TestDebuggerOps pc={}", self.current_address)
+        write!(s, "TestDebuggerOps pc={:x}", self.current_address)
     }
 
     fn next(&mut self)
@@ -472,6 +490,11 @@ impl DebuggerOps for TestDebuggerOps {
     fn memory_changed(&self) -> &HashSet<u16>
     {
         &self.memory_changed
+    }
+
+    fn set_current_address(&mut self, address: u16)
+    {
+        self.current_address = address
     }
 }
 
@@ -650,6 +673,19 @@ fn debugger_stops_when_emulator_crashes()
         (debugger) \
         Emulator crashed: test crash\n\
         TestDebuggerOps pc=0\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_can_set_current_address()
+{
+    run_debugger_test(
+        &["set pc 45", "state"], "\
+        (debugger) \
+        (debugger) \
+        TestDebuggerOps pc=45\n\
         (debugger) \
         exiting\n\
     ");
