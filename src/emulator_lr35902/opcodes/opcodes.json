@@ -275,8 +275,6 @@
 "0xd9":   {"instr": "RETI", "description": "Return and Enable Interrupts",           "args": [],         "size": 1},
 "0xdb":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xdd":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
-"0xde":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
-"0xdf":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xe0":   {"instr": "STAB", "description": "Store Accumulator Direct One Byte",      "args": ["D8"],     "size": 2},
 "0xe3":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xe4":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
@@ -284,9 +282,11 @@
 "0xea":   {"instr": "STA",  "description": "Store Accumulator Direct Two Bytes",     "args": ["adr"],    "size": 3},
 "0xeb":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xec":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
+"0xed":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xf0":   {"instr": "LDAB", "description": "Load Accumulator Direct One Byte",       "args": ["D8"],     "size": 2},
 "0xf4":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xf8":   {"instr": "STSP", "description": "Store SP Plus Immediate",                "args": ["D8"],     "size": 2},
 "0xfa":   {"instr": "LDAD", "description": "Load Accumulator Direct",                "args": ["adr"],    "size": 3},
-"0xfc":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1}
+"0xfc":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
+"0xfd":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1}
 }

@@ -365,8 +365,6 @@ pub fn get_lr35902_instruction(
         0xD9 =>         1,
         0xDB =>         return NotImplemented,
         0xDD =>         return NotImplemented,
-        0xDE =>         return NotImplemented,
-        0xDF =>         return NotImplemented,
         0xE0 =>         2,
         0xE3 =>         return NotImplemented,
         0xE4 =>         return NotImplemented,
@@ -374,11 +372,13 @@ pub fn get_lr35902_instruction(
         0xEA =>         3,
         0xEB =>         return NotImplemented,
         0xEC =>         return NotImplemented,
+        0xED =>         return NotImplemented,
         0xF0 =>         2,
         0xF4 =>         return NotImplemented,
         0xF8 =>         2,
         0xFA =>         3,
         0xFC =>         return NotImplemented,
+        0xFD =>         return NotImplemented,
         0x10 => match (0x10 as u16) << 8 |
             match read_u8(&mut stream) { Ok(x) => x, _ => return NoInstruction } as u16{
             0x1000 =>             2,
