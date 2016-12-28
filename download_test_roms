@@ -1,0 +1,25 @@
+#!/bin/bash
+
+set -ex
+
+# At the time of writing, this is a mirror for the useful test-roms that blargg
+# (http://blargg.8bitalley.com/) wrote. If this url no longer contains the
+# packages, google for 'blargg gameboy test rom' or the like, and hopefully you
+# can find them. Tests inside the LR35902 emulator code use these roms.
+URL=http://gbdev.gg8.se/files/roms/blargg-gb-tests
+
+DOWNLOAD_DIR=$( dirname $0 )/blargg_test_roms
+mkdir -p $DOWNLOAD_DIR
+
+function download_package {
+    if [ -d $DOWNLOAD_DIR/$1 ]; then
+        echo "Skipping $1, already downloaded"
+    else
+        TEMPFILE=`mktemp`
+        wget $URL/$1.zip -O $TEMPFILE
+        unzip $TEMPFILE -d $DOWNLOAD_DIR
+        rm -f $TEMPFILE
+    fi
+}
+
+download_package cpu_instrs

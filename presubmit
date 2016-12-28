@@ -2,6 +2,9 @@
 
 set -ex
 
+# Download the test roms
+$( dirname $0 )/download_test_roms
+
 # Run pylint on all the python
 $( dirname $0 )/pylint
 
