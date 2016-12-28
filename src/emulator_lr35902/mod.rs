@@ -291,7 +291,7 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
 
     fn store_sp_plus_immediate(&mut self, data: u8)
     {
-        let address = self.read_register_pair(Register8080::SP) + data as u16;
+        let address = self.read_register_pair(Register8080::SP).wrapping_add(data as u16);
         let v = self.read_memory(address);
         self.set_register(Register8080::M, v);
     }
@@ -524,6 +524,17 @@ fn store_sp_plus_immediate()
     e.set_register_pair(Register8080::SP, 0x4488);
     e.set_register_pair(Register8080::H, 0x4433);
     e.set_memory(0x4488 + 0x77, 0x99);
+    e.store_sp_plus_immediate(0x77);
+    assert_eq!(e.read_register(Register8080::M), 0x99);
+}
+
+#[test]
+fn store_sp_plus_immediate_with_overflow()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0xFF88);
+    e.set_register_pair(Register8080::H, 0x4433);
+    e.set_memory(0xFF88u16.wrapping_add(0x77), 0x99);
     e.store_sp_plus_immediate(0x77);
     assert_eq!(e.read_register(Register8080::M), 0x99);
 }
