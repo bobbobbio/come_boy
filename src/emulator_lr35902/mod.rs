@@ -49,8 +49,8 @@ pub enum FlagLR35902 {
                     // 76543210
     Zero =           0b10000000,
     Subtract =       0b01000000,
-    HalfCarry =      0b00010000,
-    Carry =          0b00000100,
+    HalfCarry =      0b00100000,
+    Carry =          0b00010000,
 }
 
 struct EmulatorLR35902<'a> {
@@ -1334,7 +1334,6 @@ fn blargg_test_rom_cpu_instrs_9_op_r_r()
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_10_bit_ops()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/10-bit ops.gb", 0xcf58);
