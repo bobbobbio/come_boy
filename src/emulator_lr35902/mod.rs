@@ -20,6 +20,12 @@ use emulator_lr35902::opcodes::create_disassembler;
 use emulator_lr35902::opcodes::{
     get_lr35902_instruction, dispatch_lr35902_instruction, InstructionSetLR35902};
 
+#[cfg(test)]
+use std::fs::File;
+
+#[cfg(test)]
+use std::io::Read;
+
 const ROM_ADDRESS: usize = 0x0100;
 // const LCD_ADDRESS: usize = 0x8000;
 
@@ -1203,4 +1209,129 @@ pub fn run_debugger(rom: &[u8])
     let mut stdout = &mut io::stdout();
     let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
     debugger.run();
+}
+
+/*  _     _                         _            _
+ * | |__ | | __ _ _ __ __ _  __ _  | |_ ___  ___| |_   _ __ ___  _ __ ___  ___
+ * | '_ \| |/ _` | '__/ _` |/ _` | | __/ _ \/ __| __| | '__/ _ \| '_ ` _ \/ __|
+ * | |_) | | (_| | | | (_| | (_| | | ||  __/\__ \ |_  | | | (_) | | | | | \__ \
+ * |_.__/|_|\__,_|_|  \__, |\__, |  \__\___||___/\__| |_|  \___/|_| |_| |_|___/
+ *                    |___/ |___/
+ */
+
+#[cfg(test)]
+fn run_blargg_test_rom_cpu_instrs(name: &str, stop_address: u16)
+{
+    let mut e = EmulatorLR35902::new();
+    let mut rom : Vec<u8> = vec![];
+    {
+        let mut file = File::open(format!("blargg_test_roms/{}", name)).ok().expect(
+            "Did you forget to download the test roms?");
+        file.read_to_end(&mut rom).unwrap();
+    }
+    e.load_rom(&rom);
+
+    let mut pc = e.read_program_counter();
+    // This address is where the rom ends.  At this address is an infinite loop where normally the
+    // rom will sit at forever.
+    while pc != stop_address {
+        e.run_one_instruction();
+        pc = e.read_program_counter();
+    }
+
+    // Scrape from tile memory what is displayed on the screen
+    let mut message = String::new();
+    let mut c = 0x9800;
+    while c < 0x9BFF {
+        for i in 0..20 {
+            let tile = e.read_memory(c + i);
+            // The rom happens to use ASCII as the way it maps characters to the correct tile.
+            message.push(tile as char);
+        }
+        c += 0x20;
+        message = String::from(message.trim_right());
+        message.push('\n');
+    }
+
+    // The message ends with 'Passed' when the test was successful
+    assert!(message.ends_with("Passed\n"), "{}", message);
+}
+
+// XXX: The following disabled tests are basically a to-do list for fixing / finishing the LR35902
+// emulation.
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_1_special()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/01-special.gb", 0xc7d2);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_2_interrupts()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/02-interrupts.gb", 0xc7f4);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_3_op_sp_hl()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/03-op sp,hl.gb", 0xcb44);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_4_op_r_imm()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/04-op r,imm.gb", 0xcb35);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_5_op_rp()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/05-op rp.gb", 0xcb31);
+}
+
+#[test]
+fn blargg_test_rom_cpu_instrs_6_ld_r_r()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/06-ld r,r.gb", 0xcc5f);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_7_jr_jp_call_ret_rst()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/07-jr,jp,call,ret,rst.gb", 0xcbb0);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_8_misc_instrs()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/08-misc instrs.gb", 0xcb91);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_9_op_r_r()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/09-op r,r.gb", 0xce67);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_10_bit_ops()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/10-bit ops.gb", 0xcf58);
+}
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_11_op_a_hl()
+{
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/11-op a,(hl).gb", 0xcc62);
 }

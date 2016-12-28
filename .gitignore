@@ -1,4 +1,5 @@
 target
+blargg_test_roms
 *.swp
 *.pyc
 Cargo.lock
