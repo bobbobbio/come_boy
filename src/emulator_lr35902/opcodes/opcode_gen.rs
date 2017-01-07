@@ -13,12 +13,16 @@ pub trait InstructionSetLR35902 {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Register8080);
     fn halt_until_button_press(&mut self);
     fn store_sp_plus_immediate(&mut self, data1: u8);
+    fn complement_accumulator(&mut self);
     fn jump_relative(&mut self, data1: u8);
     fn shift_register_left(&mut self, register1: Register8080);
     fn rotate_register_left_through_carry(&mut self, register1: Register8080);
     fn add_immediate_to_sp(&mut self, data1: u8);
+    fn set_carry(&mut self);
     fn store_sp_direct(&mut self, address1: u16);
+    fn rotate_register_left(&mut self, register1: Register8080);
     fn rotate_accumulator_left_through_carry(&mut self);
+    fn double_add(&mut self, register1: Register8080);
     fn rotate_accumulator_right(&mut self);
     fn store_accumulator_direct_two_bytes(&mut self, address1: u16);
     fn move_and_increment_hl(&mut self, register1: Register8080, register2: Register8080);
@@ -36,7 +40,7 @@ pub trait InstructionSetLR35902 {
     fn swap_register(&mut self, register1: Register8080);
     fn jump_relative_if_not_zero(&mut self, data1: u8);
     fn jump_relative_if_carry(&mut self, data1: u8);
-    fn rotate_register_left(&mut self, register1: Register8080);
+    fn complement_carry(&mut self);
     fn rotate_accumulator_left(&mut self);
     fn load_accumulator_direct(&mut self, address1: u16);
     fn test_bit(&mut self, implicit_data1: u8, register2: Register8080);
@@ -52,19 +56,24 @@ pub fn dispatch_lr35902_instruction<I: InstructionSetLR35902>(
     match opcode {
         0x07 => machine.rotate_accumulator_left(),
         0x08 => machine.store_sp_direct(read_u16(&mut stream).unwrap()),
+        0x09 => machine.double_add(Register8080::B),
         0x0F => machine.rotate_accumulator_right(),
         0x17 => machine.rotate_accumulator_left_through_carry(),
         0x18 => machine.jump_relative(read_u8(&mut stream).unwrap()),
+        0x19 => machine.double_add(Register8080::D),
         0x1F => machine.rotate_accumulator_right_through_carry(),
         0x20 => machine.jump_relative_if_not_zero(read_u8(&mut stream).unwrap()),
         0x22 => machine.move_and_increment_hl(Register8080::M, Register8080::A),
         0x27 => machine.decimal_adjust_accumulator(),
         0x28 => machine.jump_relative_if_zero(read_u8(&mut stream).unwrap()),
         0x2A => machine.move_and_increment_hl(Register8080::A, Register8080::M),
+        0x2F => machine.complement_accumulator(),
         0x30 => machine.jump_relative_if_no_carry(read_u8(&mut stream).unwrap()),
         0x32 => machine.move_and_decrement_hl(Register8080::M, Register8080::A),
+        0x37 => machine.set_carry(),
         0x38 => machine.jump_relative_if_carry(read_u8(&mut stream).unwrap()),
         0x3A => machine.move_and_decrement_hl(Register8080::A, Register8080::M),
+        0x3F => machine.complement_carry(),
         0xD9 => machine.return_and_enable_interrupts(),
         0xE0 => machine.store_accumulator_direct_one_byte(read_u8(&mut stream).unwrap()),
         0xE8 => machine.add_immediate_to_sp(read_u8(&mut stream).unwrap()),
@@ -348,19 +357,24 @@ pub fn get_lr35902_instruction(
     let size = match read_u8(&mut stream).unwrap() {
         0x07 =>         1,
         0x08 =>         3,
+        0x09 =>         1,
         0x0F =>         1,
         0x17 =>         1,
         0x18 =>         2,
+        0x19 =>         1,
         0x1F =>         1,
         0x20 =>         2,
         0x22 =>         1,
         0x27 =>         1,
         0x28 =>         2,
         0x2A =>         1,
+        0x2F =>         1,
         0x30 =>         2,
         0x32 =>         1,
+        0x37 =>         1,
         0x38 =>         2,
         0x3A =>         1,
+        0x3F =>         1,
         0xD3 =>         return NotImplemented,
         0xD9 =>         1,
         0xDB =>         return NotImplemented,
@@ -666,6 +680,10 @@ impl<'a> InstructionSetLR35902 for InstructionPrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "STSP", data1);
     }
+    fn complement_accumulator(&mut self)
+    {
+        self.error = write!(self.stream_out, "{:04}", "CPL");
+    }
     fn jump_relative(&mut self, data1: u8)
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "JRN", data1);
@@ -682,13 +700,25 @@ impl<'a> InstructionSetLR35902 for InstructionPrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "ADDS", data1);
     }
+    fn set_carry(&mut self)
+    {
+        self.error = write!(self.stream_out, "{:04}", "SCF");
+    }
     fn store_sp_direct(&mut self, address1: u16)
     {
         self.error = write!(self.stream_out, "{:04} ${:02x}", "SSPD", address1);
     }
+    fn rotate_register_left(&mut self, register1: Register8080)
+    {
+        self.error = write!(self.stream_out, "{:04} {:?}", "RLC", register1);
+    }
     fn rotate_accumulator_left_through_carry(&mut self)
     {
         self.error = write!(self.stream_out, "{:04}", "RAL");
+    }
+    fn double_add(&mut self, register1: Register8080)
+    {
+        self.error = write!(self.stream_out, "{:04} {:?}", "DAD", register1);
     }
     fn rotate_accumulator_right(&mut self)
     {
@@ -758,9 +788,9 @@ impl<'a> InstructionSetLR35902 for InstructionPrinterLR35902<'a> {
     {
         self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
     }
-    fn rotate_register_left(&mut self, register1: Register8080)
+    fn complement_carry(&mut self)
     {
-        self.error = write!(self.stream_out, "{:04} {:?}", "RLC", register1);
+        self.error = write!(self.stream_out, "{:04}", "CCF");
     }
     fn rotate_accumulator_left(&mut self)
     {

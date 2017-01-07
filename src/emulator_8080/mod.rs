@@ -120,22 +120,6 @@ pub trait InstructionSetOps8080 {
         self.set_register(register, new_value);
     }
 
-    fn perform_addition_u16(&mut self, value_a: u16, value_b: u16, update_carry: bool) -> u16
-    {
-        let new_value = value_a.wrapping_add(value_b);
-        if update_carry {
-            self.set_flag(Flag8080::Carry, value_b > (0xFFFF - value_a));
-        };
-        return new_value;
-    }
-
-    fn add_to_register_pair(&mut self, register: Register8080, value: u16, update_carry: bool)
-    {
-        let old_value = self.read_register_pair(register);
-        let new_value = self.perform_addition_u16(old_value, value, update_carry);
-        self.set_register_pair(register, new_value);
-    }
-
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
     {
         value_b = value_b.twos_complement();
@@ -166,8 +150,7 @@ pub trait InstructionSetOps8080 {
     {
         let new_value = value_a.wrapping_sub(value_b);
         self.update_flags_for_new_value(new_value);
-        self.set_flag(Flag8080::AuxiliaryCarry, false);
-        self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+        self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > (value_a & 0x0F));
         return new_value;
     }
 
@@ -176,18 +159,6 @@ pub trait InstructionSetOps8080 {
         let old_value = self.read_register(register);
         let new_value = self.perform_subtraction(old_value, value);
         self.set_register(register, new_value);
-    }
-
-    fn perform_subtraction_u16(&mut self, value_a: u16, value_b: u16) -> u16
-    {
-        value_a.wrapping_sub(value_b)
-    }
-
-    fn subtract_from_register_pair(&mut self, register: Register8080, value: u16)
-    {
-        let old_value = self.read_register_pair(register);
-        let new_value = self.perform_subtraction_u16(old_value, value);
-        self.set_register_pair(register, new_value);
     }
 
     fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8
@@ -736,112 +707,6 @@ fn add_to_register_clears_carry_with_negative_numbers()
 }
 
 #[cfg(test)]
-fn add_to_register_pair_test(
-    e: &mut Emulator8080,
-    register: Register8080,
-    starting_value: u16,
-    delta: u16,
-    update_carry: bool)
-{
-    e.set_register_pair(register, starting_value);
-    e.add_to_register_pair(register, delta, update_carry);
-}
-
-#[test]
-fn add_to_register_pair_adds_under_a_byte()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    add_to_register_pair_test(&mut e, Register8080::B, 0xAABB, 0x0009, false /* update carry */);
-    assert_eq!(e.read_register_pair(Register8080::B), 0xAAC4);
-}
-
-#[test]
-fn add_to_register_pair_adds_over_a_byte()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    add_to_register_pair_test(&mut e, Register8080::B, 0xAABB, 0x0101, false /* update carry */);
-    assert_eq!(e.read_register_pair(Register8080::B), 0xABBC);
-}
-
-#[test]
-fn add_to_register_pair_adds_negative()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    add_to_register_pair_test(
-        &mut e, Register8080::B, 0xAAB9, 0x0003.twos_complement(), false /* update carry */);
-    assert_eq!(e.read_register_pair(Register8080::B), 0xAAB6);
-}
-
-#[test]
-fn add_to_register_pair_overflows()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    add_to_register_pair_test(&mut e, Register8080::B, 0xFFFF, 0x0001, false /* update carry */);
-    assert_eq!(e.read_register_pair(Register8080::B), 0x0000);
-}
-
-#[test]
-fn add_to_register_pair_doenst_update_carry()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    add_to_register_pair_test(
-        &mut e, Register8080::B, 0xFFFF, 0x0001.twos_complement(), false /* update carry */);
-    assert!(!e.read_flag(Flag8080::Carry));
-}
-
-#[test]
-fn add_to_register_pair_sets_carry()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    add_to_register_pair_test(
-        &mut e, Register8080::B, 0xFFFF, 0x0001.twos_complement(), true /* update carry */);
-    assert!(e.read_flag(Flag8080::Carry));
-}
-
-#[test]
-fn add_to_register_pair_clears_carry()
-{
-    let mut e = Emulator8080::new_for_test();
-
-    e.set_flag(Flag8080::Carry, true);
-    add_to_register_pair_test(&mut e, Register8080::B, 0x000F, 0x0001, true /* update carry */);
-    assert!(!e.read_flag(Flag8080::Carry));
-}
-
-#[cfg(test)]
-fn subtract_from_register_pair_test(
-    e: &mut Emulator8080,
-    register: Register8080,
-    starting_value: u16,
-    delta: u16)
-{
-    e.set_register_pair(register, starting_value);
-    e.subtract_from_register_pair(register, delta);
-}
-
-#[test]
-fn subtract_from_register_pair_subtracts()
-{
-    let mut e = Emulator8080::new_for_test();
-    subtract_from_register_pair_test(&mut e, Register8080::B, 0x000F, 0x0001);
-    assert_eq!(e.read_register_pair(Register8080::B), 0x000E);
-}
-
-#[test]
-fn subtract_from_register_pair_underflows()
-{
-    let mut e = Emulator8080::new_for_test();
-    subtract_from_register_pair_test(&mut e, Register8080::B, 0x0000, 0x0001);
-    assert_eq!(e.read_register_pair(Register8080::B), 0xFFFF);
-}
-
-#[cfg(test)]
 fn subtract_from_register_test(
     e: &mut Emulator8080,
     register: Register8080,
@@ -1220,16 +1085,22 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     }
     fn double_add(&mut self, register: Register8080)
     {
-        let pair_data = self.read_register_pair(register);
-        self.add_to_register_pair(Register8080::H, pair_data, true /* update carry */);
+        let value = self.read_register_pair(register);
+        let old_value = self.read_register_pair(Register8080::H);
+        let new_value = old_value.wrapping_add(value);
+        self.set_flag(Flag8080::Carry, value > (0xFFFF - old_value));
+        self.set_register_pair(Register8080::H, new_value);
     }
     fn increment_register_pair(&mut self, register: Register8080)
     {
-        self.add_to_register_pair(register, 1, false /* update carry */);
+        let old_value = self.read_register_pair(register);
+        let new_value = old_value.wrapping_add(1);
+        self.set_register_pair(register, new_value);
     }
     fn decrement_register_pair(&mut self, register: Register8080)
     {
-        self.subtract_from_register_pair(register, 1);
+        let old_value = self.read_register_pair(register);
+        self.set_register_pair(register, old_value.wrapping_sub(1));
     }
     fn exchange_registers(&mut self)
     {
@@ -1623,6 +1494,15 @@ fn decrement_register_or_memory_doesnt_update_carry()
     e.set_register(Register8080::B, 0x40);
     e.decrement_register_or_memory(Register8080::B);
     assert!(e.read_flag(Flag8080::Carry));
+}
+
+#[test]
+fn decrement_register_or_memory_updates_auxiliary_carry()
+{
+    let mut e = Emulator8080::new_for_test();
+    e.set_register(Register8080::B, 0x00);
+    e.decrement_register_or_memory(Register8080::B);
+    assert!(e.read_flag(Flag8080::AuxiliaryCarry));
 }
 
 #[test]

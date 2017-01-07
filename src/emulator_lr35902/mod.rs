@@ -172,19 +172,6 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
         return new_value;
     }
 
-    fn perform_addition_u16(&mut self, value_a: u16, value_b: u16, update_carry: bool) -> u16
-    {
-        let new_value = value_a.wrapping_add(value_b);
-
-        if update_carry {
-            self.set_flag(FlagLR35902::Carry, value_b > (0xFFFF - value_a));
-        }
-        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x00FF > 0x00FF - (value_a & 0x00FF));
-        self.set_flag(FlagLR35902::Subtract, false);
-
-        return new_value;
-    }
-
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
     {
         value_b = value_b.twos_complement();
@@ -209,7 +196,7 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
     {
         let new_value = value_a.wrapping_sub(value_b);
         self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > (value_a & 0x0F));
         self.set_flag(FlagLR35902::Subtract, true);
         return new_value;
     }
@@ -271,17 +258,153 @@ impl<'a> InstructionSetOps8080 for EmulatorLR35902<'a> {
     }
 }
 
+#[test]
+fn can_set_and_read_memory()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_memory(0x1122, 0x88);
+    assert_eq!(e.read_memory(0x1122), 0x88);
+}
+
+#[test]
+fn can_set_and_read_memory_16_bit()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_memory_u16(0x1122, 0x2233);
+    assert_eq!(e.read_memory_u16(0x1122), 0x2233);
+}
+
+#[test]
+fn can_set_and_read_regiser()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x45);
+    assert_eq!(e.read_register(Register8080::A), 0x45);
+}
+
+#[test]
+fn can_set_and_read_regiser_pair()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::B, 0x4523);
+    assert_eq!(e.read_register_pair(Register8080::B), 0x4523);
+}
+
+#[test]
+fn perform_addition()
+{
+    let mut e = EmulatorLR35902::new();
+    assert_eq!(e.perform_addition(0x33, 0x11, false /* update carry */), 0x44);
+}
+
+#[test]
+fn perform_addition_with_overflow()
+{
+    let mut e = EmulatorLR35902::new();
+    assert_eq!(e.perform_addition(0xF3, 0x11, false /* update carry */), 0x04);
+}
+
+#[test]
+fn perform_addition_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_addition(0xF3, 0x0D, false /* update carry */);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn perform_addition_sets_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_addition(0x0F, 0x01, false /* update carry */);
+    assert!(e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
+fn perform_addition_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.perform_addition(0x0D, 0x01, false /* update carry */);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn perform_addition_does_not_set_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_addition(0xFF, 0x01, false /* update carry */);
+    assert!(!e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
+fn perform_addition_clears_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Carry, true);
+    e.perform_addition(0xF1, 0x01, true /* update carry */);
+    assert!(!e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
+fn perform_addition_sets_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_addition(0xFF, 0x01, true /* update carry */);
+    assert!(e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
+fn perform_subtraction()
+{
+    let mut e = EmulatorLR35902::new();
+    assert_eq!(e.perform_subtraction(0x12, 0x11), 0x01);
+}
+
+#[test]
+fn perform_subtraction_with_underflow()
+{
+    let mut e = EmulatorLR35902::new();
+    assert_eq!(e.perform_subtraction(0x12, 0x13), 0xFF);
+}
+
+#[test]
+fn perform_subtraction_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_subtraction(0x12, 0x12);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn perform_subtraction_sets_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_subtraction(0x12, 0x04);
+    assert!(e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn perform_subtraction_sets_half_carry_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.perform_subtraction(0x03, 0x04);
+    assert!(e.read_flag(FlagLR35902::HalfCarry));
+}
+
 impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
     fn move_and_increment_hl(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         self.move_data(dest_register, src_register);
-        self.add_to_register_pair(Register8080::H, 1, false /* update_carry */);
+        let old_value = self.read_register_pair(Register8080::H);
+        self.set_register_pair(Register8080::H, old_value.wrapping_add(1));
     }
 
     fn move_and_decrement_hl(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         self.move_data(dest_register, src_register);
-        self.subtract_from_register_pair(Register8080::H, 1);
+        let old_value = self.read_register_pair(Register8080::H);
+        self.set_register_pair(Register8080::H, old_value.wrapping_sub(1));
     }
 
     fn store_accumulator_direct_two_bytes(&mut self, address: u16)
@@ -298,7 +421,29 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
 
     fn add_immediate_to_sp(&mut self, data: u8)
     {
-        self.add_to_register_pair(Register8080::SP, data as u16, true /* update_carry */);
+        let old_value = self.read_register_pair(Register8080::SP);
+        let value = data as u16;
+        let new_value = old_value.wrapping_add(value);
+
+        self.set_flag(FlagLR35902::Carry, value > (0xFFFF - old_value));
+        self.set_flag(FlagLR35902::HalfCarry, value & 0x00FF > 0x00FF - (old_value & 0x00FF));
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Zero, false);
+
+        self.set_register_pair(Register8080::SP, new_value);
+    }
+
+    fn double_add(&mut self, register: Register8080)
+    {
+        let value = self.read_register_pair(register);
+        let old_value = self.read_register_pair(Register8080::H);
+        let new_value = old_value.wrapping_add(value);
+
+        self.set_flag(FlagLR35902::Carry, value > (0xFFFF - old_value));
+        self.set_flag(FlagLR35902::HalfCarry, value & 0x00FF > 0x00FF - (old_value & 0x00FF));
+        self.set_flag(FlagLR35902::Subtract, false);
+
+        self.set_register_pair(Register8080::SP, new_value);
     }
 
     fn store_accumulator_direct_one_byte(&mut self, relative_address: u8)
@@ -391,28 +536,45 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
     fn shift_register_right_signed(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.set_register(register, ((value as i8) >> 1) as u8);
+        let new_value = ((value as i8) >> 1) as u8;
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
         self.set_flag(FlagLR35902::Carry, (value & 1) != 0);
     }
 
     fn shift_register_right(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.set_register(register, value >> 1);
+        let new_value = value >> 1;
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
         self.set_flag(FlagLR35902::Carry, (value & 1) != 0);
     }
 
     fn shift_register_left(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.set_register(register, value << 1);
+        let new_value = value << 1;
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
         self.set_flag(FlagLR35902::Carry, (value & (1u8 << 7)) != 0);
     }
 
     fn swap_register(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
-        self.set_register(register, (value << 4) | (value >> 4));
+        let new_value = (value << 4) | (value >> 4);
+        self.set_register(register, new_value);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+        self.set_flag(FlagLR35902::Carry, false);
     }
 
     fn rotate_register_right(&mut self, register: Register8080)
@@ -481,7 +643,29 @@ impl<'a> InstructionSetLR35902 for EmulatorLR35902<'a> {
 
     fn decimal_adjust_accumulator(&mut self)
     {
+        self.set_flag(FlagLR35902::HalfCarry, false);
         InstructionSet8080::decimal_adjust_accumulator(self);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+    }
+
+    fn complement_accumulator(&mut self)
+    {
+        InstructionSet8080::complement_accumulator(self);
+        self.set_flag(FlagLR35902::Subtract, true);
+        self.set_flag(FlagLR35902::HalfCarry, true);
+    }
+
+    fn set_carry(&mut self)
+    {
+        InstructionSet8080::set_carry(self);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+    }
+
+    fn complement_carry(&mut self)
+    {
+        InstructionSet8080::complement_carry(self);
+        self.set_flag(FlagLR35902::Subtract, false);
         self.set_flag(FlagLR35902::HalfCarry, false);
     }
 }
@@ -498,6 +682,15 @@ fn move_and_increment_hl()
 }
 
 #[test]
+fn move_and_increment_hl_overflows()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::H, 0xFFFF);
+    e.move_and_increment_hl(Register8080::A, Register8080::M);
+    assert_eq!(e.read_register_pair(Register8080::H), 0x0);
+}
+
+#[test]
 fn move_and_decrement_hl()
 {
     let mut e = EmulatorLR35902::new();
@@ -506,6 +699,15 @@ fn move_and_decrement_hl()
     e.move_and_decrement_hl(Register8080::A, Register8080::M);
     assert_eq!(e.read_register(Register8080::A), 0x99);
     assert_eq!(e.read_register_pair(Register8080::H), 0x1121);
+}
+
+#[test]
+fn move_and_decrement_hl_underflows()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::H, 0x0);
+    e.move_and_decrement_hl(Register8080::A, Register8080::M);
+    assert_eq!(e.read_register_pair(Register8080::H), 0xFFFF);
 }
 
 #[test]
@@ -573,7 +775,7 @@ fn double_add_updates_half_carry()
     let mut e = EmulatorLR35902::new();
     e.set_register_pair(Register8080::H, 0x00FF);
     e.set_register_pair(Register8080::B, 0x0001);
-    e.double_add(Register8080::B);
+    InstructionSetLR35902::double_add(&mut e, Register8080::B);
     assert!(e.read_flag(FlagLR35902::HalfCarry));
 }
 
@@ -583,7 +785,7 @@ fn double_add_does_not_update_half_carry()
     let mut e = EmulatorLR35902::new();
     e.set_register_pair(Register8080::H, 0x000F);
     e.set_register_pair(Register8080::B, 0x0001);
-    e.double_add(Register8080::B);
+    InstructionSetLR35902::double_add(&mut e, Register8080::B);
     assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
@@ -741,6 +943,33 @@ fn shift_register_right_signed()
 }
 
 #[test]
+fn shift_register_right_signed_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.shift_register_right_signed(Register8080::A);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn shift_register_right_signed_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.shift_register_right_signed(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn shift_register_right_signed_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    e.shift_register_right_signed(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
 fn shift_register_right()
 {
     let mut e = EmulatorLR35902::new();
@@ -748,6 +977,33 @@ fn shift_register_right()
     e.shift_register_right(Register8080::A);
     assert_eq!(e.read_register(Register8080::A), 0b01011101);
     assert!(e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
+fn shift_register_right_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.shift_register_right(Register8080::A);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn shift_register_right_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.shift_register_right(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn shift_register_right_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    e.shift_register_right(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
 #[test]
@@ -761,12 +1017,66 @@ fn shift_register_left()
 }
 
 #[test]
+fn shift_register_left_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.shift_register_left(Register8080::A);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn shift_register_left_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.shift_register_left(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn shift_register_left_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    e.shift_register_left(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
 fn swap_register()
 {
     let mut e = EmulatorLR35902::new();
     e.set_register(Register8080::A, 0xF8);
     e.swap_register(Register8080::A);
     assert_eq!(e.read_register(Register8080::A), 0x8F);
+}
+
+#[test]
+fn swap_register_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.swap_register(Register8080::A);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn swap_register_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.swap_register(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn swap_register_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    e.swap_register(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
 #[test]
@@ -780,6 +1090,33 @@ fn rotate_register_right()
 }
 
 #[test]
+fn rotate_register_right_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.rotate_register_right(Register8080::A);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn rotate_register_right_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.rotate_register_right(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn rotate_register_right_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    e.rotate_register_right(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
 fn rotate_register_left()
 {
     let mut e = EmulatorLR35902::new();
@@ -787,6 +1124,33 @@ fn rotate_register_left()
     e.rotate_register_left(Register8080::A);
     assert_eq!(e.read_register(Register8080::A), 0b01110111);
     assert!(e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
+fn rotate_register_left_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.rotate_register_left(Register8080::A);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn rotate_register_left_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.rotate_register_left(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn rotate_register_left_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    e.rotate_register_left(Register8080::A);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
 #[test]
@@ -801,7 +1165,7 @@ fn rotate_register_right_through_carry()
 }
 
 #[test]
-fn rotate_register_right_through_carry_clears_subtract()
+fn rotate_register_right_through_carry_clears_subtract_flag()
 {
     let mut e = EmulatorLR35902::new();
     e.set_flag(FlagLR35902::Subtract, true);
@@ -832,7 +1196,7 @@ fn rotate_register_left_through_carry()
 }
 
 #[test]
-fn rotate_register_left_through_carry_clears_subtract()
+fn rotate_register_left_through_carry_clears_subtract_flag()
 {
     let mut e = EmulatorLR35902::new();
     e.set_flag(FlagLR35902::Subtract, true);
@@ -1049,6 +1413,111 @@ fn decimal_adjust_accumulator_clears_half_carry()
     e.set_flag(FlagLR35902::HalfCarry, true);
     e.set_register(Register8080::A, 0x88);
     InstructionSetLR35902::decimal_adjust_accumulator(&mut e);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
+fn and_immediate_with_accumulator_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.and_immediate_with_accumulator(0x0);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn and_immediate_with_accumulator_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.and_immediate_with_accumulator(0x12);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn exclusive_or_immediate_with_accumulator_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.exclusive_or_immediate_with_accumulator(0x0);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn exclusive_or_immediate_with_accumulator_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.exclusive_or_immediate_with_accumulator(0x12);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn or_immediate_with_accumulator_sets_zero_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x0);
+    e.or_immediate_with_accumulator(0x0);
+    assert!(e.read_flag(FlagLR35902::Zero));
+}
+
+#[test]
+fn or_immediate_with_accumulator_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    e.or_immediate_with_accumulator(0x12);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn complement_accumulator_sets_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    InstructionSetLR35902::complement_accumulator(&mut e);
+    assert!(e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn complement_accumulator_sets_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    InstructionSetLR35902::complement_accumulator(&mut e);
+    assert!(e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
+fn set_carry_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    InstructionSetLR35902::set_carry(&mut e);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn set_carry_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    InstructionSetLR35902::set_carry(&mut e);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+}
+
+#[test]
+fn complement_carry_clears_subtract_flag()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::Subtract, true);
+    InstructionSetLR35902::complement_carry(&mut e);
+    assert!(!e.read_flag(FlagLR35902::Subtract));
+}
+
+#[test]
+fn complement_carry_clears_half_carry()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_flag(FlagLR35902::HalfCarry, true);
+    InstructionSetLR35902::complement_carry(&mut e);
     assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
