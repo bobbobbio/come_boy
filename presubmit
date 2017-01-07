@@ -14,5 +14,5 @@ $( dirname $0 )/pytest
 # Generate any generated code
 $( dirname $0 )/code_gen
 
-cargo build
-cargo test
+cargo build --release
+cargo test --release
