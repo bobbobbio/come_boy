@@ -64,7 +64,7 @@ struct EmulatorLR35902 {
     pc_trail: VecDeque<u16>
 }
 
-impl<'a> EmulatorLR35902 {
+impl EmulatorLR35902 {
     fn new() -> EmulatorLR35902
     {
         return EmulatorLR35902 {
@@ -76,13 +76,6 @@ impl<'a> EmulatorLR35902 {
             memory_changed: HashSet::new(),
             pc_trail: VecDeque::new()
         };
-    }
-
-    fn load_rom(&mut self, rom: &[u8])
-    {
-        self.main_memory[0..rom.len()].clone_from_slice(rom);
-        self.set_register_pair(Register8080::SP, 0xFFFE);
-        self.set_program_counter(ROM_ADDRESS as u16);
     }
 
     fn set_flag(&mut self, flag: FlagLR35902, value: bool)
@@ -99,13 +92,6 @@ impl<'a> EmulatorLR35902 {
         self.registers[Register8080::FLAGS as usize] & flag as u8 == flag as u8
     }
 
-    fn get_relative_address(&self, n: u8) -> u16
-    {
-        self.read_program_counter().wrapping_add(((n as i8) as i16) as u16)
-    }
-}
-
-impl InstructionSetOps8080 for EmulatorLR35902 {
     fn read_memory(&self, address: u16) -> u8
     {
         self.main_memory[address as usize]
@@ -120,7 +106,7 @@ impl InstructionSetOps8080 for EmulatorLR35902 {
     fn read_memory_u16(&self, address: u16) -> u16
     {
         if address == 0xFFFF {
-            return self.read_memory(address) as u16;
+            return self.main_memory[address as usize] as u16;
         }
 
         let main_memory: &u16;
@@ -134,7 +120,7 @@ impl InstructionSetOps8080 for EmulatorLR35902 {
     fn set_memory_u16(&mut self, address: u16, value: u16)
     {
         if address == 0xFFFF {
-            return self.set_memory(address, (value >> 8) as u8);
+            return self.main_memory[address as usize] = (value >> 8) as u8;
         }
 
         let main_memory: &mut u16;
@@ -147,24 +133,78 @@ impl InstructionSetOps8080 for EmulatorLR35902 {
         self.memory_changed.insert(address.wrapping_add(1));
     }
 
-    fn set_flag(&mut self, flag: Flag8080, value: bool)
+    fn read_program_counter(&self) -> u16
     {
-        match flag {
-            Flag8080::Zero =>           self.set_flag(FlagLR35902::Zero, value),
-            Flag8080::AuxiliaryCarry => self.set_flag(FlagLR35902::HalfCarry, value),
-            Flag8080::Carry =>          self.set_flag(FlagLR35902::Carry, value),
-            _ => {}
-        };
+        self.program_counter
     }
 
-    fn read_flag(&self, flag: Flag8080) -> bool
+    fn set_program_counter(&mut self, address: u16)
     {
-        match flag {
-            Flag8080::Zero =>           self.read_flag(FlagLR35902::Zero),
-            Flag8080::AuxiliaryCarry => self.read_flag(FlagLR35902::HalfCarry),
-            Flag8080::Carry =>          self.read_flag(FlagLR35902::Carry),
-            flag =>                     panic!("LR35902 doesn't know about {:?}", flag)
+        let pc = self.program_counter;
+        self.pc_trail.push_front(pc);
+        if self.pc_trail.len() > 5 {
+            self.pc_trail.pop_back();
         }
+
+        self.program_counter = address;
+    }
+
+    fn get_interrupts_enabled(&self) -> bool
+    {
+        self.interrupts_enabled
+    }
+}
+
+pub trait InstructionSetOpsLR35902 {
+    fn set_flag(&mut self, flag: FlagLR35902, value: bool);
+    fn read_flag(&self, flag: FlagLR35902) -> bool;
+    fn read_memory(&self, address: u16) -> u8;
+    fn set_memory(&mut self, address: u16, value: u8);
+    fn read_memory_u16(&self, address: u16) -> u16;
+    fn set_memory_u16(&mut self, address: u16, value: u16);
+    fn read_raw_register(&self, index: usize) -> u8;
+    fn set_raw_register(&mut self, index: usize, value: u8);
+    fn read_raw_register_pair(&self, index: usize) -> u16;
+    fn set_raw_register_pair(&mut self, index: usize, value: u16);
+    fn read_program_counter(&self) -> u16;
+    fn set_program_counter(&mut self, address: u16);
+    fn set_interrupts_enabled(&mut self, value: bool);
+    fn get_interrupts_enabled(&self) -> bool;
+    fn get_relative_address(&self, n: u8) -> u16
+    {
+        self.read_program_counter().wrapping_add(((n as i8) as i16) as u16)
+    }
+}
+
+impl InstructionSetOpsLR35902 for EmulatorLR35902 {
+    fn set_flag(&mut self, flag: FlagLR35902, value: bool)
+    {
+        self.set_flag(flag, value);
+    }
+
+    fn read_flag(&self, flag: FlagLR35902) -> bool
+    {
+        self.read_flag(flag)
+    }
+
+    fn read_memory(&self, address: u16) -> u8
+    {
+        self.read_memory(address)
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8)
+    {
+        self.set_memory(address, value);
+    }
+
+    fn read_memory_u16(&self, address: u16) -> u16
+    {
+        self.read_memory_u16(address)
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        self.set_memory_u16(address, value);
     }
 
     fn read_raw_register(&self, index: usize) -> u8
@@ -194,6 +234,88 @@ impl InstructionSetOps8080 for EmulatorLR35902 {
              register_pairs = mem::transmute(&mut self.registers);
         }
         register_pairs[index] = value;
+    }
+
+    fn read_program_counter(&self) -> u16
+    {
+        self.read_program_counter()
+    }
+
+    fn set_program_counter(&mut self, address: u16)
+    {
+        self.set_program_counter(address);
+    }
+
+    fn set_interrupts_enabled(&mut self, value: bool)
+    {
+        self.interrupts_enabled = value;
+    }
+
+    fn get_interrupts_enabled(&self) -> bool
+    {
+        self.get_interrupts_enabled()
+    }
+}
+
+impl<I: InstructionSetOpsLR35902> InstructionSetOps8080 for I {
+    fn read_memory(&self, address: u16) -> u8
+    {
+        self.read_memory(address)
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8)
+    {
+        self.set_memory(address, value);
+    }
+
+    fn read_memory_u16(&self, address: u16) -> u16
+    {
+        self.read_memory_u16(address)
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        self.set_memory_u16(address, value);
+    }
+
+    fn set_flag(&mut self, flag: Flag8080, value: bool)
+    {
+        match flag {
+            Flag8080::Zero =>           self.set_flag(FlagLR35902::Zero, value),
+            Flag8080::AuxiliaryCarry => self.set_flag(FlagLR35902::HalfCarry, value),
+            Flag8080::Carry =>          self.set_flag(FlagLR35902::Carry, value),
+            _ => {}
+        };
+    }
+
+    fn read_flag(&self, flag: Flag8080) -> bool
+    {
+        match flag {
+            Flag8080::Zero =>           self.read_flag(FlagLR35902::Zero),
+            Flag8080::AuxiliaryCarry => self.read_flag(FlagLR35902::HalfCarry),
+            Flag8080::Carry =>          self.read_flag(FlagLR35902::Carry),
+            flag =>                     panic!("LR35902 doesn't know about {:?}", flag)
+        }
+    }
+
+    fn read_raw_register(&self, index: usize) -> u8
+    {
+        self.read_raw_register(index)
+    }
+
+    fn set_raw_register(&mut self, index: usize, value: u8)
+    {
+        self.set_raw_register(index, value);
+    }
+
+    fn read_raw_register_pair(&self, index: usize) -> u16
+    {
+        self.read_raw_register_pair(index)
+    }
+
+    fn set_raw_register_pair(&mut self, index: usize, value: u16)
+    {
+        self.set_raw_register_pair(index, value);
     }
 
     fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
@@ -271,28 +393,22 @@ impl InstructionSetOps8080 for EmulatorLR35902 {
 
     fn read_program_counter(&self) -> u16
     {
-        self.program_counter
+        self.read_program_counter()
     }
 
     fn set_program_counter(&mut self, address: u16)
     {
-        let pc = self.read_program_counter();
-        self.pc_trail.push_front(pc);
-        if self.pc_trail.len() > 5 {
-            self.pc_trail.pop_back();
-        }
-
-        self.program_counter = address;
+        self.set_program_counter(address);
     }
 
     fn set_interrupts_enabled(&mut self, value: bool)
     {
-        self.interrupts_enabled = value;
+        self.set_interrupts_enabled(value);
     }
 
     fn get_interrupts_enabled(&self) -> bool
     {
-        self.interrupts_enabled
+        self.get_interrupts_enabled()
     }
 }
 
@@ -430,7 +546,7 @@ fn perform_subtraction_sets_half_carry_flag()
     assert!(e.read_flag(FlagLR35902::HalfCarry));
 }
 
-impl<'a> InstructionSetLR35902 for EmulatorLR35902 {
+impl<I: InstructionSetOpsLR35902> InstructionSetLR35902 for I {
     fn move_and_increment_hl(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         self.move_data(dest_register, src_register);
@@ -1559,7 +1675,7 @@ fn complement_carry_clears_half_carry()
     assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
-impl<'a> fmt::Debug for EmulatorLR35902 {
+impl fmt::Debug for EmulatorLR35902 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         try!(writeln!(f, "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
@@ -1595,6 +1711,13 @@ impl<'a> fmt::Debug for EmulatorLR35902 {
 }
 
 impl EmulatorLR35902 {
+    fn load_rom(&mut self, rom: &[u8])
+    {
+        self.main_memory[0..rom.len()].clone_from_slice(rom);
+        self.set_register_pair(Register8080::SP, 0xFFFE);
+        self.set_program_counter(ROM_ADDRESS as u16);
+    }
+
     fn crash(&mut self, message: String)
     {
         self.crash_message = Some(message);
@@ -1687,7 +1810,7 @@ fn emulator_crashes_on_unkown_opcode()
 impl DebuggerOps for EmulatorLR35902 {
     fn read_address(&self, address: u16) -> u8
     {
-        self.read_memory(address)
+        self.main_memory[address as usize]
     }
 
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()>
