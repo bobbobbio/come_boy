@@ -174,6 +174,15 @@ impl EmulatorLR35902 {
     }
 }
 
+/*
+ *   ___
+ *  / _ \ _ __  ___
+ * | | | | '_ \/ __|
+ * | |_| | |_) \__ \
+ *  \___/| .__/|___/
+ *       |_|
+ */
+
 pub trait InstructionSetOpsLR35902 {
     fn set_flag(&mut self, flag: FlagLR35902, value: bool);
     fn read_flag(&self, flag: FlagLR35902) -> bool;
@@ -192,6 +201,79 @@ pub trait InstructionSetOpsLR35902 {
     fn get_relative_address(&self, n: u8) -> u16
     {
         self.read_program_counter().wrapping_add(((n as i8) as i16) as u16)
+    }
+
+    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
+    {
+        let new_value = value_a.wrapping_add(value_b);
+
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        if update_carry {
+            self.set_flag(FlagLR35902::Carry, value_b > 0xFF - value_a);
+        }
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+        self.set_flag(FlagLR35902::Subtract, false);
+
+        return new_value;
+    }
+
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
+    {
+        value_b = value_b.twos_complement();
+        let new_value = value_a.wrapping_add(value_b);
+
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, true);
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+
+        /*
+         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
+         * the result is positive.  If the Carry bit is set, the result is negative and present in
+         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
+         * "borrow."
+         */
+        self.set_flag(FlagLR35902::Carry, new_value & 0b10000000 != 0);
+
+        return new_value;
+    }
+
+    fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a.wrapping_sub(value_b);
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > (value_a & 0x0F));
+        self.set_flag(FlagLR35902::Subtract, true);
+        return new_value;
+    }
+
+    fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a & value_b;
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Carry, false);
+        self.set_flag(FlagLR35902::HalfCarry, true);
+        return new_value;
+    }
+
+    fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a ^ value_b;
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Carry, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+        return new_value;
+    }
+
+    fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8
+    {
+        let new_value = value_a | value_b;
+        self.set_flag(FlagLR35902::Zero, new_value == 0);
+        self.set_flag(FlagLR35902::Subtract, false);
+        self.set_flag(FlagLR35902::Carry, false);
+        self.set_flag(FlagLR35902::HalfCarry, false);
+        return new_value;
     }
 }
 
@@ -267,7 +349,20 @@ impl InstructionSetOpsLR35902 for EmulatorLR35902 {
     }
 }
 
+/*
+ *   ___   ___   ___   ___    _          _     ____  _________  ___   ___ ____
+ *  ( _ ) / _ \ ( _ ) / _ \  | |_ ___   | |   |  _ \|___ / ___|/ _ \ / _ \___ \
+ *  / _ \| | | |/ _ \| | | | | __/ _ \  | |   | |_) | |_ \___ \ (_) | | | |__) |
+ * | (_) | |_| | (_) | |_| | | || (_) | | |___|  _ < ___) |__) \__, | |_| / __/
+ *  \___/ \___/ \___/ \___/   \__\___/  |_____|_| \_\____/____/  /_/ \___/_____|
+ *
+ */
+
 impl<I: InstructionSetOpsLR35902> InstructionSetOps8080 for I {
+    /*
+     * Implementing this trait is the translation layer that allows 8080 instructions to be run on
+     * the LR35902.
+     */
     fn read_memory(&self, address: u16) -> u8
     {
         self.read_memory(address)
@@ -330,75 +425,32 @@ impl<I: InstructionSetOpsLR35902> InstructionSetOps8080 for I {
 
     fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
     {
-        let new_value = value_a.wrapping_add(value_b);
-
-        self.set_flag(FlagLR35902::Zero, new_value == 0);
-        if update_carry {
-            self.set_flag(FlagLR35902::Carry, value_b > 0xFF - value_a);
-        }
-        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
-        self.set_flag(FlagLR35902::Subtract, false);
-
-        return new_value;
+        self.perform_addition(value_a, value_b, update_carry)
     }
 
-    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, value_b: u8) -> u8
     {
-        value_b = value_b.twos_complement();
-        let new_value = value_a.wrapping_add(value_b);
-
-        self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::Subtract, true);
-        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
-
-        /*
-         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
-         * the result is positive.  If the Carry bit is set, the result is negative and present in
-         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
-         * "borrow."
-         */
-        self.set_flag(FlagLR35902::Carry, new_value & 0b10000000 != 0);
-
-        return new_value;
+        self.perform_subtraction_using_twos_complement(value_a, value_b)
     }
 
     fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8
     {
-        let new_value = value_a.wrapping_sub(value_b);
-        self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F > (value_a & 0x0F));
-        self.set_flag(FlagLR35902::Subtract, true);
-        return new_value;
+        self.perform_subtraction(value_a, value_b)
     }
 
     fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8
     {
-        let new_value = value_a & value_b;
-        self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::Subtract, false);
-        self.set_flag(FlagLR35902::Carry, false);
-        self.set_flag(FlagLR35902::HalfCarry, true);
-        return new_value;
+        self.perform_and(value_a, value_b)
     }
 
     fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8
     {
-        let new_value = value_a ^ value_b;
-        self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::Subtract, false);
-        self.set_flag(FlagLR35902::Carry, false);
-        self.set_flag(FlagLR35902::HalfCarry, false);
-        return new_value;
+        self.perform_exclusive_or(value_a, value_b)
     }
 
     fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8
     {
-        let new_value = value_a | value_b;
-        self.set_flag(FlagLR35902::Zero, new_value == 0);
-        self.set_flag(FlagLR35902::Subtract, false);
-        self.set_flag(FlagLR35902::Carry, false);
-        self.set_flag(FlagLR35902::HalfCarry, false);
-        return new_value;
+        self.perform_or(value_a, value_b)
     }
 
     fn read_program_counter(&self) -> u16
@@ -421,6 +473,16 @@ impl<I: InstructionSetOpsLR35902> InstructionSetOps8080 for I {
         self.get_interrupts_enabled()
     }
 }
+
+/*
+ *   ___              _____         _
+ *  / _ \ _ __  ___  |_   _|__  ___| |_ ___
+ * | | | | '_ \/ __|   | |/ _ \/ __| __/ __|
+ * | |_| | |_) \__ \   | |  __/\__ \ |_\__ \
+ *  \___/| .__/|___/   |_|\___||___/\__|___/
+ *       |_|
+ *
+ */
 
 #[test]
 fn can_set_and_read_memory()
@@ -457,21 +519,21 @@ fn can_set_and_read_regiser_pair()
 #[test]
 fn perform_addition()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     assert_eq!(e.perform_addition(0x33, 0x11, false /* update carry */), 0x44);
 }
 
 #[test]
 fn perform_addition_with_overflow()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     assert_eq!(e.perform_addition(0xF3, 0x11, false /* update carry */), 0x04);
 }
 
 #[test]
 fn perform_addition_sets_zero_flag()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_addition(0xF3, 0x0D, false /* update carry */);
     assert!(e.read_flag(FlagLR35902::Zero));
 }
@@ -479,7 +541,7 @@ fn perform_addition_sets_zero_flag()
 #[test]
 fn perform_addition_sets_half_carry()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_addition(0x0F, 0x01, false /* update carry */);
     assert!(e.read_flag(FlagLR35902::HalfCarry));
 }
@@ -487,7 +549,7 @@ fn perform_addition_sets_half_carry()
 #[test]
 fn perform_addition_clears_subtract_flag()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.set_flag(FlagLR35902::Subtract, true);
     e.perform_addition(0x0D, 0x01, false /* update carry */);
     assert!(!e.read_flag(FlagLR35902::Subtract));
@@ -496,7 +558,7 @@ fn perform_addition_clears_subtract_flag()
 #[test]
 fn perform_addition_does_not_set_carry()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_addition(0xFF, 0x01, false /* update carry */);
     assert!(!e.read_flag(FlagLR35902::Carry));
 }
@@ -504,7 +566,7 @@ fn perform_addition_does_not_set_carry()
 #[test]
 fn perform_addition_clears_carry()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.set_flag(FlagLR35902::Carry, true);
     e.perform_addition(0xF1, 0x01, true /* update carry */);
     assert!(!e.read_flag(FlagLR35902::Carry));
@@ -513,7 +575,7 @@ fn perform_addition_clears_carry()
 #[test]
 fn perform_addition_sets_carry()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_addition(0xFF, 0x01, true /* update carry */);
     assert!(e.read_flag(FlagLR35902::Carry));
 }
@@ -521,21 +583,21 @@ fn perform_addition_sets_carry()
 #[test]
 fn perform_subtraction()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     assert_eq!(e.perform_subtraction(0x12, 0x11), 0x01);
 }
 
 #[test]
 fn perform_subtraction_with_underflow()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     assert_eq!(e.perform_subtraction(0x12, 0x13), 0xFF);
 }
 
 #[test]
 fn perform_subtraction_sets_zero_flag()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_subtraction(0x12, 0x12);
     assert!(e.read_flag(FlagLR35902::Zero));
 }
@@ -543,7 +605,7 @@ fn perform_subtraction_sets_zero_flag()
 #[test]
 fn perform_subtraction_sets_subtract_flag()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_subtraction(0x12, 0x04);
     assert!(e.read_flag(FlagLR35902::Subtract));
 }
@@ -551,10 +613,19 @@ fn perform_subtraction_sets_subtract_flag()
 #[test]
 fn perform_subtraction_sets_half_carry_flag()
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e: &mut InstructionSetOpsLR35902 = &mut EmulatorLR35902::new();
     e.perform_subtraction(0x03, 0x04);
     assert!(e.read_flag(FlagLR35902::HalfCarry));
 }
+
+/*
+ *  ___           _                   _   _
+ * |_ _|_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __  ___
+ *  | || '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \/ __|
+ *  | || | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | \__ \
+ * |___|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|___/
+ *
+ */
 
 impl<I: InstructionSetOpsLR35902> InstructionSetLR35902 for I {
     fn move_and_increment_hl(&mut self, dest_register: Register8080, src_register: Register8080)
@@ -833,6 +904,15 @@ impl<I: InstructionSetOpsLR35902> InstructionSetLR35902 for I {
         self.set_flag(FlagLR35902::HalfCarry, false);
     }
 }
+
+/*
+ *  ___           _                   _   _               _____         _
+ * |_ _|_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __   |_   _|__  ___| |_ ___
+ *  | || '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \    | |/ _ \/ __| __/ __|
+ *  | || | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | |   | |  __/\__ \ |_\__ \
+ * |___|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|   |_|\___||___/\__|___/
+ *
+ */
 
 #[test]
 fn move_and_increment_hl()
@@ -1685,38 +1765,14 @@ fn complement_carry_clears_half_carry()
     assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
-impl fmt::Debug for EmulatorLR35902 {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
-    {
-        try!(writeln!(f, "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
-            self.read_register(Register8080::B),
-            self.read_register(Register8080::C),
-            self.read_register(Register8080::D),
-            self.read_register(Register8080::E),
-            self.read_register(Register8080::H),
-            self.read_register(Register8080::L),
-            self.read_register(Register8080::A)));
-        try!(writeln!(f, "Zero: {}, Subtract: {}, HalfCarry: {}, Carry: {}",
-            self.read_flag(FlagLR35902::Zero),
-            self.read_flag(FlagLR35902::Subtract),
-            self.read_flag(FlagLR35902::HalfCarry),
-            self.read_flag(FlagLR35902::Carry)));
-        try!(writeln!(f, "PC: {:x}, SP: {:x}, M: {:x}",
-            self.read_program_counter(),
-            self.read_register_pair(Register8080::SP),
-            self.read_register(Register8080::M)));
-
-        let mut buffer = vec![];
-        {
-            let mut dis = create_disassembler(&self.main_memory, &mut buffer);
-            dis.index = self.read_program_counter() as u64;
-            dis.disassemble_one().unwrap();
-        }
-        try!(write!(f, "{}", str::from_utf8(&buffer).unwrap()));
-
-        Ok(())
-    }
-}
+/*
+ *  _____                     _   _
+ * | ____|_  _____  ___ _   _| |_(_) ___  _ __
+ * |  _| \ \/ / _ \/ __| | | | __| |/ _ \| '_ \
+ * | |___ >  <  __/ (__| |_| | |_| | (_) | | | |
+ * |_____/_/\_\___|\___|\__,_|\__|_|\___/|_| |_|
+ *
+ */
 
 impl EmulatorLR35902 {
     fn load_rom(&mut self, rom: &[u8])
@@ -1730,10 +1786,12 @@ impl EmulatorLR35902 {
     {
         self.crash_message = Some(message);
     }
+
     fn crashed(&self) -> bool
     {
         self.crash_message.is_some()
     }
+
     fn run_lr35902_instruction(&mut self, instruction: &[u8])
     {
         let pc = self.read_program_counter() as usize;
@@ -1899,6 +1957,39 @@ impl<'a> InstructionSetOpsLR35902 for SimulatedInstructionLR35902<'a> {
     }
 }
 
+impl fmt::Debug for EmulatorLR35902 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
+    {
+        try!(writeln!(f, "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
+            self.read_register(Register8080::B),
+            self.read_register(Register8080::C),
+            self.read_register(Register8080::D),
+            self.read_register(Register8080::E),
+            self.read_register(Register8080::H),
+            self.read_register(Register8080::L),
+            self.read_register(Register8080::A)));
+        try!(writeln!(f, "Zero: {}, Subtract: {}, HalfCarry: {}, Carry: {}",
+            self.read_flag(FlagLR35902::Zero),
+            self.read_flag(FlagLR35902::Subtract),
+            self.read_flag(FlagLR35902::HalfCarry),
+            self.read_flag(FlagLR35902::Carry)));
+        try!(writeln!(f, "PC: {:x}, SP: {:x}, M: {:x}",
+            self.read_program_counter(),
+            self.read_register_pair(Register8080::SP),
+            self.read_register(Register8080::M)));
+
+        let mut buffer = vec![];
+        {
+            let mut dis = create_disassembler(&self.main_memory, &mut buffer);
+            dis.index = self.read_program_counter() as u64;
+            dis.disassemble_one().unwrap();
+        }
+        try!(write!(f, "{}", str::from_utf8(&buffer).unwrap()));
+
+        Ok(())
+    }
+}
+
 impl DebuggerOps for EmulatorLR35902 {
     fn read_memory(&self, address: u16) -> u8
     {
@@ -1969,12 +2060,14 @@ pub fn run_debugger(rom: &[u8])
     debugger.run();
 }
 
-/*  _     _                         _            _
- * | |__ | | __ _ _ __ __ _  __ _  | |_ ___  ___| |_   _ __ ___  _ __ ___  ___
- * | '_ \| |/ _` | '__/ _` |/ _` | | __/ _ \/ __| __| | '__/ _ \| '_ ` _ \/ __|
- * | |_) | | (_| | | | (_| | (_| | | ||  __/\__ \ |_  | | | (_) | | | | | \__ \
- * |_.__/|_|\__,_|_|  \__, |\__, |  \__\___||___/\__| |_|  \___/|_| |_| |_|___/
+/*
+ *  ____  _                         _____         _     ____   ___  __  __
+ * | __ )| | __ _ _ __ __ _  __ _  |_   _|__  ___| |_  |  _ \ / _ \|  \/  |___
+ * |  _ \| |/ _` | '__/ _` |/ _` |   | |/ _ \/ __| __| | |_) | | | | |\/| / __|
+ * | |_) | | (_| | | | (_| | (_| |   | |  __/\__ \ |_  |  _ <| |_| | |  | \__ \
+ * |____/|_|\__,_|_|  \__, |\__, |   |_|\___||___/\__| |_| \_\\___/|_|  |_|___/
  *                    |___/ |___/
+ *
  */
 
 #[cfg(test)]

@@ -439,9 +439,11 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
             None => ()
         }
     }
+
     fn set_interrupts_enabled(&mut self, state: bool) {
         self.interrupts_enabled = state;
     }
+
     fn get_interrupts_enabled(&self) -> bool {
         self.interrupts_enabled
     }
@@ -937,23 +939,28 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         let value = self.read_flag(Flag8080::Carry);
         self.set_flag(Flag8080::Carry, !value);
     }
+
     fn set_carry(&mut self)
     {
         self.set_flag(Flag8080::Carry, true);
     }
+
     fn increment_register_or_memory(&mut self, register: Register8080)
     {
         self.add_to_register(register, 1, false /* update carry */);
     }
+
     fn decrement_register_or_memory(&mut self, register: Register8080)
     {
         self.subtract_from_register(register, 1);
     }
+
     fn complement_accumulator(&mut self)
     {
         let old_value = self.read_register(Register8080::A);
         self.set_register(Register8080::A, !old_value);
     }
+
     fn decimal_adjust_accumulator(&mut self)
     {
         /* The eight-bit hexadecimal number in the accumulator is adjusted to form two four-bit
@@ -981,6 +988,7 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         }
         self.set_flag(Flag8080::AuxiliaryCarry, auxiliary_carry);
     }
+
     fn no_instruction(&mut self)
     {
         /*
@@ -1008,97 +1016,115 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
          *
          */
     }
+
     fn move_data(&mut self, dest_register: Register8080, src_register: Register8080)
     {
         let value = self.read_register(src_register);
         self.set_register(dest_register, value);
     }
+
     fn store_accumulator(&mut self, register_pair: Register8080)
     {
         let address = self.read_register_pair(register_pair);
         let value = self.read_register(Register8080::A);
         self.set_memory(address, value);
     }
+
     fn load_accumulator(&mut self, register_pair: Register8080)
     {
         let address = self.read_register_pair(register_pair);
         let value = self.read_memory(address);
         self.set_register(Register8080::A, value);
     }
+
     fn add_to_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.add_immediate_to_accumulator(value);
     }
+
     fn add_to_accumulator_with_carry(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.add_immediate_to_accumulator_with_carry(value);
     }
+
     fn subtract_from_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.subtract_immediate_from_accumulator(value);
     }
+
     fn subtract_from_accumulator_with_borrow(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.subtract_immediate_from_accumulator_with_borrow(value);
     }
+
     fn logical_and_with_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.and_immediate_with_accumulator(value);
     }
+
     fn logical_exclusive_or_with_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.exclusive_or_immediate_with_accumulator(value);
     }
+
     fn logical_or_with_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.or_immediate_with_accumulator(value);
     }
+
     fn compare_with_accumulator(&mut self, register: Register8080)
     {
         let value = self.read_register(register);
         self.compare_immediate_with_accumulator(value);
     }
+
     fn rotate_accumulator_left(&mut self)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_rotate_left(value);
         self.set_register(Register8080::A, new_value);
     }
+
     fn rotate_accumulator_right(&mut self)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_rotate_right(value);
         self.set_register(Register8080::A, new_value);
     }
+
     fn rotate_accumulator_left_through_carry(&mut self)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_rotate_left_through_carry(value);
         self.set_register(Register8080::A, new_value);
     }
+
     fn rotate_accumulator_right_through_carry(&mut self)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_rotate_right_through_carry(value);
         self.set_register(Register8080::A, new_value);
     }
+
     fn push_data_onto_stack(&mut self, register_pair: Register8080)
     {
         let pair_data = self.read_register_pair(register_pair);
         self.push_u16_onto_stack(pair_data);
     }
+
     fn pop_data_off_stack(&mut self, register_pair: Register8080)
     {
         let pair_data = self.pop_u16_off_stack();
         self.set_register_pair(register_pair, pair_data);
     }
+
     fn double_add(&mut self, register: Register8080)
     {
         let value = self.read_register_pair(register);
@@ -1107,17 +1133,20 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         self.set_flag(Flag8080::Carry, value > (0xFFFF - old_value));
         self.set_register_pair(Register8080::H, new_value);
     }
+
     fn increment_register_pair(&mut self, register: Register8080)
     {
         let old_value = self.read_register_pair(register);
         let new_value = old_value.wrapping_add(1);
         self.set_register_pair(register, new_value);
     }
+
     fn decrement_register_pair(&mut self, register: Register8080)
     {
         let old_value = self.read_register_pair(register);
         self.set_register_pair(register, old_value.wrapping_sub(1));
     }
+
     fn exchange_registers(&mut self)
     {
         let pair_h = self.read_register_pair(Register8080::H);
@@ -1125,6 +1154,7 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         self.set_register_pair(Register8080::H, pair_d);
         self.set_register_pair(Register8080::D, pair_h);
     }
+
     fn exchange_stack(&mut self)
     {
         let h_data = self.read_register(Register8080::H);
@@ -1138,23 +1168,28 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         self.set_register(Register8080::H, mem_1);
         self.set_register(Register8080::L, mem_2);
     }
+
     fn load_sp_from_h_and_l(&mut self)
     {
         let h_data = self.read_register_pair(Register8080::H);
         self.set_register_pair(Register8080::SP, h_data);
     }
+
     fn load_register_pair_immediate(&mut self, register: Register8080, data: u16)
     {
         self.set_register_pair(register, data);
     }
+
     fn move_immediate_data(&mut self, dest_register: Register8080, data: u8)
     {
         self.set_register(dest_register, data);
     }
+
     fn add_immediate_to_accumulator(&mut self, data: u8)
     {
         self.add_to_register(Register8080::A, data, true /* update_carry */);
     }
+
     fn add_immediate_to_accumulator_with_carry(&mut self, mut data: u8)
     {
         if self.read_flag(Flag8080::Carry) {
@@ -1162,10 +1197,12 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         }
         self.add_to_register(Register8080::A, data, true /* update_carry */);
     }
+
     fn subtract_immediate_from_accumulator(&mut self, data: u8)
     {
         self.subtract_from_register_using_twos_complement(Register8080::A, data);
     }
+
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, mut data: u8)
     {
         if self.read_flag(Flag8080::Carry) {
@@ -1173,24 +1210,28 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         }
         self.subtract_from_register_using_twos_complement(Register8080::A, data);
     }
+
     fn and_immediate_with_accumulator(&mut self, data: u8)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_and(value, data);
         self.set_register(Register8080::A, new_value);
     }
+
     fn exclusive_or_immediate_with_accumulator(&mut self, data: u8)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_exclusive_or(value, data);
         self.set_register(Register8080::A, new_value);
     }
+
     fn or_immediate_with_accumulator(&mut self, data: u8)
     {
         let value = self.read_register(Register8080::A);
         let new_value = self.perform_or(value, data);
         self.set_register(Register8080::A, new_value);
     }
+
     fn compare_immediate_with_accumulator(&mut self, data: u8)
     {
         let accumulator = self.read_register(Register8080::A);
@@ -1203,16 +1244,19 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
             self.set_flag(Flag8080::Carry, !value);
         }
     }
+
     fn store_accumulator_direct(&mut self, address: u16)
     {
         let value = self.read_register(Register8080::A);
         self.set_memory(address, value);
     }
+
     fn load_accumulator_direct(&mut self, address: u16)
     {
         let value = self.read_memory(address);
         self.set_register(Register8080::A, value);
     }
+
     fn store_h_and_l_direct(&mut self, address: u16)
     {
         let value_l = self.read_register(Register8080::L);
@@ -1220,6 +1264,7 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         self.set_memory(address, value_l);
         self.set_memory(address + 1, value_h);
     }
+
     fn load_h_and_l_direct(&mut self, address: u16)
     {
         let value1 = self.read_memory(address);
@@ -1227,164 +1272,192 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         self.set_register(Register8080::L, value1);
         self.set_register(Register8080::H, value2);
     }
+
     fn load_program_counter(&mut self)
     {
         let value = self.read_register_pair(Register8080::H);
         self.set_program_counter(value);
     }
+
     fn jump(&mut self, address: u16)
     {
         self.set_program_counter(address);
     }
+
     fn jump_if_carry(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Carry) {
             self.jump(address);
         }
     }
+
     fn jump_if_no_carry(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Carry) {
             self.jump(address);
         }
     }
+
     fn jump_if_zero(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Zero) {
             self.jump(address);
         }
     }
+
     fn jump_if_not_zero(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Zero) {
             self.jump(address);
         }
     }
+
     fn jump_if_minus(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Sign) {
             self.jump(address);
         }
     }
+
     fn jump_if_positive(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Sign) {
             self.jump(address);
         }
     }
+
     fn jump_if_parity_even(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Parity) {
             self.jump(address);
         }
     }
+
     fn jump_if_parity_odd(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Parity) {
             self.jump(address);
         }
     }
+
     fn call(&mut self, address: u16)
     {
         let pc = self.read_program_counter();
         self.push_u16_onto_stack(pc);
         self.jump(address);
     }
+
     fn call_if_carry(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Carry) {
             self.call(address);
         }
     }
+
     fn call_if_no_carry(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Carry) {
             self.call(address);
         }
     }
+
     fn call_if_zero(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Zero) {
             self.call(address);
         }
     }
+
     fn call_if_not_zero(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Zero) {
             self.call(address);
         }
     }
+
     fn call_if_minus(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Sign) {
             self.call(address);
         }
     }
+
     fn call_if_plus(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Sign) {
             self.call(address);
         }
     }
+
     fn call_if_parity_even(&mut self, address: u16)
     {
         if self.read_flag(Flag8080::Parity) {
             self.call(address);
         }
     }
+
     fn call_if_parity_odd(&mut self, address: u16)
     {
         if !self.read_flag(Flag8080::Parity) {
             self.call(address);
         }
     }
+
     fn return_unconditionally(&mut self)
     {
         let address = self.pop_u16_off_stack();
         self.set_program_counter(address);
     }
+
     fn return_if_carry(&mut self)
     {
         if self.read_flag(Flag8080::Carry) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_no_carry(&mut self)
     {
         if !self.read_flag(Flag8080::Carry) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_zero(&mut self)
     {
         if self.read_flag(Flag8080::Zero) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_not_zero(&mut self)
     {
         if !self.read_flag(Flag8080::Zero) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_minus(&mut self)
     {
         if self.read_flag(Flag8080::Sign) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_plus(&mut self)
     {
         if !self.read_flag(Flag8080::Sign) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_parity_even(&mut self)
     {
         if self.read_flag(Flag8080::Parity) {
             self.return_unconditionally();
         }
     }
+
     fn return_if_parity_odd(&mut self)
     {
         if !self.read_flag(Flag8080::Parity) {
@@ -1396,36 +1469,52 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     {
         panic!("Not Implemented")
     }
+
     fn disable_interrupts(&mut self)
     {
         self.set_interrupts_enabled(false);
     }
+
     fn enable_interrupts(&mut self)
     {
         self.set_interrupts_enabled(true);
     }
+
     fn input(&mut self, _data1: u8)
     {
         panic!("Not Implemented")
     }
+
     fn halt(&mut self)
     {
         panic!("Not Implemented")
     }
+
     fn restart(&mut self, implicit_data: u8)
     {
         assert!(implicit_data <= 7);
         self.call((implicit_data as u16) << 3);
     }
+
     fn output(&mut self, _data1: u8)
     {
         panic!("Not Implemented")
     }
+
     fn sim(&mut self)
     {
         panic!("Not Implemented")
     }
 }
+
+/*
+ *  ___           _                   _   _               _____         _
+ * |_ _|_ __  ___| |_ _ __ _   _  ___| |_(_) ___  _ __   |_   _|__  ___| |_ ___
+ *  | || '_ \/ __| __| '__| | | |/ __| __| |/ _ \| '_ \    | |/ _ \/ __| __/ __|
+ *  | || | | \__ \ |_| |  | |_| | (__| |_| | (_) | | | |   | |  __/\__ \ |_\__ \
+ * |___|_| |_|___/\__|_|   \__,_|\___|\__|_|\___/|_| |_|   |_|\___||___/\__|___/
+ *
+ */
 
 #[test]
 fn complement_carry_test_false_to_true()
@@ -2907,6 +2996,15 @@ fn enable_interrupts()
     assert!(e.interrupts_enabled);
 }
 
+/*
+ *  _____                     _   _
+ * | ____|_  _____  ___ _   _| |_(_) ___  _ __
+ * |  _| \ \/ / _ \/ __| | | | __| |/ _ \| '_ \
+ * | |___ >  <  __/ (__| |_| | |_| | (_) | | | |
+ * |_____/_/\_\___|\___|\__,_|\__|_|\___/|_| |_|
+ *
+ */
+
 impl<'a> Emulator8080<'a> {
     pub fn run_one_instruction(&mut self)
     {
@@ -2929,6 +3027,16 @@ impl<'a> Emulator8080<'a> {
         }
     }
 }
+
+/*
+ *  ____  _                             _   _        ____   ___  __  __
+ * |  _ \(_) __ _  __ _ _ __   ___  ___| |_(_) ___  |  _ \ / _ \|  \/  |
+ * | | | | |/ _` |/ _` | '_ \ / _ \/ __| __| |/ __| | |_) | | | | |\/| |
+ * | |_| | | (_| | (_| | | | | (_) \__ \ |_| | (__  |  _ <| |_| | |  | |
+ * |____/|_|\__,_|\__, |_| |_|\___/|___/\__|_|\___| |_| \_\\___/|_|  |_|
+ *                |___/
+ *
+ */
 
 #[cfg(test)]
 use std::fs::File;
