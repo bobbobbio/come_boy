@@ -146,7 +146,7 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
             0x1 => write!(self.stream_out, "TEST1").unwrap(),
             0x2 => write!(self.stream_out, "TEST2").unwrap(),
             0x3 => write!(self.stream_out, "TEST3").unwrap(),
-            _ => panic!("Unkown Opcode {}", stream[0])
+            _ => panic!("Unknown Opcode {}", stream[0])
         };
         Ok(())
     }
@@ -251,6 +251,7 @@ pub struct Debugger<'a> {
     last_command: String,
     breakpoint: Option<u16>,
     watchpoint: Option<u16>,
+    logging: bool,
     input: &'a mut io::BufRead,
     out: &'a mut io::Write
 }
@@ -267,6 +268,7 @@ impl<'a> Debugger<'a> {
             last_command: String::new(),
             breakpoint: None,
             watchpoint: None,
+            logging: false,
             input: input,
             out: out
         }
@@ -323,10 +325,18 @@ impl<'a> Debugger<'a> {
     fn run_emulator(&mut self)
     {
         self.emulator.next();
+        if self.logging {
+            self.state();
+        }
         while self.check_for_breakpoint_or_crash() {
             self.emulator.next();
+            if self.logging {
+                self.state();
+            }
         }
-        self.state();
+        if !self.logging {
+            self.state();
+        }
     }
 
     fn read_address(&mut self, iter: &mut str::SplitWhitespace) -> Option<u16>
@@ -346,6 +356,16 @@ impl<'a> Debugger<'a> {
                 }
             }
         }
+    }
+
+    fn enable_logging(&mut self)
+    {
+        self.logging = true;
+    }
+
+    fn disable_logging(&mut self)
+    {
+        self.logging = false;
     }
 
     fn dispatch_command(&mut self, command: &str)
@@ -372,6 +392,16 @@ impl<'a> Debugger<'a> {
                     None => {}
                 }
             },
+            "logging" => {
+                match iter.next() {
+                    Some("enable") => self.enable_logging(),
+                    Some("disable") => self.disable_logging(),
+                    _ => {
+                        writeln!(self.out, "Choices are 'enable' or 'disable'").unwrap();
+                        return;
+                    }
+                }
+            }
             "set" => {
                 match iter.next() {
                     Some("pc") => {},
@@ -686,6 +716,38 @@ fn debugger_can_set_current_address()
         (debugger) \
         (debugger) \
         TestDebuggerOps pc=45\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_can_enable_logging()
+{
+    run_debugger_test(
+        &["logging enable", "break 2", "run"], "\
+        (debugger) \
+        (debugger) \
+        (debugger) \
+        TestDebuggerOps pc=1\n\
+        TestDebuggerOps pc=2\n\
+        Hit breakpoint\n\
+        (debugger) \
+        exiting\n\
+    ");
+}
+
+#[test]
+fn debugger_can_disable_logging()
+{
+    run_debugger_test(
+        &["logging enable", "logging disable", "break 2", "run"], "\
+        (debugger) \
+        (debugger) \
+        (debugger) \
+        (debugger) \
+        Hit breakpoint\n\
+        TestDebuggerOps pc=2\n\
         (debugger) \
         exiting\n\
     ");

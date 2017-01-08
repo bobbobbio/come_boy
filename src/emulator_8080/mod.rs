@@ -7,7 +7,7 @@ use emulator_common::Register8080;
 use emulator_common::InstructionOption::*;
 pub use emulator_8080::opcodes::{disassemble_8080_rom, InstructionSet8080,
     dispatch_8080_instruction, get_8080_instruction, InstructionPrinterFactory8080};
-use util::{add_mut, TwosComplement};
+use util::TwosComplement;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
@@ -75,7 +75,6 @@ fn calculate_parity_zero_is_even_parity()
  *       |_|
  */
 
-
 pub trait InstructionSetOps8080 {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
@@ -83,14 +82,78 @@ pub trait InstructionSetOps8080 {
     fn set_memory_u16(&mut self, address: u16, value: u16);
     fn set_flag(&mut self, flag: Flag8080, value: bool);
     fn read_flag(&self, flag: Flag8080) -> bool;
-    fn set_register_pair(&mut self, register: Register8080, value: u16);
-    fn read_register_pair(&self, register: Register8080) -> u16;
-    fn set_register(&mut self, register: Register8080, value: u8);
-    fn read_register(&self, register: Register8080) -> u8;
     fn read_program_counter(&self) -> u16;
     fn set_program_counter(&mut self, address: u16);
     fn set_interrupts_enabled(&mut self, state: bool);
     fn get_interrupts_enabled(&self) -> bool;
+    fn read_raw_register(&self, index: usize) -> u8;
+    fn set_raw_register(&mut self, index: usize, value: u8);
+    fn read_raw_register_pair(&self, index: usize) -> u16;
+    fn set_raw_register_pair(&mut self, index: usize, value: u16);
+
+    fn set_register_pair(&mut self, register: Register8080, value: u16)
+    {
+        /*
+         * 8008 Registers are laid out in a specified order in memory. (See enum
+         * Register8080 for the order).  This function allows you to read two
+         * adjacent registers together as one u16.  These two registers together
+         * are known as a 'register pair.'  The register pairs are referenced by
+         * the first in the pair.  The only valid register pairs are:
+         *     B:   B and C
+         *     D:   D and E
+         *     H:   H and L
+         *     PSW: A and FLAGS
+         */
+        match register {
+            Register8080::B | Register8080::D | Register8080::H | Register8080::SP => {
+                self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
+            },
+            Register8080::PSW => {
+                self.set_raw_register_pair(Register8080::A as usize / 2, u16::to_be(value));
+            },
+            _ => panic!("Invalid register {:?}", register)
+        }
+    }
+
+    fn read_register_pair(&self, register: Register8080) -> u16
+    {
+        u16::from_be(match register {
+            Register8080::B | Register8080::D | Register8080::H | Register8080::SP =>
+                self.read_raw_register_pair(register as usize / 2),
+            Register8080::PSW => self.read_raw_register_pair(Register8080::A as usize / 2),
+            _ => panic!("Invalid register {:?}", register)
+        })
+    }
+
+    fn set_register(&mut self, register: Register8080, value: u8)
+    {
+        match register {
+            Register8080::PSW => panic!("PSW too big"),
+            Register8080::SP => panic!("SP too big"),
+            Register8080::M => {
+                /*
+                 * The M register is special and represents the byte stored at
+                 * the memory address stored in the register pair H.
+                 */
+                let address = self.read_register_pair(Register8080::H);
+                InstructionSetOps8080::set_memory(self, address, value);
+            },
+            _ => self.set_raw_register(register as usize, value)
+        }
+    }
+
+    fn read_register(&self, register: Register8080) -> u8
+    {
+        match register {
+            Register8080::PSW => panic!("PSW too big"),
+            Register8080::SP => panic!("SP too big"),
+            Register8080::M => {
+                let address = self.read_register_pair(Register8080::H);
+                InstructionSetOps8080::read_memory(self, address)
+            },
+            _ => self.read_raw_register(register as usize)
+        }
+    }
 
     fn update_flags_for_new_value(&mut self, new_value: u8)
     {
@@ -239,7 +302,7 @@ pub trait InstructionSetOps8080 {
  */
 
 pub struct Emulator8080<'a> {
-    pub main_memory: [u8; MAX_ADDRESS + 1],
+    main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Register8080::Count as usize],
     program_counter: u16,
     interrupts_enabled: bool,
@@ -278,62 +341,6 @@ impl<'a> Emulator8080<'a> {
     #[cfg(test)]
     fn load_rom(&mut self, rom: &[u8]) {
         self.main_memory[ROM_ADDRESS..(ROM_ADDRESS + rom.len())].clone_from_slice(rom);
-    }
-
-    fn get_register_pair(&mut self, register: Register8080) -> &mut u16
-    {
-        /*
-         * 8008 Registers are laid out in a specified order in memory. (See enum
-         * Register8080 for the order).  This function allows you to read two
-         * adjacent registers together as one u16.  These two registers together
-         * are known as a 'register pair.'  The register pairs are referenced by
-         * the first in the pair.  The only valid register pairs are:
-         *     B:   B and C
-         *     D:   D and E
-         *     H:   H and L
-         *     PSW: A and FLAGS
-         */
-        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
-        unsafe {
-             register_pairs = mem::transmute(&mut self.registers);
-        }
-        match register {
-            Register8080::B | Register8080::D | Register8080::H | Register8080::SP =>
-                &mut register_pairs[register as usize / 2],
-            Register8080::PSW => &mut register_pairs[Register8080::A as usize / 2],
-            _ => panic!("Invalid register {:?}", register)
-        }
-    }
-
-    fn get_register(&mut self, register: Register8080) -> &mut u8
-    {
-        match register {
-            Register8080::PSW => panic!("PSW too big"),
-            Register8080::SP => panic!("SP too big"),
-            Register8080::M => {
-                /*
-                 * The M register is special and represents the byte stored at
-                 * the memory address stored in the register pair H.
-                 */
-                let address = self.read_register_pair(Register8080::H) as usize;
-                &mut self.main_memory[address]
-            },
-            _ => &mut self.registers[register as usize]
-        }
-    }
-
-    pub fn set_flag_u8(&mut self, flag: u8, value: bool)
-    {
-        if value {
-            self.registers[Register8080::FLAGS as usize] |= flag;
-        } else {
-            self.registers[Register8080::FLAGS as usize] &= !flag;
-        }
-    }
-
-    pub fn read_flag_u8(&self, flag: u8) -> bool
-    {
-        self.registers[Register8080::FLAGS as usize] & flag == flag
     }
 }
 
@@ -374,36 +381,45 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)
     {
-        self.set_flag_u8(flag as u8, value);
+        if value {
+            self.registers[Register8080::FLAGS as usize] |= flag as u8;
+        } else {
+            self.registers[Register8080::FLAGS as usize] &= !(flag as u8);
+        }
     }
 
     fn read_flag(&self, flag: Flag8080) -> bool
     {
-        self.read_flag_u8(flag as u8)
+        self.registers[Register8080::FLAGS as usize] & flag as u8 == flag as u8
     }
 
-    fn set_register_pair(&mut self, register: Register8080, value: u16)
+    fn read_raw_register(&self, index: usize) -> u8
     {
-        *self.get_register_pair(register) = u16::to_be(value);
+        self.registers[index]
     }
 
-    fn read_register_pair(&self, register: Register8080) -> u16
+    fn set_raw_register(&mut self, index: usize, value: u8)
     {
+        self.registers[index] = value;
+    }
+
+    fn read_raw_register_pair(&self, index: usize) -> u16
+    {
+        let register_pairs: &[u16; Register8080::Count as usize / 2];
         unsafe {
-            return u16::from_be(*add_mut(self).get_register_pair(register))
+             register_pairs = mem::transmute(&self.registers);
         }
+
+        register_pairs[index]
     }
 
-    fn set_register(&mut self, register: Register8080, value: u8)
+    fn set_raw_register_pair(&mut self, index: usize, value: u16)
     {
-        *self.get_register(register) = value;
-    }
-
-    fn read_register(&self, register: Register8080) -> u8
-    {
+        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
         unsafe {
-            return *add_mut(self).get_register(register)
+             register_pairs = mem::transmute(&mut self.registers);
         }
+        register_pairs[index] = value;
     }
 
     fn read_program_counter(&self) -> u16 {
