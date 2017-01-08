@@ -1,6 +1,5 @@
 mod opcodes;
 
-use std::collections::{HashSet, VecDeque};
 use std::io::{self, Result};
 use std::mem;
 use std::{fmt, str};
@@ -8,7 +7,7 @@ use std::{fmt, str};
 pub use emulator_lr35902::opcodes::disassemble_lr35902_rom;
 
 use util::TwosComplement;
-use emulator_common::{Register8080, DebuggerOps, Debugger};
+use emulator_common::{Register8080, DebuggerOps, Debugger, SimulatedInstruction};
 use emulator_common::InstructionOption::*;
 use emulator_8080::{
     Flag8080,
@@ -59,9 +58,7 @@ struct EmulatorLR35902 {
     registers: [u8; Register8080::Count as usize],
     program_counter: u16,
     interrupts_enabled: bool,
-    crash_message: Option<String>,
-    memory_changed: HashSet<u16>,
-    pc_trail: VecDeque<u16>
+    crash_message: Option<String>
 }
 
 impl EmulatorLR35902 {
@@ -72,9 +69,7 @@ impl EmulatorLR35902 {
             registers: [0; Register8080::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
-            crash_message: None,
-            memory_changed: HashSet::new(),
-            pc_trail: VecDeque::new()
+            crash_message: None
         };
     }
 
@@ -100,7 +95,6 @@ impl EmulatorLR35902 {
     fn set_memory(&mut self, address: u16, value: u8)
     {
         self.main_memory[address as usize] = value;
-        self.memory_changed.insert(address);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16
@@ -128,9 +122,35 @@ impl EmulatorLR35902 {
             main_memory = mem::transmute(&mut self.main_memory[address as usize]);
         }
         *main_memory = u16::to_be(value);
+    }
 
-        self.memory_changed.insert(address);
-        self.memory_changed.insert(address.wrapping_add(1));
+    fn read_raw_register(&self, index: usize) -> u8
+    {
+        self.registers[index]
+    }
+
+    fn set_raw_register(&mut self, index: usize, value: u8)
+    {
+        self.registers[index] = value;
+    }
+
+    fn read_raw_register_pair(&self, index: usize) -> u16
+    {
+        let register_pairs: &[u16; Register8080::Count as usize / 2];
+        unsafe {
+             register_pairs = mem::transmute(&self.registers);
+        }
+
+        register_pairs[index]
+    }
+
+    fn set_raw_register_pair(&mut self, index: usize, value: u16)
+    {
+        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
+        unsafe {
+             register_pairs = mem::transmute(&mut self.registers);
+        }
+        register_pairs[index] = value;
     }
 
     fn read_program_counter(&self) -> u16
@@ -140,13 +160,12 @@ impl EmulatorLR35902 {
 
     fn set_program_counter(&mut self, address: u16)
     {
-        let pc = self.program_counter;
-        self.pc_trail.push_front(pc);
-        if self.pc_trail.len() > 5 {
-            self.pc_trail.pop_back();
-        }
-
         self.program_counter = address;
+    }
+
+    fn set_interrupts_enabled(&mut self, value: bool)
+    {
+        self.interrupts_enabled = value;
     }
 
     fn get_interrupts_enabled(&self) -> bool
@@ -209,31 +228,22 @@ impl InstructionSetOpsLR35902 for EmulatorLR35902 {
 
     fn read_raw_register(&self, index: usize) -> u8
     {
-        self.registers[index]
+        self.read_raw_register(index)
     }
 
     fn set_raw_register(&mut self, index: usize, value: u8)
     {
-        self.registers[index] = value;
+        self.set_raw_register(index, value);
     }
 
     fn read_raw_register_pair(&self, index: usize) -> u16
     {
-        let register_pairs: &[u16; Register8080::Count as usize / 2];
-        unsafe {
-             register_pairs = mem::transmute(&self.registers);
-        }
-
-        register_pairs[index]
+        self.read_raw_register_pair(index)
     }
 
     fn set_raw_register_pair(&mut self, index: usize, value: u16)
     {
-        let register_pairs: &mut [u16; Register8080::Count as usize / 2];
-        unsafe {
-             register_pairs = mem::transmute(&mut self.registers);
-        }
-        register_pairs[index] = value;
+        self.set_raw_register_pair(index, value);
     }
 
     fn read_program_counter(&self) -> u16
@@ -248,7 +258,7 @@ impl InstructionSetOpsLR35902 for EmulatorLR35902 {
 
     fn set_interrupts_enabled(&mut self, value: bool)
     {
-        self.interrupts_enabled = value;
+        self.set_interrupts_enabled(value);
     }
 
     fn get_interrupts_enabled(&self) -> bool
@@ -1695,8 +1705,6 @@ impl fmt::Debug for EmulatorLR35902 {
             self.read_program_counter(),
             self.read_register_pair(Register8080::SP),
             self.read_register(Register8080::M)));
-        try!(writeln!(f, "PC trail = {}", self.format_pc_trail()));
-        try!(writeln!(f, "memory changed = {}", self.format_memory_changed()));
 
         let mut buffer = vec![];
         {
@@ -1740,34 +1748,14 @@ impl EmulatorLR35902 {
         dispatch_8080_instruction(&instruction, self);
     }
 
-    fn format_pc_trail(&self) -> String
-    {
-        let mut message = String::new();
-        for pc in &self.pc_trail {
-            message.push_str(format!("{:x}, ", pc).as_str());
-        }
-        return message;
-    }
-
-    fn format_memory_changed(&self) -> String
-    {
-        let mut message = String::new();
-        for address in &self.memory_changed {
-            message.push_str(format!("{:x}, ", address).as_str());
-        }
-        return message
-    }
-
     fn crash_from_unkown_opcode(&mut self)
     {
         let pc = self.read_program_counter();
-        let pc_trail = self.format_pc_trail();
-        self.crash(format!("Unknown opcode at address {:x}, trail = {}", pc, pc_trail));
+        self.crash(format!("Unknown opcode at address {:x}", pc));
     }
 
     fn run_one_instruction(&mut self)
     {
-        self.memory_changed.clear();
         let pc = self.read_program_counter() as usize;
         let mut instr = get_lr35902_instruction(&self.main_memory[pc..]);
         match instr {
@@ -1804,13 +1792,117 @@ fn emulator_crashes_on_unkown_opcode()
     e.load_rom(&[0xfc]);
     e.set_program_counter(0);
     e.run();
-    assert_eq!(e.crash_message.unwrap(), "Unknown opcode at address 0, trail = 100, 0, ");
+    assert_eq!(e.crash_message.unwrap(), "Unknown opcode at address 0");
+}
+
+pub fn run_emulator(rom: &[u8])
+{
+    let mut e = EmulatorLR35902::new();
+    e.load_rom(&rom);
+    e.run();
+}
+
+/*
+ * ____       _
+ *|  _ \  ___| |__  _   _  __ _  __ _  ___ _ __
+ *| | | |/ _ \ '_ \| | | |/ _` |/ _` |/ _ \ '__|
+ *| |_| |  __/ |_) | |_| | (_| | (_| |  __/ |
+ *|____/ \___|_.__/ \__,_|\__, |\__, |\___|_|
+ *                        |___/ |___/
+ */
+
+struct SimulatedInstructionLR35902<'a> {
+    emulator: &'a EmulatorLR35902,
+    instruction: &'a mut SimulatedInstruction
+}
+
+impl<'a> SimulatedInstructionLR35902<'a> {
+    fn new(
+        emulator: &'a EmulatorLR35902,
+        instruction: &'a mut SimulatedInstruction) -> SimulatedInstructionLR35902<'a>
+    {
+        SimulatedInstructionLR35902 {
+            emulator: emulator,
+            instruction: instruction
+        }
+    }
+}
+
+impl<'a> InstructionSetOpsLR35902 for SimulatedInstructionLR35902<'a> {
+    fn set_flag(&mut self, _flag: FlagLR35902, _value: bool)
+    {
+    }
+
+    fn read_flag(&self, flag: FlagLR35902) -> bool
+    {
+        self.emulator.read_flag(flag)
+    }
+
+    fn read_memory(&self, address: u16) -> u8
+    {
+        self.emulator.read_memory(address)
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8)
+    {
+        self.instruction.set_memory(address, value);
+    }
+
+    fn read_memory_u16(&self, address: u16) -> u16
+    {
+        self.emulator.read_memory_u16(address)
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        self.instruction.set_memory(address, (value >> 8) as u8);
+        if address != 0xFFFF {
+            self.instruction.set_memory(address.wrapping_add(1), value as u8);
+        }
+    }
+
+    fn read_raw_register(&self, index: usize) -> u8
+    {
+        self.emulator.read_raw_register(index)
+    }
+
+    fn set_raw_register(&mut self, _index: usize, _value: u8)
+    {
+    }
+
+    fn read_raw_register_pair(&self, index: usize) -> u16
+    {
+        self.emulator.read_raw_register_pair(index)
+    }
+
+    fn set_raw_register_pair(&mut self, _index: usize, _value: u16)
+    {
+
+    }
+
+    fn read_program_counter(&self) -> u16
+    {
+        self.emulator.read_program_counter()
+    }
+
+    fn set_program_counter(&mut self, _address: u16)
+    {
+    }
+
+    fn set_interrupts_enabled(&mut self, _value: bool)
+    {
+    }
+
+    fn get_interrupts_enabled(&self) -> bool
+    {
+        self.emulator.get_interrupts_enabled()
+    }
 }
 
 impl DebuggerOps for EmulatorLR35902 {
-    fn read_address(&self, address: u16) -> u8
+    fn read_memory(&self, address: u16) -> u8
     {
-        self.main_memory[address as usize]
+        self.read_memory(address)
     }
 
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()>
@@ -1823,7 +1915,34 @@ impl DebuggerOps for EmulatorLR35902 {
         self.run_one_instruction();
     }
 
-    fn current_address(&self) -> u16
+    fn simulate_next(&mut self, instruction: &mut SimulatedInstruction)
+    {
+        let pc = self.read_program_counter() as usize;
+        let mut instr = get_lr35902_instruction(&self.main_memory[pc..]);
+        match instr {
+            SomeInstruction(res) => {
+                let mut wrapping_instruction = SimulatedInstructionLR35902::new(
+                    self, instruction);
+                dispatch_lr35902_instruction(&res, &mut wrapping_instruction);
+                return;
+            },
+            NotImplemented => {
+                return;
+            }
+            _ => { },
+        }
+        instr = get_8080_instruction(&self.main_memory[pc..]);
+        match instr {
+            SomeInstruction(res) => {
+                let mut wrapping_instruction = SimulatedInstructionLR35902::new(
+                    self, instruction);
+                dispatch_8080_instruction(&res, &mut wrapping_instruction);
+            },
+            _ => { },
+        };
+    }
+
+    fn read_program_counter(&self) -> u16
     {
         self.read_program_counter()
     }
@@ -1833,22 +1952,10 @@ impl DebuggerOps for EmulatorLR35902 {
         self.crash_message.as_ref()
     }
 
-    fn memory_changed(&self) -> &HashSet<u16>
-    {
-        &self.memory_changed
-    }
-
-    fn set_current_address(&mut self, address: u16)
+    fn set_program_counter(&mut self, address: u16)
     {
         self.set_program_counter(address)
     }
-}
-
-pub fn run_emulator(rom: &[u8])
-{
-    let mut e = EmulatorLR35902::new();
-    e.load_rom(&rom);
-    e.run();
 }
 
 pub fn run_debugger(rom: &[u8])

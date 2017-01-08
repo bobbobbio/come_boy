@@ -1,9 +1,9 @@
+use std::collections::HashSet;
 use std::io::{self, Result};
 use std::str;
 
 #[cfg(test)]
 use std::collections::HashMap;
-use std::collections::HashSet;
 
 /*
  *  ____            _     _            ___   ___   ___   ___
@@ -235,14 +235,32 @@ fn disassembler_test_instruction_arguments_are_printed() {
  *                         |___/ |___/
  */
 
+pub struct SimulatedInstruction {
+    memory_changed: HashSet<u16>
+}
+
+impl SimulatedInstruction {
+    fn new() -> SimulatedInstruction
+    {
+        SimulatedInstruction {
+            memory_changed: HashSet::new()
+        }
+    }
+
+    pub fn set_memory(&mut self, address: u16, _value: u8)
+    {
+        self.memory_changed.insert(address);
+    }
+}
+
 pub trait DebuggerOps {
-    fn read_address(&self, address: u16) -> u8;
+    fn read_memory(&self, address: u16) -> u8;
     fn format<'a> (&self, &'a mut io::Write) -> Result<()>;
     fn next(&mut self);
-    fn current_address(&self) -> u16;
+    fn simulate_next(&mut self, &mut SimulatedInstruction);
+    fn read_program_counter(&self) -> u16;
     fn crashed(&self) -> Option<&String>;
-    fn memory_changed(&self) -> &HashSet<u16>;
-    fn set_current_address(&mut self, address: u16);
+    fn set_program_counter(&mut self, address: u16);
 }
 
 pub struct Debugger<'a> {
@@ -280,27 +298,37 @@ impl<'a> Debugger<'a> {
         writeln!(self.out, "").unwrap();
     }
 
+    fn check_for_watchpoint(&mut self) -> bool
+    {
+        if self.watchpoint.is_some() {
+            let mut instruction = SimulatedInstruction::new();
+            self.emulator.simulate_next(&mut instruction);
+            let address = self.watchpoint.unwrap();
+            if instruction.memory_changed.contains(&address) {
+                writeln!(self.out, "Hit watchpoint").unwrap();
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     fn check_for_breakpoint_or_crash(&mut self) -> bool
     {
         if self.emulator.crashed().is_some() {
             writeln!(self.out, "Emulator crashed: {}", self.emulator.crashed().unwrap()).unwrap();
             return false;
         }
-        if Some(self.emulator.current_address()) == self.breakpoint {
+        if Some(self.emulator.read_program_counter()) == self.breakpoint {
             writeln!(self.out, "Hit breakpoint").unwrap();
             return false;
-        }
-        for address in self.emulator.memory_changed() {
-            if Some(*address) == self.watchpoint {
-                writeln!(self.out, "Hit watchpoint").unwrap();
-                return false;
-            }
         }
         return true;
     }
 
     fn next(&mut self)
     {
+        self.check_for_watchpoint();
         self.emulator.next();
         self.state();
         self.check_for_breakpoint_or_crash();
@@ -328,7 +356,7 @@ impl<'a> Debugger<'a> {
         if self.logging {
             self.state();
         }
-        while self.check_for_breakpoint_or_crash() {
+        while self.check_for_breakpoint_or_crash() && self.check_for_watchpoint() {
             self.emulator.next();
             if self.logging {
                 self.state();
@@ -415,7 +443,7 @@ impl<'a> Debugger<'a> {
                     }
                 }
                 match self.read_address(&mut iter) {
-                    Some(address) => self.emulator.set_current_address(address),
+                    Some(address) => self.emulator.set_program_counter(address),
                     None => {}
                 }
             }
@@ -487,7 +515,7 @@ impl TestDebuggerOps {
 
 #[cfg(test)]
 impl DebuggerOps for TestDebuggerOps {
-    fn read_address(&self, address: u16) -> u8
+    fn read_memory(&self, address: u16) -> u8
     {
         match self.memory.get(&address) {
             Some(data) => *data,
@@ -507,7 +535,14 @@ impl DebuggerOps for TestDebuggerOps {
         }
     }
 
-    fn current_address(&self) -> u16
+    fn simulate_next(&mut self, instruction: &mut SimulatedInstruction)
+    {
+        for address in &self.memory_changed {
+            instruction.set_memory(*address, 0);
+        }
+    }
+
+    fn read_program_counter(&self) -> u16
     {
         self.current_address
     }
@@ -517,12 +552,7 @@ impl DebuggerOps for TestDebuggerOps {
         self.crash_message.as_ref()
     }
 
-    fn memory_changed(&self) -> &HashSet<u16>
-    {
-        &self.memory_changed
-    }
-
-    fn set_current_address(&mut self, address: u16)
+    fn set_program_counter(&mut self, address: u16)
     {
         self.current_address = address
     }
