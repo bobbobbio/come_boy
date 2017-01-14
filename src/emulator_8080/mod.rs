@@ -91,19 +91,19 @@ pub trait InstructionSetOps8080 {
     fn read_raw_register_pair(&self, index: usize) -> u16;
     fn set_raw_register_pair(&mut self, index: usize, value: u16);
 
+    /*
+     * 8008 Registers are laid out in a specified order in memory. (See enum Register8080 for the
+     * order).  These functions allows you to access two adjacent registers together as one u16.
+     * These two registers together are known as a 'register pair.'  The register pairs are
+     * referenced by the first in the pair.  The only valid register pairs are:
+     *     B:   B and C
+     *     D:   D and E
+     *     H:   H and L
+     *     SP:  Stack Pointer
+     *     PSW: A and FLAGS
+     */
     fn set_register_pair(&mut self, register: Register8080, value: u16)
     {
-        /*
-         * 8008 Registers are laid out in a specified order in memory. (See enum
-         * Register8080 for the order).  This function allows you to read two
-         * adjacent registers together as one u16.  These two registers together
-         * are known as a 'register pair.'  The register pairs are referenced by
-         * the first in the pair.  The only valid register pairs are:
-         *     B:   B and C
-         *     D:   D and E
-         *     H:   H and L
-         *     PSW: A and FLAGS
-         */
         match register {
             Register8080::B | Register8080::D | Register8080::H | Register8080::SP => {
                 self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
@@ -125,16 +125,16 @@ pub trait InstructionSetOps8080 {
         })
     }
 
+    /*
+     * The M register is special and represents the byte stored at the memory address stored in the
+     * register pair H.
+     */
     fn set_register(&mut self, register: Register8080, value: u8)
     {
         match register {
             Register8080::PSW => panic!("PSW too big"),
             Register8080::SP => panic!("SP too big"),
             Register8080::M => {
-                /*
-                 * The M register is special and represents the byte stored at
-                 * the memory address stored in the register pair H.
-                 */
                 let address = self.read_register_pair(Register8080::H);
                 InstructionSetOps8080::set_memory(self, address, value);
             },
@@ -183,21 +183,14 @@ pub trait InstructionSetOps8080 {
         self.set_register(register, new_value);
     }
 
-    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, mut value_b: u8) -> u8
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, ovalue_b: u8) -> u8
     {
-        value_b = value_b.twos_complement();
+        let value_b = ovalue_b.twos_complement();
         let new_value = value_a.wrapping_add(value_b);
         self.update_flags_for_new_value(new_value);
 
         self.set_flag(Flag8080::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
-
-        /*
-         * When performing subtraction in two's complement arithmetic, the Carry bit is reset when
-         * the result is positive.  If the Carry bit is set, the result is negative and present in
-         * its two's complement form.  Thus, the Carry bit when set indicates the occurrence of a
-         * "borrow."
-         */
-        self.set_flag(Flag8080::Carry, new_value & 0b10000000 != 0);
+        self.set_flag(Flag8080::Carry, value_a < ovalue_b);
 
         return new_value;
     }
@@ -862,12 +855,13 @@ fn subtract_from_register_using_twos_complement_negative_from_negative()
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_negative_from_negative_sets_carry()
+fn subtract_from_register_using_twos_complement_negative_from_negative_clears_carry()
 {
     let mut e = Emulator8080::new_for_test();
+    e.set_flag(Flag8080::Carry, true);
     subtract_from_register_using_twos_complement_test(
         &mut e, Register8080::C, 0x08.twos_complement(), 0x04);
-    assert!(e.read_flag(Flag8080::Carry));
+    assert!(!e.read_flag(Flag8080::Carry));
 }
 
 #[test]
@@ -1236,13 +1230,6 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
     {
         let accumulator = self.read_register(Register8080::A);
         self.perform_subtraction_using_twos_complement(accumulator, data);
-        /*
-         * When the two operands differ in sign, the sense of the carry flag is reversed.
-         */
-        if accumulator & 0x80 != data & 0x80 {
-            let value = self.read_flag(Flag8080::Carry);
-            self.set_flag(Flag8080::Carry, !value);
-        }
     }
 
     fn store_accumulator_direct(&mut self, address: u16)
@@ -1562,24 +1549,6 @@ fn set_carry_test_true_to_true()
     e.set_carry();
 
     assert!(e.read_flag(Flag8080::Carry));
-}
-
-#[test]
-fn increment_register_or_memory_increments_register()
-{
-    let mut e = Emulator8080::new_for_test();
-    e.set_register(Register8080::B, 0x99);
-    e.increment_register_or_memory(Register8080::B);
-    assert_eq!(e.read_register(Register8080::B), 0x9A);
-}
-
-#[test]
-fn increment_register_or_memory_doesnt_update_carry()
-{
-    let mut e = Emulator8080::new_for_test();
-    e.set_register(Register8080::B, 0xFF);
-    e.increment_register_or_memory(Register8080::B);
-    assert!(!e.read_flag(Flag8080::Carry));
 }
 
 #[test]
