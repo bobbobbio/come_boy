@@ -6,3 +6,4 @@ authors = ["Remi Bernotavicius <remi@.abort.cc>"]
 [dependencies]
 
 argparse = "*"
+sdl2 = "*"
