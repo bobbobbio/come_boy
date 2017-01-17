@@ -5,7 +5,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::Read;
 
-use come_boy::emulator_lr35902;
+use come_boy::emulator_game_boy;
 
 fn main()
 {
@@ -15,7 +15,7 @@ fn main()
     // Parse the arguments
     {
         let mut ap = ArgumentParser::new();
-        ap.set_description("LR35902 Emulator");
+        ap.set_description("Game Boy (DMG) Emulator");
         ap.refer(&mut files).add_argument("files", argparse::Collect, "Files");
         ap.parse_args_or_exit();
     }
@@ -24,6 +24,6 @@ fn main()
         let mut file = File::open(&arg).unwrap();
         let mut rom : Vec<u8> = vec![];
         file.read_to_end(&mut rom).unwrap();
-        emulator_lr35902::run_emulator(&rom);
+        emulator_game_boy::run_emulator(&rom);
     }
 }
