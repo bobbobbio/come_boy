@@ -3,10 +3,14 @@ pub mod opcodes;
 use std::mem;
 use std::collections::HashMap;
 
+pub use emulator_8080::opcodes::{
+    disassemble_8080_rom,
+    InstructionSet8080,
+    dispatch_8080_instruction,
+    get_8080_instruction,
+    InstructionPrinterFactory8080};
 use emulator_common::Register8080;
 use emulator_common::InstructionOption::*;
-pub use emulator_8080::opcodes::{disassemble_8080_rom, InstructionSet8080,
-    dispatch_8080_instruction, get_8080_instruction, InstructionPrinterFactory8080};
 use util::TwosComplement;
 
 const MAX_ADDRESS: usize = 0xffff;
