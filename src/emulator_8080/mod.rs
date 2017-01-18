@@ -277,7 +277,7 @@ pub trait InstructionSetOps8080 {
     fn push_u16_onto_stack(&mut self, data: u16)
     {
         let sp = self.read_register_pair(Register8080::SP);
-        self.set_memory_u16(sp.wrapping_sub(2), data.swap_bytes());
+        self.set_memory_u16(sp.wrapping_sub(2), data);
         self.set_register_pair(Register8080::SP, sp.wrapping_sub(2));
     }
 
@@ -285,7 +285,7 @@ pub trait InstructionSetOps8080 {
     {
         let sp = self.read_register_pair(Register8080::SP);
         self.set_register_pair(Register8080::SP, sp.wrapping_add(2));
-        self.read_memory_u16(sp).swap_bytes()
+        self.read_memory_u16(sp)
     }
 }
 
@@ -360,7 +360,7 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
         unsafe {
             main_memory = mem::transmute(&self.main_memory[address as usize]);
         }
-        return u16::from_be(*main_memory);
+        return u16::from_le(*main_memory);
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16)
@@ -373,7 +373,7 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
         unsafe {
             main_memory = mem::transmute(&mut self.main_memory[address as usize]);
         }
-        *main_memory = u16::to_be(value);
+        *main_memory = u16::to_le(value);
     }
 
     fn set_flag(&mut self, flag: Flag8080, value: bool)

@@ -107,20 +107,20 @@ impl EmulatorLR35902 {
             main_memory = mem::transmute(&self.main_memory[address as usize]);
         }
 
-        return u16::from_be(*main_memory);
+        return u16::from_le(*main_memory);
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16)
     {
         if address == 0xFFFF {
-            return self.main_memory[address as usize] = (value >> 8) as u8;
+            return self.main_memory[address as usize] = value as u8;
         }
 
         let main_memory: &mut u16;
         unsafe {
             main_memory = mem::transmute(&mut self.main_memory[address as usize]);
         }
-        *main_memory = u16::to_be(value);
+        *main_memory = u16::to_le(value);
     }
 
     fn read_raw_register(&self, index: usize) -> u8
@@ -223,7 +223,7 @@ pub trait InstructionSetOpsLR35902 {
 
         self.set_flag(FlagLR35902::Zero, new_value == 0);
         self.set_flag(FlagLR35902::Subtract, true);
-        self.set_flag(FlagLR35902::HalfCarry, value_b & 0x0F <= 0x0F - (value_a & 0x0F));
+        self.set_flag(FlagLR35902::HalfCarry, new_value & 0x0F > (value_a & 0x0F));
         self.set_flag(FlagLR35902::Carry, value_a < ovalue_b);
 
         return new_value;
@@ -273,7 +273,7 @@ pub trait InstructionSetOpsLR35902 {
         let value = ((value_b as i8) as i16) as u16;
         let new_value = value_a.wrapping_add(value);
 
-        self.set_flag(FlagLR35902::Carry, value > (0x00FF - (value_a & 0x00FF)));
+        self.set_flag(FlagLR35902::Carry, value & 0x00FF > (0x00FF - (value_a & 0x00FF)));
         self.set_flag(FlagLR35902::HalfCarry, value & 0x000F > 0x000F - (value_a & 0x000F));
         self.set_flag(FlagLR35902::Subtract, false);
         self.set_flag(FlagLR35902::Zero, false);
@@ -685,10 +685,22 @@ impl<I: InstructionSetOpsLR35902> InstructionSetLR35902 for I {
         self.set_memory(0xFF00 + relative_address as u16, value);
     }
 
+    fn store_accumulator_one_byte(&mut self)
+    {
+        let relative_address = self.read_register(Register8080::C);
+        self.store_accumulator_direct_one_byte(relative_address);
+    }
+
     fn load_accumulator_direct_one_byte(&mut self, relative_address: u8)
     {
         let value = self.read_memory(0xFF00 + relative_address as u16);
         self.set_register(Register8080::A, value);
+    }
+
+    fn load_accumulator_one_byte(&mut self)
+    {
+        let relative_address = self.read_register(Register8080::C);
+        self.load_accumulator_direct_one_byte(relative_address);
     }
 
     fn return_and_enable_interrupts(&mut self)
@@ -1031,6 +1043,28 @@ fn add_immediate_to_sp_example4()
 }
 
 #[test]
+fn add_immediate_to_sp_example5()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x000F);
+    e.add_immediate_to_sp(0x01);
+    assert_eq!(e.read_register_pair(Register8080::SP), 0x0010);
+    assert!(e.read_flag(FlagLR35902::HalfCarry));
+    assert!(!e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
+fn add_immediate_to_sp_example6()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::SP, 0x0000);
+    e.add_immediate_to_sp(0x90);
+    assert_eq!(e.read_register_pair(Register8080::SP), 0xFF90);
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+    assert!(!e.read_flag(FlagLR35902::Carry));
+}
+
+#[test]
 fn subtract_immediate_from_accumulator_example1()
 {
     let mut e = EmulatorLR35902::new();
@@ -1127,6 +1161,26 @@ fn load_accumulator_direct_one_byte()
 }
 
 #[test]
+fn store_accumulator_one_byte()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0x34);
+    e.set_register(Register8080::C, 0x22);
+    e.store_accumulator_one_byte();
+    assert_eq!(e.read_memory(0xFF22), 0x34);
+}
+
+#[test]
+fn load_accumulator_one_byte()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_memory(0xFF22, 0x34);
+    e.set_register(Register8080::C, 0x22);
+    e.load_accumulator_one_byte();
+    assert_eq!(e.read_register(Register8080::A), 0x34);
+}
+
+#[test]
 fn return_and_enable_interrupts()
 {
     let mut e = EmulatorLR35902::new();
@@ -1210,7 +1264,7 @@ fn store_sp_at_ffff()
     e.store_sp_direct(0xFFFF);
 
     // This address is the Interrupt Enable Flag, so this test isn't quite legit.
-    assert_eq!(e.read_memory(0xFFFF), 0x99);
+    assert_eq!(e.read_memory(0xFFFF), 0x23);
 }
 
 #[test]
@@ -1896,6 +1950,18 @@ fn compare_immediate_with_accumulator_example5()
 }
 
 #[test]
+fn compare_immediate_with_accumulator_example6()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register(Register8080::A, 0);
+    e.compare_immediate_with_accumulator(0x90);
+    assert!(e.read_flag(FlagLR35902::Subtract));
+    assert!(e.read_flag(FlagLR35902::Carry));
+    assert!(!e.read_flag(FlagLR35902::HalfCarry));
+}
+
+
+#[test]
 fn increment_register_pair_example1()
 {
     let mut e = EmulatorLR35902::new();
@@ -2050,7 +2116,6 @@ fn blargg_test_rom_cpu_instrs_2_interrupts()
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_3_op_sp_hl()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/03-op sp,hl.gb", 0xcb44);
@@ -2076,7 +2141,6 @@ fn blargg_test_rom_cpu_instrs_6_ld_r_r()
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_7_jr_jp_call_ret_rst()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/07-jr,jp,call,ret,rst.gb", 0xcbb0);
