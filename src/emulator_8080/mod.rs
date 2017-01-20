@@ -24,6 +24,8 @@ pub enum Flag8080 {
     AuxiliaryCarry = 0b00010000,
     Parity =         0b00000100,
     Carry =          0b00000001,
+
+    ValidityMask =   0b11010101,
 }
 
 /*
@@ -138,6 +140,7 @@ pub trait InstructionSetOps8080 {
         match register {
             Register8080::PSW => panic!("PSW too big"),
             Register8080::SP => panic!("SP too big"),
+            Register8080::FLAGS => panic!("Reading FLAGS is illegal"),
             Register8080::M => {
                 let address = self.read_register_pair(Register8080::H);
                 InstructionSetOps8080::set_memory(self, address, value);
@@ -151,6 +154,7 @@ pub trait InstructionSetOps8080 {
         match register {
             Register8080::PSW => panic!("PSW too big"),
             Register8080::SP => panic!("SP too big"),
+            Register8080::FLAGS => panic!("Reading FLAGS is illegal"),
             Register8080::M => {
                 let address = self.read_register_pair(Register8080::H);
                 InstructionSetOps8080::read_memory(self, address)
@@ -397,6 +401,7 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
 
     fn set_raw_register(&mut self, index: usize, value: u8)
     {
+        assert!(index != Register8080::FLAGS as usize);
         self.registers[index] = value;
     }
 
@@ -417,6 +422,10 @@ impl<'a> InstructionSetOps8080 for Emulator8080<'a> {
              register_pairs = mem::transmute(&mut self.registers);
         }
         register_pairs[index] = value;
+        if index == Register8080::A as usize / 2 {
+            // If we are setting the FLAGS register, we need to force the zero flags to be zero.
+            self.registers[Register8080::FLAGS as usize] &= Flag8080::ValidityMask as u8;
+        }
     }
 
     fn read_program_counter(&self) -> u16 {
@@ -2330,12 +2339,11 @@ fn push_register_pair_onto_stack()
 fn push_psw_onto_stack()
 {
     let mut e = Emulator8080::new_for_test();
-    e.set_register(Register8080::A, 0x34);
-    e.set_register(Register8080::FLAGS, 0xA7);
+    e.set_register_pair(Register8080::PSW, 0x34FF);
     e.set_register_pair(Register8080::SP, 0x20);
     e.push_data_onto_stack(Register8080::PSW);
     assert_eq!(e.read_memory(0x20 - 1), 0x34);
-    assert_eq!(e.read_memory(0x20 - 2), 0xA7);
+    assert_eq!(e.read_memory(0x20 - 2), 0xD5);
     assert_eq!(e.read_register_pair(Register8080::SP), 0x20 - 2);
 }
 
@@ -2355,11 +2363,11 @@ fn pop_register_pair_from_stack()
 fn pop_psw_from_stack()
 {
     let mut e = Emulator8080::new_for_test();
-    e.set_memory(0x20, 0x99);
+    e.set_memory(0x20, 0xFF);
     e.set_memory(0x20 + 1, 0x78);
     e.set_register_pair(Register8080::SP, 0x20);
     e.pop_data_off_stack(Register8080::PSW);
-    assert_eq!(e.read_register_pair(Register8080::PSW), 0x7899);
+    assert_eq!(e.read_register_pair(Register8080::PSW), 0x78D5);
     assert_eq!(e.read_register_pair(Register8080::SP), 0x20 + 2);
 }
 

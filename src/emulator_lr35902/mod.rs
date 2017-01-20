@@ -51,6 +51,8 @@ pub enum FlagLR35902 {
     Subtract =       0b01000000,
     HalfCarry =      0b00100000,
     Carry =          0b00010000,
+
+    ValidityMask =   0b11110000,
 }
 
 pub struct EmulatorLR35902 {
@@ -130,6 +132,7 @@ impl EmulatorLR35902 {
 
     fn set_raw_register(&mut self, index: usize, value: u8)
     {
+        assert!(index != Register8080::FLAGS as usize);
         self.registers[index] = value;
     }
 
@@ -150,6 +153,10 @@ impl EmulatorLR35902 {
              register_pairs = mem::transmute(&mut self.registers);
         }
         register_pairs[index] = value;
+        if index == Register8080::A as usize / 2 {
+            // If we are setting the FLAGS register, we need to force the zero flags to be zero.
+            self.registers[Register8080::FLAGS as usize] &= FlagLR35902::ValidityMask as u8;
+        }
     }
 
     fn read_program_counter(&self) -> u16
@@ -1960,7 +1967,6 @@ fn compare_immediate_with_accumulator_example6()
     assert!(!e.read_flag(FlagLR35902::HalfCarry));
 }
 
-
 #[test]
 fn increment_register_pair_example1()
 {
@@ -1968,6 +1974,14 @@ fn increment_register_pair_example1()
     e.set_register_pair(Register8080::SP, 0x000F);
     e.increment_register_pair(Register8080::SP);
     assert_eq!(e.read_register_pair(Register8080::SP), 0x0010);
+}
+
+#[test]
+fn flags_register_keeps_zero_flags_zero()
+{
+    let mut e = EmulatorLR35902::new();
+    e.set_register_pair(Register8080::PSW, 0xFFFF);
+    assert_eq!(e.read_register_pair(Register8080::PSW), 0xFFF0);
 }
 
 /*
@@ -2147,7 +2161,6 @@ fn blargg_test_rom_cpu_instrs_7_jr_jp_call_ret_rst()
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_8_misc_instrs()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/08-misc instrs.gb", 0xcb91);
