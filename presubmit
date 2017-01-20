@@ -14,5 +14,11 @@ $( dirname $0 )/pytest
 # Generate any generated code
 $( dirname $0 )/code_gen
 
+CHANGES=$( git diff )
+if [ "$CHANGES" != "" ]; then
+    echo "Untracked Changes"
+    exit 1;
+fi;
+
 cargo build --release
 cargo test --release
