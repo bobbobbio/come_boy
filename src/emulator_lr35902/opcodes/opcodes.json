@@ -292,7 +292,7 @@
 "0xec":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xed":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xf0":   {"instr": "LDAB", "description": "Load Accumulator Direct One Byte",       "args": ["D8"],     "size": 2},
-"0xf2":   {"instr": "LDAC", "description": "Load Accumulator One Byte",              "args": [],         "size": 3},
+"0xf2":   {"instr": "LDAC", "description": "Load Accumulator One Byte",              "args": [],         "size": 1},
 "0xf4":   {"instr": "-",    "description": "Not Implemented",                        "args": [],         "size": 1},
 "0xf8":   {"instr": "STSP", "description": "Store SP Plus Immediate",                "args": ["D8"],     "size": 2},
 "0xfa":   {"instr": "LDAD", "description": "Load Accumulator Direct",                "args": ["adr"],    "size": 3},
