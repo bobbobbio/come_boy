@@ -996,7 +996,7 @@ impl<I: InstructionSetOps8080> InstructionSet8080 for I {
         self.set_flag(Flag8080::AuxiliaryCarry, auxiliary_carry);
     }
 
-    fn no_instruction(&mut self)
+    fn no_operation(&mut self)
     {
         /*
          * Easiest instruction to implement :)
@@ -1705,10 +1705,10 @@ fn decimal_adjust_accumulator_carry_and_auxilliary_carry_set()
 }
 
 #[test]
-fn no_instruction()
+fn no_operation()
 {
     let mut e = Emulator8080::new_for_test();
-    e.no_instruction();
+    e.no_operation();
 }
 
 #[test]

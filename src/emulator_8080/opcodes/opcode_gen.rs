@@ -27,7 +27,6 @@ pub trait InstructionSet8080 {
     fn jump_if_positive(&mut self, address1: u16);
     fn logical_exclusive_or_with_accumulator(&mut self, register1: Register8080);
     fn move_data(&mut self, register1: Register8080, register2: Register8080);
-    fn no_instruction(&mut self);
     fn halt(&mut self);
     fn set_carry(&mut self);
     fn compare_with_accumulator(&mut self, register1: Register8080);
@@ -52,6 +51,7 @@ pub trait InstructionSet8080 {
     fn rotate_accumulator_right(&mut self);
     fn call_if_no_carry(&mut self, address1: u16);
     fn return_if_parity_even(&mut self);
+    fn no_operation(&mut self);
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8);
     fn and_immediate_with_accumulator(&mut self, data1: u8);
     fn call_if_plus(&mut self, address1: u16);
@@ -98,7 +98,7 @@ pub fn dispatch_8080_instruction<I: InstructionSet8080>(
 {
     let opcode = read_u8(&mut stream).unwrap();
     match opcode {
-        0x00 => machine.no_instruction(),
+        0x00 => machine.no_operation(),
         0x01 => machine.load_register_pair_immediate(Register8080::B, read_u16(&mut stream).unwrap()),
         0x02 => machine.store_accumulator(Register8080::B),
         0x03 => machine.increment_register_pair(Register8080::B),
@@ -677,10 +677,6 @@ impl<'a> InstructionSet8080 for InstructionPrinter8080<'a> {
     {
         self.error = write!(self.stream_out, "{:04} {:?} {:?}", "MOV", register1, register2);
     }
-    fn no_instruction(&mut self)
-    {
-        self.error = write!(self.stream_out, "{:04}", "NOP");
-    }
     fn halt(&mut self)
     {
         self.error = write!(self.stream_out, "{:04}", "HLT");
@@ -776,6 +772,10 @@ impl<'a> InstructionSet8080 for InstructionPrinter8080<'a> {
     fn return_if_parity_even(&mut self)
     {
         self.error = write!(self.stream_out, "{:04}", "RPE");
+    }
+    fn no_operation(&mut self)
+    {
+        self.error = write!(self.stream_out, "{:04}", "NOP");
     }
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8)
     {
