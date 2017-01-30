@@ -1,5 +1,5 @@
 mod emulator_common;
 mod util;
-pub mod emulator_8080;
-pub mod emulator_game_boy;
-pub mod emulator_lr35902;
+pub mod intel_8080_emulator;
+pub mod game_boy_emulator;
+pub mod lr35902_emulator;

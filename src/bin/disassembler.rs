@@ -6,8 +6,8 @@ use std::fs::File;
 use std::io::{Read, Result, ErrorKind};
 use std::process::exit;
 
-use come_boy::emulator_8080::disassemble_8080_rom;
-use come_boy::emulator_lr35902::disassemble_lr35902_rom;
+use come_boy::intel_8080_emulator::disassemble_8080_rom;
+use come_boy::lr35902_emulator::disassemble_lr35902_rom;
 
 macro_rules! println_stderr {
     ($($arg:tt)*) => (

@@ -2,7 +2,7 @@ extern crate sdl2;
 
 use std::time;
 
-use emulator_lr35902::EmulatorLR35902;
+use lr35902_emulator::LR35902Emulator;
 
 /*  _     ____ ____   ____            _             _ _
  * | |   / ___|  _ \ / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
@@ -49,7 +49,7 @@ impl<'a> LCDController<'a> {
         self.crashed
     }
 
-    fn draw_screen(&mut self, cpu: &mut EmulatorLR35902)
+    fn draw_screen(&mut self, cpu: &mut LR35902Emulator)
     {
         /*
          * Super jankey drawing of the screen. This code doesn't belong here, and needs to be
@@ -114,14 +114,14 @@ impl<'a> LCDController<'a> {
 }
 
 struct EmulatorGameBoy<'a> {
-    cpu: EmulatorLR35902,
+    cpu: LR35902Emulator,
     lcd_controller: LCDController<'a>,
 }
 
 impl<'a> EmulatorGameBoy<'a> {
     fn new() -> EmulatorGameBoy<'a> {
         EmulatorGameBoy {
-            cpu: EmulatorLR35902::new(),
+            cpu: LR35902Emulator::new(),
             lcd_controller: LCDController::new(),
         }
     }

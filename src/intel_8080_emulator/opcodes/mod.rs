@@ -5,40 +5,40 @@ mod opcode_gen;
 
 use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassembler};
 use emulator_common::InstructionOption::*;
-pub use emulator_8080::opcodes::opcode_gen::{
-    InstructionSet8080, dispatch_8080_instruction, get_8080_instruction};
+pub use intel_8080_emulator::opcodes::opcode_gen::{
+    Intel8080InstructionSet, dispatch_intel8080_instruction, get_intel8080_instruction};
 
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
 
-pub struct InstructionPrinter8080<'a> {
+pub struct Intel8080InstructionPrinter<'a> {
     stream_out: &'a mut io::Write,
     error: Result<()>
 }
 
-pub struct InstructionPrinterFactory8080;
+pub struct Intel8080InstructionPrinterFactory;
 
-impl<'a> InstructionPrinterFactory<'a> for InstructionPrinterFactory8080 {
-    type Output = InstructionPrinter8080<'a>;
+impl<'a> InstructionPrinterFactory<'a> for Intel8080InstructionPrinterFactory {
+    type Output = Intel8080InstructionPrinter<'a>;
     fn new(&self,
-        stream_out: &'a mut io::Write) -> InstructionPrinter8080<'a>
+        stream_out: &'a mut io::Write) -> Intel8080InstructionPrinter<'a>
     {
-        return InstructionPrinter8080 {
+        return Intel8080InstructionPrinter {
             stream_out: stream_out,
             error: Ok(())
         };
     }
 }
 
-impl<'a> InstructionPrinter<'a> for InstructionPrinter8080<'a> {
+impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
     fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
     {
-        dispatch_8080_instruction(stream, self);
+        dispatch_intel8080_instruction(stream, self);
         return mem::replace(&mut self.error, Ok(()));
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        match get_8080_instruction(stream) {
+        match get_intel8080_instruction(stream) {
             SomeInstruction(x) => Some(x),
             _ => None
         }
@@ -48,14 +48,14 @@ impl<'a> InstructionPrinter<'a> for InstructionPrinter8080<'a> {
 pub fn disassemble_8080_rom(rom: &[u8]) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = Disassembler::new(rom, InstructionPrinterFactory8080, stdout);
+    let mut disassembler = Disassembler::new(rom, Intel8080InstructionPrinterFactory, stdout);
     disassembler.disassemble()
 }
 
 #[test]
 fn disassembler_8080_test() {
     do_disassembler_test(
-        InstructionPrinterFactory8080,
+        Intel8080InstructionPrinterFactory,
         &[
             0xcd, 0xd6, 0x35, 0x21, 0x2d, 0xd7, 0xcb, 0xae, 0xcd, 0x29, 0x24, 0x21, 0x26, 0xd1,
             0xcb, 0xee, 0xcb, 0xf6, 0xaf, 0xea, 0x6b, 0xcd, 0xcd, 0xaf, 0x20, 0xcd, 0xaf, 0x20,

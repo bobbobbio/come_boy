@@ -5,7 +5,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::Read;
 
-use come_boy::emulator_game_boy;
+use come_boy::game_boy_emulator;
 
 fn main()
 {
@@ -24,6 +24,6 @@ fn main()
         let mut file = File::open(&arg).unwrap();
         let mut rom : Vec<u8> = vec![];
         file.read_to_end(&mut rom).unwrap();
-        emulator_game_boy::run_emulator(&rom);
+        game_boy_emulator::run_emulator(&rom);
     }
 }

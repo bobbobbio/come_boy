@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::{Read, Result};
 use std::process::exit;
 
-use come_boy::emulator_lr35902;
+use come_boy::lr35902_emulator;
 
 macro_rules! println_stderr {
     ($($arg:tt)*) => (
@@ -47,7 +47,7 @@ fn main()
             return_code = 1;
             continue;
         }
-        emulator_lr35902::run_debugger(&rom);
+        lr35902_emulator::run_debugger(&rom);
     }
     exit(return_code);
 }

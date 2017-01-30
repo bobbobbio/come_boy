@@ -1,21 +1,21 @@
 use std::{fmt, str};
 use std::io::{self, Result};
 
-use emulator_8080::{dispatch_8080_instruction, get_8080_instruction, InstructionSetOps8080};
+use intel_8080_emulator::{dispatch_intel8080_instruction, get_intel8080_instruction, Intel8080InstructionSetOps};
 use emulator_common::InstructionOption::*;
-use emulator_common::{Register8080, DebuggerOps, Debugger, SimulatedInstruction};
-use emulator_lr35902::opcodes::{
+use emulator_common::{Intel8080Register, DebuggerOps, Debugger, SimulatedInstruction};
+use lr35902_emulator::opcodes::{
     create_disassembler, dispatch_lr35902_instruction, get_lr35902_instruction};
-use emulator_lr35902::{EmulatorLR35902, FlagLR35902, InstructionSetOpsLR35902};
+use lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
 
 struct SimulatedInstructionLR35902<'a> {
-    emulator: &'a EmulatorLR35902,
+    emulator: &'a LR35902Emulator,
     instruction: &'a mut SimulatedInstruction
 }
 
 impl<'a> SimulatedInstructionLR35902<'a> {
     fn new(
-        emulator: &'a EmulatorLR35902,
+        emulator: &'a LR35902Emulator,
         instruction: &'a mut SimulatedInstruction) -> SimulatedInstructionLR35902<'a>
     {
         SimulatedInstructionLR35902 {
@@ -25,12 +25,12 @@ impl<'a> SimulatedInstructionLR35902<'a> {
     }
 }
 
-impl<'a> InstructionSetOpsLR35902 for SimulatedInstructionLR35902<'a> {
-    fn set_flag(&mut self, _flag: FlagLR35902, _value: bool)
+impl<'a> LR35902InstructionSetOps for SimulatedInstructionLR35902<'a> {
+    fn set_flag(&mut self, _flag: LR35902Flag, _value: bool)
     {
     }
 
-    fn read_flag(&self, flag: FlagLR35902) -> bool
+    fn read_flag(&self, flag: LR35902Flag) -> bool
     {
         self.emulator.read_flag(flag)
     }
@@ -96,26 +96,26 @@ impl<'a> InstructionSetOpsLR35902 for SimulatedInstructionLR35902<'a> {
     }
 }
 
-impl fmt::Debug for EmulatorLR35902 {
+impl fmt::Debug for LR35902Emulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
         try!(writeln!(f, "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
-            self.read_register(Register8080::B),
-            self.read_register(Register8080::C),
-            self.read_register(Register8080::D),
-            self.read_register(Register8080::E),
-            self.read_register(Register8080::H),
-            self.read_register(Register8080::L),
-            self.read_register(Register8080::A)));
+            self.read_register(Intel8080Register::B),
+            self.read_register(Intel8080Register::C),
+            self.read_register(Intel8080Register::D),
+            self.read_register(Intel8080Register::E),
+            self.read_register(Intel8080Register::H),
+            self.read_register(Intel8080Register::L),
+            self.read_register(Intel8080Register::A)));
         try!(writeln!(f, "Zero: {}, Subtract: {}, HalfCarry: {}, Carry: {}",
-            self.read_flag(FlagLR35902::Zero),
-            self.read_flag(FlagLR35902::Subtract),
-            self.read_flag(FlagLR35902::HalfCarry),
-            self.read_flag(FlagLR35902::Carry)));
+            self.read_flag(LR35902Flag::Zero),
+            self.read_flag(LR35902Flag::Subtract),
+            self.read_flag(LR35902Flag::HalfCarry),
+            self.read_flag(LR35902Flag::Carry)));
         try!(writeln!(f, "PC: {:x}, SP: {:x}, M: {:x}",
             self.read_program_counter(),
-            self.read_register_pair(Register8080::SP),
-            self.read_register(Register8080::M)));
+            self.read_register_pair(Intel8080Register::SP),
+            self.read_register(Intel8080Register::M)));
 
         let mut buffer = vec![];
         {
@@ -129,7 +129,7 @@ impl fmt::Debug for EmulatorLR35902 {
     }
 }
 
-impl DebuggerOps for EmulatorLR35902 {
+impl DebuggerOps for LR35902Emulator {
     fn read_memory(&self, address: u16) -> u8
     {
         self.read_memory(address)
@@ -161,12 +161,12 @@ impl DebuggerOps for EmulatorLR35902 {
             }
             _ => { },
         }
-        instr = get_8080_instruction(&self.main_memory[pc..]);
+        instr = get_intel8080_instruction(&self.main_memory[pc..]);
         match instr {
             SomeInstruction(res) => {
                 let mut wrapping_instruction = SimulatedInstructionLR35902::new(
                     self, instruction);
-                dispatch_8080_instruction(&res, &mut wrapping_instruction);
+                dispatch_intel8080_instruction(&res, &mut wrapping_instruction);
             },
             _ => { },
         };
@@ -190,7 +190,7 @@ impl DebuggerOps for EmulatorLR35902 {
 
 pub fn run_debugger(rom: &[u8])
 {
-    let mut e = EmulatorLR35902::new();
+    let mut e = LR35902Emulator::new();
     e.load_rom(&rom);
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();

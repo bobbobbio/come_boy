@@ -5,32 +5,32 @@ mod opcode_gen;
 
 use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassembler};
 use emulator_common::InstructionOption::*;
-pub use emulator_lr35902::opcodes::opcode_gen::{
-    dispatch_lr35902_instruction, get_lr35902_instruction, InstructionSetLR35902};
-use emulator_8080::{get_8080_instruction, InstructionPrinterFactory8080};
+pub use lr35902_emulator::opcodes::opcode_gen::{
+    dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet};
+use intel_8080_emulator::{get_intel8080_instruction, Intel8080InstructionPrinterFactory};
 
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
 
-pub struct InstructionPrinterLR35902<'a> {
+pub struct LR35902InstructionPrinter<'a> {
     stream_out: &'a mut io::Write,
     error: Result<()>
 }
 
-pub struct InstructionPrinterFactoryLR35902;
+pub struct LR35902InstructionPrinterFactory;
 
-impl<'a> InstructionPrinterFactory<'a> for InstructionPrinterFactoryLR35902 {
-    type Output = InstructionPrinterLR35902<'a>;
-    fn new(&self, stream_out: &'a mut io::Write) -> InstructionPrinterLR35902<'a>
+impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {
+    type Output = LR35902InstructionPrinter<'a>;
+    fn new(&self, stream_out: &'a mut io::Write) -> LR35902InstructionPrinter<'a>
     {
-        return InstructionPrinterLR35902 {
+        return LR35902InstructionPrinter {
             stream_out: stream_out,
             error: Ok(())
         };
     }
 }
 
-impl<'a> InstructionPrinter<'a> for InstructionPrinterLR35902<'a> {
+impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
     fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
     {
         match get_lr35902_instruction(stream) {
@@ -39,7 +39,7 @@ impl<'a> InstructionPrinter<'a> for InstructionPrinterLR35902<'a> {
                 mem::replace(&mut self.error, Ok(()))
             },
             NoInstruction => {
-                let mut op = InstructionPrinterFactory8080.new(self.stream_out);
+                let mut op = Intel8080InstructionPrinterFactory.new(self.stream_out);
                 op.print_instruction(stream)
             }
         }
@@ -50,7 +50,7 @@ impl<'a> InstructionPrinter<'a> for InstructionPrinterLR35902<'a> {
             SomeInstruction(x) => Some(x),
             NotImplemented => None,
             NoInstruction => {
-                match get_8080_instruction(stream) {
+                match get_intel8080_instruction(stream) {
                     SomeInstruction(x) => Some(x),
                     _ => None
                 }
@@ -60,9 +60,9 @@ impl<'a> InstructionPrinter<'a> for InstructionPrinterLR35902<'a> {
 }
 
 pub fn create_disassembler<'a>(rom: &'a [u8], stream_out: &'a mut io::Write)
-    -> Disassembler<'a, InstructionPrinterFactoryLR35902>
+    -> Disassembler<'a, LR35902InstructionPrinterFactory>
 {
-    Disassembler::new(rom, InstructionPrinterFactoryLR35902, stream_out)
+    Disassembler::new(rom, LR35902InstructionPrinterFactory, stream_out)
 }
 
 pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
@@ -75,7 +75,7 @@ pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
 #[test]
 fn disassembler_lr35902_test() {
     do_disassembler_test(
-        InstructionPrinterFactoryLR35902,
+        LR35902InstructionPrinterFactory,
         &[
             0xcd, 0xd6, 0x35, 0x21, 0x2d, 0xd7, 0xcb, 0xae, 0xcd, 0x29, 0x24, 0x21, 0x26, 0xd1,
             0xcb, 0xee, 0xcb, 0xf6, 0xaf, 0xea, 0x6b, 0xcd, 0xcd, 0xaf, 0x20, 0xcd, 0xaf, 0x20,
@@ -111,7 +111,7 @@ fn disassembler_lr35902_test() {
 #[test]
 fn disassembler_lr35902_prints_not_implemented_instructions_correctly() {
     do_disassembler_test(
-        InstructionPrinterFactoryLR35902,
+        LR35902InstructionPrinterFactory,
         &[0xd3, 0xe3, 0xe4, 0xf4], "\
             0000000 d3       -   \n\
             0000001 e3       -   \n\

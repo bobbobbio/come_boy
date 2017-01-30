@@ -72,7 +72,7 @@ class RegisterArgumentType(ArgumentType):
     def __init__(self):
         super(RegisterArgumentType, self).__init__()
         self.var_name = 'register'
-        self.type = 'Register8080'
+        self.type = 'Intel8080Register'
 
     def fmt_representation(self):
         return "{:?}"
@@ -165,10 +165,10 @@ class OpcodeCodeGenerator(object):
 
     def generate_preamble(self):
         self.out('''
-            use emulator_common::Register8080;
+            use emulator_common::Intel8080Register;
             use emulator_common::InstructionOption;
             use emulator_common::InstructionOption::*;
-            use {}::InstructionPrinter{};
+            use {}::{}InstructionPrinter;
             use util::{{read_u16, read_u8}};
 
             /*
@@ -228,7 +228,7 @@ class OpcodeCodeGenerator(object):
 
     def generate_instructions_trait(self):
         self.out('''
-          pub trait InstructionSet{} {{
+          pub trait {}InstructionSet {{
         '''.format(self.instruction_set_name))
 
         self.indent += 1
@@ -279,7 +279,7 @@ class OpcodeCodeGenerator(object):
 
     def generate_instruction_dispatch(self):
         self.out('''
-            pub fn dispatch_{}_instruction<I: InstructionSet{}>(
+            pub fn dispatch_{}_instruction<I: {}InstructionSet>(
                 mut stream: &[u8],
                 machine: &mut I)
             {{
@@ -337,7 +337,7 @@ class OpcodeCodeGenerator(object):
 
     def generate_opcode_printer(self):
         self.out('''
-            impl<'a> InstructionSet{0} for InstructionPrinter{0}<'a> {{
+            impl<'a> {0}InstructionSet for {0}InstructionPrinter<'a> {{
         '''.format(self.instruction_set_name))
 
         self.indent += 1
