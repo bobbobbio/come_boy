@@ -895,9 +895,16 @@ impl<I: InstructionSetOpsLR35902> InstructionSetLR35902 for I {
 
     fn decimal_adjust_accumulator(&mut self)
     {
-        self.set_flag(FlagLR35902::HalfCarry, false);
-        InstructionSet8080::decimal_adjust_accumulator(self);
-        self.set_flag(FlagLR35902::HalfCarry, false);
+        if !self.read_flag(FlagLR35902::Subtract) {
+            InstructionSet8080::decimal_adjust_accumulator(self);
+        } else {
+            let value =
+                if self.read_flag(FlagLR35902::Carry) { 0x60 } else { 0x0 } |
+                if self.read_flag(FlagLR35902::HalfCarry) { 0x06 } else { 0x0 };
+            let accumulator = self.read_register(Register8080::A);
+            let result = self.perform_subtraction_using_twos_complement(accumulator, value);
+            self.set_register(Register8080::A, result);
+        }
     }
 
     fn complement_accumulator(&mut self)
