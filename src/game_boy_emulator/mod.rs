@@ -113,14 +113,22 @@ impl<'a> LCDController<'a> {
     }
 }
 
-struct EmulatorGameBoy<'a> {
+/*   ____                      ____              _____                 _       _
+ *  / ___| __ _ _ __ ___   ___| __ )  ___  _   _| ____|_ __ ___  _   _| | __ _| |_ ___  _ __
+ * | |  _ / _` | '_ ` _ \ / _ \  _ \ / _ \| | | |  _| | '_ ` _ \| | | | |/ _` | __/ _ \| '__|
+ * | |_| | (_| | | | | | |  __/ |_) | (_) | |_| | |___| | | | | | |_| | | (_| | || (_) | |
+ *  \____|\__,_|_| |_| |_|\___|____/ \___/ \__, |_____|_| |_| |_|\__,_|_|\__,_|\__\___/|_|
+ *                                         |___/
+ */
+
+struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator,
     lcd_controller: LCDController<'a>,
 }
 
-impl<'a> EmulatorGameBoy<'a> {
-    fn new() -> EmulatorGameBoy<'a> {
-        EmulatorGameBoy {
+impl<'a> GameBoyEmulator<'a> {
+    fn new() -> GameBoyEmulator<'a> {
+        GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             lcd_controller: LCDController::new(),
         }
@@ -157,7 +165,7 @@ impl<'a> EmulatorGameBoy<'a> {
 
 pub fn run_emulator(rom: &[u8])
 {
-    let mut e = EmulatorGameBoy::new();
+    let mut e = GameBoyEmulator::new();
     e.load_rom(&rom);
     e.run();
 }
