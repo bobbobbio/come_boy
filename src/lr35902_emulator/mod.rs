@@ -3,6 +3,7 @@ extern crate sdl2;
 mod debugger;
 mod opcodes;
 
+use std::ops::Range;
 use std::{str, mem};
 
 use intel_8080_emulator::{
@@ -34,7 +35,6 @@ use std::io::Read;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
-// const LCD_ADDRESS: usize = 0x8000;
 
 #[derive(Debug,Clone,Copy,PartialEq)]
 pub enum LR35902Flag {
@@ -52,6 +52,27 @@ pub struct LR35902Emulator {
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16, interrupts_enabled: bool,
     pub crash_message: Option<String>
+}
+
+pub struct LR35902MemoryIterator<'a> {
+    cpu: &'a LR35902Emulator,
+    current_address: u16,
+    ending_address: u16
+}
+
+impl<'a> Iterator for LR35902MemoryIterator<'a> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<u8>
+    {
+        if self.current_address < self.ending_address {
+            let mem = self.cpu.read_memory(self.current_address);
+            self.current_address += 1;
+            return Some(mem);
+        } else {
+            return None;
+        }
+    }
 }
 
 impl LR35902Emulator {
@@ -117,6 +138,16 @@ impl LR35902Emulator {
         *main_memory = u16::to_le(value);
     }
 
+    pub fn iterate_memory(&self, range: Range<u16>) -> LR35902MemoryIterator
+    {
+        assert!(range.start < range.end);
+        LR35902MemoryIterator {
+            cpu: self,
+            current_address: range.start,
+            ending_address: range.end
+        }
+    }
+
     fn read_raw_register(&self, index: usize) -> u8
     {
         self.registers[index]
@@ -170,6 +201,23 @@ impl LR35902Emulator {
     {
         self.interrupts_enabled
     }
+}
+
+#[test]
+fn iterate_memory()
+{
+    let mut e = LR35902Emulator::new();
+
+    for i in 0..10 {
+        e.set_memory(i, i as u8);
+    }
+
+    let mut i = 0;
+    for value in e.iterate_memory(0..10) {
+        assert_eq!(i, value);
+        i += 1;
+    }
+    assert_eq!(i, 10);
 }
 
 /*   ___
@@ -2088,16 +2136,14 @@ fn run_blargg_test_rom_cpu_instrs(name: &str, stop_address: u16)
         pc = e.read_program_counter();
     }
 
-    // Scrape from tile memory what is displayed on the screen
+    // Scrape from memory what is displayed on the screen
     let mut message = String::new();
-    let mut c = 0x9800;
-    while c < 0x9BFF {
-        for i in 0..20 {
-            let tile = e.read_memory(c + i);
+    let mut iter = &mut e.iterate_memory(0x9800..0x9BFF).peekable();
+    while iter.peek() != None {
+        for c in iter.take(0x20) {
             // The rom happens to use ASCII as the way it maps characters to the correct tile.
-            message.push(tile as char);
+            message.push(c as char);
         }
-        c += 0x20;
         message = String::from(message.trim_right());
         message.push('\n');
     }
