@@ -1,5 +1,3 @@
-// Copyright 2017 Remi Bernotavicius
-
 use emulator_common::Intel8080Register;
 use emulator_common::InstructionOption;
 use emulator_common::InstructionOption::*;
