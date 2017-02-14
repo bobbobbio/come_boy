@@ -1,3 +1,5 @@
+// Copyright 2017 Remi Bernotavicius
+
 use std::{fmt, str};
 use std::io::{self, Result};
 

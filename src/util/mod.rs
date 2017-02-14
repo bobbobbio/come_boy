@@ -1,3 +1,5 @@
+// Copyright 2017 Remi Bernotavicius
+
 use std::io::{self, Result};
 use std::mem;
 

@@ -1,3 +1,5 @@
+// Copyright 2017 Remi Bernotavicius
+
 extern crate sdl2;
 
 mod debugger;

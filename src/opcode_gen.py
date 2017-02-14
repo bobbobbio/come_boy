@@ -1,3 +1,5 @@
+# Copyright 2017 Remi Bernotavicius
+
 import json
 import textwrap
 import os

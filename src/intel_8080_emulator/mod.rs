@@ -1,3 +1,5 @@
+// Copyright 2017 Remi Bernotavicius
+
 pub mod opcodes;
 
 use std::mem;

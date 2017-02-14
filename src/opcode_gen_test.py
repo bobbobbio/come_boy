@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# Copyright 2017 Remi Bernotavicius
 
 import StringIO
 import unittest

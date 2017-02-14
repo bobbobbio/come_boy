@@ -1,3 +1,5 @@
+// Copyright 2017 Remi Bernotavicius
+
 extern crate argparse;
 extern crate come_boy;
 

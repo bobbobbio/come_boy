@@ -1,3 +1,5 @@
+// Copyright 2017 Remi Bernotavicius
+
 mod emulator_common;
 mod util;
 pub mod intel_8080_emulator;
