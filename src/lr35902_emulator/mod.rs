@@ -203,6 +203,14 @@ impl LR35902Emulator {
     {
         self.interrupts_enabled
     }
+
+    pub fn interrupt(&mut self, address: u16)
+    {
+        if self.interrupts_enabled {
+            self.interrupts_enabled = false;
+            self.call(address);
+        }
+    }
 }
 
 #[test]
