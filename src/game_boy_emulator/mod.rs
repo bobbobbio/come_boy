@@ -2,9 +2,12 @@
 
 extern crate sdl2;
 
+mod debugger;
+
 use std::ops::Range;
 use std::{iter, time};
 
+pub use game_boy_emulator::debugger::run_debugger;
 use lr35902_emulator::{LR35902Emulator, LR35902MemoryIterator};
 
 /*  _     ____ ____   ____            _             _ _
@@ -17,7 +20,7 @@ use lr35902_emulator::{LR35902Emulator, LR35902MemoryIterator};
 struct LCDController<'a> {
     renderer: sdl2::render::Renderer<'a>,
     event_pump: sdl2::EventPump,
-    crashed: bool,
+    pub crash_message: Option<String>
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -199,7 +202,7 @@ impl<'a> LCDController<'a> {
         LCDController {
             renderer: renderer,
             event_pump: event_pump,
-            crashed: false,
+            crash_message: None
         }
     }
 
@@ -337,7 +340,7 @@ impl<'a> LCDController<'a> {
 
     fn crashed(&self) -> bool
     {
-        self.crashed
+        self.crash_message.is_some()
     }
 
     fn draw_one_line(&mut self, cpu: &mut LR35902Emulator)
@@ -369,7 +372,7 @@ impl<'a> LCDController<'a> {
         for event in self.event_pump.poll_iter() {
             match event {
                 sdl2::event::Event::Quit {..} => {
-                    self.crashed = true;
+                    self.crash_message = Some(String::from("Screen Closed"));
                     return;
                 },
                 _ => {}
@@ -438,6 +441,7 @@ impl<'a> LCDController<'a> {
 struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator,
     lcd_controller: LCDController<'a>,
+    last_draw: time::SystemTime
 }
 
 impl<'a> GameBoyEmulator<'a> {
@@ -445,6 +449,7 @@ impl<'a> GameBoyEmulator<'a> {
         GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             lcd_controller: LCDController::new(),
+            last_draw: time::SystemTime::now()
         }
     }
 
@@ -453,25 +458,36 @@ impl<'a> GameBoyEmulator<'a> {
         self.cpu.load_rom(rom);
     }
 
-    fn crashed(&self) -> bool
+    fn crashed(&self) -> Option<&String>
     {
-        self.cpu.crashed() || self.lcd_controller.crashed()
+        if self.cpu.crashed() {
+            return self.cpu.crash_message.as_ref()
+        } else if self.lcd_controller.crashed() {
+            return self.lcd_controller.crash_message.as_ref()
+        }
+
+        None
+    }
+
+    fn tick(&mut self)
+    {
+        self.cpu.run_one_instruction();
+
+        // It takes the DMG LCD roughly 10ms to draw one horizontal line.
+        if time::SystemTime::now().duration_since(self.last_draw).unwrap() >=
+            time::Duration::new(0, 100000) {
+            self.lcd_controller.draw_one_line(&mut self.cpu);
+            self.lcd_controller.process_interrupts(&mut self.cpu);
+            self.last_draw = time::SystemTime::now();
+        }
     }
 
     fn run(&mut self)
     {
         self.lcd_controller.initialize_flags(&mut self.cpu);
-        let mut last_draw = time::SystemTime::now();
-        while !self.crashed() {
-            self.cpu.run_one_instruction();
-
-            // It takes the DMG LCD roughly 10ms to draw one horizontal line.
-            if time::SystemTime::now().duration_since(last_draw).unwrap() >=
-                time::Duration::new(0, 100000) {
-                self.lcd_controller.draw_one_line(&mut self.cpu);
-                self.lcd_controller.process_interrupts(&mut self.cpu);
-                last_draw = time::SystemTime::now();
-            }
+        self.last_draw = time::SystemTime::now();
+        while self.crashed().is_none() {
+            self.tick()
         }
         if self.cpu.crashed() {
             println!("Emulator crashed: {}", self.cpu.crash_message.as_ref().unwrap());

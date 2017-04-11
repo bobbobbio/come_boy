@@ -3,7 +3,8 @@
 use std::{fmt, str};
 use std::io::{self, Result};
 
-use intel_8080_emulator::{dispatch_intel8080_instruction, get_intel8080_instruction, Intel8080InstructionSetOps};
+use intel_8080_emulator::{
+    dispatch_intel8080_instruction, get_intel8080_instruction, Intel8080InstructionSetOps};
 use emulator_common::InstructionOption::*;
 use emulator_common::{Intel8080Register, DebuggerOps, Debugger, SimulatedInstruction};
 use lr35902_emulator::opcodes::{

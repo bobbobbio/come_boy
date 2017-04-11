@@ -2,7 +2,7 @@
 
 extern crate sdl2;
 
-mod debugger;
+pub mod debugger;
 mod opcodes;
 
 use std::ops::Range;
