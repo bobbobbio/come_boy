@@ -8,7 +8,7 @@ use std::ops::Range;
 use std::{iter, time};
 
 pub use game_boy_emulator::debugger::run_debugger;
-use lr35902_emulator::{LR35902Emulator, LR35902MemoryIterator};
+use lr35902_emulator::{LR35902Emulator, LR35902MemoryIterator, LR35902Flag, Intel8080Register};
 
 /*  _     ____ ____   ____            _             _ _
  * | |   / ___|  _ \ / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
@@ -91,8 +91,8 @@ enum LCDInterruptFlag {
 const VERTICAL_BLANKING_INTERRUPT_ADDRESS : u16 = 0x0040;
 const LCDCSTATUS_INTERRUPT_ADDRESS : u16 = 0x0048;
 
-const CHARACTER_DATA_ADDRESS_1: Range<u16> = Range { start: 0x8800, end: 0x9800};
-const CHARACTER_DATA_ADDRESS_2: Range<u16> = Range { start: 0x8000, end: 0x9000};
+const CHARACTER_DATA_ADDRESS_1: Range<u16> = Range { start: 0x8000, end: 0x9000};
+const CHARACTER_DATA_ADDRESS_2: Range<u16> = Range { start: 0x8800, end: 0x9800};
 const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range { start: 0x9800, end: 0x9C00 };
 const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range { start: 0x9C00, end: 0xA000 };
 const OAM_DATA: Range<u16> = Range { start: 0xFE00, end: 0xFEA0 };
@@ -218,7 +218,7 @@ impl<'a> LCDController<'a> {
     fn read_dot_data(&self, cpu: &LR35902Emulator, character_code: u8) -> LCDDotData
     {
         let mut dot_data = LCDDotData::new();
-        let cd_addr = if !self.read_lcd_control_flag(
+        let cd_addr = if self.read_lcd_control_flag(
             cpu, LCDControlFlag::BGCharacterDataSelection) {
             CHARACTER_DATA_ADDRESS_1.start
         } else {
@@ -446,11 +446,15 @@ struct GameBoyEmulator<'a> {
 
 impl<'a> GameBoyEmulator<'a> {
     fn new() -> GameBoyEmulator<'a> {
-        GameBoyEmulator {
+        let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             lcd_controller: LCDController::new(),
             last_draw: time::SystemTime::now()
-        }
+        };
+        e.lcd_controller.initialize_flags(&mut e.cpu);
+        e.set_state_post_bios();
+
+        return e;
     }
 
     fn load_rom(&mut self, rom: &[u8])
@@ -482,9 +486,28 @@ impl<'a> GameBoyEmulator<'a> {
         }
     }
 
+    fn set_state_post_bios(&mut self)
+    {
+        /*
+         * After running the BIOS (the part of the gameboy that shows the logo) the cpu is left in
+         * a very certain state. Since this is always the case, certain games may rely on this fact
+         * (and indeed often times do.)
+         */
+        self.cpu.set_register(Intel8080Register::A, 0x01);
+        self.cpu.set_register(Intel8080Register::B, 0x0);
+        self.cpu.set_register(Intel8080Register::C, 0x13);
+        self.cpu.set_register(Intel8080Register::D, 0x0);
+        self.cpu.set_register(Intel8080Register::E, 0xD8);
+        self.cpu.set_register(Intel8080Register::H, 0x01);
+        self.cpu.set_register(Intel8080Register::L, 0x4D);
+        self.cpu.set_flag(LR35902Flag::Carry, true);
+        self.cpu.set_flag(LR35902Flag::HalfCarry, true);
+        self.cpu.set_flag(LR35902Flag::Subtract, false);
+        self.cpu.set_flag(LR35902Flag::Zero, true);
+    }
+
     fn run(&mut self)
     {
-        self.lcd_controller.initialize_flags(&mut self.cpu);
         self.last_draw = time::SystemTime::now();
         while self.crashed().is_none() {
             self.tick()

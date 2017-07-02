@@ -15,7 +15,7 @@ use intel_8080_emulator::{
     dispatch_intel8080_instruction,
     get_intel8080_instruction};
 use emulator_common::InstructionOption::*;
-use emulator_common::Intel8080Register;
+pub use emulator_common::Intel8080Register;
 pub use lr35902_emulator::debugger::run_debugger;
 use lr35902_emulator::opcodes::{
     LR35902InstructionSet, dispatch_lr35902_instruction, get_lr35902_instruction};
@@ -89,7 +89,7 @@ impl LR35902Emulator {
         };
     }
 
-    fn set_flag(&mut self, flag: LR35902Flag, value: bool)
+    pub fn set_flag(&mut self, flag: LR35902Flag, value: bool)
     {
         if value {
             self.registers[Intel8080Register::FLAGS as usize] |= flag as u8;
@@ -111,6 +111,11 @@ impl LR35902Emulator {
     pub fn set_memory(&mut self, address: u16, value: u8)
     {
         self.main_memory[address as usize] = value;
+    }
+
+    pub fn set_register(&mut self, register: Intel8080Register, value: u8)
+    {
+        Intel8080InstructionSetOps::set_register(self, register, value);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16
@@ -1259,6 +1264,15 @@ fn jump_relative_negative()
     e.set_program_counter(0x1234);
     e.jump_relative(-4i8 as u8);
     assert_eq!(e.read_program_counter(), 0x1230);
+}
+
+#[test]
+fn jump_relative_example()
+{
+    let mut e = LR35902Emulator::new();
+    e.set_program_counter(0x297);
+    e.jump_relative(0xFC);
+    assert_eq!(e.read_program_counter(), 0x293);
 }
 
 #[test]
