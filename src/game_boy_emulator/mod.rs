@@ -9,6 +9,10 @@ use std::{iter, time};
 
 pub use game_boy_emulator::debugger::run_debugger;
 use lr35902_emulator::{LR35902Emulator, LR35902MemoryIterator, LR35902Flag, Intel8080Register};
+use util::super_fast_hash;
+
+const IF_REGISTER: u16 = 0xFF0F;
+const IE_REGISTER: u16 = 0xFFFF;
 
 /*  _     ____ ____   ____            _             _ _
  * | |   / ___|  _ \ / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
@@ -50,9 +54,9 @@ enum LCDRegister {
     LY   = 0xFF44,
     LYC  = 0xFF45,
     // DMA  = 0xFF46,
-    // BGP  = 0xFF47,
-    // OBP0 = 0xFF48,
-    // OBP1 = 0xFF49,
+    BGP  = 0xFF47,
+    OBP0 = 0xFF48,
+    OBP1 = 0xFF49,
     WY   = 0xFF4A,
     WX   = 0xFF4B,
 }
@@ -302,13 +306,23 @@ impl<'a> LCDController<'a> {
         }
     }
 
+    fn set_lcd_status_mode(&self, cpu: &mut LR35902Emulator, value: u8)
+    {
+        let stat = self.read_register(cpu, LCDRegister::STAT) & !(LCDStatusFlag::Mode as u8);
+        self.set_register(cpu, LCDRegister::STAT, stat | value);
+    }
+
     fn initialize_flags(&self, cpu: &mut LR35902Emulator)
     {
         self.set_lcd_control_flag(cpu, LCDControlFlag::OperationStop, true);
         self.set_lcd_control_flag(cpu, LCDControlFlag::BGCharacterDataSelection, true);
         self.set_lcd_control_flag(cpu, LCDControlFlag::BGDisplayOn, true);
+        self.set_register(cpu, LCDRegister::BGP, 0xFC);
+        self.set_register(cpu, LCDRegister::OBP0, 0xFF);
+        self.set_register(cpu, LCDRegister::OBP1, 0xFF);
 
-        self.set_register(cpu, LCDRegister::STAT, 0x85);
+        self.set_lcd_status_flag(cpu, LCDStatusFlag::InterruptLYMatching, true);
+        self.set_lcd_status_mode(cpu, 0x1);
     }
 
     fn get_scroll_origin_relative_to_lcd(&self, cpu: &LR35902Emulator) -> (i32, i32)
@@ -410,8 +424,8 @@ impl<'a> LCDController<'a> {
         let ly = self.read_register(cpu, LCDRegister::LY);
 
         // XXX This needs to live elsewhere
-        let if_register = cpu.read_memory(0xFF0F);
-        let ie_register = cpu.read_memory(0xFFFF);
+        let if_register = cpu.read_memory(IF_REGISTER);
+        let ie_register = cpu.read_memory(IE_REGISTER);
 
         // Vertical blanking starts when ly == 144
         if ly == 144 {
@@ -438,6 +452,11 @@ impl<'a> LCDController<'a> {
  *                                         |___/
  */
 
+const CARTRIDGE_RAM: Range<u16> = Range { start: 0xA000, end: 0xC000 };
+const UNUSABLE_MEMORY: Range<u16> = Range { start: 0xFEA0, end: 0xFF00 };
+const IO_PORTS: Range<u16> = Range { start: 0xFF00, end: 0xFF80 };
+const HIGH_RAM: Range<u16> = Range { start: 0xFF80, end: 0xFFFF };
+
 struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator,
     lcd_controller: LCDController<'a>,
@@ -451,10 +470,22 @@ impl<'a> GameBoyEmulator<'a> {
             lcd_controller: LCDController::new(),
             last_draw: time::SystemTime::now()
         };
+
         e.lcd_controller.initialize_flags(&mut e.cpu);
+
         e.set_state_post_bios();
 
+        // This is here to prevent the initial state from changing inadvertently.
+        assert_eq!(super_fast_hash(&e.cpu.main_memory), 2422240235);
+
         return e;
+    }
+
+    fn set_io_port(&mut self, port: usize, value: u8)
+    {
+        let addr = IO_PORTS.start | (port as u16 & 0x00FF);
+        assert!(addr < IO_PORTS.end, "{:02x} >= {:02x}", addr, IO_PORTS.end);
+        self.cpu.set_memory(addr, value);
     }
 
     fn load_rom(&mut self, rom: &[u8])
@@ -504,6 +535,73 @@ impl<'a> GameBoyEmulator<'a> {
         self.cpu.set_flag(LR35902Flag::HalfCarry, true);
         self.cpu.set_flag(LR35902Flag::Subtract, false);
         self.cpu.set_flag(LR35902Flag::Zero, true);
+
+        // Initialize the cartridge RAM to FF.
+        // XXX: why?
+        for addr in CARTRIDGE_RAM {
+            self.cpu.set_memory(addr, 0xFF);
+        }
+
+        // Initialize unusable memory to FF.
+        for addr in UNUSABLE_MEMORY {
+            self.cpu.set_memory(addr, 0xFF);
+        }
+
+        // Initialize io ports
+        let io_ports_a = [
+            /* 00 - 07 */ 0xcfu8, 0x00u8, 0x7eu8, 0xffu8, 0x69u8, 0x00u8, 0x00u8, 0xf8u8,
+            /* 08 - 0f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xe1u8,
+            /* 10 - 17 */ 0x80u8, 0xbfu8, 0xf3u8, 0xffu8, 0xbfu8, 0xffu8, 0x3fu8, 0x00u8,
+            /* 18 - 1f */ 0xffu8, 0xbfu8, 0x7fu8, 0xffu8, 0x9fu8, 0xffu8, 0xbfu8, 0xffu8,
+            /* 20 - 27 */ 0xffu8, 0x00u8, 0x00u8, 0xbfu8, 0x77u8, 0xf3u8, 0xf1u8, 0xffu8,
+            /* 28 - 2f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
+            /* 30 - 37 */ 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8,
+            /* 38 - 3f */ 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8
+        ];
+
+        /* 40 - 4B LCD Controller */
+
+        let io_ports_b = [
+            /* 4c - 4f */ 0xffu8, 0x7eu8, 0xffu8, 0x00u8,
+            /* 50 - 57 */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x3eu8, 0xffu8,
+            /* 58 - 5f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
+            /* 60 - 67 */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
+            /* 68 - 6f */ 0xc0u8, 0xffu8, 0xc1u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
+            /* 70 - 77 */ 0xffu8, 0xffu8, 0x00u8, 0x00u8, 0xffu8, 0x8fu8, 0x00u8, 0x00u8,
+            /* 78 - 7f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8
+        ];
+
+        for (i, value) in io_ports_a.iter().enumerate() {
+            self.set_io_port(i, *value);
+        }
+
+        for (i, value) in io_ports_b.iter().enumerate() {
+            self.set_io_port(i + 0x4c, *value);
+        }
+
+        let high_ram = [
+            0xceu8, 0xedu8, 0x66u8, 0x66u8, 0xccu8, 0x0du8, 0x00u8, 0x0bu8, 0x03u8, 0x73u8, 0x00u8,
+            0x83u8, 0x00u8, 0x0cu8, 0x00u8, 0x0du8, 0x00u8, 0x08u8, 0x11u8, 0x1fu8, 0x88u8, 0x89u8,
+            0x00u8, 0x0eu8, 0xdcu8, 0xccu8, 0x6eu8, 0xe6u8, 0xddu8, 0xddu8, 0xd9u8, 0x99u8, 0xbbu8,
+            0xbbu8, 0x67u8, 0x63u8, 0x6eu8, 0x0eu8, 0xecu8, 0xccu8, 0xddu8, 0xdcu8, 0x99u8, 0x9fu8,
+            0xbbu8, 0xb9u8, 0x33u8, 0x3eu8, 0x45u8, 0xecu8, 0x52u8, 0xfau8, 0x08u8, 0xb7u8, 0x07u8,
+            0x5du8, 0x01u8, 0xfdu8, 0xc0u8, 0xffu8, 0x08u8, 0xfcu8, 0x00u8, 0xe5u8, 0x0bu8, 0xf8u8,
+            0xc2u8, 0xceu8, 0xf4u8, 0xf9u8, 0x0fu8, 0x7fu8, 0x45u8, 0x6du8, 0x3du8, 0xfeu8, 0x46u8,
+            0x97u8, 0x33u8, 0x5eu8, 0x08u8, 0xefu8, 0xf1u8, 0xffu8, 0x86u8, 0x83u8, 0x24u8, 0x74u8,
+            0x12u8, 0xfcu8, 0x00u8, 0x9fu8, 0xb4u8, 0xb7u8, 0x06u8, 0xd5u8, 0xd0u8, 0x7au8, 0x00u8,
+            0x9eu8, 0x04u8, 0x5fu8, 0x41u8, 0x2fu8, 0x1du8, 0x77u8, 0x36u8, 0x75u8, 0x81u8, 0xaau8,
+            0x70u8, 0x3au8, 0x98u8, 0xd1u8, 0x71u8, 0x02u8, 0x4du8, 0x01u8, 0xc1u8, 0xffu8, 0x0du8,
+            0x00u8, 0xd3u8, 0x05u8, 0xf9u8, 0x00u8, 0x0bu8
+        ];
+
+        // Initialize high ram.
+        for (i, value) in high_ram.iter().enumerate() {
+            let addr = HIGH_RAM.start + i as u16;
+            assert!(addr < HIGH_RAM.end);
+            self.cpu.set_memory(addr, *value);
+        }
+
+        self.cpu.set_memory(IE_REGISTER, 0x0);
     }
 
     fn run(&mut self)

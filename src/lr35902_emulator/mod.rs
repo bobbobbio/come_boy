@@ -50,7 +50,7 @@ pub enum LR35902Flag {
 }
 
 pub struct LR35902Emulator {
-    main_memory: [u8; MAX_ADDRESS + 1],
+    pub main_memory: [u8; MAX_ADDRESS + 1],
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16, interrupts_enabled: bool,
     pub crash_message: Option<String>
