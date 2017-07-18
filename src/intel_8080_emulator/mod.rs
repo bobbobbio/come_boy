@@ -12,7 +12,6 @@ pub use intel_8080_emulator::opcodes::{
     get_intel8080_instruction,
     Intel8080InstructionPrinterFactory};
 use emulator_common::Intel8080Register;
-use emulator_common::InstructionOption::*;
 use util::TwosComplement;
 
 const MAX_ADDRESS: usize = 0xffff;
@@ -2982,8 +2981,8 @@ impl<'a> Intel8080Emulator<'a> {
     {
         let pc = self.program_counter as usize;
         let instruction = match get_intel8080_instruction(&self.main_memory[pc..]) {
-            SomeInstruction(res) => res,
-            _ => panic!("Unknown Opcode {}", self.main_memory[pc])
+            Some(res) => res,
+            None => panic!("Unknown Opcode {}", self.main_memory[pc])
         };
 
         self.program_counter += instruction.len() as u16;

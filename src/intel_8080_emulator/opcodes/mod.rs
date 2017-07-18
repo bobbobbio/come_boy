@@ -6,7 +6,6 @@ use std::mem;
 mod opcode_gen;
 
 use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassembler};
-use emulator_common::InstructionOption::*;
 pub use intel_8080_emulator::opcodes::opcode_gen::{
     Intel8080InstructionSet, dispatch_intel8080_instruction, get_intel8080_instruction};
 
@@ -40,10 +39,7 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        match get_intel8080_instruction(stream) {
-            SomeInstruction(x) => Some(x),
-            _ => None
-        }
+        get_intel8080_instruction(stream)
     }
 }
 

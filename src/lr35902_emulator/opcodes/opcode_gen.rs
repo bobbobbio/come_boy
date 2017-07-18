@@ -1,6 +1,4 @@
 use emulator_common::Intel8080Register;
-use emulator_common::InstructionOption;
-use emulator_common::InstructionOption::*;
 use lr35902_emulator::opcodes::LR35902InstructionPrinter;
 use util::{read_u16, read_u8};
 
@@ -618,7 +616,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
 }
 
 pub fn get_lr35902_instruction(
-    original_stream: &[u8]) -> InstructionOption<Vec<u8>>
+    original_stream: &[u8]) -> Option<Vec<u8>>
 {
     let mut stream = original_stream;
     let size = match read_u8(&mut stream).unwrap() {
@@ -866,12 +864,12 @@ pub fn get_lr35902_instruction(
         0xFE =>         2,
         0xFF =>         1,
         0x10 => match (0x10 as u16) << 8 |
-            match read_u8(&mut stream) { Ok(x) => x, _ => return NoInstruction } as u16{
+            match read_u8(&mut stream) { Ok(x) => x, _ => return None } as u16{
             0x1000 =>             2,
-            _ => return NoInstruction
+            _ => return None
         },
         0xCB => match (0xCB as u16) << 8 |
-            match read_u8(&mut stream) { Ok(x) => x, _ => return NoInstruction } as u16{
+            match read_u8(&mut stream) { Ok(x) => x, _ => return None } as u16{
             0xCB00 =>             2,
             0xCB01 =>             2,
             0xCB02 =>             2,
@@ -1128,15 +1126,15 @@ pub fn get_lr35902_instruction(
             0xCBFD =>             2,
             0xCBFE =>             2,
             0xCBFF =>             2,
-            _ => return NoInstruction
+            _ => return None
         },
-        _ => return NoInstruction
+        _ => return None
     };
 
     let mut instruction = vec![];
     instruction.resize(size, 0);
     instruction.clone_from_slice(&original_stream[0..size]);
-    return SomeInstruction(instruction);
+    return Some(instruction);
 }
 
 impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {

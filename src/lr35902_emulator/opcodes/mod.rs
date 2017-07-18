@@ -6,7 +6,6 @@ use std::mem;
 mod opcode_gen;
 
 use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassembler};
-use emulator_common::InstructionOption::*;
 pub use lr35902_emulator::opcodes::opcode_gen::{
     dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet};
 
@@ -39,10 +38,7 @@ impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
-        match get_lr35902_instruction(stream) {
-            SomeInstruction(x) => Some(x),
-            _ => None,
-        }
+        get_lr35902_instruction(stream)
     }
 }
 

@@ -168,8 +168,6 @@ class OpcodeCodeGenerator(object):
     def generate_preamble(self):
         self.out('''
             use emulator_common::Intel8080Register;
-            use emulator_common::InstructionOption;
-            use emulator_common::InstructionOption::*;
             use {}::{}InstructionPrinter;
             use util::{{read_u16, read_u8}};
 
@@ -305,19 +303,16 @@ class OpcodeCodeGenerator(object):
     def generate_get_instruction(self):
         self.out('''
             pub fn get_{}_instruction(
-                original_stream: &[u8]) -> InstructionOption<Vec<u8>>
+                original_stream: &[u8]) -> Option<Vec<u8>>
             {{
                 let mut stream = original_stream;
                 let size = match read_u8(&mut stream).unwrap() {{
         '''.format(self.instruction_set_name.lower()))
 
         self.indent += 2
-        for opcode in self.iterate_opcodes(failure='return NoInstruction'):
+        for opcode in self.iterate_opcodes(failure='return None'):
             self.out('0x{:02X} => '.format(opcode.value))
-            if opcode.function_call.function.shorthand == '-':
-                self.out('return NotImplemented,\n')
-            else:
-                self.out('{},\n'.format(opcode.size))
+            self.out('{},\n'.format(opcode.size))
 
         self.indent -= 1
         self.out('};\n')
@@ -327,7 +322,7 @@ class OpcodeCodeGenerator(object):
                 let mut instruction = vec![];
                 instruction.resize(size, 0);
                 instruction.clone_from_slice(&original_stream[0..size]);
-                return SomeInstruction(instruction);
+                return Some(instruction);
             }\n''')
 
     #                            _                   _       _

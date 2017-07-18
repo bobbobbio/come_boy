@@ -41,12 +41,6 @@ pub enum Intel8080Register {
  *       |_|
  */
 
-pub enum InstructionOption<T> {
-    NotImplemented,
-    NoInstruction,
-    SomeInstruction(T)
-}
-
 pub trait InstructionPrinter<'a> {
     fn print_instruction(&mut self, stream: &[u8]) -> Result<()>;
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;

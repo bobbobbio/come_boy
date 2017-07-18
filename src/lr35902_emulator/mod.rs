@@ -12,7 +12,6 @@ use intel_8080_emulator::{
     Intel8080Flag,
     Intel8080InstructionSet,
     Intel8080InstructionSetOps};
-use emulator_common::InstructionOption::*;
 pub use emulator_common::Intel8080Register;
 pub use lr35902_emulator::debugger::run_debugger;
 use lr35902_emulator::opcodes::{
@@ -2339,11 +2338,11 @@ impl LR35902Emulator {
         let pc = self.read_program_counter() as usize;
         let instr = get_lr35902_instruction(&self.main_memory[pc..]);
         match instr {
-            SomeInstruction(res) => {
+            Some(res) => {
                 self.run_lr35902_instruction(&res);
                 return;
             },
-            _ => self.crash_from_unkown_opcode()
+            None => self.crash_from_unkown_opcode()
         };
     }
 }

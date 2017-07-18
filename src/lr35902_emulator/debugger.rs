@@ -3,9 +3,7 @@
 use std::{fmt, str};
 use std::io::{self, Result};
 
-use intel_8080_emulator::{
-    dispatch_intel8080_instruction, get_intel8080_instruction, Intel8080InstructionSetOps};
-use emulator_common::InstructionOption::*;
+use intel_8080_emulator::Intel8080InstructionSetOps;
 use emulator_common::{Intel8080Register, DebuggerOps, Debugger, SimulatedInstruction};
 use lr35902_emulator::opcodes::{
     create_disassembler, dispatch_lr35902_instruction, get_lr35902_instruction};
@@ -151,28 +149,16 @@ impl DebuggerOps for LR35902Emulator {
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction)
     {
         let pc = self.read_program_counter() as usize;
-        let mut instr = get_lr35902_instruction(&self.main_memory[pc..]);
+        let instr = get_lr35902_instruction(&self.main_memory[pc..]);
         match instr {
-            SomeInstruction(res) => {
+            Some(res) => {
                 let mut wrapping_instruction = SimulatedInstructionLR35902::new(
                     self, instruction);
                 dispatch_lr35902_instruction(&res, &mut wrapping_instruction);
                 return;
             },
-            NotImplemented => {
-                return;
-            }
-            _ => { },
+            None => { },
         }
-        instr = get_intel8080_instruction(&self.main_memory[pc..]);
-        match instr {
-            SomeInstruction(res) => {
-                let mut wrapping_instruction = SimulatedInstructionLR35902::new(
-                    self, instruction);
-                dispatch_intel8080_instruction(&res, &mut wrapping_instruction);
-            },
-            _ => { },
-        };
     }
 
     fn read_program_counter(&self) -> u16

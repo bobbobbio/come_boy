@@ -1,6 +1,4 @@
 use emulator_common::Intel8080Register;
-use emulator_common::InstructionOption;
-use emulator_common::InstructionOption::*;
 use intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
 use util::{read_u16, read_u8};
 
@@ -349,7 +347,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
 }
 
 pub fn get_intel8080_instruction(
-    original_stream: &[u8]) -> InstructionOption<Vec<u8>>
+    original_stream: &[u8]) -> Option<Vec<u8>>
 {
     let mut stream = original_stream;
     let size = match read_u8(&mut stream).unwrap() {
@@ -599,13 +597,13 @@ pub fn get_intel8080_instruction(
         0xFC =>         3,
         0xFE =>         2,
         0xFF =>         1,
-        _ => return NoInstruction
+        _ => return None
     };
 
     let mut instruction = vec![];
     instruction.resize(size, 0);
     instruction.clone_from_slice(&original_stream[0..size]);
-    return SomeInstruction(instruction);
+    return Some(instruction);
 }
 
 impl<'a> Intel8080InstructionSet for Intel8080InstructionPrinter<'a> {
