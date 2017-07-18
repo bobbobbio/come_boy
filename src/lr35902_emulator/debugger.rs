@@ -122,7 +122,7 @@ impl fmt::Debug for LR35902Emulator {
         {
             let mut dis = create_disassembler(&self.main_memory, &mut buffer);
             dis.index = self.read_program_counter() as u64;
-            dis.disassemble_one().unwrap();
+            dis.disassemble_one(true).unwrap();
         }
         try!(write!(f, "{}", str::from_utf8(&buffer).unwrap()));
 

@@ -48,11 +48,11 @@ pub fn create_disassembler<'a>(rom: &'a [u8], stream_out: &'a mut io::Write)
     Disassembler::new(rom, LR35902InstructionPrinterFactory, stream_out)
 }
 
-pub fn disassemble_lr35902_rom(rom: &[u8]) -> Result<()>
+pub fn disassemble_lr35902_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
 {
     let stdout = &mut io::stdout();
     let mut disassembler = create_disassembler(rom, stdout);
-    disassembler.disassemble()
+    disassembler.disassemble(include_opcodes)
 }
 
 #[test]

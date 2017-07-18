@@ -3,6 +3,7 @@
 extern crate sdl2;
 
 mod debugger;
+mod disassembler;
 
 use std::ops::Range;
 use std::{iter, time};
@@ -10,6 +11,8 @@ use std::{iter, time};
 pub use game_boy_emulator::debugger::run_debugger;
 use lr35902_emulator::{LR35902Emulator, LR35902MemoryIterator, LR35902Flag, Intel8080Register};
 use util::super_fast_hash;
+
+pub use game_boy_emulator::disassembler::disassemble_game_boy_rom;
 
 const IF_REGISTER: u16 = 0xFF0F;
 const IE_REGISTER: u16 = 0xFFFF;

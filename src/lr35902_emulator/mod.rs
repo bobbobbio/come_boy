@@ -14,7 +14,7 @@ use intel_8080_emulator::{
     Intel8080InstructionSetOps};
 pub use emulator_common::Intel8080Register;
 pub use lr35902_emulator::debugger::run_debugger;
-use lr35902_emulator::opcodes::{
+pub use lr35902_emulator::opcodes::{
     LR35902InstructionSet, dispatch_lr35902_instruction, get_lr35902_instruction};
 pub use lr35902_emulator::opcodes::disassemble_lr35902_rom;
 use util::TwosComplement;

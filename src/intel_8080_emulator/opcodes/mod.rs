@@ -43,11 +43,11 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
     }
 }
 
-pub fn disassemble_8080_rom(rom: &[u8]) -> Result<()>
+pub fn disassemble_8080_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
 {
     let stdout = &mut io::stdout();
     let mut disassembler = Disassembler::new(rom, Intel8080InstructionPrinterFactory, stdout);
-    disassembler.disassemble()
+    disassembler.disassemble(include_opcodes)
 }
 
 #[test]

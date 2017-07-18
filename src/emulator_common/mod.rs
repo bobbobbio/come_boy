@@ -79,7 +79,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             stream_out: stream_out
         }
     }
-    pub fn disassemble_one(&mut self) -> Result<()>
+    pub fn disassemble_one(&mut self, include_opcodes: bool) -> Result<()>
     {
         let mut printed_instr: Vec<u8> = vec![];
         let instr: Vec<u8>;
@@ -104,22 +104,26 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             false => "-   "
         };
 
-        let mut raw_assembly = String::new();
-        for code in &instr {
-            raw_assembly.push_str(format!("{:02x} ", code).as_str());
-        }
+        if include_opcodes {
+            let mut raw_assembly = String::new();
+            for code in &instr {
+                raw_assembly.push_str(format!("{:02x} ", code).as_str());
+            }
 
-        try!(write!(self.stream_out, "{:07x} {:9}{}", self.index, raw_assembly, str_instr));
+            try!(write!(self.stream_out, "{:07x} {:9}{}", self.index, raw_assembly, str_instr));
+        } else {
+            try!(write!(self.stream_out, "{}", str_instr));
+        }
 
         self.index += instr.len() as u64;
 
         Ok(())
     }
 
-    pub fn disassemble(&mut self) -> Result<()>
+    pub fn disassemble(&mut self, include_opcodes: bool) -> Result<()>
     {
         while (self.index as usize) < self.rom.len() {
-            try!(self.disassemble_one());
+            try!(self.disassemble_one(include_opcodes));
             try!(writeln!(self.stream_out, ""));
         }
         Ok(())
@@ -182,7 +186,7 @@ pub fn do_disassembler_test<PF: for<'b> InstructionPrinterFactory<'b>>(
     let mut output = vec![];
     {
         let mut disassembler = Disassembler::new(test_rom, opcode_printer_factory, &mut output);
-        disassembler.disassemble().unwrap();
+        disassembler.disassemble(true).unwrap();
     }
     assert_eq!(str::from_utf8(&output).unwrap(), expected_str);
 }
