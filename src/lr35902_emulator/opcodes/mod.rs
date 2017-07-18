@@ -9,7 +9,6 @@ use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassemble
 use emulator_common::InstructionOption::*;
 pub use lr35902_emulator::opcodes::opcode_gen::{
     dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet};
-use intel_8080_emulator::{get_intel8080_instruction, Intel8080InstructionPrinterFactory};
 
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
@@ -35,28 +34,14 @@ impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {
 impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
     fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
     {
-        match get_lr35902_instruction(stream) {
-            SomeInstruction(_) | NotImplemented => {
-                dispatch_lr35902_instruction(stream, self);
-                mem::replace(&mut self.error, Ok(()))
-            },
-            NoInstruction => {
-                let mut op = Intel8080InstructionPrinterFactory.new(self.stream_out);
-                op.print_instruction(stream)
-            }
-        }
+        dispatch_lr35902_instruction(stream, self);
+        mem::replace(&mut self.error, Ok(()))
     }
     fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
     {
         match get_lr35902_instruction(stream) {
             SomeInstruction(x) => Some(x),
-            NotImplemented => None,
-            NoInstruction => {
-                match get_intel8080_instruction(stream) {
-                    SomeInstruction(x) => Some(x),
-                    _ => None
-                }
-            }
+            _ => None,
         }
     }
 }

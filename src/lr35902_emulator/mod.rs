@@ -11,9 +11,7 @@ use std::{str, mem};
 use intel_8080_emulator::{
     Intel8080Flag,
     Intel8080InstructionSet,
-    Intel8080InstructionSetOps,
-    dispatch_intel8080_instruction,
-    get_intel8080_instruction};
+    Intel8080InstructionSetOps};
 use emulator_common::InstructionOption::*;
 pub use emulator_common::Intel8080Register;
 pub use lr35902_emulator::debugger::run_debugger;
@@ -213,7 +211,7 @@ impl LR35902Emulator {
     {
         if self.interrupts_enabled {
             self.interrupts_enabled = false;
-            self.call(address);
+            Intel8080InstructionSet::call(self, address);
         }
     }
 }
@@ -694,7 +692,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     fn move_and_increment_hl(
         &mut self, dest_register: Intel8080Register, src_register: Intel8080Register)
     {
-        self.move_data(dest_register, src_register);
+        LR35902InstructionSet::move_data(self, dest_register, src_register);
         let old_value = self.read_register_pair(Intel8080Register::H);
         self.set_register_pair(Intel8080Register::H, old_value.wrapping_add(1));
     }
@@ -702,7 +700,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     fn move_and_decrement_hl(
         &mut self, dest_register: Intel8080Register, src_register: Intel8080Register)
     {
-        self.move_data(dest_register, src_register);
+        LR35902InstructionSet::move_data(self, dest_register, src_register);
         let old_value = self.read_register_pair(Intel8080Register::H);
         self.set_register_pair(Intel8080Register::H, old_value.wrapping_sub(1));
     }
@@ -765,8 +763,8 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
     fn return_and_enable_interrupts(&mut self)
     {
-        self.return_unconditionally();
-        self.enable_interrupts();
+        LR35902InstructionSet::return_unconditionally(self);
+        LR35902InstructionSet::enable_interrupts(self);
     }
 
     fn halt_until_button_press(&mut self)
@@ -777,31 +775,31 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     fn jump_relative(&mut self, n: u8)
     {
         let address = self.get_relative_address(n);
-        self.jump(address);
+        Intel8080InstructionSet::jump(self, address);
     }
 
     fn jump_relative_if_zero(&mut self, n: u8)
     {
         let address = self.get_relative_address(n);
-        self.jump_if_zero(address);
+        Intel8080InstructionSet::jump_if_zero(self, address);
     }
 
     fn jump_relative_if_not_zero(&mut self, n: u8)
     {
         let address = self.get_relative_address(n);
-        self.jump_if_not_zero(address);
+        Intel8080InstructionSet::jump_if_not_zero(self, address);
     }
 
     fn jump_relative_if_carry(&mut self, n: u8)
     {
         let address = self.get_relative_address(n);
-        self.jump_if_carry(address);
+        Intel8080InstructionSet::jump_if_carry(self, address);
     }
 
     fn jump_relative_if_no_carry(&mut self, n: u8)
     {
         let address = self.get_relative_address(n);
-        self.jump_if_no_carry(address);
+        Intel8080InstructionSet::jump_if_no_carry(self, address);
     }
 
     fn store_sp_direct(&mut self, address: u16)
@@ -980,6 +978,251 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
+
+    fn load_sp_from_h_and_l(&mut self)
+    {
+        Intel8080InstructionSet::load_sp_from_h_and_l(self)
+    }
+
+    fn or_immediate_with_accumulator(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::or_immediate_with_accumulator(self, data)
+    }
+
+    fn no_operation(&mut self)
+    {
+        Intel8080InstructionSet::no_operation(self)
+    }
+
+    fn load_register_pair_immediate(&mut self, register: Intel8080Register, data: u16)
+    {
+        Intel8080InstructionSet::load_register_pair_immediate(self, register, data)
+    }
+
+    fn move_data(&mut self, dest_register: Intel8080Register, src_register: Intel8080Register)
+    {
+        Intel8080InstructionSet::move_data(self, dest_register, src_register)
+    }
+
+    fn enable_interrupts(&mut self)
+    {
+        Intel8080InstructionSet::enable_interrupts(self)
+    }
+
+    fn return_if_zero(&mut self)
+    {
+        Intel8080InstructionSet::return_if_zero(self)
+    }
+
+    fn exclusive_or_immediate_with_accumulator(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::exclusive_or_immediate_with_accumulator(self, data)
+    }
+
+    fn and_immediate_with_accumulator(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::and_immediate_with_accumulator(self, data)
+    }
+
+    fn decrement_register_or_memory(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::decrement_register_or_memory(self, register)
+    }
+
+    fn halt(&mut self)
+    {
+        Intel8080InstructionSet::halt(self)
+    }
+
+    fn compare_with_accumulator(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::compare_with_accumulator(self, register)
+    }
+
+    fn restart(&mut self, implicit_data: u8)
+    {
+        Intel8080InstructionSet::restart(self, implicit_data)
+    }
+
+    fn decrement_register_pair(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::decrement_register_pair(self, register)
+    }
+
+    fn return_if_not_zero(&mut self)
+    {
+        Intel8080InstructionSet::return_if_not_zero(self)
+    }
+
+    fn logical_or_with_accumulator(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::logical_or_with_accumulator(self, register)
+    }
+
+    fn jump(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::jump(self, address)
+    }
+
+    fn call_if_not_zero(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::call_if_not_zero(self, address)
+    }
+
+    fn subtract_immediate_from_accumulator(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::subtract_immediate_from_accumulator(self, data)
+    }
+
+    fn subtract_from_accumulator(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::subtract_from_accumulator(self, register)
+    }
+
+    fn load_accumulator(&mut self, register_pair: Intel8080Register)
+    {
+        Intel8080InstructionSet::load_accumulator(self, register_pair)
+    }
+
+    fn return_unconditionally(&mut self)
+    {
+        Intel8080InstructionSet::return_unconditionally(self)
+    }
+
+    fn jump_if_not_zero(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::jump_if_not_zero(self, address)
+    }
+
+    fn call_if_carry(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::call_if_carry(self, address)
+    }
+
+    fn logical_and_with_accumulator(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::logical_and_with_accumulator(self, register)
+    }
+
+    fn jump_if_no_carry(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::jump_if_no_carry(self, address)
+    }
+
+    fn call(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::call(self, address)
+    }
+
+    fn return_if_no_carry(&mut self)
+    {
+        Intel8080InstructionSet::return_if_no_carry(self)
+    }
+
+    fn call_if_zero(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::call_if_zero(self, address)
+    }
+
+    fn jump_if_carry(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::jump_if_carry(self, address)
+    }
+
+    fn add_immediate_to_accumulator_with_carry(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::add_immediate_to_accumulator_with_carry(self, data)
+    }
+
+    fn increment_register_pair(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::increment_register_pair(self, register)
+    }
+
+    fn store_accumulator(&mut self, register_pair: Intel8080Register)
+    {
+        Intel8080InstructionSet::store_accumulator(self, register_pair)
+    }
+
+    fn add_to_accumulator_with_carry(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::add_to_accumulator_with_carry(self, register)
+    }
+
+    fn subtract_from_accumulator_with_borrow(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::subtract_from_accumulator_with_borrow(self, register)
+    }
+
+    fn push_data_onto_stack(&mut self, register_pair: Intel8080Register)
+    {
+        Intel8080InstructionSet::push_data_onto_stack(self, register_pair)
+    }
+
+    fn increment_register_or_memory(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::increment_register_or_memory(self, register)
+    }
+
+    fn load_program_counter(&mut self)
+    {
+        Intel8080InstructionSet::load_program_counter(self)
+    }
+
+    fn pop_data_off_stack(&mut self, register_pair: Intel8080Register)
+    {
+        Intel8080InstructionSet::pop_data_off_stack(self, register_pair)
+    }
+
+    fn add_immediate_to_accumulator(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::add_immediate_to_accumulator(self, data)
+    }
+
+    fn logical_exclusive_or_with_accumulator(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::logical_exclusive_or_with_accumulator(self, register)
+    }
+
+    fn add_to_accumulator(&mut self, register: Intel8080Register)
+    {
+        Intel8080InstructionSet::add_to_accumulator(self, register)
+    }
+
+    fn disable_interrupts(&mut self)
+    {
+        Intel8080InstructionSet::disable_interrupts(self)
+    }
+
+    fn compare_immediate_with_accumulator(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::compare_immediate_with_accumulator(self, data)
+    }
+
+    fn move_immediate_data(&mut self, dest_register: Intel8080Register, data: u8)
+    {
+        Intel8080InstructionSet::move_immediate_data(self, dest_register, data)
+    }
+
+    fn call_if_no_carry(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::call_if_no_carry(self, address)
+    }
+
+    fn return_if_carry(&mut self)
+    {
+        Intel8080InstructionSet::return_if_carry(self)
+    }
+
+    fn jump_if_zero(&mut self, address: u16)
+    {
+        Intel8080InstructionSet::jump_if_zero(self, address)
+    }
+
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8)
+    {
+        Intel8080InstructionSet::subtract_immediate_from_accumulator_with_borrow(self, data)
+    }
 }
 
 /*  ___           _                   _   _               _____         _
@@ -1135,7 +1378,7 @@ fn subtract_immediate_from_accumulator_example1()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0xFF);
-    e.subtract_immediate_from_accumulator(0x01);
+    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x01);
     assert_eq!(e.read_register(Intel8080Register::A), 0xFE);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
@@ -1147,7 +1390,7 @@ fn subtract_immediate_from_accumulator_example2()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x04);
-    e.subtract_immediate_from_accumulator(0x05);
+    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x05);
     assert_eq!(e.read_register(Intel8080Register::A), 0xFF);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::HalfCarry));
@@ -1159,7 +1402,7 @@ fn subtract_immediate_from_accumulator_example3()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x14);
-    e.subtract_immediate_from_accumulator(0x05);
+    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x05);
     assert_eq!(e.read_register(Intel8080Register::A), 0x0F);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::HalfCarry));
@@ -1171,7 +1414,7 @@ fn subtract_immediate_from_accumulator_example4()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x14);
-    e.subtract_immediate_from_accumulator(0x86);
+    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x86);
     assert_eq!(e.read_register(Intel8080Register::A), 0x8E);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::HalfCarry));
@@ -1669,7 +1912,7 @@ fn logical_and_with_accumulator()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0b00000001);
     e.set_register(Intel8080Register::B, 0b11000001);
-    e.logical_and_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
     assert_eq!(e.read_register(Intel8080Register::A), 0b00000001);
 }
 
@@ -1679,7 +1922,7 @@ fn logical_and_with_accumulator_sets_zero()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x0);
-    e.logical_and_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1690,7 +1933,7 @@ fn logical_and_with_accumulator_clears_zero()
     e.set_flag(LR35902Flag::Zero, true);
     e.set_register(Intel8080Register::A, 0b00110001);
     e.set_register(Intel8080Register::B, 0b00010000);
-    e.logical_and_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1701,7 +1944,7 @@ fn logical_and_with_accumulator_clears_subtract()
     e.set_flag(LR35902Flag::Subtract, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_and_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Subtract));
 }
 
@@ -1712,7 +1955,7 @@ fn logical_and_with_accumulator_clears_carry()
     e.set_flag(LR35902Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_and_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Carry));
 }
 
@@ -1722,7 +1965,7 @@ fn logical_and_with_accumulator_sets_half_carry()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_and_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
     assert!(e.read_flag(LR35902Flag::HalfCarry));
 }
 
@@ -1732,7 +1975,7 @@ fn logical_exclusive_or_with_accumulator()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0b00000001);
     e.set_register(Intel8080Register::B, 0b11000001);
-    e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
     assert_eq!(e.read_register(Intel8080Register::A), 0b11000000);
 }
 
@@ -1742,7 +1985,7 @@ fn logical_exclusive_or_with_accumulator_sets_zero()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x33);
     e.set_register(Intel8080Register::B, 0x33);
-    e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1753,7 +1996,7 @@ fn logical_exclusive_or_with_accumulator_clears_zero()
     e.set_flag(LR35902Flag::Zero, true);
     e.set_register(Intel8080Register::A, 0b00110001);
     e.set_register(Intel8080Register::B, 0b00010000);
-    e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1764,7 +2007,7 @@ fn logical_exclusive_or_with_accumulator_clears_subtract()
     e.set_flag(LR35902Flag::Subtract, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Subtract));
 }
 
@@ -1775,7 +2018,7 @@ fn logical_exclusive_or_with_accumulator_clears_carry()
     e.set_flag(LR35902Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Carry));
 }
 
@@ -1786,7 +2029,7 @@ fn logical_exclusive_or_with_accumulator_clears_half_carry()
     e.set_flag(LR35902Flag::HalfCarry, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
 }
 
@@ -1796,7 +2039,7 @@ fn logical_or_with_accumulator()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0b00000001);
     e.set_register(Intel8080Register::B, 0b11000001);
-    e.logical_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
     assert_eq!(e.read_register(Intel8080Register::A), 0b11000001);
 }
 
@@ -1806,7 +2049,7 @@ fn logical_or_with_accumulator_sets_zero()
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x0);
     e.set_register(Intel8080Register::B, 0x0);
-    e.logical_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1817,7 +2060,7 @@ fn logical_or_with_accumulator_clears_zero()
     e.set_flag(LR35902Flag::Zero, true);
     e.set_register(Intel8080Register::A, 0b00110001);
     e.set_register(Intel8080Register::B, 0b00010000);
-    e.logical_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1828,7 +2071,7 @@ fn logical_or_with_accumulator_clears_subtract()
     e.set_flag(LR35902Flag::Subtract, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Subtract));
 }
 
@@ -1839,7 +2082,7 @@ fn logical_or_with_accumulator_clears_carry()
     e.set_flag(LR35902Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::Carry));
 }
 
@@ -1850,7 +2093,7 @@ fn logical_or_with_accumulator_clears_half_carry()
     e.set_flag(LR35902Flag::HalfCarry, true);
     e.set_register(Intel8080Register::A, 0x11);
     e.set_register(Intel8080Register::B, 0x22);
-    e.logical_or_with_accumulator(Intel8080Register::B);
+    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
 }
 
@@ -1868,7 +2111,7 @@ fn decimal_adjust_accumulator_clears_half_carry()
 fn and_immediate_with_accumulator_sets_zero_flag()
 {
     let mut e = LR35902Emulator::new();
-    e.and_immediate_with_accumulator(0x0);
+    LR35902InstructionSet::and_immediate_with_accumulator(&mut e, 0x0);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1877,7 +2120,7 @@ fn and_immediate_with_accumulator_clears_subtract_flag()
 {
     let mut e = LR35902Emulator::new();
     e.set_flag(LR35902Flag::Subtract, true);
-    e.and_immediate_with_accumulator(0x12);
+    LR35902InstructionSet::and_immediate_with_accumulator(&mut e, 0x12);
     assert!(!e.read_flag(LR35902Flag::Subtract));
 }
 
@@ -1886,7 +2129,7 @@ fn exclusive_or_immediate_with_accumulator_sets_zero_flag()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x0);
-    e.exclusive_or_immediate_with_accumulator(0x0);
+    LR35902InstructionSet::exclusive_or_immediate_with_accumulator(&mut e, 0x0);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1895,7 +2138,7 @@ fn exclusive_or_immediate_with_accumulator_clears_subtract_flag()
 {
     let mut e = LR35902Emulator::new();
     e.set_flag(LR35902Flag::Subtract, true);
-    e.exclusive_or_immediate_with_accumulator(0x12);
+    LR35902InstructionSet::exclusive_or_immediate_with_accumulator(&mut e, 0x12);
     assert!(!e.read_flag(LR35902Flag::Subtract));
 }
 
@@ -1904,7 +2147,7 @@ fn or_immediate_with_accumulator_sets_zero_flag()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x0);
-    e.or_immediate_with_accumulator(0x0);
+    LR35902InstructionSet::or_immediate_with_accumulator(&mut e, 0x0);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
 
@@ -1913,7 +2156,7 @@ fn or_immediate_with_accumulator_clears_subtract_flag()
 {
     let mut e = LR35902Emulator::new();
     e.set_flag(LR35902Flag::Subtract, true);
-    e.or_immediate_with_accumulator(0x12);
+    LR35902InstructionSet::or_immediate_with_accumulator(&mut e, 0x12);
     assert!(!e.read_flag(LR35902Flag::Subtract));
 }
 
@@ -1974,7 +2217,7 @@ fn compare_immediate_with_accumulator_example1()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x45);
-    e.compare_immediate_with_accumulator(0xF3);
+    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0xF3);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
     assert!(e.read_flag(LR35902Flag::Carry));
@@ -1985,7 +2228,7 @@ fn compare_immediate_with_accumulator_example2()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x02);
-    e.compare_immediate_with_accumulator(0x01);
+    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x01);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
     assert!(!e.read_flag(LR35902Flag::Carry));
@@ -1996,7 +2239,7 @@ fn compare_immediate_with_accumulator_example3()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x80);
-    e.compare_immediate_with_accumulator(0x01);
+    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x01);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::HalfCarry));
     assert!(!e.read_flag(LR35902Flag::Carry));
@@ -2007,7 +2250,7 @@ fn compare_immediate_with_accumulator_example4()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x40);
-    e.compare_immediate_with_accumulator(0x01);
+    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x01);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::HalfCarry));
     assert!(!e.read_flag(LR35902Flag::Carry));
@@ -2018,7 +2261,7 @@ fn compare_immediate_with_accumulator_example5()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0x40);
-    e.compare_immediate_with_accumulator(0xFF);
+    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0xFF);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::HalfCarry));
     assert!(e.read_flag(LR35902Flag::Carry));
@@ -2029,7 +2272,7 @@ fn compare_immediate_with_accumulator_example6()
 {
     let mut e = LR35902Emulator::new();
     e.set_register(Intel8080Register::A, 0);
-    e.compare_immediate_with_accumulator(0x90);
+    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x90);
     assert!(e.read_flag(LR35902Flag::Subtract));
     assert!(e.read_flag(LR35902Flag::Carry));
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
@@ -2040,7 +2283,7 @@ fn increment_register_pair_example1()
 {
     let mut e = LR35902Emulator::new();
     e.set_register_pair(Intel8080Register::SP, 0x000F);
-    e.increment_register_pair(Intel8080Register::SP);
+    LR35902InstructionSet::increment_register_pair(&mut e, Intel8080Register::SP);
     assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0010);
 }
 
@@ -2085,13 +2328,6 @@ impl LR35902Emulator {
         dispatch_lr35902_instruction(&instruction, self);
     }
 
-    fn run_8080_instruction(&mut self, instruction: &[u8])
-    {
-        let pc = self.read_program_counter() as usize;
-        self.set_program_counter((pc + instruction.len()) as u16);
-        dispatch_intel8080_instruction(&instruction, self);
-    }
-
     fn crash_from_unkown_opcode(&mut self)
     {
         let pc = self.read_program_counter();
@@ -2101,21 +2337,12 @@ impl LR35902Emulator {
     pub fn run_one_instruction(&mut self)
     {
         let pc = self.read_program_counter() as usize;
-        let mut instr = get_lr35902_instruction(&self.main_memory[pc..]);
+        let instr = get_lr35902_instruction(&self.main_memory[pc..]);
         match instr {
             SomeInstruction(res) => {
                 self.run_lr35902_instruction(&res);
                 return;
             },
-            NoInstruction => { },
-            NotImplemented => {
-                self.crash_from_unkown_opcode();
-                return;
-            },
-        }
-        instr = get_intel8080_instruction(&self.main_memory[pc..]);
-        match instr {
-            SomeInstruction(res) => self.run_8080_instruction(&res),
             _ => self.crash_from_unkown_opcode()
         };
     }
