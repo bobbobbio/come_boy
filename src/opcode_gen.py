@@ -310,13 +310,13 @@ class OpcodeCodeGenerator(object):
         '''.format(self.instruction_set_name.lower()))
 
         def split_bytes(value):
-            bytes = []
+            byte_list = []
             while value > 0:
-                bytes.append('0x{:02X}'.format(value & 0xFF))
-                value >>= 8;
+                byte_list.append('0x{:02X}'.format(value & 0xFF))
+                value >>= 8
 
-            if bytes:
-                return ', '.join(reversed(bytes))
+            if byte_list:
+                return ', '.join(reversed(byte_list))
             else:
                 return '0x{:02X}'.format(value)
 
