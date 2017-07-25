@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::io::{self, Result};
+use std::ops::Range;
 use std::str;
 
 #[cfg(test)]
@@ -33,6 +34,116 @@ pub enum Intel8080Register {
     Count = 12,
 }
 
+pub trait MemoryAccessor {
+    fn read_memory(&self, address: u16) -> u8;
+    fn set_memory(&mut self, address: u16, value: u8);
+
+    fn read_memory_u16(&self, address: u16) -> u16
+    {
+        if address == 0xFFFF {
+            return self.read_memory(address) as u16;
+        }
+
+        return (self.read_memory(address + 1) as u16) << 8 | (self.read_memory(address) as u16);
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16)
+    {
+        self.set_memory(address, value as u8);
+
+        if address == 0xFFFF {
+            return
+        }
+
+        self.set_memory(address + 1, (value >> 8) as u8);
+    }
+}
+
+pub struct MemoryStream<'a> {
+    memory_accessor: &'a MemoryAccessor,
+    index: u16
+}
+
+impl<'a> MemoryStream<'a> {
+    pub fn new(memory_accessor: &'a MemoryAccessor, index: u16) -> MemoryStream<'a>
+    {
+        return MemoryStream {
+            memory_accessor: memory_accessor,
+            index: index
+        };
+    }
+}
+
+impl<'a> io::Read for MemoryStream<'a> {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize>
+    {
+        for i in 0..buf.len() {
+            buf[i] = self.memory_accessor.read_memory(self.index + (i as u16));
+        }
+        self.index += buf.len() as u16;
+
+        Ok(buf.len())
+    }
+}
+
+pub struct MemoryIterator<'a> {
+    memory_accessor: &'a MemoryAccessor,
+    current_address: u16,
+    ending_address: u16
+}
+
+impl<'a> Iterator for MemoryIterator<'a> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<u8>
+    {
+        if self.current_address < self.ending_address {
+            let mem = self.memory_accessor.read_memory(self.current_address);
+            self.current_address += 1;
+            return Some(mem);
+        } else {
+            return None;
+        }
+    }
+}
+
+impl<'a> MemoryIterator<'a> {
+    pub fn new(memory_accessor: &'a MemoryAccessor, range: Range<u16>) -> MemoryIterator
+    {
+        assert!(range.start < range.end);
+        return MemoryIterator {
+            memory_accessor: memory_accessor,
+            current_address: range.start,
+            ending_address: range.end
+        };
+    }
+}
+
+pub struct SimpleMemoryAccessor {
+    pub memory: [u8; 0x10000],
+}
+
+impl SimpleMemoryAccessor {
+    pub fn new() -> SimpleMemoryAccessor
+    {
+        return SimpleMemoryAccessor {
+            memory: [0u8; 0x10000]
+        };
+    }
+}
+
+impl MemoryAccessor for SimpleMemoryAccessor {
+    fn read_memory(&self, address: u16) -> u8
+    {
+        return self.memory[address as usize];
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8)
+    {
+        self.memory[address as usize] = value;
+    }
+}
+
 /*   ___                      _      ____       _       _
  *  / _ \ _ __   ___ ___   __| | ___|  _ \ _ __(_)_ __ | |_ ___ _ __
  * | | | | '_ \ / __/ _ \ / _` |/ _ \ |_) | '__| | '_ \| __/ _ \ '__|
@@ -43,7 +154,7 @@ pub enum Intel8080Register {
 
 pub trait InstructionPrinter<'a> {
     fn print_instruction(&mut self, stream: &[u8]) -> Result<()>;
-    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>;
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>>;
 }
 
 pub trait InstructionPrinterFactory<'a> {
@@ -60,21 +171,21 @@ pub trait InstructionPrinterFactory<'a> {
  */
 
 pub struct Disassembler<'a, PF: for<'b> InstructionPrinterFactory<'b>> {
-    pub index: u64,
-    rom: &'a [u8],
+    pub index: u16,
+    memory_accessor: &'a MemoryAccessor,
     opcode_printer_factory: PF,
     stream_out: &'a mut io::Write
 }
 
 impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
     pub fn new(
-        rom: &'a [u8],
+        memory_accessor: &'a MemoryAccessor,
         opcode_printer_factory: PF,
         stream_out: &'a mut io::Write) -> Disassembler<'a, PF>
     {
         return Disassembler {
             index: 0,
-            rom: rom,
+            memory_accessor: memory_accessor,
             opcode_printer_factory: opcode_printer_factory,
             stream_out: stream_out
         }
@@ -86,14 +197,15 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
         let printed;
         {
             let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
-            printed = match opcode_printer.get_instruction(&self.rom[self.index as usize..]) {
+            let stream = MemoryStream::new(self.memory_accessor, self.index);
+            printed = match opcode_printer.get_instruction(stream) {
                 Some(res) => {
                     try!(opcode_printer.print_instruction(&res));
                     instr = res;
                     true
                 },
                 None => {
-                    instr = vec![self.rom[self.index as usize]];
+                    instr = vec![self.memory_accessor.read_memory(self.index)];
                     false
                 }
             };
@@ -115,14 +227,15 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             try!(write!(self.stream_out, "{}", str_instr));
         }
 
-        self.index += instr.len() as u64;
+        self.index += instr.len() as u16;
 
         Ok(())
     }
 
-    pub fn disassemble(&mut self, include_opcodes: bool) -> Result<()>
+    pub fn disassemble(&mut self, range: Range<u16>, include_opcodes: bool) -> Result<()>
     {
-        while (self.index as usize) < self.rom.len() {
+        self.index = range.start;
+        while self.index < range.end {
             try!(self.disassemble_one(include_opcodes));
             try!(writeln!(self.stream_out, ""));
         }
@@ -147,18 +260,19 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
         };
         Ok(())
     }
-    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
+    fn get_instruction<R: io::Read>(&self, mut stream: R) -> Option<Vec<u8>>
     {
-        let size = match stream[0] {
+        let mut instr = vec![0];
+        stream.read(&mut instr).unwrap();
+        let size = match instr[0] {
             0x1 => 1,
             0x2 => 2,
             0x3 => 3,
             _ => return None
         };
-        let mut instruction = vec![];
-        instruction.resize(size, 0);
-        instruction.clone_from_slice(&stream[0..size]);
-        return Some(instruction);
+        instr.resize(size, 0);
+        stream.read(&mut instr[1..]).unwrap();
+        return Some(instr);
     }
 }
 
@@ -185,8 +299,10 @@ pub fn do_disassembler_test<PF: for<'b> InstructionPrinterFactory<'b>>(
 {
     let mut output = vec![];
     {
-        let mut disassembler = Disassembler::new(test_rom, opcode_printer_factory, &mut output);
-        disassembler.disassemble(true).unwrap();
+        let mut ma = SimpleMemoryAccessor::new();
+        ma.memory[0..test_rom.len()].clone_from_slice(test_rom);
+        let mut disassembler = Disassembler::new(&ma, opcode_printer_factory, &mut output);
+        disassembler.disassemble(0u16..test_rom.len() as u16, true).unwrap();
     }
     assert_eq!(str::from_utf8(&output).unwrap(), expected_str);
 }

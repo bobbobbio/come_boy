@@ -169,6 +169,7 @@ class OpcodeCodeGenerator(object):
         self.out('''
             use emulator_common::Intel8080Register;
             use {}::{}InstructionPrinter;
+            use std::io;
             use util::{{read_u16, read_u8}};
 
             /*
@@ -302,27 +303,38 @@ class OpcodeCodeGenerator(object):
 
     def generate_get_instruction(self):
         self.out('''
-            pub fn get_{}_instruction(
-                original_stream: &[u8]) -> Option<Vec<u8>>
+            pub fn get_{}_instruction<R: io::Read>(
+                mut stream: R) -> Option<Vec<u8>>
             {{
-                let mut stream = original_stream;
-                let size = match read_u8(&mut stream).unwrap() {{
+                let (mut instr, size) = match read_u8(&mut stream).unwrap() {{
         '''.format(self.instruction_set_name.lower()))
+
+        def split_bytes(value):
+            bytes = []
+            while value > 0:
+                bytes.append('0x{:02X}'.format(value & 0xFF))
+                value >>= 8;
+
+            if bytes:
+                return ', '.join(reversed(bytes))
+            else:
+                return '0x{:02X}'.format(value)
 
         self.indent += 2
         for opcode in self.iterate_opcodes(failure='return None'):
             self.out('0x{:02X} => '.format(opcode.value))
-            self.out('{},\n'.format(opcode.size))
+            self.out('(vec![{}], {}),\n'.format(
+                split_bytes(opcode.value), opcode.size))
 
         self.indent -= 1
         self.out('};\n')
         self.indent -= 1
 
         self.out('''
-                let mut instruction = vec![];
-                instruction.resize(size, 0);
-                instruction.clone_from_slice(&original_stream[0..size]);
-                return Some(instruction);
+                let op_size = instr.len();
+                instr.resize(size, 0);
+                stream.read(&mut instr[op_size..]).unwrap();
+                return Some(instr);
             }\n''')
 
     #                            _                   _       _

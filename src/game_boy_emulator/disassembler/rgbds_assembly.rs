@@ -28,7 +28,7 @@ impl<'a> InstructionPrinter<'a> for RGBDSInstructionPrinter<'a> {
         dispatch_lr35902_instruction(stream, self);
         mem::replace(&mut self.error, Ok(()))
     }
-    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>>
     {
         get_lr35902_instruction(stream)
     }

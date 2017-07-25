@@ -5,7 +5,11 @@ use std::mem;
 
 mod opcode_gen;
 
-use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassembler};
+use emulator_common::{
+    Disassembler,
+    InstructionPrinter,
+    InstructionPrinterFactory,
+    SimpleMemoryAccessor};
 pub use intel_8080_emulator::opcodes::opcode_gen::{
     Intel8080InstructionSet, dispatch_intel8080_instruction, get_intel8080_instruction};
 
@@ -37,7 +41,7 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
         dispatch_intel8080_instruction(stream, self);
         return mem::replace(&mut self.error, Ok(()));
     }
-    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>>
     {
         get_intel8080_instruction(stream)
     }
@@ -46,8 +50,10 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
 pub fn disassemble_8080_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = Disassembler::new(rom, Intel8080InstructionPrinterFactory, stdout);
-    disassembler.disassemble(include_opcodes)
+    let mut ma = SimpleMemoryAccessor::new();
+    ma.memory[0..rom.len()].clone_from_slice(rom);
+    let mut disassembler = Disassembler::new(&ma, Intel8080InstructionPrinterFactory, stdout);
+    disassembler.disassemble(0u16..rom.len() as u16, include_opcodes)
 }
 
 #[test]

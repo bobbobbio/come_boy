@@ -1,7 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
 use std::io::{self, Result};
-use emulator_common::Disassembler;
+use emulator_common::{Disassembler, MemoryAccessor, SimpleMemoryAccessor};
 
 mod rgbds_assembly;
 
@@ -10,17 +10,19 @@ use game_boy_emulator::disassembler::rgbds_assembly::RGBDSInstructionPrinterFact
 #[cfg(test)]
 use emulator_common::do_disassembler_test;
 
-pub fn create_disassembler<'a>(rom: &'a [u8], stream_out: &'a mut io::Write)
+pub fn create_disassembler<'a>(memory_accessor: &'a MemoryAccessor, stream_out: &'a mut io::Write)
     -> Disassembler<'a, RGBDSInstructionPrinterFactory>
 {
-    Disassembler::new(rom, RGBDSInstructionPrinterFactory, stream_out)
+    Disassembler::new(memory_accessor, RGBDSInstructionPrinterFactory, stream_out)
 }
 
 pub fn disassemble_game_boy_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = create_disassembler(rom, stdout);
-    disassembler.disassemble(include_opcodes)
+    let mut ma = SimpleMemoryAccessor::new();
+    ma.memory[0..rom.len()].clone_from_slice(rom);
+    let mut disassembler = create_disassembler(&ma, stdout);
+    disassembler.disassemble(0u16..rom.len() as u16, include_opcodes)
 }
 
 #[test]

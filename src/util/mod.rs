@@ -3,8 +3,7 @@
 use std::io::{self, Result};
 use std::{mem, slice};
 
-pub fn read_u16<T: io::Read>(
-    mut stream: T) -> Result<u16>
+pub fn read_u16<T: io::Read>(mut stream: T) -> Result<u16>
 {
     let mut arg_buffer = [0; 2];
     try!(stream.read_exact(&mut arg_buffer));
@@ -12,8 +11,7 @@ pub fn read_u16<T: io::Read>(
     Ok(u16::from_le(narg))
 }
 
-pub fn read_u8<T: io::Read>(
-    mut stream: T) -> Result<u8>
+pub fn read_u8<T: io::Read>(mut stream: T) -> Result<u8>
 {
     let mut arg_buffer = [0; 1];
     try!(stream.read_exact(&mut arg_buffer));

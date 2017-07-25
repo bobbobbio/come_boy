@@ -5,7 +5,13 @@ use std::mem;
 
 mod opcode_gen;
 
-use emulator_common::{InstructionPrinter, InstructionPrinterFactory, Disassembler};
+use emulator_common::{
+    Disassembler,
+    InstructionPrinter,
+    InstructionPrinterFactory,
+    MemoryAccessor,
+    SimpleMemoryAccessor,
+};
 pub use lr35902_emulator::opcodes::opcode_gen::{
     dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet};
 
@@ -36,23 +42,25 @@ impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
         dispatch_lr35902_instruction(stream, self);
         mem::replace(&mut self.error, Ok(()))
     }
-    fn get_instruction(&self, stream: &[u8]) -> Option<Vec<u8>>
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>>
     {
         get_lr35902_instruction(stream)
     }
 }
 
-pub fn create_disassembler<'a>(rom: &'a [u8], stream_out: &'a mut io::Write)
+pub fn create_disassembler<'a>(ma: &'a MemoryAccessor, stream_out: &'a mut io::Write)
     -> Disassembler<'a, LR35902InstructionPrinterFactory>
 {
-    Disassembler::new(rom, LR35902InstructionPrinterFactory, stream_out)
+    Disassembler::new(ma, LR35902InstructionPrinterFactory, stream_out)
 }
 
 pub fn disassemble_lr35902_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
 {
     let stdout = &mut io::stdout();
-    let mut disassembler = create_disassembler(rom, stdout);
-    disassembler.disassemble(include_opcodes)
+    let mut ma = SimpleMemoryAccessor::new();
+    ma.memory[0..rom.len()].clone_from_slice(rom);
+    let mut disassembler = create_disassembler(&ma, stdout);
+    disassembler.disassemble(0u16..rom.len() as u16, include_opcodes)
 }
 
 #[test]

@@ -1459,7 +1459,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
 
     fn rim(&mut self)
     {
-        panic!("Not Implemented")
+        panic!("rim: Not Implemented")
     }
 
     fn disable_interrupts(&mut self)
@@ -1474,12 +1474,12 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
 
     fn input(&mut self, _data1: u8)
     {
-        panic!("Not Implemented")
+        panic!("input: Not Implemented")
     }
 
     fn halt(&mut self)
     {
-        panic!("Not Implemented")
+        panic!("halt: Not Implemented")
     }
 
     fn restart(&mut self, implicit_data: u8)
@@ -1490,12 +1490,12 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
 
     fn output(&mut self, _data1: u8)
     {
-        panic!("Not Implemented")
+        panic!("output: Not Implemented")
     }
 
     fn sim(&mut self)
     {
-        panic!("Not Implemented")
+        panic!("sim: Not Implemented")
     }
 }
 
