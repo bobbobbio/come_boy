@@ -5,7 +5,9 @@ extern crate sdl2;
 mod debugger;
 mod disassembler;
 
+use std::cell::RefCell;
 use std::ops::Range;
+use std::rc::Rc;
 use std::{iter, time};
 
 pub use game_boy_emulator::debugger::run_debugger;
@@ -18,28 +20,94 @@ pub use game_boy_emulator::disassembler::disassemble_game_boy_rom;
 const IF_REGISTER: u16 = 0xFF0F;
 const IE_REGISTER: u16 = 0xFFFF;
 
+/*
+ *  __  __
+ * |  \/  | ___ _ __ ___   ___  _ __ _   _
+ * | |\/| |/ _ \ '_ ` _ \ / _ \| '__| | | |
+ * | |  | |  __/ | | | | | (_) | |  | |_| |
+ * |_|  |_|\___|_| |_| |_|\___/|_|   \__, |
+ *                                   |___/
+ *   ____            _             _ _
+ *  / ___|___  _ __ | |_ _ __ ___ | | | ___ _ __
+ * | |   / _ \| '_ \| __| '__/ _ \| | |/ _ \ '__|
+ * | |__| (_) | | | | |_| | | (_) | | |  __/ |
+ *  \____\___/|_| |_|\__|_|  \___/|_|_|\___|_|
+ */
+
 struct GameBoyMemoryMap {
-    pub memory: [u8; 0x10000],
+    memory_map: Vec<(u16, MemoryChunk)>,
 }
 
-impl MemoryAccessor for GameBoyMemoryMap {
+impl GameBoyMemoryMap {
+    fn map_chunk(&mut self, address: u16, mut chunk: MemoryChunk)
+    {
+        for (i, a) in (address..address + chunk.len()).enumerate() {
+            self.memory_map[a as usize] = (i as u16, chunk.clone());
+        }
+    }
+}
+
+impl<'a> MemoryAccessor for GameBoyMemoryMap {
     fn read_memory(&self, address: u16) -> u8
     {
-        return self.memory[address as usize];
+        let (i, ref m) = self.memory_map[address as usize];
+        return m.read_value(i);
     }
 
     fn set_memory(&mut self, address: u16, value: u8)
     {
-        self.memory[address as usize] = value;
+        let (i, ref mut m) = self.memory_map[address as usize];
+        m.set_value(i, value);
     }
 }
 
-impl GameBoyMemoryMap {
+impl<'a> GameBoyMemoryMap {
     fn new() -> GameBoyMemoryMap
     {
-        return GameBoyMemoryMap {
-            memory: [0; 0x10000]
+        let mut m = GameBoyMemoryMap {
+            memory_map: vec![],
         };
+
+        for _ in 0..0x10000 {
+            m.memory_map.push((0u16, MemoryChunk::new(vec![0])));
+        }
+
+        return m;
+    }
+}
+
+struct MemoryChunk {
+    value: Rc<RefCell<Vec<u8>>>
+}
+
+impl MemoryChunk {
+    fn new(v: Vec<u8>) -> MemoryChunk
+    {
+        MemoryChunk {
+            value: Rc::new(RefCell::new(v))
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8)
+    {
+        (*self.value.borrow_mut())[address as usize] = value;
+    }
+
+    fn read_value(&self, address: u16) -> u8
+    {
+        (*self.value.borrow())[address as usize]
+    }
+
+    fn clone(&mut self) -> MemoryChunk
+    {
+        MemoryChunk {
+            value: self.value.clone()
+        }
+    }
+
+    fn len(&self) -> u16
+    {
+        (*self.value.borrow()).len() as u16
     }
 }
 
@@ -53,7 +121,8 @@ impl GameBoyMemoryMap {
 struct LCDController<'a> {
     renderer: sdl2::render::Renderer<'a>,
     event_pump: sdl2::EventPump,
-    pub crash_message: Option<String>
+    pub crash_message: Option<String>,
+    character_data_1: MemoryChunk
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -235,7 +304,8 @@ impl<'a> LCDController<'a> {
         LCDController {
             renderer: renderer,
             event_pump: event_pump,
-            crash_message: None
+            crash_message: None,
+            character_data_1: MemoryChunk::new([0u8; 0x1000].to_vec())
         }
     }
 
@@ -501,12 +571,19 @@ impl<'a> GameBoyEmulator<'a> {
             last_draw: time::SystemTime::now()
         };
 
+        e.cpu.memory_accessor.map_chunk(
+            CHARACTER_DATA_ADDRESS_1.start, e.lcd_controller.character_data_1.clone());
+
         e.lcd_controller.initialize_flags(&mut e.cpu);
 
         e.set_state_post_bios();
 
         // This is here to prevent the initial state from changing inadvertently.
-        assert_eq!(super_fast_hash(&e.cpu.memory_accessor.memory), 2422240235);
+        let mut mem = [0u8; 0x10000];
+        for i in 0..0x10000 {
+            mem[i] = e.cpu.memory_accessor.read_memory(i as u16);
+        }
+        assert_eq!(super_fast_hash(&mem), 2422240235);
 
         return e;
     }
@@ -520,7 +597,7 @@ impl<'a> GameBoyEmulator<'a> {
 
     fn load_rom(&mut self, rom: &[u8])
     {
-        self.cpu.memory_accessor.memory[0..rom.len()].clone_from_slice(rom);
+        self.cpu.memory_accessor.map_chunk(0, MemoryChunk::new(rom.to_vec()));
     }
 
     fn crashed(&self) -> Option<&String>
