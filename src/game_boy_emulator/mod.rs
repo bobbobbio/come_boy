@@ -13,7 +13,7 @@ use std::{iter, time};
 
 pub use game_boy_emulator::debugger::run_debugger;
 use lr35902_emulator::{LR35902Emulator, LR35902Flag, Intel8080Register};
-use emulator_common::MemoryAccessor;
+use emulator_common::{MemoryAccessor, MemoryDescription};
 
 pub use game_boy_emulator::disassembler::disassemble_game_boy_rom;
 
@@ -113,6 +113,11 @@ impl<'a> MemoryAccessor for GameBoyMemoryMap {
                 }
             }
         };
+    }
+
+    fn describe_address(&self, _address: u16) -> MemoryDescription
+    {
+        return MemoryDescription::Instruction;
     }
 }
 

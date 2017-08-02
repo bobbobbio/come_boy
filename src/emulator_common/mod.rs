@@ -34,6 +34,13 @@ pub enum Intel8080Register {
     Count = 12,
 }
 
+#[derive(Debug,Clone,Copy,PartialEq)]
+pub enum MemoryDescription {
+    Instruction,
+    Data(u16),
+    ASCII(u16),
+}
+
 pub trait MemoryAccessor {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
@@ -57,6 +64,8 @@ pub trait MemoryAccessor {
 
         self.set_memory(address + 1, (value >> 8) as u8);
     }
+
+    fn describe_address(&self, address: u16) -> MemoryDescription;
 }
 
 pub struct MemoryStream<'a> {
@@ -142,6 +151,11 @@ impl MemoryAccessor for SimpleMemoryAccessor {
     {
         self.memory[address as usize] = value;
     }
+
+    fn describe_address(&self, _address: u16) -> MemoryDescription
+    {
+        return MemoryDescription::Instruction;
+    }
 }
 
 /*   ___                      _      ____       _       _
@@ -153,7 +167,7 @@ impl MemoryAccessor for SimpleMemoryAccessor {
  */
 
 pub trait InstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>;
+    fn print_instruction(&mut self, stream: &[u8], address: u16) -> Result<()>;
     fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>>;
 }
 
@@ -190,7 +204,69 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             stream_out: stream_out
         }
     }
+
+    fn display_data(&mut self, data: &[u8], include_opcodes: bool, mut index: u16) -> Result<()>
+    {
+        let iter = &mut data.iter().peekable();
+        while iter.peek().is_some() {
+            if include_opcodes {
+                try!(write!(self.stream_out, "{:07x}          ", index));
+            }
+            try!(write!(self.stream_out, "{:04} ${:02X}", "db", iter.next().unwrap()));
+            index += 1;
+            for d in iter.take(15) {
+                try!(write!(self.stream_out, ",${:02X}", d));
+                index += 1;
+            }
+            if iter.peek().is_some() {
+                try!(writeln!(self.stream_out));
+            }
+        }
+        Ok(())
+    }
+
+    fn disassemble_data(&mut self, len: u16, include_opcodes: bool) -> Result<()>
+    {
+        let start = self.index;
+        let mut data = vec![];
+        for _ in 0..len {
+            data.push(self.memory_accessor.read_memory(self.index));
+            self.index += 1;
+        }
+
+        self.display_data(&data, include_opcodes, start)
+    }
+
+    fn disassemble_ascii(&mut self, len: u16, include_opcodes: bool) -> Result<()>
+    {
+        let start = self.index;
+        let mut data = vec![];
+        for _ in 0..len {
+            data.push(self.memory_accessor.read_memory(self.index));
+            self.index += 1;
+        }
+
+        match str::from_utf8(&data) {
+            Ok(s) => {
+                if include_opcodes {
+                    try!(write!(self.stream_out, "{:07x}          ", start));
+                }
+                write!(self.stream_out, "{:04} \"{}\"", "db", s)
+            },
+            Err(_) => self.display_data(&data, include_opcodes, start),
+        }
+    }
+
     pub fn disassemble_one(&mut self, include_opcodes: bool) -> Result<()>
+    {
+        match self.memory_accessor.describe_address(self.index) {
+            MemoryDescription::Instruction => self.disassemble_one_instruction(include_opcodes),
+            MemoryDescription::Data(len) => self.disassemble_data(len, include_opcodes),
+            MemoryDescription::ASCII(len) => self.disassemble_ascii(len, include_opcodes),
+        }
+    }
+
+    fn disassemble_one_instruction(&mut self, include_opcodes: bool) -> Result<()>
     {
         let mut printed_instr: Vec<u8> = vec![];
         let instr: Vec<u8>;
@@ -200,7 +276,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             let stream = MemoryStream::new(self.memory_accessor, self.index);
             printed = match opcode_printer.get_instruction(stream) {
                 Some(res) => {
-                    try!(opcode_printer.print_instruction(&res));
+                    try!(opcode_printer.print_instruction(&res, self.index));
                     instr = res;
                     true
                 },
@@ -213,7 +289,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
 
         let str_instr = match printed {
             true => str::from_utf8(&printed_instr).unwrap(),
-            false => "-   "
+            false => "-"
         };
 
         if include_opcodes {
@@ -250,7 +326,7 @@ struct TestInstructionPrinter<'a> {
 
 #[cfg(test)]
 impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
+    fn print_instruction(&mut self, stream: &[u8], _address: u16) -> Result<()>
     {
         match stream[0] {
             0x1 => write!(self.stream_out, "TEST1").unwrap(),

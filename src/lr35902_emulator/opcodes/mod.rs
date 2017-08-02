@@ -37,7 +37,7 @@ impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {
 }
 
 impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
+    fn print_instruction(&mut self, stream: &[u8], _address: u16) -> Result<()>
     {
         dispatch_lr35902_instruction(stream, self);
         mem::replace(&mut self.error, Ok(()))
@@ -104,9 +104,9 @@ fn disassembler_lr35902_prints_not_implemented_instructions_correctly() {
     do_disassembler_test(
         LR35902InstructionPrinterFactory,
         &[0xd3, 0xe3, 0xe4, 0xf4], "\
-            0000000 d3       -   \n\
-            0000001 e3       -   \n\
-            0000002 e4       -   \n\
-            0000003 f4       -   \n\
+            0000000 d3       -\n\
+            0000001 e3       -\n\
+            0000002 e4       -\n\
+            0000003 f4       -\n\
     ");
 }

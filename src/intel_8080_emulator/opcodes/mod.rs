@@ -36,7 +36,7 @@ impl<'a> InstructionPrinterFactory<'a> for Intel8080InstructionPrinterFactory {
 }
 
 impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8]) -> Result<()>
+    fn print_instruction(&mut self, stream: &[u8], _address: u16) -> Result<()>
     {
         dispatch_intel8080_instruction(stream, self);
         return mem::replace(&mut self.error, Ok(()));
@@ -69,11 +69,11 @@ fn disassembler_8080_test() {
         ], "\
             0000000 cd d6 35 CALL $35d6\n\
             0000003 21 2d d7 LXI  H #$d72d\n\
-            0000006 cb       -   \n\
+            0000006 cb       -\n\
             0000007 ae       XRA  M\n\
             0000008 cd 29 24 CALL $2429\n\
             000000b 21 26 d1 LXI  H #$d126\n\
-            000000e cb       -   \n\
+            000000e cb       -\n\
             000000f ee cb    XRI  #$cb\n\
             0000011 f6 af    ORI  #$af\n\
             0000013 ea 6b cd JPE  $cd6b\n\
@@ -81,7 +81,7 @@ fn disassembler_8080_test() {
             0000019 cd af 20 CALL $20af\n\
             000001c cd ba 20 CALL $20ba\n\
             000001f fa 36 d7 JM   $d736\n\
-            0000022 cb       -   \n\
+            0000022 cb       -\n\
             0000023 77       MOV  M A\n\
             0000024 c4 9e 03 CNZ  $39e\n\
             0000027 fa c5 cf JM   $cfc5\n\
