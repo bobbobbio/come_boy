@@ -6,19 +6,22 @@ mod debugger;
 mod disassembler;
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::ops::Range;
 use std::rc::Rc;
 use std::{iter, time};
 
 pub use game_boy_emulator::debugger::run_debugger;
 use lr35902_emulator::{LR35902Emulator, LR35902Flag, Intel8080Register};
-use util::super_fast_hash;
-use emulator_common::{MemoryAccessor, MemoryIterator};
+use emulator_common::MemoryAccessor;
 
 pub use game_boy_emulator::disassembler::disassemble_game_boy_rom;
 
 const IF_REGISTER: u16 = 0xFF0F;
 const IE_REGISTER: u16 = 0xFFFF;
+
+#[cfg(test)]
+use util::super_fast_hash;
 
 /*
  *  __  __
@@ -35,14 +38,52 @@ const IE_REGISTER: u16 = 0xFFFF;
  */
 
 struct GameBoyMemoryMap {
-    memory_map: Vec<(u16, MemoryChunk)>,
+    memory_map: BTreeMap<u16, MemoryChunk>,
 }
 
-impl GameBoyMemoryMap {
+impl<'a> GameBoyMemoryMap {
+    fn new() -> GameBoyMemoryMap
+    {
+        return GameBoyMemoryMap {
+            memory_map: BTreeMap::new(),
+        };
+    }
+
     fn map_chunk(&mut self, address: u16, mut chunk: MemoryChunk)
     {
-        for (i, a) in (address..address + chunk.len()).enumerate() {
-            self.memory_map[a as usize] = (i as u16, chunk.clone());
+        // Assert the chunk we are mapping doesn't overlap with any existing chunks
+        match self.memory_map.range(..address).last() {
+            Some((&key, value)) => assert!(address < key || address >= key + value.len()),
+            None => (),
+        }
+
+        match self.memory_map.range(address..).next() {
+            Some((&key, _)) => assert!(address + chunk.len() <= key),
+            None => (),
+        }
+
+        if address > 0 {
+            assert!(chunk.len() <= (0xFFFF - address) + 1);
+        }
+
+        self.memory_map.insert(address, chunk.clone());
+    }
+
+    fn get_chunk_for_address(&self, address: u16) -> Option<(&u16, &MemoryChunk)>
+    {
+        if address == 0xFFFF {
+            self.memory_map.iter().last()
+        } else {
+            self.memory_map.range(..address + 1).last()
+        }
+    }
+
+    fn get_chunk_for_address_mut(&mut self, address: u16) -> Option<(&u16, &mut MemoryChunk)>
+    {
+        if address == 0xFFFF {
+            self.memory_map.iter_mut().last()
+        } else {
+            self.memory_map.range_mut(..address + 1).last()
         }
     }
 }
@@ -50,29 +91,28 @@ impl GameBoyMemoryMap {
 impl<'a> MemoryAccessor for GameBoyMemoryMap {
     fn read_memory(&self, address: u16) -> u8
     {
-        let (i, ref m) = self.memory_map[address as usize];
-        return m.read_value(i);
+        match self.get_chunk_for_address(address) {
+            None => 0xFF,
+            Some((key, ref chunk)) => {
+                if address - key >= chunk.len() {
+                    0xFF
+                } else {
+                    chunk.read_value(address - key)
+                }
+            },
+        }
     }
 
     fn set_memory(&mut self, address: u16, value: u8)
     {
-        let (i, ref mut m) = self.memory_map[address as usize];
-        m.set_value(i, value);
-    }
-}
-
-impl<'a> GameBoyMemoryMap {
-    fn new() -> GameBoyMemoryMap
-    {
-        let mut m = GameBoyMemoryMap {
-            memory_map: vec![],
+        match self.get_chunk_for_address_mut(address) {
+            None => { },
+            Some((key, mut chunk)) => {
+                if address - key < chunk.len() {
+                    chunk.set_value(address - key, value);
+                }
+            }
         };
-
-        for _ in 0..0x10000 {
-            m.memory_map.push((0u16, MemoryChunk::new(vec![0])));
-        }
-
-        return m;
     }
 }
 
@@ -83,6 +123,7 @@ struct MemoryChunk {
 impl MemoryChunk {
     fn new(v: Vec<u8>) -> MemoryChunk
     {
+        assert!(v.len() > 0);
         MemoryChunk {
             value: Rc::new(RefCell::new(v))
         }
@@ -109,6 +150,176 @@ impl MemoryChunk {
     {
         (*self.value.borrow()).len() as u16
     }
+
+    fn from_range(range: Range<u16>) -> MemoryChunk
+    {
+        let mut v = Vec::<u8>::new();
+        v.resize(range.len(), 0);
+        return MemoryChunk::new(v);
+    }
+
+    fn clone_from_slice(&mut self, slice: &[u8])
+    {
+        (*self.value.borrow_mut()).clone_from_slice(slice);
+    }
+}
+
+struct MemoryChunkIterator<'a> {
+    chunk: &'a MemoryChunk,
+    current: u16,
+}
+
+impl<'a> Iterator for MemoryChunkIterator<'a> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<u8>
+    {
+        if self.current < self.chunk.len() {
+            let mem = self.chunk.read_value(self.current);
+            self.current += 1;
+            return Some(mem);
+        } else {
+            return None;
+        }
+    }
+}
+
+impl<'a> MemoryChunkIterator<'a> {
+    fn new(chunk: &'a MemoryChunk) -> MemoryChunkIterator
+    {
+        return MemoryChunkIterator {
+            chunk: chunk,
+            current: 0,
+        };
+    }
+}
+
+#[test]
+#[should_panic]
+fn overlapping_inside_chunk()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(13, MemoryChunk::new(vec![1]));
+}
+
+#[test]
+#[should_panic]
+fn overlapping_left_side_chunk()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(10, MemoryChunk::new(vec![1, 2, 3]));
+}
+
+#[test]
+#[should_panic]
+fn overlapping_right_side_chunk()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(14, MemoryChunk::new(vec![1, 2, 3]));
+}
+
+#[test]
+fn non_overlapping_left_chunk()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(3, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(0, MemoryChunk::new(vec![1, 2, 3]));
+}
+
+#[test]
+fn non_overlapping_right_chunk()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(15, MemoryChunk::new(vec![1, 2, 3]));
+}
+
+#[test]
+#[should_panic]
+fn mapping_past_end_of_range()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(0xFFFF, MemoryChunk::new(vec![1, 2, 3]));
+}
+
+#[test]
+fn accessing_unmapped_region()
+{
+    let mm = GameBoyMemoryMap::new();
+    assert_eq!(mm.read_memory(24), 0xff);
+}
+
+#[test]
+fn accessing_unmapped_region_with_region_mapped()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]));
+    assert_eq!(mm.read_memory(24), 0xff);
+}
+
+#[test]
+fn setting_unmapped_region()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.set_memory(24, 99);
+    assert_eq!(mm.read_memory(24), 0xFF);
+}
+
+#[test]
+fn setting_unmapped_region_with_region_mapped()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]));
+    mm.set_memory(24, 99);
+    assert_eq!(mm.read_memory(24), 0xFF);
+}
+
+#[test]
+fn accessing_mapped_region()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]));
+    assert_eq!(mm.read_memory(10), 9);
+    assert_eq!(mm.read_memory(11), 8);
+    assert_eq!(mm.read_memory(12), 7);
+}
+
+#[test]
+fn accessing_end_of_address_range()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(0xFFFF, MemoryChunk::new(vec![9]));
+    assert_eq!(mm.read_memory(0xFFFF), 9);
+}
+
+#[test]
+fn setting_end_of_address_range()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    let mut chunk = MemoryChunk::new(vec![9]);
+    mm.map_chunk(0xFFFF, chunk.clone());
+    mm.set_memory(0xFFFF, 99);
+    assert_eq!(chunk.read_value(0), 99);
+}
+
+#[test]
+fn setting_mapped_region()
+{
+    let mut mm = GameBoyMemoryMap::new();
+    let mut chunk = MemoryChunk::new(vec![9, 8, 7]);
+    mm.map_chunk(10, chunk.clone());
+    mm.set_memory(11, 88);
+    assert_eq!(chunk.read_value(1), 88);
+}
+
+#[test]
+fn memory_chunk_from_range()
+{
+    let mm = MemoryChunk::from_range(0..10);
+    assert_eq!(mm.len(), 10);
 }
 
 /*  _     ____ ____   ____            _             _ _
@@ -118,11 +329,34 @@ impl MemoryChunk {
  * |_____\____|____/ \____\___/|_| |_|\__|_|  \___/|_|_|\___|_|
  */
 
+const VERTICAL_BLANKING_INTERRUPT_ADDRESS : u16 = 0x0040;
+const LCDCSTATUS_INTERRUPT_ADDRESS : u16 = 0x0048;
+
+const CHARACTER_DATA: Range<u16> = Range { start: 0x8000, end: 0x9800 };
+const CHARACTER_DATA_1: Range<u16> = Range { start: 0x0, end: 0x1000};
+const CHARACTER_DATA_2: Range<u16> = Range { start: 0x800, end: 0x1800};
+const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range { start: 0x9800, end: 0x9C00 };
+const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range { start: 0x9C00, end: 0xA000 };
+const OAM_DATA: Range<u16> = Range { start: 0xFE00, end: 0xFEA0 };
+const LCD_REGISTERS: Range<u16> = Range { start: 0xFF40, end: 0xFF4C };
+
+/*
+ * Number of pixels (both horizontal and vertical) on the screen per gameboy pixel.
+ */
+const PIXEL_SCALE: u32 = 4;
+
+const CHARACTER_SIZE: u8 = 8;
+const CHARACTER_AREA_SIZE: u16 = 32;
+
 struct LCDController<'a> {
-    renderer: sdl2::render::Renderer<'a>,
-    event_pump: sdl2::EventPump,
+    renderer: Option<sdl2::render::Renderer<'a>>,
+    event_pump: Option<sdl2::EventPump>,
     pub crash_message: Option<String>,
-    character_data_1: MemoryChunk
+    character_data: MemoryChunk,
+    background_display_data_1: MemoryChunk,
+    background_display_data_2: MemoryChunk,
+    oam_data: MemoryChunk,
+    registers: MemoryChunk,
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -145,18 +379,18 @@ fn color_for_shade(shade: LCDBGShade) -> sdl2::pixels::Color
 
 #[derive(Debug,Clone,Copy,PartialEq)]
 enum LCDRegister {
-    LCDC = 0xFF40,
-    STAT = 0xFF41,
-    SCY  = 0xFF42,
-    SCX  = 0xFF43,
-    LY   = 0xFF44,
-    LYC  = 0xFF45,
-    // DMA  = 0xFF46,
-    BGP  = 0xFF47,
-    OBP0 = 0xFF48,
-    OBP1 = 0xFF49,
-    WY   = 0xFF4A,
-    WX   = 0xFF4B,
+    LCDC = 0x0,
+    STAT = 0x1,
+    SCY  = 0x2,
+    SCX  = 0x3,
+    LY   = 0x4,
+    LYC  = 0x5,
+    // DMA  = 0x6,
+    BGP  = 0x7,
+    OBP0 = 0x8,
+    OBP1 = 0x9,
+    WY   = 0xA,
+    WX   = 0xB,
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -190,23 +424,6 @@ enum LCDInterruptFlag {
     VerticalBlanking = 0b00000011,
 }
 
-const VERTICAL_BLANKING_INTERRUPT_ADDRESS : u16 = 0x0040;
-const LCDCSTATUS_INTERRUPT_ADDRESS : u16 = 0x0048;
-
-const CHARACTER_DATA_ADDRESS_1: Range<u16> = Range { start: 0x8000, end: 0x9000};
-const CHARACTER_DATA_ADDRESS_2: Range<u16> = Range { start: 0x8800, end: 0x9800};
-const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range { start: 0x9800, end: 0x9C00 };
-const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range { start: 0x9C00, end: 0xA000 };
-const OAM_DATA: Range<u16> = Range { start: 0xFE00, end: 0xFEA0 };
-
-/*
- * Number of pixels (both horizontal and vertical) on the screen per gameboy pixel.
- */
-const PIXEL_SCALE: u32 = 4;
-
-const CHARACTER_SIZE: u8 = 8;
-const CHARACTER_AREA_SIZE: u16 = 32;
-
 #[derive(Debug,Clone,Copy,PartialEq)]
 struct LCDObject {
     y_coordinate: u8,
@@ -234,7 +451,7 @@ impl LCDObject {
 */
 
 struct LCDObjectIterator<'a> {
-    memory_iterator: iter::Peekable<MemoryIterator<'a>>
+    chunk_iterator: iter::Peekable<MemoryChunkIterator<'a>>
 }
 
 impl<'a> Iterator for LCDObjectIterator<'a> {
@@ -242,16 +459,25 @@ impl<'a> Iterator for LCDObjectIterator<'a> {
 
     fn next(&mut self) -> Option<LCDObject>
     {
-        if self.memory_iterator.peek() == None {
+        if self.chunk_iterator.peek() == None {
             return None
         } else {
             let lcd_object = LCDObject {
-                y_coordinate: self.memory_iterator.next().unwrap(),
-                x_coordinate: self.memory_iterator.next().unwrap(),
-                character_code: self.memory_iterator.next().unwrap(),
-                flags: self.memory_iterator.next().unwrap()
+                y_coordinate: self.chunk_iterator.next().unwrap(),
+                x_coordinate: self.chunk_iterator.next().unwrap(),
+                character_code: self.chunk_iterator.next().unwrap(),
+                flags: self.chunk_iterator.next().unwrap()
             };
             return Some(lcd_object);
+        }
+    }
+}
+
+impl<'a> LCDObjectIterator<'a> {
+    fn new(chunk: &'a MemoryChunk) -> LCDObjectIterator<'a>
+    {
+        LCDObjectIterator {
+            chunk_iterator: MemoryChunkIterator::new(chunk).peekable()
         }
     }
 }
@@ -284,8 +510,23 @@ impl LCDDotData {
 impl<'a> LCDController<'a> {
     fn new() -> LCDController<'a>
     {
+        LCDController {
+            renderer: None,
+            event_pump: None,
+            crash_message: None,
+            character_data: MemoryChunk::from_range(CHARACTER_DATA),
+            background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
+            background_display_data_2: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_2),
+            oam_data: MemoryChunk::from_range(OAM_DATA),
+            registers: MemoryChunk::from_range(LCD_REGISTERS),
+        }
+    }
+
+    fn start_rendering(&mut self)
+    {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
+        let event_pump = sdl_context.event_pump().unwrap();
 
         let window = video_subsystem.window("come boy", 160 * PIXEL_SCALE, 144 * PIXEL_SCALE)
             .position_centered()
@@ -294,49 +535,34 @@ impl<'a> LCDController<'a> {
             .unwrap();
 
         let mut renderer = window.renderer().build().unwrap();
-
         renderer.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
         renderer.clear();
         renderer.present();
 
-        let event_pump = sdl_context.event_pump().unwrap();
-
-        LCDController {
-            renderer: renderer,
-            event_pump: event_pump,
-            crash_message: None,
-            character_data_1: MemoryChunk::new([0u8; 0x1000].to_vec())
-        }
+        self.renderer = Some(renderer);
+        self.event_pump = Some(event_pump);
     }
 
-    fn iterate_background_display_data<'b>(
-        &self, cpu: &'b LR35902Emulator<GameBoyMemoryMap>) -> MemoryIterator<'b>
-    {
-        match self.read_lcd_control_flag(cpu, LCDControlFlag::BGCodeAreaSelection) {
-            false => MemoryIterator::new(&cpu.memory_accessor, BACKGROUND_DISPLAY_DATA_1),
-            true => MemoryIterator::new(&cpu.memory_accessor, BACKGROUND_DISPLAY_DATA_2),
-        }
-    }
-
-    fn read_dot_data(&self, cpu: &LR35902Emulator<GameBoyMemoryMap>, character_code: u8) -> LCDDotData
+    fn read_dot_data(&self, character_code: u8) -> LCDDotData
     {
         let mut dot_data = LCDDotData::new();
-        let cd_addr = if self.read_lcd_control_flag(
-            cpu, LCDControlFlag::BGCharacterDataSelection) {
-            CHARACTER_DATA_ADDRESS_1.start
+
+        let location = if self.read_lcd_control_flag(LCDControlFlag::BGCharacterDataSelection) {
+            CHARACTER_DATA_1.start
         } else {
-            CHARACTER_DATA_ADDRESS_2.start
-        };
-        let location = character_code as u16 * 16 + cd_addr;
+            CHARACTER_DATA_2.start
+        } as usize + character_code as usize * 16;
+
+        let mut iter = MemoryChunkIterator::new(
+            &self.character_data).skip(location).take(16).peekable();
+
         let mut i = 0;
-        let mut iter = MemoryIterator::new(
-            &cpu.memory_accessor, location..location + 16).peekable();
         while iter.peek() != None {
-            let byte1 = iter.next().unwrap();
-            let byte2 = iter.next().unwrap();
+            let byte1: u8 = iter.next().unwrap();
+            let byte2: u8 = iter.next().unwrap();
             for bit in (0..8).rev() {
-                let shade_upper = byte1 >> (bit - 1) & 0x2;
-                let shade_lower = byte2 >> bit & 0x1;
+                let shade_upper = ((byte1 >> bit) & 0x1) << 1;
+                let shade_lower = (byte2 >> bit) & 0x1;
                 dot_data.data[i] = match shade_upper | shade_lower {
                     0x0 => LCDBGShade::Shade0,
                     0x1 => LCDBGShade::Shade1,
@@ -352,83 +578,76 @@ impl<'a> LCDController<'a> {
         return dot_data;
     }
 
-    fn iterate_objects<'b>(&self, cpu: &'b LR35902Emulator<GameBoyMemoryMap>) -> LCDObjectIterator<'b>
+    fn read_register(&self, register: LCDRegister) -> u8
     {
-        LCDObjectIterator {
-            memory_iterator: MemoryIterator::new(&cpu.memory_accessor, OAM_DATA).peekable()
-        }
+        self.registers.read_value(register as u16)
     }
 
-    fn read_register(&self, cpu: &LR35902Emulator<GameBoyMemoryMap>, register: LCDRegister) -> u8
+    fn set_register(&mut self, register: LCDRegister, value: u8)
     {
-        cpu.read_memory(register as u16)
+        self.registers.set_value(register as u16, value);
     }
 
-    fn set_register(&self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>, register: LCDRegister, value: u8)
+    fn read_lcd_control_flag(&self, flag: LCDControlFlag) -> bool
     {
-        cpu.set_memory(register as u16, value);
-    }
-
-    fn read_lcd_control_flag(&self, cpu: &LR35902Emulator<GameBoyMemoryMap>, flag: LCDControlFlag) -> bool
-    {
-        let lcdc = self.read_register(cpu, LCDRegister::LCDC);
+        let lcdc = self.read_register(LCDRegister::LCDC);
         return lcdc & flag as u8 == flag as u8;
     }
 
-    fn set_lcd_control_flag(&self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>, flag: LCDControlFlag, value: bool)
+    fn set_lcd_control_flag(&mut self, flag: LCDControlFlag, value: bool)
     {
-        let lcdc = self.read_register(cpu, LCDRegister::LCDC);
+        let lcdc = self.read_register(LCDRegister::LCDC);
         if value {
-            self.set_register(cpu, LCDRegister::LCDC, lcdc | flag as u8);
+            self.set_register(LCDRegister::LCDC, lcdc | flag as u8);
         } else {
-            self.set_register(cpu, LCDRegister::LCDC, lcdc & !(flag as u8));
+            self.set_register(LCDRegister::LCDC, lcdc & !(flag as u8));
         }
     }
 
     /*
-    fn read_lcd_status_flag(&self, cpu: &LR35902Emulator<GameBoyMemoryMap>, flag: LCDStatusFlag) -> bool
+    fn read_lcd_status_flag(&self, flag: LCDStatusFlag) -> bool
     {
-        let stat = self.read_register(cpu, LCDRegister::STAT);
+        let stat = self.read_register(LCDRegister::STAT);
         return stat & flag as u8 == flag as u8;
     }
     */
 
-    fn set_lcd_status_flag(&self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>, flag: LCDStatusFlag, value: bool)
+    fn set_lcd_status_flag(&mut self, flag: LCDStatusFlag, value: bool)
     {
         // Mode is a four-value flag
         assert!(flag != LCDStatusFlag::Mode);
 
-        let stat = self.read_register(cpu, LCDRegister::STAT);
+        let stat = self.read_register(LCDRegister::STAT);
         if value {
-            self.set_register(cpu, LCDRegister::STAT, stat | flag as u8);
+            self.set_register(LCDRegister::STAT, stat | flag as u8);
         } else {
-            self.set_register(cpu, LCDRegister::STAT, stat & !(flag as u8));
+            self.set_register(LCDRegister::STAT, stat & !(flag as u8));
         }
     }
 
-    fn set_lcd_status_mode(&self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>, value: u8)
+    fn set_lcd_status_mode(&mut self, value: u8)
     {
-        let stat = self.read_register(cpu, LCDRegister::STAT) & !(LCDStatusFlag::Mode as u8);
-        self.set_register(cpu, LCDRegister::STAT, stat | value);
+        let stat = self.read_register(LCDRegister::STAT) & !(LCDStatusFlag::Mode as u8);
+        self.set_register(LCDRegister::STAT, stat | value);
     }
 
-    fn initialize_flags(&self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>)
+    fn initialize_flags(&mut self)
     {
-        self.set_lcd_control_flag(cpu, LCDControlFlag::OperationStop, true);
-        self.set_lcd_control_flag(cpu, LCDControlFlag::BGCharacterDataSelection, true);
-        self.set_lcd_control_flag(cpu, LCDControlFlag::BGDisplayOn, true);
-        self.set_register(cpu, LCDRegister::BGP, 0xFC);
-        self.set_register(cpu, LCDRegister::OBP0, 0xFF);
-        self.set_register(cpu, LCDRegister::OBP1, 0xFF);
+        self.set_lcd_control_flag(LCDControlFlag::OperationStop, true);
+        self.set_lcd_control_flag(LCDControlFlag::BGCharacterDataSelection, true);
+        self.set_lcd_control_flag(LCDControlFlag::BGDisplayOn, true);
+        self.set_register(LCDRegister::BGP, 0xFC);
+        self.set_register(LCDRegister::OBP0, 0xFF);
+        self.set_register(LCDRegister::OBP1, 0xFF);
 
-        self.set_lcd_status_flag(cpu, LCDStatusFlag::InterruptLYMatching, true);
-        self.set_lcd_status_mode(cpu, 0x1);
+        self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
+        self.set_lcd_status_mode(0x1);
     }
 
-    fn get_scroll_origin_relative_to_lcd(&self, cpu: &LR35902Emulator<GameBoyMemoryMap>) -> (i32, i32)
+    fn get_scroll_origin_relative_to_lcd(&self) -> (i32, i32)
     {
-        let mut x = self.read_register(cpu, LCDRegister::SCX) as i32 * -1;
-        let mut y = self.read_register(cpu, LCDRegister::SCY) as i32 * -1;
+        let mut x = self.read_register(LCDRegister::SCX) as i32 * -1;
+        let mut y = self.read_register(LCDRegister::SCY) as i32 * -1;
 
         /*
          * This supports the behavior of the background wrapping
@@ -444,10 +663,10 @@ impl<'a> LCDController<'a> {
         return (x, y);
     }
 
-    fn get_window_origin_relative_to_lcd(&self, cpu: &LR35902Emulator<GameBoyMemoryMap>) -> (i32, i32)
+    fn get_window_origin_relative_to_lcd(&self) -> (i32, i32)
     {
-        let x = self.read_register(cpu, LCDRegister::WX) as i32 * -1;
-        let y = self.read_register(cpu, LCDRegister::WY) as i32 * -1;
+        let x = self.read_register(LCDRegister::WX) as i32 * -1;
+        let y = self.read_register(LCDRegister::WY) as i32 * -1;
 
         return (x, y);
     }
@@ -457,16 +676,16 @@ impl<'a> LCDController<'a> {
         self.crash_message.is_some()
     }
 
-    fn draw_one_line(&mut self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>)
+    fn draw_one_line(&mut self)
     {
         /*
          * Update the LY register which represents the line being draw currently.
          */
-        let ly = self.read_register(cpu, LCDRegister::LY);
+        let ly = self.read_register(LCDRegister::LY);
         if ly == 153 {
-            self.set_register(cpu, LCDRegister::LY, 0);
+            self.set_register(LCDRegister::LY, 0);
         } else {
-            self.set_register(cpu, LCDRegister::LY, ly + 1);
+            self.set_register(LCDRegister::LY, ly + 1);
         }
 
         /*
@@ -483,7 +702,7 @@ impl<'a> LCDController<'a> {
          * Other than checking to see if the user has closed the window, for some reason if we do
          * not poll the event_pump the screen will not draw properly.
          */
-        for event in self.event_pump.poll_iter() {
+        for event in self.event_pump.as_mut().unwrap().poll_iter() {
             match event {
                 sdl2::event::Event::Quit {..} => {
                     self.crash_message = Some(String::from("Screen Closed"));
@@ -493,35 +712,41 @@ impl<'a> LCDController<'a> {
             }
         }
 
-        self.renderer.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
-        self.renderer.clear();
+        self.renderer.as_mut().unwrap().set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
+        self.renderer.as_mut().unwrap().clear();
 
-        let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd(cpu);
+        let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
 
-        for (c, character_code) in self.iterate_background_display_data(cpu).enumerate() {
-            let character_data = self.read_dot_data(cpu, character_code);
+        let iter = match self.read_lcd_control_flag(LCDControlFlag::BGCodeAreaSelection) {
+            false => MemoryChunkIterator::new(&self.background_display_data_1),
+            true => MemoryChunkIterator::new(&self.background_display_data_2),
+        }.enumerate();
+
+        for (c, character_code) in iter {
+            let character_data = self.read_dot_data(character_code);
             let character_x = scroll_x
                 + ((c as u16 % CHARACTER_AREA_SIZE) as u8 * CHARACTER_SIZE) as i32;
             let character_y = scroll_y
                 + ((c as u16 / CHARACTER_AREA_SIZE) as u8 * CHARACTER_SIZE) as i32;
-            character_data.draw(&mut self.renderer, character_x, character_y);
+            character_data.draw(self.renderer.as_mut().unwrap(), character_x, character_y);
         }
 
-        let (window_x, window_y) = self.get_window_origin_relative_to_lcd(cpu);
-        for object in self.iterate_objects(cpu) {
-            let character_data = self.read_dot_data(cpu, object.character_code);
+        let (window_x, window_y) = self.get_window_origin_relative_to_lcd();
+        let iter = LCDObjectIterator::new(&self.oam_data);
+        for object in iter {
+            let character_data = self.read_dot_data(object.character_code);
             character_data.draw(
-                &mut self.renderer,
+                self.renderer.as_mut().unwrap(),
                 window_x + object.x_coordinate as i32,
                 window_y + object.y_coordinate as i32);
         }
 
-        self.renderer.present();
+        self.renderer.as_mut().unwrap().present();
     }
 
     fn process_interrupts(&mut self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>)
     {
-        let ly = self.read_register(cpu, LCDRegister::LY);
+        let ly = self.read_register(LCDRegister::LY);
 
         // XXX This needs to live elsewhere
         let if_register = cpu.read_memory(IF_REGISTER);
@@ -535,10 +760,10 @@ impl<'a> LCDController<'a> {
             }
         }
 
-        if ly == self.read_register(cpu, LCDRegister::LYC) {
+        if ly == self.read_register(LCDRegister::LYC) {
             cpu.set_memory(0xFF0F, if_register & LCDInterruptFlag::LCDC as u8);
-            self.set_lcd_status_flag(cpu, LCDStatusFlag::InterruptLYMatching, true);
-            self.set_lcd_status_flag(cpu, LCDStatusFlag::LYMatch, true);
+            self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
+            self.set_lcd_status_flag(LCDStatusFlag::LYMatch, true);
             cpu.interrupt(LCDCSTATUS_INTERRUPT_ADDRESS);
         }
     }
@@ -552,15 +777,19 @@ impl<'a> LCDController<'a> {
  *                                         |___/
  */
 
-const CARTRIDGE_RAM: Range<u16> = Range { start: 0xA000, end: 0xC000 };
-const UNUSABLE_MEMORY: Range<u16> = Range { start: 0xFEA0, end: 0xFF00 };
-const IO_PORTS: Range<u16> = Range { start: 0xFF00, end: 0xFF80 };
+// const CARTRIDGE_RAM: Range<u16> = Range { start: 0xA000, end: 0xC000 };
+// const UNUSABLE_MEMORY: Range<u16> = Range { start: 0xFEA0, end: 0xFF00 };
+const IO_PORTS_A: Range<u16> = Range { start: 0xFF00, end: 0xFF40 };
+const IO_PORTS_B: Range<u16> = Range { start: 0xFF4C, end: 0xFF80 };
 const HIGH_RAM: Range<u16> = Range { start: 0xFF80, end: 0xFFFF };
 
 struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator<GameBoyMemoryMap>,
     lcd_controller: LCDController<'a>,
-    last_draw: time::SystemTime
+    last_draw: time::SystemTime,
+    io_ports_a: MemoryChunk,
+    io_ports_b: MemoryChunk,
+    high_ram: MemoryChunk,
 }
 
 impl<'a> GameBoyEmulator<'a> {
@@ -568,31 +797,55 @@ impl<'a> GameBoyEmulator<'a> {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(GameBoyMemoryMap::new()),
             lcd_controller: LCDController::new(),
-            last_draw: time::SystemTime::now()
+            last_draw: time::SystemTime::now(),
+            io_ports_a: MemoryChunk::from_range(IO_PORTS_A),
+            io_ports_b: MemoryChunk::from_range(IO_PORTS_B),
+            high_ram: MemoryChunk::from_range(HIGH_RAM),
         };
 
-        e.cpu.memory_accessor.map_chunk(
-            CHARACTER_DATA_ADDRESS_1.start, e.lcd_controller.character_data_1.clone());
+        // Restart and interrupt vectors (unmapped) 0x0000 - 0x00FF
 
-        e.lcd_controller.initialize_flags(&mut e.cpu);
+        // Rom (unmapped) 0x0100 - 0x97FF
+
+        // Character data 0x8000 - 0x97FF
+        e.cpu.memory_accessor.map_chunk(
+            CHARACTER_DATA.start, e.lcd_controller.character_data.clone());
+
+        // Background display data 0x9800 - 0x9FFF
+        e.cpu.memory_accessor.map_chunk(
+            BACKGROUND_DISPLAY_DATA_1.start, e.lcd_controller.background_display_data_1.clone());
+        e.cpu.memory_accessor.map_chunk(
+            BACKGROUND_DISPLAY_DATA_2.start, e.lcd_controller.background_display_data_2.clone());
+
+        // Cartridge RAM (unmapped) 0xA000 - 0xBFFF
+
+        // Internal RAM 0xC000 - 0xDFFF
+        e.cpu.memory_accessor.map_chunk(0xC000, MemoryChunk::from_range(0..0x2000));
+
+        // Echo RAM 0xE000 - 0xFDFF
+        e.cpu.memory_accessor.map_chunk(0xE000, MemoryChunk::from_range(0..0x1E00));
+
+        // OAM Data 0xFE00 - 0xFE9F
+        e.cpu.memory_accessor.map_chunk(OAM_DATA.start, e.lcd_controller.oam_data.clone());
+
+        // Unusable memory (unmapped) 0xFEA0 - 0xFEFF
+
+        // IO Registers 0xFF00 - 0xFF7F
+        e.cpu.memory_accessor.map_chunk(IO_PORTS_A.start, e.io_ports_a.clone());
+        e.cpu.memory_accessor.map_chunk(LCD_REGISTERS.start, e.lcd_controller.registers.clone());
+        e.cpu.memory_accessor.map_chunk(IO_PORTS_B.start, e.io_ports_b.clone());
+
+        // High RAM 0xFF80 - 0xFFFE
+        e.cpu.memory_accessor.map_chunk(HIGH_RAM.start, e.high_ram.clone());
+
+        // Interrupt register
+        e.cpu.memory_accessor.map_chunk(0xFFFF, MemoryChunk::from_range(0..1));
+
+        e.lcd_controller.initialize_flags();
 
         e.set_state_post_bios();
 
-        // This is here to prevent the initial state from changing inadvertently.
-        let mut mem = [0u8; 0x10000];
-        for i in 0..0x10000 {
-            mem[i] = e.cpu.memory_accessor.read_memory(i as u16);
-        }
-        assert_eq!(super_fast_hash(&mem), 2422240235);
-
         return e;
-    }
-
-    fn set_io_port(&mut self, port: usize, value: u8)
-    {
-        let addr = IO_PORTS.start | (port as u16 & 0x00FF);
-        assert!(addr < IO_PORTS.end, "{:02x} >= {:02x}", addr, IO_PORTS.end);
-        self.cpu.set_memory(addr, value);
     }
 
     fn load_rom(&mut self, rom: &[u8])
@@ -618,7 +871,7 @@ impl<'a> GameBoyEmulator<'a> {
         // It takes the DMG LCD roughly 10ms to draw one horizontal line.
         if time::SystemTime::now().duration_since(self.last_draw).unwrap() >=
             time::Duration::new(0, 100000) {
-            self.lcd_controller.draw_one_line(&mut self.cpu);
+            self.lcd_controller.draw_one_line();
             self.lcd_controller.process_interrupts(&mut self.cpu);
             self.last_draw = time::SystemTime::now();
         }
@@ -643,17 +896,6 @@ impl<'a> GameBoyEmulator<'a> {
         self.cpu.set_flag(LR35902Flag::Subtract, false);
         self.cpu.set_flag(LR35902Flag::Zero, true);
 
-        // Initialize the cartridge RAM to FF.
-        // XXX: why?
-        for addr in CARTRIDGE_RAM {
-            self.cpu.set_memory(addr, 0xFF);
-        }
-
-        // Initialize unusable memory to FF.
-        for addr in UNUSABLE_MEMORY {
-            self.cpu.set_memory(addr, 0xFF);
-        }
-
         // Initialize io ports
         let io_ports_a = [
             /* 00 - 07 */ 0xcfu8, 0x00u8, 0x7eu8, 0xffu8, 0x69u8, 0x00u8, 0x00u8, 0xf8u8,
@@ -665,6 +907,7 @@ impl<'a> GameBoyEmulator<'a> {
             /* 30 - 37 */ 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8,
             /* 38 - 3f */ 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8, 0x00u8, 0xffu8
         ];
+        self.io_ports_a.clone_from_slice(&io_ports_a);
 
         /* 40 - 4B LCD Controller */
 
@@ -677,14 +920,7 @@ impl<'a> GameBoyEmulator<'a> {
             /* 70 - 77 */ 0xffu8, 0xffu8, 0x00u8, 0x00u8, 0xffu8, 0x8fu8, 0x00u8, 0x00u8,
             /* 78 - 7f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8
         ];
-
-        for (i, value) in io_ports_a.iter().enumerate() {
-            self.set_io_port(i, *value);
-        }
-
-        for (i, value) in io_ports_b.iter().enumerate() {
-            self.set_io_port(i + 0x4c, *value);
-        }
+        self.io_ports_b.clone_from_slice(&io_ports_b);
 
         let high_ram = [
             0xceu8, 0xedu8, 0x66u8, 0x66u8, 0xccu8, 0x0du8, 0x00u8, 0x0bu8, 0x03u8, 0x73u8, 0x00u8,
@@ -700,19 +936,14 @@ impl<'a> GameBoyEmulator<'a> {
             0x70u8, 0x3au8, 0x98u8, 0xd1u8, 0x71u8, 0x02u8, 0x4du8, 0x01u8, 0xc1u8, 0xffu8, 0x0du8,
             0x00u8, 0xd3u8, 0x05u8, 0xf9u8, 0x00u8, 0x0bu8
         ];
-
-        // Initialize high ram.
-        for (i, value) in high_ram.iter().enumerate() {
-            let addr = HIGH_RAM.start + i as u16;
-            assert!(addr < HIGH_RAM.end);
-            self.cpu.set_memory(addr, *value);
-        }
+        self.high_ram.clone_from_slice(&high_ram);
 
         self.cpu.set_memory(IE_REGISTER, 0x0);
     }
 
     fn run(&mut self)
     {
+        self.lcd_controller.start_rendering();
         self.last_draw = time::SystemTime::now();
         while self.crashed().is_none() {
             self.tick()
@@ -721,6 +952,27 @@ impl<'a> GameBoyEmulator<'a> {
             println!("Emulator crashed: {}", self.cpu.crash_message.as_ref().unwrap());
         }
     }
+
+    #[cfg(test)]
+    fn dump_memory(&self, mem: &mut [u8])
+    {
+        // Read up all of memory
+        for i in 0..0x10000 {
+            mem[i] = self.cpu.memory_accessor.read_memory(i as u16);
+        }
+    }
+}
+
+#[test]
+fn initial_state_test()
+{
+    let e = GameBoyEmulator::new();
+
+    let mut mem = [0u8; 0x10000];
+    e.dump_memory(&mut mem);
+
+    // Lock down the initial state.
+    assert_eq!(super_fast_hash(&mem), 1436422073);
 }
 
 pub fn run_emulator(rom: &[u8])

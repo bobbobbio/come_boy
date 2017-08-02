@@ -1,7 +1,10 @@
 // Copyright 2017 Remi Bernotavicius
 
 use std::io::{self, Result};
-use std::{mem, slice};
+use std::mem;
+
+#[cfg(test)]
+use std::slice;
 
 pub fn read_u16<T: io::Read>(mut stream: T) -> Result<u16>
 {
@@ -58,6 +61,7 @@ fn twos_complement_u16()
     assert_eq!(0b0111000000001010u16.twos_complement(), 0b1000111111110110u16);
 }
 
+#[cfg(test)]
 fn get_16_bits(data: &[u8], index: usize) -> u16
 {
     (data[index + 1] as u16) << 8 | data[index] as u16
@@ -66,6 +70,7 @@ fn get_16_bits(data: &[u8], index: usize) -> u16
 // This was taken from http://www.azillionmonkeys.com/qed/hash.html. The code
 // for this function (and only this function) below is LGPL 2.1. I have ported it to rust, but
 // kept the same behavior.
+#[cfg(test)]
 fn super_fast_hash_iter<T: Sized>(data_in: &T, mut hash: u32) -> u32
 {
     let mut len = mem::size_of_val(data_in);
@@ -121,6 +126,7 @@ fn super_fast_hash_iter<T: Sized>(data_in: &T, mut hash: u32) -> u32
     return hash;
 }
 
+#[cfg(test)]
 pub fn super_fast_hash<T: Sized>(data_in: &T) -> u32
 {
     let len = mem::size_of_val(data_in);
