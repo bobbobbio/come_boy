@@ -84,7 +84,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         }
     }
 
-    fn read_flag(&self, flag: LR35902Flag) -> bool
+    pub fn read_flag(&self, flag: LR35902Flag) -> bool
     {
         self.registers[Intel8080Register::FLAGS as usize] & flag as u8 == flag as u8
     }
@@ -94,14 +94,29 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.memory_accessor.read_memory(address)
     }
 
-    pub fn set_memory(&mut self, address: u16, value: u8)
+    pub fn read_register(&self, register: Intel8080Register) -> u8
     {
-        self.memory_accessor.set_memory(address, value);
+        Intel8080InstructionSetOps::read_register(self, register)
     }
 
     pub fn set_register(&mut self, register: Intel8080Register, value: u8)
     {
         Intel8080InstructionSetOps::set_register(self, register, value);
+    }
+
+    pub fn read_register_pair(&self, register: Intel8080Register) -> u16
+    {
+        Intel8080InstructionSetOps::read_register_pair(self, register)
+    }
+
+    pub fn set_register_pair(&mut self, register: Intel8080Register, value: u16)
+    {
+        Intel8080InstructionSetOps::set_register_pair(self, register, value);
+    }
+
+    pub fn set_memory(&mut self, address: u16, value: u8)
+    {
+        self.memory_accessor.set_memory(address, value);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16
@@ -148,7 +163,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         }
     }
 
-    fn read_program_counter(&self) -> u16
+    pub fn read_program_counter(&self) -> u16
     {
         self.program_counter
     }

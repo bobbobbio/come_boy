@@ -392,8 +392,8 @@ enum LCDRegister {
     LYC  = 0x5,
     // DMA  = 0x6,
     BGP  = 0x7,
-    OBP0 = 0x8,
-    OBP1 = 0x9,
+    // OBP0 = 0x8,
+    // OBP1 = 0x9,
     WY   = 0xA,
     WX   = 0xB,
 }
@@ -642,8 +642,6 @@ impl<'a> LCDController<'a> {
         self.set_lcd_control_flag(LCDControlFlag::BGCharacterDataSelection, true);
         self.set_lcd_control_flag(LCDControlFlag::BGDisplayOn, true);
         self.set_register(LCDRegister::BGP, 0xFC);
-        self.set_register(LCDRegister::OBP0, 0xFF);
-        self.set_register(LCDRegister::OBP1, 0xFF);
 
         self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
         self.set_lcd_status_mode(0x1);
@@ -833,7 +831,8 @@ impl<'a> GameBoyEmulator<'a> {
         // OAM Data 0xFE00 - 0xFE9F
         e.cpu.memory_accessor.map_chunk(OAM_DATA.start, e.lcd_controller.oam_data.clone());
 
-        // Unusable memory (unmapped) 0xFEA0 - 0xFEFF
+        // Unusable memory 0xFEA0 - 0xFEFF
+        e.cpu.memory_accessor.map_chunk(0xFEA0, MemoryChunk::from_range(0..0x60));
 
         // IO Registers 0xFF00 - 0xFF7F
         e.cpu.memory_accessor.map_chunk(IO_PORTS_A.start, e.io_ports_a.clone());
@@ -889,7 +888,7 @@ impl<'a> GameBoyEmulator<'a> {
          * a very certain state. Since this is always the case, certain games may rely on this fact
          * (and indeed often times do.)
          */
-        self.cpu.set_register(Intel8080Register::A, 0x01);
+        self.cpu.set_register(Intel8080Register::A, 0x11);
         self.cpu.set_register(Intel8080Register::B, 0x0);
         self.cpu.set_register(Intel8080Register::C, 0x13);
         self.cpu.set_register(Intel8080Register::D, 0x0);
@@ -903,7 +902,7 @@ impl<'a> GameBoyEmulator<'a> {
 
         // Initialize io ports
         let io_ports_a = [
-            /* 00 - 07 */ 0xcfu8, 0x00u8, 0x7eu8, 0xffu8, 0x69u8, 0x00u8, 0x00u8, 0xf8u8,
+            /* 00 - 07 */ 0xcfu8, 0x00u8, 0x7cu8, 0xffu8, 0x69u8, 0x00u8, 0x00u8, 0xf8u8,
             /* 08 - 0f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xe1u8,
             /* 10 - 17 */ 0x80u8, 0xbfu8, 0xf3u8, 0xffu8, 0xbfu8, 0xffu8, 0x3fu8, 0x00u8,
             /* 18 - 1f */ 0xffu8, 0xbfu8, 0x7fu8, 0xffu8, 0x9fu8, 0xffu8, 0xbfu8, 0xffu8,
@@ -921,8 +920,8 @@ impl<'a> GameBoyEmulator<'a> {
             /* 50 - 57 */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0x3eu8, 0xffu8,
             /* 58 - 5f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
             /* 60 - 67 */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
-            /* 68 - 6f */ 0xc0u8, 0xffu8, 0xc1u8, 0x00u8, 0xffu8, 0xffu8, 0xffu8, 0xffu8,
-            /* 70 - 77 */ 0xffu8, 0xffu8, 0x00u8, 0x00u8, 0xffu8, 0x8fu8, 0x00u8, 0x00u8,
+            /* 68 - 6f */ 0xc0u8, 0xffu8, 0xc1u8, 0x00u8, 0xfeu8, 0xffu8, 0xffu8, 0xffu8,
+            /* 70 - 77 */ 0xf8u8, 0xffu8, 0x00u8, 0x00u8, 0xfeu8, 0x8fu8, 0x00u8, 0x00u8,
             /* 78 - 7f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8
         ];
         self.io_ports_b.clone_from_slice(&io_ports_b);
@@ -951,7 +950,7 @@ impl<'a> GameBoyEmulator<'a> {
         self.lcd_controller.start_rendering();
         self.last_draw = time::SystemTime::now();
         while self.crashed().is_none() {
-            self.tick()
+            self.tick();
         }
         if self.cpu.crashed() {
             println!("Emulator crashed: {}", self.cpu.crash_message.as_ref().unwrap());
@@ -959,12 +958,31 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     #[cfg(test)]
-    fn dump_memory(&self, mem: &mut [u8])
+    fn hash(&self) -> u32
     {
         // Read up all of memory
+        let mut mem = [0u8; 0x10000 + 15];
         for i in 0..0x10000 {
             mem[i] = self.cpu.memory_accessor.read_memory(i as u16);
         }
+
+        mem[0x10000 + 0] = self.cpu.read_register(Intel8080Register::A);
+        mem[0x10000 + 1] = self.cpu.read_register(Intel8080Register::B);
+        mem[0x10000 + 2] = self.cpu.read_register(Intel8080Register::C);
+        mem[0x10000 + 3] = self.cpu.read_register(Intel8080Register::D);
+        mem[0x10000 + 4] = self.cpu.read_register(Intel8080Register::E);
+        mem[0x10000 + 5] = self.cpu.read_register(Intel8080Register::H);
+        mem[0x10000 + 6] = self.cpu.read_register(Intel8080Register::L);
+        mem[0x10000 + 7] = (self.cpu.read_program_counter() >> 8) as u8;
+        mem[0x10000 + 8] = (self.cpu.read_program_counter() & 0xFF) as u8;
+        mem[0x10000 + 9] = (self.cpu.read_register_pair(Intel8080Register::SP) >> 8) as u8;
+        mem[0x10000 + 10] = (self.cpu.read_register_pair(Intel8080Register::SP) & 0xFF) as u8;
+        mem[0x10000 + 11] = if self.cpu.read_flag(LR35902Flag::Zero) { 1 } else { 0 };
+        mem[0x10000 + 12] = if self.cpu.read_flag(LR35902Flag::Subtract) { 1 } else { 0 };
+        mem[0x10000 + 13] = if self.cpu.read_flag(LR35902Flag::HalfCarry) { 1 } else { 0 };
+        mem[0x10000 + 14] = if self.cpu.read_flag(LR35902Flag::Carry) { 1 } else { 0 };
+
+        return super_fast_hash(&mem);
     }
 }
 
@@ -973,11 +991,8 @@ fn initial_state_test()
 {
     let e = GameBoyEmulator::new();
 
-    let mut mem = [0u8; 0x10000];
-    e.dump_memory(&mut mem);
-
     // Lock down the initial state.
-    assert_eq!(super_fast_hash(&mem), 1436422073);
+    assert_eq!(e.hash(), 2735489010);
 }
 
 pub fn run_emulator(rom: &[u8])
