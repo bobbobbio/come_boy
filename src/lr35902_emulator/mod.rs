@@ -55,6 +55,7 @@ pub struct LR35902Emulator<M: MemoryAccessor> {
     pub memory_accessor: M,
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16, interrupts_enabled: bool,
+    elapsed_cycles: u64,
     pub crash_message: Option<String>
 }
 
@@ -66,6 +67,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
+            elapsed_cycles: 0,
             crash_message: None
         };
 
@@ -190,6 +192,11 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
             Intel8080InstructionSet::call(self, address);
         }
     }
+
+    fn add_cycles(&mut self, cycles: u8)
+    {
+        self.elapsed_cycles += cycles as u64;
+    }
 }
 
 #[cfg(test)]
@@ -221,6 +228,8 @@ pub trait LR35902InstructionSetOps {
     fn set_program_counter(&mut self, address: u16);
     fn set_interrupts_enabled(&mut self, value: bool);
     fn get_interrupts_enabled(&self) -> bool;
+    fn add_cycles(&mut self, cycles: u8);
+
     fn get_relative_address(&self, n: u8) -> u16
     {
         self.read_program_counter().wrapping_add(((n as i8) as i16) as u16)
@@ -376,6 +385,11 @@ impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
     {
         self.get_interrupts_enabled()
     }
+
+    fn add_cycles(&mut self, cycles: u8)
+    {
+        self.add_cycles(cycles);
+    }
 }
 
 /*   ___   ___   ___   ___    _          _     ____  _________  ___   ___ ____
@@ -499,6 +513,11 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
     fn get_interrupts_enabled(&self) -> bool
     {
         self.get_interrupts_enabled()
+    }
+
+    fn add_cycles(&mut self, cycles: u8)
+    {
+        self.add_cycles(cycles);
     }
 }
 
@@ -2283,7 +2302,8 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     {
         let pc = self.read_program_counter() as usize;
         self.set_program_counter((pc + instruction.len()) as u16);
-        dispatch_lr35902_instruction(&instruction, self);
+        let duration = dispatch_lr35902_instruction(&instruction, self);
+        self.add_cycles(duration);
     }
 
     fn crash_from_unkown_opcode(&mut self)

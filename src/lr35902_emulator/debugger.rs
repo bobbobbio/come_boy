@@ -102,6 +102,11 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     {
         self.emulator.get_interrupts_enabled()
     }
+
+    fn add_cycles(&mut self, _cycles: u8)
+    {
+
+    }
 }
 
 impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {

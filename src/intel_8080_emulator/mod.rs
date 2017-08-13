@@ -89,6 +89,7 @@ pub trait Intel8080InstructionSetOps {
     fn set_raw_register(&mut self, index: usize, value: u8);
     fn read_raw_register_pair(&self, index: usize) -> u16;
     fn set_raw_register_pair(&mut self, index: usize, value: u16);
+    fn add_cycles(&mut self, cycles: u8);
 
     /*
      * 8008 Registers are laid out in a specified order in memory. (See enum Intel8080Register for
@@ -447,6 +448,10 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
 
     fn get_interrupts_enabled(&self) -> bool {
         self.interrupts_enabled
+    }
+
+    fn add_cycles(&mut self, _cycles: u8)
+    {
     }
 }
 
@@ -932,6 +937,10 @@ fn push_byte_order()
  *
  */
 
+const JUMP_EXTRA_CYCLES: u8 = 4;
+const CALL_EXTRA_CYCLES: u8 = 12;
+const RETURN_EXTRA_CYCLES: u8 = 12;
+
 impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     fn complement_carry(&mut self)
     {
@@ -1280,6 +1289,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Carry) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1287,6 +1297,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1294,6 +1305,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Zero) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1301,6 +1313,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1308,6 +1321,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Sign) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1315,6 +1329,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1322,6 +1337,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Parity) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1329,6 +1345,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.jump(address);
+            self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
@@ -1343,6 +1360,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Carry) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1350,6 +1368,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1357,6 +1376,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Zero) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1364,6 +1384,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1371,6 +1392,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Sign) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1378,6 +1400,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1385,6 +1408,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Parity) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1392,6 +1416,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.call(address);
+            self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
@@ -1405,6 +1430,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Carry) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1412,6 +1438,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1419,6 +1446,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Zero) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1426,6 +1454,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1433,6 +1462,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Sign) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1440,6 +1470,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1447,6 +1478,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if self.read_flag(Intel8080Flag::Parity) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
@@ -1454,6 +1486,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.return_unconditionally();
+            self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 

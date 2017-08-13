@@ -132,9 +132,10 @@ class OpcodeFunctionCall(object):
         return '{}({})'.format(self.function.name, ', '.join(arguments))
 
 class Opcode(object):
-    def __init__(self, value, size, function_call):
+    def __init__(self, value, size, duration, function_call):
         self.value = value
         self.size = size
+        self.duration = duration
         self.function_call = function_call
 
     def __lt__(self, other):
@@ -212,7 +213,11 @@ class OpcodeCodeGenerator(object):
                     "{} has non consistent arguments".format(name)
 
             function_call = OpcodeFunctionCall(function, args)
-            opcodes.append(Opcode(int(opcode, 16), info['size'], function_call))
+            opcodes.append(Opcode(
+                int(opcode, 16),
+                info['size'],
+                info.get('duration', 0),
+                function_call))
 
         return Opcodes(opcodes, functions.values())
 
@@ -282,7 +287,7 @@ class OpcodeCodeGenerator(object):
         self.out('''
             pub fn dispatch_{}_instruction<I: {}InstructionSet>(
                 mut stream: &[u8],
-                machine: &mut I)
+                machine: &mut I) -> u8
             {{
                 let opcode = read_u8(&mut stream).unwrap();
                 match opcode {{
@@ -292,12 +297,13 @@ class OpcodeCodeGenerator(object):
         self.indent += 2
         for opcode in self.iterate_opcodes():
             if opcode.function_call.function.shorthand != '-':
-                self.out('0x{:02X} => machine.{},\n'.format(
+                self.out('0x{:02X} => {{ machine.{}; {} }},\n'.format(
                     opcode.value,
-                    opcode.function_call.generate('&mut stream')))
+                    opcode.function_call.generate('&mut stream'),
+                    opcode.duration))
 
         self.indent -= 1
-        self.out('};\n')
+        self.out('}\n')
         self.indent -= 1
         self.out('}\n')
 
