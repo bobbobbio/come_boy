@@ -23,6 +23,7 @@ pub struct LR35902InstructionPrinter<'a> {
     error: Result<()>
 }
 
+#[derive(Copy, Clone)]
 pub struct LR35902InstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {

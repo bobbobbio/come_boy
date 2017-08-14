@@ -10,6 +10,7 @@ pub struct RGBDSInstructionPrinter<'a> {
     address: u16,
 }
 
+#[derive(Copy, Clone)]
 pub struct RGBDSInstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for RGBDSInstructionPrinterFactory {

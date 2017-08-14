@@ -5,7 +5,7 @@ use emulator_common::{Disassembler, MemoryAccessor, MemoryDescription};
 
 mod rgbds_assembly;
 
-use game_boy_emulator::disassembler::rgbds_assembly::RGBDSInstructionPrinterFactory;
+pub use game_boy_emulator::disassembler::rgbds_assembly::RGBDSInstructionPrinterFactory;
 
 #[cfg(test)]
 use std::fmt::Write;

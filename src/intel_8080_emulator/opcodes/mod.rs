@@ -21,6 +21,7 @@ pub struct Intel8080InstructionPrinter<'a> {
     error: Result<()>
 }
 
+#[derive(Copy, Clone)]
 pub struct Intel8080InstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for Intel8080InstructionPrinterFactory {

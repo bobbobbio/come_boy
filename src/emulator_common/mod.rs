@@ -184,14 +184,14 @@ pub trait InstructionPrinterFactory<'a> {
  *
  */
 
-pub struct Disassembler<'a, PF: for<'b> InstructionPrinterFactory<'b>> {
+pub struct Disassembler<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> {
     pub index: u16,
     memory_accessor: &'a MemoryAccessor,
     opcode_printer_factory: PF,
     stream_out: &'a mut io::Write
 }
 
-impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
+impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> {
     pub fn new(
         memory_accessor: &'a MemoryAccessor,
         opcode_printer_factory: PF,
@@ -264,6 +264,41 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b>> Disassembler<'a, PF> {
             MemoryDescription::Data(len) => self.disassemble_data(len, include_opcodes),
             MemoryDescription::ASCII(len) => self.disassemble_ascii(len, include_opcodes),
         }
+    }
+
+    pub fn disassemble_multiple(&mut self) -> Result<()>
+    {
+        let context = 10;
+        let mut previous = vec![];
+        let current = self.index;
+
+        let start = current.saturating_sub((context + 5) * 3);
+
+        {
+            let mut dis = Disassembler::new(
+                self.memory_accessor, self.opcode_printer_factory, &mut previous);
+            dis.disassemble(start..current, true).unwrap();
+        }
+
+        let lines = str::from_utf8(&previous).unwrap();
+        let skip = lines.lines().count().saturating_sub(context as usize);
+
+        for line in lines.lines().skip(skip) {
+            try!(writeln!(self.stream_out, "{}", line));
+        }
+
+        try!(self.disassemble_one(true));
+        try!(writeln!(self.stream_out, " <---"));
+
+        for _ in 0..(context - 1) {
+            try!(self.disassemble_one(true));
+            try!(writeln!(self.stream_out));
+        }
+        try!(self.disassemble_one(true));
+
+        self.index = current;
+
+        Ok(())
     }
 
     fn disassemble_one_instruction(&mut self, include_opcodes: bool) -> Result<()>
@@ -353,6 +388,7 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
 }
 
 #[cfg(test)]
+#[derive(Clone,Copy)]
 struct TestInstructionPrinterFactory;
 
 #[cfg(test)]
@@ -368,7 +404,7 @@ impl<'a> InstructionPrinterFactory<'a> for TestInstructionPrinterFactory {
 }
 
 #[cfg(test)]
-pub fn do_disassembler_test<PF: for<'b> InstructionPrinterFactory<'b>>(
+pub fn do_disassembler_test<PF: for<'b> InstructionPrinterFactory<'b> + Copy>(
     opcode_printer_factory: PF,
     test_rom: &[u8],
     expected_str: &str)
@@ -443,12 +479,13 @@ impl SimulatedInstruction {
 
 pub trait DebuggerOps {
     fn read_memory(&self, address: u16) -> u8;
-    fn format<'a> (&self, &'a mut io::Write) -> Result<()>;
+    fn format<'a> (&self, &mut io::Write) -> Result<()>;
     fn next(&mut self);
     fn simulate_next(&mut self, &mut SimulatedInstruction);
     fn read_program_counter(&self) -> u16;
     fn crashed(&self) -> Option<&String>;
     fn set_program_counter(&mut self, address: u16);
+    fn disassemble(&mut self, f: &mut io::Write) -> Result<()>;
 }
 
 pub struct Debugger<'a> {
@@ -483,7 +520,13 @@ impl<'a> Debugger<'a> {
     fn state(&mut self)
     {
         self.emulator.format(self.out).unwrap();
-        writeln!(self.out, "").unwrap();
+        writeln!(self.out).unwrap();
+    }
+
+    fn disassemble(&mut self)
+    {
+        self.emulator.disassemble(self.out).unwrap();
+        writeln!(self.out).unwrap();
     }
 
     fn check_for_watchpoint(&mut self) -> bool
@@ -593,6 +636,7 @@ impl<'a> Debugger<'a> {
         };
         match func {
             "state" => self.state(),
+            "disassemble" => self.disassemble(),
             "next" => self.next(),
             "exit" => self.exit(),
             "run" => self.run_emulator(),
@@ -743,6 +787,11 @@ impl DebuggerOps for TestDebuggerOps {
     fn set_program_counter(&mut self, address: u16)
     {
         self.current_address = address
+    }
+
+    fn disassemble(&mut self, _f: &mut io::Write) -> Result<()>
+    {
+        Ok(())
     }
 }
 

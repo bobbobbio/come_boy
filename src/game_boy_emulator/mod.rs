@@ -390,10 +390,10 @@ enum LCDRegister {
     SCX  = 0x3,
     LY   = 0x4,
     LYC  = 0x5,
-    // DMA  = 0x6,
+    DMA  = 0x6,
     BGP  = 0x7,
-    // OBP0 = 0x8,
-    // OBP1 = 0x9,
+    OBP0 = 0x8,
+    OBP1 = 0x9,
     WY   = 0xA,
     WX   = 0xB,
 }
@@ -402,12 +402,12 @@ enum LCDRegister {
 enum LCDControlFlag {
                                      // 76543210
     OperationStop =                   0b10000000,
-    // WindowCodeAreaSelection =         0b01000000,
-    // WindowingOn =                     0b00100000,
+    WindowCodeAreaSelection =         0b01000000,
+    WindowingOn =                     0b00100000,
     BGCharacterDataSelection =        0b00010000,
     BGCodeAreaSelection =             0b00001000,
-    // ObjectBlockCompositionSelection = 0b00000100,
-    // ObjectOn =                        0b00000010,
+    ObjectBlockCompositionSelection = 0b00000100,
+    ObjectOn =                        0b00000010,
     BGDisplayOn =                     0b00000001,
 }
 
@@ -415,9 +415,9 @@ enum LCDControlFlag {
 enum LCDStatusFlag {
                          // 76543210
     InterruptLYMatching = 0b10000000,
-    // InterruptMode10 =     0b01000000,
-    // InterruptMode01 =     0b00100000,
-    // InterruptMode00 =     0b00010000,
+    InterruptMode10 =     0b01000000,
+    InterruptMode01 =     0b00100000,
+    InterruptMode00 =     0b00010000,
     LYMatch =             0b00001000,
     Mode =                0b00000011,
 }
@@ -698,6 +698,10 @@ impl<'a> LCDController<'a> {
          * prevents ghosting effects.
          */
         if ly != 0 {
+            return;
+        }
+
+        if self.renderer.is_none() {
             return;
         }
 

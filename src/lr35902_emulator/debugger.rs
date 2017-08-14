@@ -9,11 +9,13 @@ use emulator_common::{
     Intel8080Register,
     MemoryAccessor,
     MemoryStream,
-    SimulatedInstruction,
     SimpleMemoryAccessor,
+    SimulatedInstruction,
 };
 use lr35902_emulator::opcodes::{
-    create_disassembler, dispatch_lr35902_instruction, get_lr35902_instruction};
+    dispatch_lr35902_instruction,
+    get_lr35902_instruction,
+};
 use lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
 
 struct SimulatedInstructionLR35902<'a, M: MemoryAccessor + 'a> {
@@ -125,18 +127,10 @@ impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {
             self.read_flag(LR35902Flag::Subtract),
             self.read_flag(LR35902Flag::HalfCarry),
             self.read_flag(LR35902Flag::Carry)));
-        try!(writeln!(f, "PC: {:x}, SP: {:x}, M: {:x}",
+        try!(write!(f, "PC: {:x}, SP: {:x}, M: {:x}",
             self.read_program_counter(),
             self.read_register_pair(Intel8080Register::SP),
             self.read_register(Intel8080Register::M)));
-
-        let mut buffer = vec![];
-        {
-            let mut dis = create_disassembler(&self.memory_accessor, &mut buffer);
-            dis.index = self.read_program_counter();
-            dis.disassemble_one(true).unwrap();
-        }
-        try!(write!(f, "{}", str::from_utf8(&buffer).unwrap()));
 
         Ok(())
     }
@@ -150,7 +144,7 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
 
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()>
     {
-        write!(s, "{:?}", self)
+        writeln!(s, "{:?}", self)
     }
 
     fn next(&mut self)
@@ -187,6 +181,11 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
     fn set_program_counter(&mut self, address: u16)
     {
         self.set_program_counter(address)
+    }
+
+    fn disassemble(&mut self, _f: &mut io::Write) -> Result<()>
+    {
+        Ok(())
     }
 }
 
