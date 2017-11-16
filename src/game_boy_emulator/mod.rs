@@ -107,7 +107,7 @@ impl<'a> MemoryAccessor for GameBoyMemoryMap {
     {
         match self.get_chunk_for_address_mut(address) {
             None => { },
-            Some((key, mut chunk)) => {
+            Some((key, chunk)) => {
                 if address - key < chunk.len() {
                     chunk.set_value(address - key, value);
                 }

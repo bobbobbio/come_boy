@@ -5,7 +5,7 @@ extern crate sdl2;
 pub mod debugger;
 mod opcodes;
 
-use std::{str, mem};
+use std::mem;
 
 use intel_8080_emulator::{
     Intel8080Flag,
@@ -565,21 +565,21 @@ fn can_set_and_read_regiser_pair()
 #[test]
 fn perform_addition()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     assert_eq!(e.perform_addition(0x33, 0x11, false /* update carry */), 0x44);
 }
 
 #[test]
 fn perform_addition_with_overflow()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     assert_eq!(e.perform_addition(0xF3, 0x11, false /* update carry */), 0x04);
 }
 
 #[test]
 fn perform_addition_sets_zero_flag()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_addition(0xF3, 0x0D, false /* update carry */);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
@@ -587,7 +587,7 @@ fn perform_addition_sets_zero_flag()
 #[test]
 fn perform_addition_sets_half_carry()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_addition(0x0F, 0x01, false /* update carry */);
     assert!(e.read_flag(LR35902Flag::HalfCarry));
 }
@@ -595,7 +595,7 @@ fn perform_addition_sets_half_carry()
 #[test]
 fn perform_addition_clears_subtract_flag()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.set_flag(LR35902Flag::Subtract, true);
     e.perform_addition(0x0D, 0x01, false /* update carry */);
     assert!(!e.read_flag(LR35902Flag::Subtract));
@@ -604,7 +604,7 @@ fn perform_addition_clears_subtract_flag()
 #[test]
 fn perform_addition_does_not_set_carry()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_addition(0xFF, 0x01, false /* update carry */);
     assert!(!e.read_flag(LR35902Flag::Carry));
 }
@@ -612,7 +612,7 @@ fn perform_addition_does_not_set_carry()
 #[test]
 fn perform_addition_clears_carry()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.set_flag(LR35902Flag::Carry, true);
     e.perform_addition(0xF1, 0x01, true /* update carry */);
     assert!(!e.read_flag(LR35902Flag::Carry));
@@ -621,7 +621,7 @@ fn perform_addition_clears_carry()
 #[test]
 fn perform_addition_sets_carry()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_addition(0xFF, 0x01, true /* update carry */);
     assert!(e.read_flag(LR35902Flag::Carry));
 }
@@ -629,21 +629,21 @@ fn perform_addition_sets_carry()
 #[test]
 fn perform_subtraction()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     assert_eq!(e.perform_subtraction(0x12, 0x11), 0x01);
 }
 
 #[test]
 fn perform_subtraction_with_underflow()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     assert_eq!(e.perform_subtraction(0x12, 0x13), 0xFF);
 }
 
 #[test]
 fn perform_subtraction_sets_zero_flag()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_subtraction(0x12, 0x12);
     assert!(e.read_flag(LR35902Flag::Zero));
 }
@@ -651,7 +651,7 @@ fn perform_subtraction_sets_zero_flag()
 #[test]
 fn perform_subtraction_sets_subtract_flag()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_subtraction(0x12, 0x04);
     assert!(e.read_flag(LR35902Flag::Subtract));
 }
@@ -659,7 +659,7 @@ fn perform_subtraction_sets_subtract_flag()
 #[test]
 fn perform_subtraction_sets_half_carry_flag()
 {
-    let mut e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
+    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
     e.perform_subtraction(0x03, 0x04);
     assert!(e.read_flag(LR35902Flag::HalfCarry));
 }
@@ -2371,7 +2371,7 @@ fn run_blargg_test_rom_cpu_instrs(name: &str, stop_address: u16)
 
     // Scrape from memory what is displayed on the screen
     let mut message = String::new();
-    let mut iter = &mut MemoryIterator::new(&e.memory_accessor, 0x9800..0x9BFF).peekable();
+    let iter = &mut MemoryIterator::new(&e.memory_accessor, 0x9800..0x9BFF).peekable();
     while iter.peek() != None {
         for c in iter.take(0x20) {
             // The rom happens to use ASCII as the way it maps characters to the correct tile.

@@ -1,6 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
-use std::{fmt, str};
+use std::fmt;
 use std::io::{self, Result};
 
 use emulator_common::{
@@ -196,7 +196,7 @@ pub fn run_debugger(rom: &[u8])
     let mut e = LR35902Emulator::new(ma);
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();
-    let mut stdout = &mut io::stdout();
+    let stdout = &mut io::stdout();
     let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
     debugger.run();
 }
