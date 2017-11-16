@@ -97,9 +97,9 @@ def argument_factory(arg):
         return Argument(DataArgumentType(int(arg[1:])), None)
     elif all([c.isdigit() for c in arg]):
         return Argument(ImplicitDataArgumentType(), int(arg))
-    else:
-        assert all([c.isalpha() for c in arg])
-        return Argument(RegisterArgumentType(), arg)
+
+    assert all([c.isalpha() for c in arg])
+    return Argument(RegisterArgumentType(), arg)
 
 class OpcodeFunction(object):
     def __init__(self, name, shorthand, arguments):
@@ -323,8 +323,7 @@ class OpcodeCodeGenerator(object):
 
             if byte_list:
                 return ', '.join(reversed(byte_list))
-            else:
-                return '0x{:02X}'.format(value)
+            return '0x{:02X}'.format(value)
 
         self.indent += 2
         for opcode in self.iterate_opcodes(failure='return None'):
