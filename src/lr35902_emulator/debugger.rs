@@ -189,7 +189,7 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
     }
 }
 
-pub fn run_debugger(rom: &[u8])
+pub fn run_debugger(rom: &[u8], is_interrupted: &Fn() -> bool)
 {
     let mut ma = SimpleMemoryAccessor::new();
     ma.memory[0..rom.len()].clone_from_slice(rom);
@@ -198,5 +198,5 @@ pub fn run_debugger(rom: &[u8])
     let stdin_locked = &mut stdin.lock();
     let stdout = &mut io::stdout();
     let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
-    debugger.run();
+    debugger.run(is_interrupted);
 }

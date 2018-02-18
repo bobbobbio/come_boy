@@ -496,7 +496,7 @@ pub struct Debugger<'a> {
     watchpoint: Option<u16>,
     logging: bool,
     input: &'a mut io::BufRead,
-    out: &'a mut io::Write
+    out: &'a mut io::Write,
 }
 
 impl<'a> Debugger<'a> {
@@ -513,7 +513,7 @@ impl<'a> Debugger<'a> {
             watchpoint: None,
             logging: false,
             input: input,
-            out: out
+            out: out,
         }
     }
 
@@ -544,7 +544,7 @@ impl<'a> Debugger<'a> {
         return true;
     }
 
-    fn check_for_breakpoint_or_crash(&mut self) -> bool
+    fn check_for_breakpoint_crash_or_interrupt(&mut self, is_interrupted: &Fn() -> bool) -> bool
     {
         if self.emulator.crashed().is_some() {
             writeln!(self.out, "Emulator crashed: {}", self.emulator.crashed().unwrap()).unwrap();
@@ -552,6 +552,10 @@ impl<'a> Debugger<'a> {
         }
         if Some(self.emulator.read_program_counter()) == self.breakpoint {
             writeln!(self.out, "Hit breakpoint").unwrap();
+            return false;
+        }
+        if is_interrupted() {
+            writeln!(self.out, "Interrupted").unwrap();
             return false;
         }
         return true;
@@ -562,7 +566,7 @@ impl<'a> Debugger<'a> {
         self.check_for_watchpoint();
         self.emulator.next();
         self.state();
-        self.check_for_breakpoint_or_crash();
+        self.check_for_breakpoint_crash_or_interrupt(&|| false);
     }
 
     fn exit(&mut self)
@@ -581,13 +585,14 @@ impl<'a> Debugger<'a> {
         self.watchpoint = Some(address);
     }
 
-    fn run_emulator(&mut self)
+    fn run_emulator(&mut self, is_interrupted: &Fn() -> bool)
     {
         self.emulator.next();
         if self.logging {
             self.state();
         }
-        while self.check_for_breakpoint_or_crash() && self.check_for_watchpoint() {
+        while self.check_for_breakpoint_crash_or_interrupt(is_interrupted) &&
+            self.check_for_watchpoint() {
             self.emulator.next();
             if self.logging {
                 self.state();
@@ -627,7 +632,7 @@ impl<'a> Debugger<'a> {
         self.logging = false;
     }
 
-    fn dispatch_command(&mut self, command: &str)
+    fn dispatch_command(&mut self, command: &str, is_interrupted: &Fn() -> bool)
     {
         let mut iter = command.split_whitespace();
         let func = match iter.next() {
@@ -639,7 +644,7 @@ impl<'a> Debugger<'a> {
             "disassemble" => self.disassemble(),
             "next" => self.next(),
             "exit" => self.exit(),
-            "run" => self.run_emulator(),
+            "run" => self.run_emulator(is_interrupted),
             "break" => {
                 match self.read_address(&mut iter) {
                     Some(address) => self.set_breakpoint(address),
@@ -684,7 +689,7 @@ impl<'a> Debugger<'a> {
                 if c == "" {
                     writeln!(self.out, "empty command").unwrap();
                 } else {
-                    self.dispatch_command(&c);
+                    self.dispatch_command(&c, is_interrupted);
                 }
                 return;
             },
@@ -697,7 +702,7 @@ impl<'a> Debugger<'a> {
         self.last_command = String::from(func);
     }
 
-    fn process_command(&mut self)
+    fn process_command(&mut self, is_interrupted: &Fn() -> bool)
     {
         write!(self.out, "(debugger) ").unwrap();
         self.out.flush().unwrap();
@@ -713,14 +718,14 @@ impl<'a> Debugger<'a> {
 
         let command = &buffer[0..buffer.len() - 1];
 
-        self.dispatch_command(command);
+        self.dispatch_command(command, is_interrupted);
     }
 
-    pub fn run(&mut self)
+    pub fn run(&mut self, is_interrupted: &Fn() -> bool)
     {
         self.running = true;
         while self.running {
-            self.process_command();
+            self.process_command(is_interrupted);
         }
     }
 }
@@ -803,7 +808,7 @@ fn run_debugger_test_with_ops(ops: &mut DebuggerOps, input: &[&str], expected_ou
     let mut input_bytes = input_str.as_bytes();
     {
         let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, ops);
-        debugger.run();
+        debugger.run(&|| false);
     }
 
     assert_eq!(str::from_utf8(&output_bytes).unwrap(), expected_output);
@@ -814,6 +819,24 @@ fn run_debugger_test(input: &[&str], expected_output: &str)
 {
     let mut test_ops = TestDebuggerOps::new();
     run_debugger_test_with_ops(&mut test_ops, input, expected_output)
+}
+
+#[test]
+fn debugger_interrupt()
+{
+    let mut test_ops = TestDebuggerOps::new();
+    let mut output_bytes = vec![];
+    let mut input_bytes = "run\n".as_bytes();
+    {
+        let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, &mut test_ops);
+        debugger.run(&|| true);
+    }
+
+    assert_eq!(
+        str::from_utf8(&output_bytes).unwrap(),
+        "(debugger) Interrupted\n\
+        TestDebuggerOps pc=1\n\
+        (debugger) exiting\n");
 }
 
 #[test]

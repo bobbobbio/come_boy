@@ -161,7 +161,7 @@ fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result
     write!(f, "{:02x}: {:?}", stat, set)
 }
 
-pub fn run_debugger(rom: &[u8])
+pub fn run_debugger(rom: &[u8], is_interrupted: &Fn() -> bool)
 {
     let mut e = GameBoyEmulator::new();
     e.load_rom(&rom);
@@ -169,5 +169,5 @@ pub fn run_debugger(rom: &[u8])
     let stdin_locked = &mut stdin.lock();
     let stdout = &mut io::stdout();
     let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
-    debugger.run();
+    debugger.run(is_interrupted);
 }

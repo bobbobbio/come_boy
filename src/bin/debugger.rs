@@ -2,11 +2,14 @@
 
 extern crate argparse;
 extern crate come_boy;
+extern crate nix;
 
 use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::{Read, Result};
 use std::process::exit;
+use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use self::nix::sys::signal;
 
 use come_boy::game_boy_emulator;
 
@@ -28,6 +31,13 @@ fn read_rom_from_file(file_path: &String, mut rom: &mut Vec<u8>) -> Result<()>
     Ok(())
 }
 
+static INTERRUPTED: AtomicBool = ATOMIC_BOOL_INIT;
+
+extern fn handle_sigint(_: i32)
+{
+    INTERRUPTED.store(true, Ordering::Relaxed)
+}
+
 fn main()
 {
     // List of files
@@ -41,6 +51,12 @@ fn main()
         ap.parse_args_or_exit();
     }
 
+    let sig_action = signal::SigAction::new(
+        signal::SigHandler::Handler(handle_sigint),
+        signal::SaFlags::empty(),
+        signal::SigSet::empty());
+    unsafe { signal::sigaction(signal::SIGINT, &sig_action) }.unwrap();
+
     let mut return_code = 0;
     for file_path in &files {
         let mut rom : Vec<u8> = vec![];
@@ -49,7 +65,7 @@ fn main()
             return_code = 1;
             continue;
         }
-        game_boy_emulator::run_debugger(&rom);
+        game_boy_emulator::run_debugger(&rom, &|| INTERRUPTED.swap(false, Ordering::Relaxed));
     }
     exit(return_code);
 }
