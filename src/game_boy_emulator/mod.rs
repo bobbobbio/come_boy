@@ -503,8 +503,8 @@ impl LCDDotData {
         for (p, shade) in self.data.iter().enumerate() {
             let (offset_x, offset_y) = ((p as u8 % CHARACTER_SIZE), (p as u8 / CHARACTER_SIZE));
             let rect = sdl2::rect::Rect::new(
-                ((x + offset_x as i32) * PIXEL_SCALE as i32),
-                ((y + offset_y as i32) * PIXEL_SCALE as i32), PIXEL_SCALE, PIXEL_SCALE);
+                (x + offset_x as i32) * PIXEL_SCALE as i32,
+                (y + offset_y as i32) * PIXEL_SCALE as i32, PIXEL_SCALE, PIXEL_SCALE);
             let color = color_for_shade(*shade);
             renderer.set_draw_color(color);
             renderer.fill_rect(rect).unwrap();
