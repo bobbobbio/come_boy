@@ -2526,7 +2526,6 @@ fn blargg_test_rom_cpu_instrs_10_bit_ops()
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_11_op_a_hl()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/11-op a,(hl).gb", 0xcc62);
