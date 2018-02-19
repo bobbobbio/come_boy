@@ -2514,7 +2514,6 @@ fn blargg_test_rom_cpu_instrs_8_misc_instrs()
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_9_op_r_r()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/09-op r,r.gb", 0xce67);
