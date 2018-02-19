@@ -980,21 +980,23 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
          */
 
         let accumulator = self.read_register(Intel8080Register::A);
-        if accumulator & 0x0F > 9 || self.read_flag(Intel8080Flag::AuxiliaryCarry) {
-            self.add_to_register(Intel8080Register::A, 6, false /* update carry */);
+        if accumulator & 0x0F > 0x09 || self.read_flag(Intel8080Flag::AuxiliaryCarry) {
+            self.set_register(Intel8080Register::A, accumulator.wrapping_add(0x6));
         }
-        let auxiliary_carry = self.read_flag(Intel8080Flag::AuxiliaryCarry);
 
         /*
          * (2) If the most significant four bits of the accumulator now represent a number greater
          * than 9, or if the normal carry bit is equal to one, the most significant four bits of
          * the accumulator are incremented by six. Otherwise, no incrementing occurs.
          */
-        let accumulator = self.read_register(Intel8080Register::A);
-        if (accumulator >> 4) & 0x0F > 9 || self.read_flag(Intel8080Flag::Carry) {
-            self.add_to_register(Intel8080Register::A, 6 << 4, true /* update carry */);
+        if accumulator > 0x99 || self.read_flag(Intel8080Flag::Carry) {
+            let accumulator = self.read_register(Intel8080Register::A);
+            self.set_register(Intel8080Register::A, accumulator.wrapping_add(0x60));
+            self.set_flag(Intel8080Flag::Carry, true);
         }
-        self.set_flag(Intel8080Flag::AuxiliaryCarry, auxiliary_carry);
+
+        let accumulator = self.read_register(Intel8080Register::A);
+        self.set_flag(Intel8080Flag::Zero, accumulator == 0);
     }
 
     fn no_operation(&mut self)
@@ -1634,7 +1636,6 @@ fn decimal_adjust_accumulator_low_and_high_bits()
      */
     e.set_register(Intel8080Register::A, 0x9B);
     e.set_flag(Intel8080Flag::Carry, false);
-    e.set_flag(Intel8080Flag::AuxiliaryCarry, false);
 
     e.decimal_adjust_accumulator();
 
@@ -1662,7 +1663,6 @@ fn decimal_adjust_accumulator_low_and_high_bits()
      */
     assert_eq!(e.read_register(Intel8080Register::A), 0x01);
     assert!(e.read_flag(Intel8080Flag::Carry));
-    assert!(e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
@@ -1675,7 +1675,6 @@ fn decimal_adjust_accumulator_low_bits_increment_only()
 
     assert_eq!(e.read_register(Intel8080Register::A), 0x0F + 6);
     assert!(!e.read_flag(Intel8080Flag::Carry));
-    assert!(e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
@@ -1688,7 +1687,6 @@ fn decimal_adjust_accumulator_high_bits_increment_only()
 
     assert_eq!(e.read_register(Intel8080Register::A), 0xA0u8.wrapping_add(6 << 4));
     assert!(e.read_flag(Intel8080Flag::Carry));
-    assert!(!e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]

@@ -936,10 +936,13 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
             let value =
                 if self.read_flag(LR35902Flag::Carry) { 0x60 } else { 0x0 } |
                 if self.read_flag(LR35902Flag::HalfCarry) { 0x06 } else { 0x0 };
-            let accumulator = self.read_register(Intel8080Register::A);
-            let result = self.perform_subtraction_using_twos_complement(accumulator, value);
-            self.set_register(Intel8080Register::A, result);
+            let accumulator = self.read_register(Intel8080Register::A).wrapping_sub(value);
+            self.set_register(Intel8080Register::A, accumulator);
+
+            self.set_flag(LR35902Flag::Carry, value & 0x60 != 0);
+            self.set_flag(LR35902Flag::Zero, accumulator == 0);
         }
+        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
     fn complement_accumulator(&mut self)
@@ -2091,6 +2094,76 @@ fn decimal_adjust_accumulator_clears_half_carry()
     assert!(!e.read_flag(LR35902Flag::HalfCarry));
 }
 
+#[cfg(test)]
+fn daa_test(input: u8, expected: u8)
+{
+    let mut e = new_lr35902_emulator_for_test();
+    e.set_register(Intel8080Register::A, input);
+    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
+    assert_eq!(e.read_register(Intel8080Register::A), expected);
+}
+
+#[test]
+fn decimal_adjust_accumulator_examples()
+{
+    daa_test(0x1, 0x1);
+    daa_test(0xa, 0x10);
+    daa_test(0xa8, 0x8);
+    daa_test(0x9a, 0x0);
+}
+
+#[test]
+fn decimal_adjust_accumulator_sets_zero()
+{
+    let mut e = new_lr35902_emulator_for_test();
+    e.set_register(Intel8080Register::A, 0x9a);
+    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
+    assert!(e.read_flag(LR35902Flag::Zero));
+}
+
+#[test]
+fn decimal_adjust_accumulator_resets_zero()
+{
+    let mut e = new_lr35902_emulator_for_test();
+    e.set_register(Intel8080Register::A, 0x91);
+    e.set_flag(LR35902Flag::Zero, true);
+    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
+    assert!(!e.read_flag(LR35902Flag::Zero));
+}
+
+#[test]
+fn decimal_adjust_accumulator_sets_carry()
+{
+    let mut e = new_lr35902_emulator_for_test();
+    e.set_register(Intel8080Register::A, 0x9b);
+    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
+    assert!(e.read_flag(LR35902Flag::Carry));
+}
+
+#[test]
+fn decimal_adjust_accumulator_reads_carry()
+{
+    let mut e = new_lr35902_emulator_for_test();
+    e.set_register(Intel8080Register::A, 0x73);
+    e.set_flag(LR35902Flag::Carry, true);
+    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
+    assert_eq!(e.read_register(Intel8080Register::A), 0xd3);
+    assert!(e.read_flag(LR35902Flag::Carry));
+}
+
+#[test]
+fn decimal_adjust_accumulator_reads_half_carry()
+{
+    let mut e = new_lr35902_emulator_for_test();
+    e.set_register(Intel8080Register::A, 0x0);
+    e.set_flag(LR35902Flag::HalfCarry, true);
+    e.set_flag(LR35902Flag::Carry, true);
+    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
+    assert_eq!(e.read_register(Intel8080Register::A), 0x66);
+    assert!(e.read_flag(LR35902Flag::Carry));
+    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+}
+
 #[test]
 fn and_immediate_with_accumulator_sets_zero_flag()
 {
@@ -2389,7 +2462,6 @@ fn run_blargg_test_rom_cpu_instrs(name: &str, stop_address: u16)
 // emulation.
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_1_special()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/01-special.gb", 0xc7d2);
