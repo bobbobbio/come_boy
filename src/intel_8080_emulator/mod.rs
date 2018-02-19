@@ -1200,12 +1200,20 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.add_to_register(Intel8080Register::A, data, true /* update_carry */);
     }
 
-    fn add_immediate_to_accumulator_with_carry(&mut self, mut data: u8)
+    fn add_immediate_to_accumulator_with_carry(&mut self, data: u8)
     {
-        if self.read_flag(Intel8080Flag::Carry) {
-            data = data.wrapping_add(1);
-        }
+        let carry = self.read_flag(Intel8080Flag::Carry);
         self.add_to_register(Intel8080Register::A, data, true /* update_carry */);
+
+        if carry {
+            let carry = self.read_flag(Intel8080Flag::Carry);
+            let aux_carry = self.read_flag(Intel8080Flag::AuxiliaryCarry);
+
+            self.add_to_register(Intel8080Register::A, 1, true /* update_carry */);
+
+            if carry { self.set_flag(Intel8080Flag::Carry, true) };
+            if aux_carry { self.set_flag(Intel8080Flag::AuxiliaryCarry, true) };
+        }
     }
 
     fn subtract_immediate_from_accumulator(&mut self, data: u8)
@@ -1213,12 +1221,20 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.subtract_from_register_using_twos_complement(Intel8080Register::A, data);
     }
 
-    fn subtract_immediate_from_accumulator_with_borrow(&mut self, mut data: u8)
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8)
     {
-        if self.read_flag(Intel8080Flag::Carry) {
-            data = data.wrapping_add(1);
-        }
+        let carry = self.read_flag(Intel8080Flag::Carry);
         self.subtract_from_register_using_twos_complement(Intel8080Register::A, data);
+
+        if carry {
+            let carry = self.read_flag(Intel8080Flag::Carry);
+            let aux_carry = self.read_flag(Intel8080Flag::AuxiliaryCarry);
+
+            self.subtract_from_register_using_twos_complement(Intel8080Register::A, 1);
+
+            if carry { self.set_flag(Intel8080Flag::Carry, true) };
+            if aux_carry { self.set_flag(Intel8080Flag::AuxiliaryCarry, true) };
+        }
     }
 
     fn and_immediate_with_accumulator(&mut self, data: u8)
@@ -1846,6 +1862,44 @@ fn add_to_accumulator_with_carry_from_register_and_carry_not_set()
 }
 
 #[test]
+fn adding_to_accumulator_sets_carry_when_overflowing()
+{
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_register(Intel8080Register::D, 0x01);
+    e.set_register(Intel8080Register::A, 0xFF);
+    e.add_to_accumulator_with_carry(Intel8080Register::D);
+
+    assert_eq!(e.read_register(Intel8080Register::A), 0x0);
+    assert!(e.read_flag(Intel8080Flag::Carry));
+}
+
+#[test]
+fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry()
+{
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_register(Intel8080Register::D, 0x00);
+    e.set_register(Intel8080Register::A, 0xFF);
+    e.set_flag(Intel8080Flag::Carry, true);
+    e.add_to_accumulator_with_carry(Intel8080Register::D);
+
+    assert_eq!(e.read_register(Intel8080Register::A), 0x0);
+    assert!(e.read_flag(Intel8080Flag::Carry));
+}
+
+#[test]
+fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry_and_augend()
+{
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_register(Intel8080Register::D, 0xFF);
+    e.set_register(Intel8080Register::A, 0x0);
+    e.set_flag(Intel8080Flag::Carry, true);
+    e.add_to_accumulator_with_carry(Intel8080Register::D);
+
+    assert_eq!(e.read_register(Intel8080Register::A), 0x0);
+    assert!(e.read_flag(Intel8080Flag::Carry));
+}
+
+#[test]
 fn subtract_from_accumulator_from_register()
 {
     let mut e = Intel8080Emulator::new_for_test();
@@ -1894,6 +1948,27 @@ fn subtract_from_accumulator_with_borrow_and_carry_not_set()
     e.subtract_from_accumulator_with_borrow(Intel8080Register::B);
 
     assert_eq!(e.read_register(Intel8080Register::A), 0x1Au8.wrapping_sub(0xF2));
+}
+
+#[cfg(test)]
+fn subtract_with_borrow_carry_test(a: u8, b: u8, borrow: bool)
+{
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_register(Intel8080Register::A, a);
+    e.set_register(Intel8080Register::B, b);
+    e.set_flag(Intel8080Flag::Carry, borrow);
+    e.subtract_from_accumulator_with_borrow(Intel8080Register::B);
+
+    assert!(e.read_flag(Intel8080Flag::Carry));
+}
+
+#[test]
+fn subtract_from_accumulator_with_borrow_sets_carry()
+{
+    subtract_with_borrow_carry_test(0x1, 0x1, true);
+    subtract_with_borrow_carry_test(0x0, 0x0, true);
+    subtract_with_borrow_carry_test(0x0, 0x1, false);
+    subtract_with_borrow_carry_test(0xFF, 0x1.twos_complement(), true);
 }
 
 #[test]

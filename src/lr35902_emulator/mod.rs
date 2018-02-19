@@ -1118,7 +1118,8 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
     fn add_immediate_to_accumulator_with_carry(&mut self, data: u8)
     {
-        Intel8080InstructionSet::add_immediate_to_accumulator_with_carry(self, data)
+        Intel8080InstructionSet::add_immediate_to_accumulator_with_carry(self, data);
+        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
     fn increment_register_pair(&mut self, register: Intel8080Register)
@@ -1208,7 +1209,8 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8)
     {
-        Intel8080InstructionSet::subtract_immediate_from_accumulator_with_borrow(self, data)
+        Intel8080InstructionSet::subtract_immediate_from_accumulator_with_borrow(self, data);
+        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 }
 
