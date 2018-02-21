@@ -25,7 +25,7 @@ macro_rules! println_stderr {
 
 fn disassemble_rom(rom: &Vec<u8>, instruction_set: &String, include_opcodes: bool) -> Result<()>
 {
-    if instruction_set == "GameBoy" {
+    if instruction_set.to_uppercase() == "GAMEBOY" {
         return disassemble_game_boy_rom(&rom, include_opcodes);
     } else if instruction_set == "LR35902" {
         return disassemble_lr35902_rom(&rom, include_opcodes);
@@ -56,7 +56,7 @@ fn main()
         ap.set_description("GameBoy/LR35902/8080 Dissasembler");
         ap.refer(&mut instruction_set)
             .add_option(&["-i", "--instruction-set"], Store,
-                "Instruction set to use (LR35902 or 8080)")
+                "Instruction set to use (GameBoy / LR35902 / 8080)")
             .required();
         ap.refer(&mut include_opcodes)
             .add_option(&["-p", "--include-opcodes"], Store,
