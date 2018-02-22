@@ -180,17 +180,16 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.interrupts_enabled = value;
     }
 
-    fn get_interrupts_enabled(&self) -> bool
+    pub fn get_interrupts_enabled(&self) -> bool
     {
         self.interrupts_enabled
     }
 
     pub fn interrupt(&mut self, address: u16)
     {
-        if self.interrupts_enabled {
-            self.interrupts_enabled = false;
-            Intel8080InstructionSet::call(self, address);
-        }
+        assert!(self.interrupts_enabled);
+        self.interrupts_enabled = false;
+        Intel8080InstructionSet::call(self, address);
     }
 
     fn add_cycles(&mut self, cycles: u8)
@@ -2425,17 +2424,24 @@ fn emulator_crashes_on_unkown_opcode()
  */
 
 #[cfg(test)]
-fn run_blargg_test_rom_cpu_instrs(name: &str, stop_address: u16)
+fn load_rom(e: &mut LR35902Emulator<SimpleMemoryAccessor>, rom: &Vec<u8>)
 {
-    let mut e = new_lr35902_emulator_for_test();
-    let mut rom : Vec<u8> = vec![];
-    {
-        let mut file = File::open(format!("blargg_test_roms/{}", name)).ok().expect(
-            "Did you forget to download the test roms?");
-        file.read_to_end(&mut rom).unwrap();
-    }
-    e.memory_accessor.memory[0..rom.len()].clone_from_slice(&rom);
+    e.memory_accessor.memory[0..rom.len()].clone_from_slice(rom);
+}
 
+#[cfg(test)]
+pub fn read_blargg_test_rom(name: &str) -> Vec<u8>
+{
+    let mut rom : Vec<u8> = vec![];
+    let mut file = File::open(format!("blargg_test_roms/{}", name)).ok().expect(
+        "Did you forget to download the test roms?");
+    file.read_to_end(&mut rom).unwrap();
+    return rom;
+}
+
+#[cfg(test)]
+pub fn run_blargg_test_rom<M: MemoryAccessor>(e: &mut LR35902Emulator<M>, stop_address: u16)
+{
     let mut pc = e.read_program_counter();
     // This address is where the rom ends.  At this address is an infinite loop where normally the
     // rom will sit at forever.
@@ -2460,8 +2466,13 @@ fn run_blargg_test_rom_cpu_instrs(name: &str, stop_address: u16)
     assert!(message.ends_with("Passed\n"), "{}", message);
 }
 
-// XXX: The following disabled tests are basically a to-do list for fixing / finishing the LR35902
-// emulation.
+#[cfg(test)]
+fn run_blargg_test_rom_cpu_instrs(name: &str, address: u16)
+{
+    let mut e = new_lr35902_emulator_for_test();
+    load_rom(&mut e, &read_blargg_test_rom(name));
+    run_blargg_test_rom(&mut e, address);
+}
 
 #[test]
 fn blargg_test_rom_cpu_instrs_1_special()
@@ -2470,18 +2481,12 @@ fn blargg_test_rom_cpu_instrs_1_special()
 }
 
 #[test]
-#[ignore]
-fn blargg_test_rom_cpu_instrs_2_interrupts()
-{
-    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/02-interrupts.gb", 0xc7f4);
-}
-
-#[test]
 fn blargg_test_rom_cpu_instrs_3_op_sp_hl()
 {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/03-op sp,hl.gb", 0xcb44);
 }
 
+// XXX: Why does this test fail? I have no idea!
 #[test]
 #[ignore]
 fn blargg_test_rom_cpu_instrs_4_op_r_imm()

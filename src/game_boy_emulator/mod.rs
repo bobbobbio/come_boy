@@ -423,10 +423,15 @@ enum LCDStatusFlag {
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
-enum LCDInterruptFlag {
+enum InterruptFlag {
                       // 76543210
-    LCDC =             0b00001000,
-    VerticalBlanking = 0b00000011,
+    VerticalBlanking = 0b00000001,
+    LCDSTAT          = 0b00000010,
+    /*
+    Timer            = 0b00000100,
+    Serial           = 0b00001000,
+    Joypad           = 0b00010000,
+    */
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -761,14 +766,25 @@ impl<'a> LCDController<'a> {
 
         // Vertical blanking starts when ly == 144
         if ly == 144 {
-            cpu.set_memory(0xFF0F, if_register & LCDInterruptFlag::VerticalBlanking as u8);
-            if ie_register & LCDInterruptFlag::VerticalBlanking as u8 != 0 {
-                cpu.interrupt(VERTICAL_BLANKING_INTERRUPT_ADDRESS);
-            }
+            cpu.set_memory(0xFF0F, if_register | InterruptFlag::VerticalBlanking as u8);
         }
 
         if ly == self.read_register(LCDRegister::LYC) {
-            cpu.set_memory(0xFF0F, if_register & LCDInterruptFlag::LCDC as u8);
+            cpu.set_memory(0xFF0F, if_register | InterruptFlag::LCDSTAT as u8);
+        }
+
+        if !cpu.get_interrupts_enabled() {
+            return;
+        }
+
+        if if_register & InterruptFlag::VerticalBlanking as u8 != 0 &&
+            ie_register & InterruptFlag::VerticalBlanking as u8 != 0 {
+            cpu.set_memory(0xFF0F, if_register & !(InterruptFlag::VerticalBlanking as u8));
+            cpu.interrupt(VERTICAL_BLANKING_INTERRUPT_ADDRESS);
+        }
+
+        if if_register & InterruptFlag::LCDSTAT as u8 != 0 &&
+            ie_register & InterruptFlag::LCDSTAT as u8 != 0 {
             self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
             self.set_lcd_status_flag(LCDStatusFlag::LYMatch, true);
             cpu.interrupt(LCDCSTATUS_INTERRUPT_ADDRESS);
@@ -997,6 +1013,27 @@ fn initial_state_test()
 
     // Lock down the initial state.
     assert_eq!(e.hash(), 2735489010);
+}
+
+/*  ____  _                         _____         _     ____   ___  __  __
+ * | __ )| | __ _ _ __ __ _  __ _  |_   _|__  ___| |_  |  _ \ / _ \|  \/  |___
+ * |  _ \| |/ _` | '__/ _` |/ _` |   | |/ _ \/ __| __| | |_) | | | | |\/| / __|
+ * | |_) | | (_| | | | (_| | (_| |   | |  __/\__ \ |_  |  _ <| |_| | |  | \__ \
+ * |____/|_|\__,_|_|  \__, |\__, |   |_|\___||___/\__| |_| \_\\___/|_|  |_|___/
+ *                    |___/ |___/
+ *
+ */
+
+#[cfg(test)]
+use lr35902_emulator::{read_blargg_test_rom, run_blargg_test_rom};
+
+#[test]
+#[ignore]
+fn blargg_test_rom_cpu_instrs_2_interrupts()
+{
+    let mut e = GameBoyEmulator::new();
+    e.load_rom(&read_blargg_test_rom("cpu_instrs/individual/02-interrupts.gb"));
+    run_blargg_test_rom(&mut e.cpu, 0xc7f4);
 }
 
 pub fn run_emulator(rom: &[u8])
