@@ -9,11 +9,10 @@ use emulator_common::{
 };
 use game_boy_emulator::{
     GameBoyEmulator,
+    GameBoyRegister,
     LCDControlFlag,
     LCDController,
-    LCDRegister,
     LCDStatusFlag,
-    LCD_REGISTERS,
 };
 
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
@@ -83,40 +82,38 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
 impl<'a> fmt::Debug for LCDController<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result
     {
-        let registers = [
-            LCDRegister::LCDC,
-            LCDRegister::STAT,
-            LCDRegister::SCY,
-            LCDRegister::SCX,
-            LCDRegister::LY,
-            LCDRegister::LYC,
-            LCDRegister::DMA,
-            LCDRegister::BGP,
-            LCDRegister::OBP0,
-            LCDRegister::OBP1,
-            LCDRegister::WY,
-            LCDRegister::WX,
-        ];
-
-        for r in &registers {
-            let value = self.read_register(*r);
-            try!(write!(
-                f, "{:05} ({:02X}): ", format!("{:?}", *r), LCD_REGISTERS.start + *r as u16));
-            try!(fmt_lcd_register(*r, value, f));
-            try!(writeln!(f));
-        }
+        // XXX: I don't like how this mapping information is repeated here.
+        try!(fmt_lcd_register(0xFF40, &self.lcdc, "LCDC", f));
+        try!(fmt_lcd_register(0xFF41, &self.stat, "STAT", f));
+        try!(fmt_lcd_register(0xFF42, &self.scy, "SCY", f));
+        try!(fmt_lcd_register(0xFF43, &self.scx, "SCX", f));
+        try!(fmt_lcd_register(0xFF44, &self.ly, "LY", f));
+        try!(fmt_lcd_register(0xFF45, &self.lyc, "LYC", f));
+        try!(fmt_lcd_register(0xFF46, &self.dma, "DMA", f));
+        try!(fmt_lcd_register(0xFF47, &self.bgp, "BGP", f));
+        try!(fmt_lcd_register(0xFF48, &self.obp0, "OBP0", f));
+        try!(fmt_lcd_register(0xFF49, &self.obp1, "OBP1", f));
+        try!(fmt_lcd_register(0xFF4A, &self.wy, "WX", f));
+        try!(fmt_lcd_register(0xFF4B, &self.wx, "WY", f));
 
         Ok(())
     }
 }
 
-fn fmt_lcd_register(register: LCDRegister, value: u8, f: &mut fmt::Formatter) -> fmt::Result
+fn fmt_lcd_register<'a>(
+    address: u16, register: &GameBoyRegister, name: &str, f: &mut fmt::Formatter) -> fmt::Result
 {
-    match register {
-        LCDRegister::LCDC => fmt_lcdc(value, f),
-        LCDRegister::STAT => fmt_stat(value, f),
-        _ => write!(f, "{:02x}", value)
+    try!(write!(f, "{} ({:02x}): ", name, address));
+
+    match name {
+        "LCDC" => try!(fmt_lcdc(register.read_value(), f)),
+        "STAT" => try!(fmt_stat(register.read_value(), f)),
+        _ => try!(write!(f, "{:02x}", register.read_value())),
     }
+
+    try!(writeln!(f));
+
+    Ok(())
 }
 
 fn fmt_lcdc(lcdc: u8, f: &mut fmt::Formatter) -> fmt::Result

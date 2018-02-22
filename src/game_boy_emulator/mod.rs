@@ -17,9 +17,6 @@ use emulator_common::{MemoryAccessor, MemoryDescription};
 
 pub use game_boy_emulator::disassembler::disassemble_game_boy_rom;
 
-const IF_REGISTER: u16 = 0xFF0F;
-const IE_REGISTER: u16 = 0xFFFF;
-
 #[cfg(test)]
 use util::super_fast_hash;
 
@@ -85,6 +82,19 @@ impl<'a> GameBoyMemoryMap {
         } else {
             self.memory_map.range_mut(..address + 1).last()
         }
+    }
+
+    // XXX this isn't used, but might be useful.
+    #[allow(dead_code)]
+    fn get_address_for_chunk(&self, c: &MemoryChunk) -> Option<u16>
+    {
+        for (&address, chunk) in &self.memory_map {
+            if chunk.ptr_eq(c) {
+                return Some(address);
+            }
+        }
+
+        return None;
     }
 }
 
@@ -166,6 +176,11 @@ impl MemoryChunk {
     fn clone_from_slice(&mut self, slice: &[u8])
     {
         (*self.value.borrow_mut()).clone_from_slice(slice);
+    }
+
+    fn ptr_eq(&self, other: &MemoryChunk) -> bool
+    {
+        Rc::<RefCell<Vec<u8>>>::ptr_eq(&self.value, &other.value)
     }
 }
 
@@ -343,7 +358,6 @@ const CHARACTER_DATA_2: Range<u16> = Range { start: 0x800, end: 0x1800};
 const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range { start: 0x9800, end: 0x9C00 };
 const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range { start: 0x9C00, end: 0xA000 };
 const OAM_DATA: Range<u16> = Range { start: 0xFE00, end: 0xFEA0 };
-const LCD_REGISTERS: Range<u16> = Range { start: 0xFF40, end: 0xFF4C };
 
 /*
  * Number of pixels (both horizontal and vertical) on the screen per gameboy pixel.
@@ -361,7 +375,19 @@ struct LCDController<'a> {
     background_display_data_1: MemoryChunk,
     background_display_data_2: MemoryChunk,
     oam_data: MemoryChunk,
-    registers: MemoryChunk,
+
+    lcdc: GameBoyRegister,
+    stat: GameBoyRegister,
+    scy: GameBoyRegister,
+    scx: GameBoyRegister,
+    ly: GameBoyRegister,
+    lyc: GameBoyRegister,
+    dma: GameBoyRegister,
+    bgp: GameBoyRegister,
+    obp0: GameBoyRegister,
+    obp1: GameBoyRegister,
+    wy: GameBoyRegister,
+    wx: GameBoyRegister,
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -380,22 +406,6 @@ fn color_for_shade(shade: LCDBGShade) -> sdl2::pixels::Color
         LCDBGShade::Shade2 => sdl2::pixels::Color::RGB(50, 50, 50),
         LCDBGShade::Shade3 => sdl2::pixels::Color::RGB(0, 0, 0),
     }
-}
-
-#[derive(Debug,Clone,Copy,PartialEq)]
-enum LCDRegister {
-    LCDC = 0x0,
-    STAT = 0x1,
-    SCY  = 0x2,
-    SCX  = 0x3,
-    LY   = 0x4,
-    LYC  = 0x5,
-    DMA  = 0x6,
-    BGP  = 0x7,
-    OBP0 = 0x8,
-    OBP1 = 0x9,
-    WY   = 0xA,
-    WX   = 0xB,
 }
 
 #[derive(Debug,Clone,Copy,PartialEq)]
@@ -528,7 +538,18 @@ impl<'a> LCDController<'a> {
             background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
             background_display_data_2: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_2),
             oam_data: MemoryChunk::from_range(OAM_DATA),
-            registers: MemoryChunk::from_range(LCD_REGISTERS),
+            lcdc: GameBoyRegister::new(),
+            stat: GameBoyRegister::new(),
+            scy: GameBoyRegister::new(),
+            scx: GameBoyRegister::new(),
+            ly: GameBoyRegister::new(),
+            lyc: GameBoyRegister::new(),
+            dma: GameBoyRegister::new(),
+            bgp: GameBoyRegister::new(),
+            obp0: GameBoyRegister::new(),
+            obp1: GameBoyRegister::new(),
+            wy: GameBoyRegister::new(),
+            wx: GameBoyRegister::new(),
         }
     }
 
@@ -588,37 +609,25 @@ impl<'a> LCDController<'a> {
         return dot_data;
     }
 
-    fn read_register(&self, register: LCDRegister) -> u8
-    {
-        self.registers.read_value(register as u16)
-    }
-
-    fn set_register(&mut self, register: LCDRegister, value: u8)
-    {
-        self.registers.set_value(register as u16, value);
-    }
-
     fn read_lcd_control_flag(&self, flag: LCDControlFlag) -> bool
     {
-        let lcdc = self.read_register(LCDRegister::LCDC);
-        return lcdc & flag as u8 == flag as u8;
+        self.lcdc.read_value() & flag as u8 == flag as u8
     }
 
     fn set_lcd_control_flag(&mut self, flag: LCDControlFlag, value: bool)
     {
-        let lcdc = self.read_register(LCDRegister::LCDC);
+        let old_value = self.lcdc.read_value();
         if value {
-            self.set_register(LCDRegister::LCDC, lcdc | flag as u8);
+            self.lcdc.set_value(old_value | flag as u8);
         } else {
-            self.set_register(LCDRegister::LCDC, lcdc & !(flag as u8));
+            self.lcdc.set_value(old_value & !(flag as u8));
         }
     }
 
     /*
     fn read_lcd_status_flag(&self, flag: LCDStatusFlag) -> bool
     {
-        let stat = self.read_register(LCDRegister::STAT);
-        return stat & flag as u8 == flag as u8;
+        self.stat.read_value() & flag as u8 == flag as u8
     }
     */
 
@@ -627,18 +636,18 @@ impl<'a> LCDController<'a> {
         // Mode is a four-value flag
         assert!(flag != LCDStatusFlag::Mode);
 
-        let stat = self.read_register(LCDRegister::STAT);
+        let old_value = self.stat.read_value();
         if value {
-            self.set_register(LCDRegister::STAT, stat | flag as u8);
+            self.stat.set_value(old_value | flag as u8);
         } else {
-            self.set_register(LCDRegister::STAT, stat & !(flag as u8));
+            self.stat.set_value(old_value & !(flag as u8));
         }
     }
 
     fn set_lcd_status_mode(&mut self, value: u8)
     {
-        let stat = self.read_register(LCDRegister::STAT) & !(LCDStatusFlag::Mode as u8);
-        self.set_register(LCDRegister::STAT, stat | value);
+        let stat = self.stat.read_value() & !(LCDStatusFlag::Mode as u8);
+        self.stat.set_value(stat | value);
     }
 
     fn initialize_flags(&mut self)
@@ -646,7 +655,7 @@ impl<'a> LCDController<'a> {
         self.set_lcd_control_flag(LCDControlFlag::OperationStop, true);
         self.set_lcd_control_flag(LCDControlFlag::BGCharacterDataSelection, true);
         self.set_lcd_control_flag(LCDControlFlag::BGDisplayOn, true);
-        self.set_register(LCDRegister::BGP, 0xFC);
+        self.bgp.set_value(0xFC);
 
         self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
         self.set_lcd_status_mode(0x1);
@@ -654,8 +663,8 @@ impl<'a> LCDController<'a> {
 
     fn get_scroll_origin_relative_to_lcd(&self) -> (i32, i32)
     {
-        let mut x = self.read_register(LCDRegister::SCX) as i32 * -1;
-        let mut y = self.read_register(LCDRegister::SCY) as i32 * -1;
+        let mut x = self.scx.read_value() as i32 * -1;
+        let mut y = self.scy.read_value() as i32 * -1;
 
         /*
          * This supports the behavior of the background wrapping
@@ -673,8 +682,8 @@ impl<'a> LCDController<'a> {
 
     fn get_window_origin_relative_to_lcd(&self) -> (i32, i32)
     {
-        let x = self.read_register(LCDRegister::WX) as i32 * -1;
-        let y = self.read_register(LCDRegister::WY) as i32 * -1;
+        let x = self.wx.read_value() as i32 * -1;
+        let y = self.wy.read_value() as i32 * -1;
 
         return (x, y);
     }
@@ -689,11 +698,11 @@ impl<'a> LCDController<'a> {
         /*
          * Update the LY register which represents the line being draw currently.
          */
-        let ly = self.read_register(LCDRegister::LY);
+        let ly = self.ly.read_value();
         if ly == 153 {
-            self.set_register(LCDRegister::LY, 0);
+            self.ly.set_value(0);
         } else {
-            self.set_register(LCDRegister::LY, ly + 1);
+            self.ly.set_value(ly + 1);
         }
 
         /*
@@ -756,35 +765,39 @@ impl<'a> LCDController<'a> {
         self.renderer.as_mut().unwrap().present();
     }
 
-    fn process_interrupts(&mut self, cpu: &mut LR35902Emulator<GameBoyMemoryMap>)
+    fn process_interrupts(
+        &mut self,
+        interrupt_enable: &mut GameBoyRegister,
+        interrupt_flag: &mut GameBoyRegister,
+        cpu: &mut LR35902Emulator<GameBoyMemoryMap>)
     {
-        let ly = self.read_register(LCDRegister::LY);
+        let ly = self.ly.read_value();
 
-        // XXX This needs to live elsewhere
-        let if_register = cpu.read_memory(IF_REGISTER);
-        let ie_register = cpu.read_memory(IE_REGISTER);
+        let interrupt_flag_value = interrupt_flag.read_value();
+        let interrupt_enable_value = interrupt_enable.read_value();
 
         // Vertical blanking starts when ly == 144
         if ly == 144 {
-            cpu.set_memory(0xFF0F, if_register | InterruptFlag::VerticalBlanking as u8);
+            interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::VerticalBlanking as u8);
         }
 
-        if ly == self.read_register(LCDRegister::LYC) {
-            cpu.set_memory(0xFF0F, if_register | InterruptFlag::LCDSTAT as u8);
+        if ly == self.ly.read_value() {
+            interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::LCDSTAT as u8);
         }
 
         if !cpu.get_interrupts_enabled() {
             return;
         }
 
-        if if_register & InterruptFlag::VerticalBlanking as u8 != 0 &&
-            ie_register & InterruptFlag::VerticalBlanking as u8 != 0 {
-            cpu.set_memory(0xFF0F, if_register & !(InterruptFlag::VerticalBlanking as u8));
+        if interrupt_flag_value & InterruptFlag::VerticalBlanking as u8 != 0 &&
+            interrupt_enable_value & InterruptFlag::VerticalBlanking as u8 != 0 {
+            interrupt_flag.set_value(
+                interrupt_flag_value & !(InterruptFlag::VerticalBlanking as u8));
             cpu.interrupt(VERTICAL_BLANKING_INTERRUPT_ADDRESS);
         }
 
-        if if_register & InterruptFlag::LCDSTAT as u8 != 0 &&
-            ie_register & InterruptFlag::LCDSTAT as u8 != 0 {
+        if interrupt_flag_value & InterruptFlag::LCDSTAT as u8 != 0 &&
+            interrupt_enable_value & InterruptFlag::LCDSTAT as u8 != 0 {
             self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
             self.set_lcd_status_flag(LCDStatusFlag::LYMatch, true);
             cpu.interrupt(LCDCSTATUS_INTERRUPT_ADDRESS);
@@ -802,9 +815,32 @@ impl<'a> LCDController<'a> {
 
 // const CARTRIDGE_RAM: Range<u16> = Range { start: 0xA000, end: 0xC000 };
 // const UNUSABLE_MEMORY: Range<u16> = Range { start: 0xFEA0, end: 0xFF00 };
-const IO_PORTS_A: Range<u16> = Range { start: 0xFF00, end: 0xFF40 };
+const IO_PORTS_A: Range<u16> = Range { start: 0xFF10, end: 0xFF40 };
 const IO_PORTS_B: Range<u16> = Range { start: 0xFF4C, end: 0xFF80 };
 const HIGH_RAM: Range<u16> = Range { start: 0xFF80, end: 0xFFFF };
+
+struct GameBoyRegister {
+    chunk: MemoryChunk,
+}
+
+impl GameBoyRegister {
+    fn new() -> GameBoyRegister
+    {
+        GameBoyRegister {
+            chunk: MemoryChunk::from_range(0..1),
+        }
+    }
+
+    fn read_value(&self) -> u8
+    {
+        self.chunk.read_value(0)
+    }
+
+    fn set_value(&mut self, value: u8)
+    {
+        self.chunk.set_value(0, value)
+    }
+}
 
 struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator<GameBoyMemoryMap>,
@@ -813,6 +849,18 @@ struct GameBoyEmulator<'a> {
     io_ports_a: MemoryChunk,
     io_ports_b: MemoryChunk,
     high_ram: MemoryChunk,
+
+    interrupt_flag: GameBoyRegister,
+    interrupt_enable: GameBoyRegister,
+
+    p1_joypad: GameBoyRegister,
+    serial_transfer_data: GameBoyRegister,
+    serial_transfer_control: GameBoyRegister,
+    divider: GameBoyRegister,
+
+    timer_counter: GameBoyRegister,
+    timer_modulo: GameBoyRegister,
+    timer_control: GameBoyRegister,
 }
 
 impl<'a> GameBoyEmulator<'a> {
@@ -824,6 +872,15 @@ impl<'a> GameBoyEmulator<'a> {
             io_ports_a: MemoryChunk::from_range(IO_PORTS_A),
             io_ports_b: MemoryChunk::from_range(IO_PORTS_B),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
+            interrupt_flag: GameBoyRegister::new(),
+            interrupt_enable: GameBoyRegister::new(),
+            p1_joypad: GameBoyRegister::new(),
+            serial_transfer_data: GameBoyRegister::new(),
+            serial_transfer_control: GameBoyRegister::new(),
+            divider: GameBoyRegister::new(),
+            timer_counter: GameBoyRegister::new(),
+            timer_modulo: GameBoyRegister::new(),
+            timer_control: GameBoyRegister::new(),
         };
 
         // Restart and interrupt vectors (unmapped) 0x0000 - 0x00FF
@@ -854,16 +911,43 @@ impl<'a> GameBoyEmulator<'a> {
         // Unusable memory 0xFEA0 - 0xFEFF
         e.cpu.memory_accessor.map_chunk(0xFEA0, MemoryChunk::from_range(0..0x60));
 
-        // IO Registers 0xFF00 - 0xFF7F
+        // Registers
+        e.cpu.memory_accessor.map_chunk(0xFF00, e.p1_joypad.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF01, e.serial_transfer_data.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF02, e.serial_transfer_control.chunk.clone());
+
+        e.cpu.memory_accessor.map_chunk(0xFF04, e.divider.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF05, e.timer_counter.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF06, e.timer_modulo.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF07, e.timer_control.chunk.clone());
+
+        e.cpu.memory_accessor.map_chunk(0xFF0F, e.interrupt_flag.chunk.clone());
+
+        // Other IO Registers 0xFF10 - 0xFF3F
         e.cpu.memory_accessor.map_chunk(IO_PORTS_A.start, e.io_ports_a.clone());
-        e.cpu.memory_accessor.map_chunk(LCD_REGISTERS.start, e.lcd_controller.registers.clone());
+
+        // LCD Registers 0xFF40 - 0xFF4B
+        e.cpu.memory_accessor.map_chunk(0xFF40, e.lcd_controller.lcdc.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF41, e.lcd_controller.stat.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF42, e.lcd_controller.scy.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF43, e.lcd_controller.scx.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF44, e.lcd_controller.ly.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF45, e.lcd_controller.lyc.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF46, e.lcd_controller.dma.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF47, e.lcd_controller.bgp.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF48, e.lcd_controller.obp0.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF49, e.lcd_controller.obp1.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF4A, e.lcd_controller.wy.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(0xFF4B, e.lcd_controller.wx.chunk.clone());
+
+        // Other IO Registers 0xFF4C - 0xFF7F
         e.cpu.memory_accessor.map_chunk(IO_PORTS_B.start, e.io_ports_b.clone());
 
         // High RAM 0xFF80 - 0xFFFE
         e.cpu.memory_accessor.map_chunk(HIGH_RAM.start, e.high_ram.clone());
 
-        // Interrupt register
-        e.cpu.memory_accessor.map_chunk(0xFFFF, MemoryChunk::from_range(0..1));
+        // interrupt enable register
+        e.cpu.memory_accessor.map_chunk(0xFFFF, e.interrupt_enable.chunk.clone());
 
         e.lcd_controller.initialize_flags();
 
@@ -896,9 +980,16 @@ impl<'a> GameBoyEmulator<'a> {
         if time::SystemTime::now().duration_since(self.last_draw).unwrap() >=
             time::Duration::new(0, 100000) {
             self.lcd_controller.draw_one_line();
-            self.lcd_controller.process_interrupts(&mut self.cpu);
+            self.lcd_controller.process_interrupts(
+                &mut self.interrupt_enable, &mut self.interrupt_flag, &mut self.cpu);
             self.last_draw = time::SystemTime::now();
         }
+
+        self.process_interrupts();
+    }
+
+    fn process_interrupts(&mut self)
+    {
     }
 
     fn set_state_post_bios(&mut self)
@@ -920,10 +1011,19 @@ impl<'a> GameBoyEmulator<'a> {
         self.cpu.set_flag(LR35902Flag::Subtract, false);
         self.cpu.set_flag(LR35902Flag::Zero, true);
 
+        self.p1_joypad.set_value(0xcf);
+        self.serial_transfer_data.set_value(0x0);
+        self.serial_transfer_control.set_value(0x7c);
+
+        self.divider.set_value(0x69);
+        self.timer_counter.set_value(0x0);
+        self.timer_modulo.set_value(0x0);
+        self.timer_control.set_value(0xf8);
+
+        self.interrupt_flag.set_value(0xe1);
+
         // Initialize io ports
         let io_ports_a = [
-            /* 00 - 07 */ 0xcfu8, 0x00u8, 0x7cu8, 0xffu8, 0x69u8, 0x00u8, 0x00u8, 0xf8u8,
-            /* 08 - 0f */ 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xffu8, 0xe1u8,
             /* 10 - 17 */ 0x80u8, 0xbfu8, 0xf3u8, 0xffu8, 0xbfu8, 0xffu8, 0x3fu8, 0x00u8,
             /* 18 - 1f */ 0xffu8, 0xbfu8, 0x7fu8, 0xffu8, 0x9fu8, 0xffu8, 0xbfu8, 0xffu8,
             /* 20 - 27 */ 0xffu8, 0x00u8, 0x00u8, 0xbfu8, 0x77u8, 0xf3u8, 0xf1u8, 0xffu8,
@@ -962,7 +1062,7 @@ impl<'a> GameBoyEmulator<'a> {
         ];
         self.high_ram.clone_from_slice(&high_ram);
 
-        self.cpu.set_memory(IE_REGISTER, 0x0);
+        self.interrupt_enable.set_value(0x0);
     }
 
     fn run(&mut self)
