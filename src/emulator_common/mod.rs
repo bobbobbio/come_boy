@@ -622,6 +622,24 @@ impl<'a> Debugger<'a> {
         }
     }
 
+    fn examine_memory(&mut self, start_address: u16)
+    {
+        let width = 16usize;
+        let height = 20usize;
+
+        let end_address = start_address.saturating_add((width * height - 1) as u16);
+        for (i, address) in (start_address..=end_address).into_iter().enumerate() {
+            if i % width == 0 {
+                write!(self.out, "{}{:07x}:", if i == 0 { "" } else { "\n" }, address).unwrap();
+            }
+            if i % 8 == 0 {
+                write!(self.out, " ").unwrap();
+            }
+            write!(self.out, " {:02x}", self.emulator.read_memory(address)).unwrap();
+        }
+        writeln!(self.out).unwrap();
+    }
+
     fn enable_logging(&mut self)
     {
         self.logging = true;
@@ -681,9 +699,21 @@ impl<'a> Debugger<'a> {
                 }
                 match self.read_address(&mut iter) {
                     Some(address) => self.emulator.set_program_counter(address),
-                    None => {}
+                    None => {
+                        writeln!(self.out, "Missing operand").unwrap();
+                        return;
+                    }
                 }
             }
+            "x" => {
+                match self.read_address(&mut iter) {
+                    Some(address) => self.examine_memory(address),
+                    None => {
+                        writeln!(self.out, "Missing operand").unwrap();
+                        return;
+                    }
+                }
+            },
             "" => {
                 let c = self.last_command.clone();
                 if c == "" {

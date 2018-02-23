@@ -9,7 +9,7 @@ use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ops::Range;
 use std::rc::Rc;
-use std::{iter, time};
+use std::iter;
 
 pub use game_boy_emulator::debugger::run_debugger;
 use lr35902_emulator::{LR35902Emulator, LR35902Flag, Intel8080Register};
@@ -351,6 +351,7 @@ fn memory_chunk_from_range()
 
 const VERTICAL_BLANKING_INTERRUPT_ADDRESS : u16 = 0x0040;
 const LCDCSTATUS_INTERRUPT_ADDRESS : u16 = 0x0048;
+const TIMER_INTERRUPT_ADDRESS : u16 = 0x0050;
 
 const CHARACTER_DATA: Range<u16> = Range { start: 0x8000, end: 0x9800 };
 const CHARACTER_DATA_1: Range<u16> = Range { start: 0x0, end: 0x1000};
@@ -437,8 +438,8 @@ enum InterruptFlag {
                       // 76543210
     VerticalBlanking = 0b00000001,
     LCDSTAT          = 0b00000010,
-    /*
     Timer            = 0b00000100,
+    /*
     Serial           = 0b00001000,
     Joypad           = 0b00010000,
     */
@@ -765,16 +766,11 @@ impl<'a> LCDController<'a> {
         self.renderer.as_mut().unwrap().present();
     }
 
-    fn process_interrupts(
-        &mut self,
-        interrupt_enable: &mut GameBoyRegister,
-        interrupt_flag: &mut GameBoyRegister,
-        cpu: &mut LR35902Emulator<GameBoyMemoryMap>)
+    fn process_interrupts(&mut self, interrupt_flag: &mut GameBoyRegister)
     {
         let ly = self.ly.read_value();
 
         let interrupt_flag_value = interrupt_flag.read_value();
-        let interrupt_enable_value = interrupt_enable.read_value();
 
         // Vertical blanking starts when ly == 144
         if ly == 144 {
@@ -783,24 +779,8 @@ impl<'a> LCDController<'a> {
 
         if ly == self.ly.read_value() {
             interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::LCDSTAT as u8);
-        }
-
-        if !cpu.get_interrupts_enabled() {
-            return;
-        }
-
-        if interrupt_flag_value & InterruptFlag::VerticalBlanking as u8 != 0 &&
-            interrupt_enable_value & InterruptFlag::VerticalBlanking as u8 != 0 {
-            interrupt_flag.set_value(
-                interrupt_flag_value & !(InterruptFlag::VerticalBlanking as u8));
-            cpu.interrupt(VERTICAL_BLANKING_INTERRUPT_ADDRESS);
-        }
-
-        if interrupt_flag_value & InterruptFlag::LCDSTAT as u8 != 0 &&
-            interrupt_enable_value & InterruptFlag::LCDSTAT as u8 != 0 {
             self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
             self.set_lcd_status_flag(LCDStatusFlag::LYMatch, true);
-            cpu.interrupt(LCDCSTATUS_INTERRUPT_ADDRESS);
         }
     }
 }
@@ -840,12 +820,27 @@ impl GameBoyRegister {
     {
         self.chunk.set_value(0, value)
     }
+
+    fn add(&mut self, value: u8)
+    {
+        let old_value = self.read_value();
+        self.set_value(old_value.wrapping_add(value));
+    }
+
+    // XXX this isn't used, but might be useful.
+    #[allow(dead_code)]
+    fn subtract(&mut self, value: u8)
+    {
+        let old_value = self.read_value();
+        self.set_value(old_value.wrapping_sub(value));
+    }
 }
 
 struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator<GameBoyMemoryMap>,
     lcd_controller: LCDController<'a>,
-    last_draw: time::SystemTime,
+    last_draw: u64,
+    last_timer_tick: u64,
     io_ports_a: MemoryChunk,
     io_ports_b: MemoryChunk,
     high_ram: MemoryChunk,
@@ -868,7 +863,8 @@ impl<'a> GameBoyEmulator<'a> {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(GameBoyMemoryMap::new()),
             lcd_controller: LCDController::new(),
-            last_draw: time::SystemTime::now(),
+            last_draw: 0,
+            last_timer_tick: 0,
             io_ports_a: MemoryChunk::from_range(IO_PORTS_A),
             io_ports_b: MemoryChunk::from_range(IO_PORTS_B),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
@@ -976,20 +972,58 @@ impl<'a> GameBoyEmulator<'a> {
     {
         self.cpu.run_one_instruction();
 
-        // It takes the DMG LCD roughly 10ms to draw one horizontal line.
-        if time::SystemTime::now().duration_since(self.last_draw).unwrap() >=
-            time::Duration::new(0, 100000) {
+        let current_clock = self.cpu.elapsed_cycles;
+
+        if current_clock - self.last_draw > 40 {
             self.lcd_controller.draw_one_line();
-            self.lcd_controller.process_interrupts(
-                &mut self.interrupt_enable, &mut self.interrupt_flag, &mut self.cpu);
-            self.last_draw = time::SystemTime::now();
+            self.lcd_controller.process_interrupts(&mut self.interrupt_flag);
+            self.last_draw = current_clock;
         }
 
-        self.process_interrupts();
+        if current_clock - self.last_timer_tick > 16384 {
+            self.tick_timer();
+            self.last_timer_tick = current_clock;
+        }
+
+        if self.cpu.get_interrupts_enabled() {
+            self.handle_interrupts();
+        }
     }
 
-    fn process_interrupts(&mut self)
+    fn handle_interrupts(&mut self)
     {
+        let interrupt_flag_value = self.interrupt_flag.read_value();
+        let interrupt_enable_value = self.interrupt_enable.read_value();
+
+        if interrupt_flag_value & InterruptFlag::VerticalBlanking as u8 != 0 &&
+            interrupt_enable_value & InterruptFlag::VerticalBlanking as u8 != 0 {
+            self.interrupt_flag.set_value(
+                interrupt_flag_value & !(InterruptFlag::VerticalBlanking as u8));
+            self.cpu.interrupt(VERTICAL_BLANKING_INTERRUPT_ADDRESS);
+        }
+
+        if interrupt_flag_value & InterruptFlag::LCDSTAT as u8 != 0 &&
+            interrupt_enable_value & InterruptFlag::LCDSTAT as u8 != 0 {
+            self.cpu.interrupt(LCDCSTATUS_INTERRUPT_ADDRESS);
+        }
+
+        if interrupt_flag_value & InterruptFlag::Timer as u8 != 0 &&
+            interrupt_enable_value & InterruptFlag::Timer as u8 != 0 {
+            self.cpu.interrupt(TIMER_INTERRUPT_ADDRESS);
+        }
+    }
+
+    fn tick_timer(&mut self)
+    {
+        let interrupt_flag_value = self.interrupt_flag.read_value();
+
+        if self.timer_counter.read_value() == 0xff {
+            let timer_modulo_value = self.timer_modulo.read_value();
+            self.timer_counter.set_value(timer_modulo_value);
+            self.interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::Timer as u8);
+        } else {
+            self.timer_counter.add(0x1);
+        }
     }
 
     fn set_state_post_bios(&mut self)
@@ -1068,7 +1102,6 @@ impl<'a> GameBoyEmulator<'a> {
     fn run(&mut self)
     {
         self.lcd_controller.start_rendering();
-        self.last_draw = time::SystemTime::now();
         while self.crashed().is_none() {
             self.tick();
         }

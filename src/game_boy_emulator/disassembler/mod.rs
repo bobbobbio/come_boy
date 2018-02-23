@@ -29,6 +29,9 @@ struct ROMAccessor<'a> {
 impl<'a> ROMAccessor<'a> {
     fn new(rom: &'a [u8]) -> ROMAccessor<'a>
     {
+        // XXX: Can't yet disassemble things bigger than this.
+        assert!(rom.len() < 0xFFFF);
+
         return ROMAccessor {
             rom: rom
         };
@@ -85,7 +88,7 @@ pub fn disassemble_game_boy_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
     let stdout = &mut io::stdout();
     let ma = ROMAccessor::new(rom);
     let mut disassembler = create_disassembler(&ma, stdout);
-    disassembler.disassemble(0u16..rom.len() as u16, include_opcodes)
+    disassembler.disassemble(0 .. rom.len() as u16, include_opcodes)
 }
 
 #[cfg(test)]

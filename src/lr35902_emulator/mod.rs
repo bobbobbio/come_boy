@@ -55,7 +55,7 @@ pub struct LR35902Emulator<M: MemoryAccessor> {
     pub memory_accessor: M,
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16, interrupts_enabled: bool,
-    elapsed_cycles: u64,
+    pub elapsed_cycles: u64,
     pub crash_message: Option<String>
 }
 
