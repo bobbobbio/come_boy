@@ -2,31 +2,29 @@
 
 pub mod opcodes;
 
-use std::mem;
 use std::collections::HashMap;
+use std::mem;
 
-pub use intel_8080_emulator::opcodes::{
-    disassemble_8080_rom,
-    Intel8080InstructionSet,
-    dispatch_intel8080_instruction,
-    get_intel8080_instruction,
-    Intel8080InstructionPrinterFactory};
 use emulator_common::Intel8080Register;
+pub use intel_8080_emulator::opcodes::{
+    disassemble_8080_rom, dispatch_intel8080_instruction, get_intel8080_instruction,
+    Intel8080InstructionPrinterFactory, Intel8080InstructionSet,
+};
 use util::TwosComplement;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
 
-#[derive(Debug,Clone,Copy,PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Intel8080Flag {
-                    // 76543210
-    Sign =           0b10000000,
-    Zero =           0b01000000,
+    // 76543210
+    Sign = 0b10000000,
+    Zero = 0b01000000,
     AuxiliaryCarry = 0b00010000,
-    Parity =         0b00000100,
-    Carry =          0b00000001,
+    Parity = 0b00000100,
+    Carry = 0b00000001,
 
-    ValidityMask =   0b11010101,
+    ValidityMask = 0b11010101,
 }
 
 /*  _          _
@@ -37,8 +35,7 @@ pub enum Intel8080Flag {
  *              |_|
  */
 
-fn calculate_parity(value: u8) -> bool
-{
+fn calculate_parity(value: u8) -> bool {
     /*
      * Parity for a give byte can be odd or even.  Odd parity means the byte
      * when represented as binary has an odd number of ones.  Even means the
@@ -49,20 +46,17 @@ fn calculate_parity(value: u8) -> bool
 }
 
 #[test]
-fn calculate_parity_odd_parity()
-{
+fn calculate_parity_odd_parity() {
     assert_eq!(calculate_parity(0b00000001), false);
 }
 
 #[test]
-fn calculate_parity_even_parity()
-{
+fn calculate_parity_even_parity() {
     assert_eq!(calculate_parity(0b00000011), true);
 }
 
 #[test]
-fn calculate_parity_zero_is_even_parity()
-{
+fn calculate_parity_zero_is_even_parity() {
     assert_eq!(calculate_parity(0b00000000), true);
 }
 
@@ -102,29 +96,31 @@ pub trait Intel8080InstructionSetOps {
      *     SP:  Stack Pointer
      *     PSW: A and FLAGS
      */
-    fn set_register_pair(&mut self, register: Intel8080Register, value: u16)
-    {
+    fn set_register_pair(&mut self, register: Intel8080Register, value: u16) {
         match register {
-            Intel8080Register::B | Intel8080Register::D | Intel8080Register::H |
-                Intel8080Register::SP => {
+            Intel8080Register::B
+            | Intel8080Register::D
+            | Intel8080Register::H
+            | Intel8080Register::SP => {
                 self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
-            },
+            }
             Intel8080Register::PSW => {
                 self.set_raw_register_pair(Intel8080Register::A as usize / 2, u16::to_be(value));
-            },
-            _ => panic!("Invalid register {:?}", register)
+            }
+            _ => panic!("Invalid register {:?}", register),
         }
     }
 
-    fn read_register_pair(&self, register: Intel8080Register) -> u16
-    {
+    fn read_register_pair(&self, register: Intel8080Register) -> u16 {
         u16::from_be(match register {
-            Intel8080Register::B | Intel8080Register::D | Intel8080Register::H |
-                Intel8080Register::SP =>
-                self.read_raw_register_pair(register as usize / 2),
-            Intel8080Register::PSW => self.read_raw_register_pair(
-                Intel8080Register::A as usize / 2),
-            _ => panic!("Invalid register {:?}", register)
+            Intel8080Register::B
+            | Intel8080Register::D
+            | Intel8080Register::H
+            | Intel8080Register::SP => self.read_raw_register_pair(register as usize / 2),
+            Intel8080Register::PSW => {
+                self.read_raw_register_pair(Intel8080Register::A as usize / 2)
+            }
+            _ => panic!("Invalid register {:?}", register),
         })
     }
 
@@ -132,43 +128,38 @@ pub trait Intel8080InstructionSetOps {
      * The M register is special and represents the byte stored at the memory address stored in the
      * register pair H.
      */
-    fn set_register(&mut self, register: Intel8080Register, value: u8)
-    {
+    fn set_register(&mut self, register: Intel8080Register, value: u8) {
         match register {
             Intel8080Register::PSW => panic!("PSW too big"),
             Intel8080Register::SP => panic!("SP too big"),
-            Intel8080Register::FLAGS => panic!("Reading FLAGS is illegal"),
+            Intel8080Register::FLAGS => panic!("Setting FLAGS is illegal"),
             Intel8080Register::M => {
                 let address = self.read_register_pair(Intel8080Register::H);
                 Intel8080InstructionSetOps::set_memory(self, address, value);
-            },
-            _ => self.set_raw_register(register as usize, value)
+            }
+            _ => self.set_raw_register(register as usize, value),
         }
     }
 
-    fn read_register(&self, register: Intel8080Register) -> u8
-    {
+    fn read_register(&self, register: Intel8080Register) -> u8 {
         match register {
             Intel8080Register::PSW => panic!("PSW too big"),
             Intel8080Register::SP => panic!("SP too big"),
-            Intel8080Register::FLAGS => panic!("Reading FLAGS is illegal"),
             Intel8080Register::M => {
                 let address = self.read_register_pair(Intel8080Register::H);
                 Intel8080InstructionSetOps::read_memory(self, address)
-            },
-            _ => self.read_raw_register(register as usize)
+            }
+            _ => self.read_raw_register(register as usize),
         }
     }
 
-    fn update_flags_for_new_value(&mut self, new_value: u8)
-    {
+    fn update_flags_for_new_value(&mut self, new_value: u8) {
         self.set_flag(Intel8080Flag::Zero, new_value == 0);
         self.set_flag(Intel8080Flag::Sign, new_value & 0b10000000 != 0);
         self.set_flag(Intel8080Flag::Parity, calculate_parity(new_value));
     }
 
-    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8
-    {
+    fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8 {
         let new_value = value_a.wrapping_add(value_b);
         self.update_flags_for_new_value(new_value);
 
@@ -176,55 +167,61 @@ pub trait Intel8080InstructionSetOps {
             self.set_flag(Intel8080Flag::Carry, value_b > 0xFF - value_a);
         }
 
-        self.set_flag(Intel8080Flag::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+        self.set_flag(
+            Intel8080Flag::AuxiliaryCarry,
+            value_b & 0x0F > 0x0F - (value_a & 0x0F),
+        );
 
         return new_value;
     }
 
-    fn add_to_register(&mut self, register: Intel8080Register, value: u8, update_carry: bool)
-    {
+    fn add_to_register(&mut self, register: Intel8080Register, value: u8, update_carry: bool) {
         let old_value = self.read_register(register);
         let new_value = self.perform_addition(old_value, value, update_carry);
         self.set_register(register, new_value);
     }
 
-    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, ovalue_b: u8) -> u8
-    {
+    fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, ovalue_b: u8) -> u8 {
         let value_b = ovalue_b.twos_complement();
         let new_value = value_a.wrapping_add(value_b);
         self.update_flags_for_new_value(new_value);
 
-        self.set_flag(Intel8080Flag::AuxiliaryCarry, value_b & 0x0F > 0x0F - (value_a & 0x0F));
+        self.set_flag(
+            Intel8080Flag::AuxiliaryCarry,
+            value_b & 0x0F > 0x0F - (value_a & 0x0F),
+        );
         self.set_flag(Intel8080Flag::Carry, value_a < ovalue_b);
 
         return new_value;
     }
 
     fn subtract_from_register_using_twos_complement(
-        &mut self, register: Intel8080Register, value: u8)
-    {
+        &mut self,
+        register: Intel8080Register,
+        value: u8,
+    ) {
         let old_value = self.read_register(register);
         let new_value = self.perform_subtraction_using_twos_complement(old_value, value);
         self.set_register(register, new_value);
     }
 
-    fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8
-    {
+    fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a.wrapping_sub(value_b);
         self.update_flags_for_new_value(new_value);
-        self.set_flag(Intel8080Flag::AuxiliaryCarry, value_b & 0x0F > (value_a & 0x0F));
+        self.set_flag(
+            Intel8080Flag::AuxiliaryCarry,
+            value_b & 0x0F > (value_a & 0x0F),
+        );
         return new_value;
     }
 
-    fn subtract_from_register(&mut self, register: Intel8080Register, value: u8)
-    {
+    fn subtract_from_register(&mut self, register: Intel8080Register, value: u8) {
         let old_value = self.read_register(register);
         let new_value = self.perform_subtraction(old_value, value);
         self.set_register(register, new_value);
     }
 
-    fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8
-    {
+    fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a & value_b;
         self.update_flags_for_new_value(new_value);
         self.set_flag(Intel8080Flag::Carry, false);
@@ -232,8 +229,7 @@ pub trait Intel8080InstructionSetOps {
         return new_value;
     }
 
-    fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8
-    {
+    fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a ^ value_b;
         self.update_flags_for_new_value(new_value);
         self.set_flag(Intel8080Flag::Carry, false);
@@ -241,8 +237,7 @@ pub trait Intel8080InstructionSetOps {
         return new_value;
     }
 
-    fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8
-    {
+    fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a | value_b;
         self.update_flags_for_new_value(new_value);
         self.set_flag(Intel8080Flag::Carry, false);
@@ -250,41 +245,43 @@ pub trait Intel8080InstructionSetOps {
         return new_value;
     }
 
-    fn perform_rotate_left(&mut self, value: u8) -> u8
-    {
+    fn perform_rotate_left(&mut self, value: u8) -> u8 {
         self.set_flag(Intel8080Flag::Carry, value & (1u8 << 7) != 0);
         return value.rotate_left(1);
     }
 
-    fn perform_rotate_right(&mut self, value: u8) -> u8
-    {
+    fn perform_rotate_right(&mut self, value: u8) -> u8 {
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
         return value.rotate_right(1);
     }
 
-    fn perform_rotate_left_through_carry(&mut self, value: u8) -> u8
-    {
-        let carry = if self.read_flag(Intel8080Flag::Carry) { 1 } else { 0 };
+    fn perform_rotate_left_through_carry(&mut self, value: u8) -> u8 {
+        let carry = if self.read_flag(Intel8080Flag::Carry) {
+            1
+        } else {
+            0
+        };
         self.set_flag(Intel8080Flag::Carry, (value & (1u8 << 7)) != 0);
         return (value << 1) | carry;
     }
 
-    fn perform_rotate_right_through_carry(&mut self, value: u8) -> u8
-    {
-        let carry = if self.read_flag(Intel8080Flag::Carry) { 1 } else { 0 };
+    fn perform_rotate_right_through_carry(&mut self, value: u8) -> u8 {
+        let carry = if self.read_flag(Intel8080Flag::Carry) {
+            1
+        } else {
+            0
+        };
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
         return (value >> 1) | (carry << 7);
     }
 
-    fn push_u16_onto_stack(&mut self, data: u16)
-    {
+    fn push_u16_onto_stack(&mut self, data: u16) {
         let sp = self.read_register_pair(Intel8080Register::SP);
         self.set_memory_u16(sp.wrapping_sub(2), data);
         self.set_register_pair(Intel8080Register::SP, sp.wrapping_sub(2));
     }
 
-    fn pop_u16_off_stack(&mut self) -> u16
-    {
+    fn pop_u16_off_stack(&mut self) -> u16 {
         let sp = self.read_register_pair(Intel8080Register::SP);
         self.set_register_pair(Intel8080Register::SP, sp.wrapping_add(2));
         self.read_memory_u16(sp)
@@ -307,22 +304,20 @@ pub struct Intel8080Emulator<'a> {
 }
 
 impl<'a> Intel8080Emulator<'a> {
-    pub fn new() -> Intel8080Emulator<'a>
-    {
+    pub fn new() -> Intel8080Emulator<'a> {
         let emu = Intel8080Emulator {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
-            call_table: HashMap::new()
+            call_table: HashMap::new(),
         };
 
         return emu;
     }
 
     #[cfg(test)]
-    fn new_for_test() -> Intel8080Emulator<'a>
-    {
+    fn new_for_test() -> Intel8080Emulator<'a> {
         let mut emu = Intel8080Emulator::new();
         emu.set_register_pair(Intel8080Register::SP, 0x0400);
 
@@ -330,8 +325,7 @@ impl<'a> Intel8080Emulator<'a> {
     }
 
     #[cfg(test)]
-    fn add_routine<F: FnMut(&mut Intel8080Emulator)>(&mut self, address: u16, func: &'a mut F)
-    {
+    fn add_routine<F: FnMut(&mut Intel8080Emulator)>(&mut self, address: u16, func: &'a mut F) {
         self.call_table.insert(address, func);
     }
 
@@ -350,8 +344,7 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         self.main_memory[address as usize] = value;
     }
 
-    fn read_memory_u16(&self, address: u16) -> u16
-    {
+    fn read_memory_u16(&self, address: u16) -> u16 {
         if address == 0xFFFF {
             return self.read_memory(address) as u16;
         }
@@ -363,8 +356,7 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         return u16::from_le(*main_memory);
     }
 
-    fn set_memory_u16(&mut self, address: u16, value: u16)
-    {
+    fn set_memory_u16(&mut self, address: u16, value: u16) {
         if address == 0xFFFF {
             return self.set_memory(address, (value >> 8) as u8);
         }
@@ -376,8 +368,7 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         *main_memory = u16::to_le(value);
     }
 
-    fn set_flag(&mut self, flag: Intel8080Flag, value: bool)
-    {
+    fn set_flag(&mut self, flag: Intel8080Flag, value: bool) {
         if value {
             self.registers[Intel8080Register::FLAGS as usize] |= flag as u8;
         } else {
@@ -385,37 +376,32 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         }
     }
 
-    fn read_flag(&self, flag: Intel8080Flag) -> bool
-    {
+    fn read_flag(&self, flag: Intel8080Flag) -> bool {
         self.registers[Intel8080Register::FLAGS as usize] & flag as u8 == flag as u8
     }
 
-    fn read_raw_register(&self, index: usize) -> u8
-    {
+    fn read_raw_register(&self, index: usize) -> u8 {
         self.registers[index]
     }
 
-    fn set_raw_register(&mut self, index: usize, value: u8)
-    {
+    fn set_raw_register(&mut self, index: usize, value: u8) {
         assert!(index != Intel8080Register::FLAGS as usize);
         self.registers[index] = value;
     }
 
-    fn read_raw_register_pair(&self, index: usize) -> u16
-    {
+    fn read_raw_register_pair(&self, index: usize) -> u16 {
         let register_pairs: &[u16; Intel8080Register::Count as usize / 2];
         unsafe {
-             register_pairs = mem::transmute(&self.registers);
+            register_pairs = mem::transmute(&self.registers);
         }
 
         register_pairs[index]
     }
 
-    fn set_raw_register_pair(&mut self, index: usize, value: u16)
-    {
+    fn set_raw_register_pair(&mut self, index: usize, value: u16) {
         let register_pairs: &mut [u16; Intel8080Register::Count as usize / 2];
         unsafe {
-             register_pairs = mem::transmute(&mut self.registers);
+            register_pairs = mem::transmute(&mut self.registers);
         }
         register_pairs[index] = value;
         if index == Intel8080Register::A as usize / 2 {
@@ -437,8 +423,8 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
                 func(self);
                 self.call_table.insert(address, func);
                 self.return_unconditionally();
-            },
-            None => ()
+            }
+            None => (),
         }
     }
 
@@ -450,9 +436,7 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         self.interrupts_enabled
     }
 
-    fn add_cycles(&mut self, _cycles: u8)
-    {
-    }
+    fn add_cycles(&mut self, _cycles: u8) {}
 }
 
 /*  _ __ ___  __ _(_)___| |_ ___ _ __   ___  ___| |_     / /
@@ -469,18 +453,19 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
  */
 
 #[test]
-fn read_register_pair_b()
-{
+fn read_register_pair_b() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0x3F);
     e.set_register(Intel8080Register::C, 0x29);
 
-    assert_eq!(e.read_register_pair(Intel8080Register::B), 0x3Fu16 << 8 | 0x29u16);
+    assert_eq!(
+        e.read_register_pair(Intel8080Register::B),
+        0x3Fu16 << 8 | 0x29u16
+    );
 }
 
 #[test]
-fn read_and_set_register_pair_d()
-{
+fn read_and_set_register_pair_d() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::D, 0xBEEF);
 
@@ -488,8 +473,7 @@ fn read_and_set_register_pair_d()
 }
 
 #[test]
-fn set_register_pair_h_and_read_registers()
-{
+fn set_register_pair_h_and_read_registers() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xABCD);
 
@@ -498,8 +482,7 @@ fn set_register_pair_h_and_read_registers()
 }
 
 #[test]
-fn set_register_m()
-{
+fn set_register_m() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xf812);
     e.set_register(Intel8080Register::M, 0xAB);
@@ -508,8 +491,7 @@ fn set_register_m()
 }
 
 #[test]
-fn set_register_m_max_address()
-{
+fn set_register_m_max_address() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, MAX_ADDRESS as u16);
     e.set_register(Intel8080Register::M, 0xD9);
@@ -523,207 +505,311 @@ fn add_to_register_test(
     register: Intel8080Register,
     starting_value: u8,
     delta: u8,
-    update_carry: bool)
-{
+    update_carry: bool,
+) {
     e.set_register(register, starting_value);
     e.add_to_register(register, delta, update_carry);
 }
 
 #[test]
-fn add_to_register_increments_register()
-{
+fn add_to_register_increments_register() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x99, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x99,
+        1,
+        true, /* update carry */
+    );
     assert_eq!(e.read_register(Intel8080Register::B), 0x9A);
 }
 
 #[test]
-fn add_to_register_increments_memory()
-{
+fn add_to_register_increments_memory() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register_pair(Intel8080Register::H, 0x1234);
-    add_to_register_test(&mut e, Intel8080Register::M, 0x19, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::M,
+        0x19,
+        1,
+        true, /* update carry */
+    );
     assert_eq!(e.read_register(Intel8080Register::M), 0x1A);
 }
 
 #[test]
-fn add_to_register_overflows()
-{
+fn add_to_register_overflows() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0xFF, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xFF,
+        1,
+        true, /* update carry */
+    );
     assert_eq!(e.read_register(Intel8080Register::B), 0x00);
 }
 
 #[test]
-fn add_to_register_doesnt_set_zero_flag()
-{
+fn add_to_register_doesnt_set_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x99, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x99,
+        1,
+        true, /* update carry */
+    );
     assert!(!e.read_flag(Intel8080Flag::Zero));
 }
 
 #[test]
-fn add_to_register_update_sets_zero_flag()
-{
+fn add_to_register_update_sets_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0xFF, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xFF,
+        1,
+        true, /* update carry */
+    );
     assert!(e.read_flag(Intel8080Flag::Zero));
 }
 
 #[test]
-fn add_to_register_doesnt_set_sign_flag()
-{
+fn add_to_register_doesnt_set_sign_flag() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x00, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x00,
+        1,
+        true, /* update carry */
+    );
     assert!(!e.read_flag(Intel8080Flag::Sign));
 }
 
 #[test]
-fn add_to_register_sets_sign_flag()
-{
+fn add_to_register_sets_sign_flag() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x7f, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x7f,
+        1,
+        true, /* update carry */
+    );
     assert!(e.read_flag(Intel8080Flag::Sign));
 }
 
 #[test]
-fn add_to_register_clears_parity_flag()
-{
+fn add_to_register_clears_parity_flag() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Parity, true);
-    add_to_register_test(&mut e, Intel8080Register::B, 0x00, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x00,
+        1,
+        true, /* update carry */
+    );
 
     // 00000001 -> odd parity = false
     assert!(!e.read_flag(Intel8080Flag::Parity));
 }
 
 #[test]
-fn add_to_register_sets_parity_flag()
-{
+fn add_to_register_sets_parity_flag() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x02, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x02,
+        1,
+        true, /* update carry */
+    );
 
     // 00000011 -> even parity = true
     assert!(e.read_flag(Intel8080Flag::Parity));
 }
 
 #[test]
-fn add_to_register_sets_auxiliary_carry_flag()
-{
+fn add_to_register_sets_auxiliary_carry_flag() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x0F, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x0F,
+        1,
+        true, /* update carry */
+    );
 
     assert!(e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_sets_auxiliary_carry_flag_when_adding_u8_max()
-{
+fn add_to_register_sets_auxiliary_carry_flag_when_adding_u8_max() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0x0F, 0xFF, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x0F,
+        0xFF,
+        true, /* update carry */
+    );
 
     assert!(e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_doesnt_set_auxiliary_carry_flag_when_incrementing_high_bits_only()
-{
+fn add_to_register_doesnt_set_auxiliary_carry_flag_when_incrementing_high_bits_only() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0xA0, 0x10, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xA0,
+        0x10,
+        true, /* update carry */
+    );
 
     assert!(!e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_doesnt_set_auxiliary_carry_flag_when_overflowing_basic()
-{
+fn add_to_register_doesnt_set_auxiliary_carry_flag_when_overflowing_basic() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0xF0, 0x10, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xF0,
+        0x10,
+        true, /* update carry */
+    );
 
     assert!(!e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_doesnt_set_auxiliary_carry_flag_when_overflowing()
-{
+fn add_to_register_doesnt_set_auxiliary_carry_flag_when_overflowing() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0xFF, 0x10, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xFF,
+        0x10,
+        true, /* update carry */
+    );
 
     assert!(!e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_sets_auxiliary_carry_flag_when_overflowing()
-{
+fn add_to_register_sets_auxiliary_carry_flag_when_overflowing() {
     let mut e = Intel8080Emulator::new_for_test();
-    add_to_register_test(&mut e, Intel8080Register::B, 0xFF, 0x11, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xFF,
+        0x11,
+        true, /* update carry */
+    );
 
     assert!(e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_clears_auxiliary_carry_flag()
-{
+fn add_to_register_clears_auxiliary_carry_flag() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::AuxiliaryCarry, true);
-    add_to_register_test(&mut e, Intel8080Register::B, 0x00, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x00,
+        1,
+        true, /* update carry */
+    );
 
     assert!(!e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn add_to_register_sets_carry_flag()
-{
+fn add_to_register_sets_carry_flag() {
     let mut e = Intel8080Emulator::new_for_test();
 
-    add_to_register_test(&mut e, Intel8080Register::B, 0xFF, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xFF,
+        1,
+        true, /* update carry */
+    );
 
     assert!(e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn add_to_register_sets_carry_flag_when_adding_u8_max()
-{
+fn add_to_register_sets_carry_flag_when_adding_u8_max() {
     let mut e = Intel8080Emulator::new_for_test();
 
-    add_to_register_test(&mut e, Intel8080Register::B, 0xAB, 0xFF, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0xAB,
+        0xFF,
+        true, /* update carry */
+    );
 
     assert!(e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn add_to_register_clears_carry_flag()
-{
+fn add_to_register_clears_carry_flag() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
-    add_to_register_test(&mut e, Intel8080Register::B, 0x01, 1, true /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x01,
+        1,
+        true, /* update carry */
+    );
 
     assert!(!e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn add_to_register_doesnt_update_carry_flag()
-{
+fn add_to_register_doesnt_update_carry_flag() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
-    add_to_register_test(&mut e, Intel8080Register::B, 0x01, 1, false /* update carry */);
+    add_to_register_test(
+        &mut e,
+        Intel8080Register::B,
+        0x01,
+        1,
+        false, /* update carry */
+    );
 
     assert!(e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn add_to_register_clears_carry_with_negative_numbers()
-{
+fn add_to_register_clears_carry_with_negative_numbers() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
     add_to_register_test(
-        &mut e, Intel8080Register::B, 0x0C, 0x0F.twos_complement(), true /* update carry */);
+        &mut e,
+        Intel8080Register::B,
+        0x0C,
+        0x0F.twos_complement(),
+        true, /* update carry */
+    );
 
     assert!(!e.read_flag(Intel8080Flag::Carry));
 }
@@ -733,55 +819,49 @@ fn subtract_from_register_test(
     e: &mut Intel8080Emulator,
     register: Intel8080Register,
     starting_value: u8,
-    delta: u8)
-{
+    delta: u8,
+) {
     e.set_register(register, starting_value);
     e.subtract_from_register(register, delta);
 }
 
 #[test]
-fn subtract_from_register_underflows()
-{
+fn subtract_from_register_underflows() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_test(&mut e, Intel8080Register::C, 0x00, 2);
     assert_eq!(e.read_register(Intel8080Register::C), 0xFE);
 }
 
 #[test]
-fn subtract_from_register_doesnt_set_zero_flag()
-{
+fn subtract_from_register_doesnt_set_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_test(&mut e, Intel8080Register::B, 0x99, 1);
     assert!(!e.read_flag(Intel8080Flag::Zero));
 }
 
 #[test]
-fn subtract_from_register_update_sets_zero_flag()
-{
+fn subtract_from_register_update_sets_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_test(&mut e, Intel8080Register::B, 0x01, 1);
     assert!(e.read_flag(Intel8080Flag::Zero));
 }
 
 #[test]
-fn subtract_from_register_doesnt_set_sign_flag()
-{
+fn subtract_from_register_doesnt_set_sign_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_test(&mut e, Intel8080Register::B, 0x0B, 1);
     assert!(!e.read_flag(Intel8080Flag::Sign));
 }
 
 #[test]
-fn subtract_from_register_sets_sign_flag()
-{
+fn subtract_from_register_sets_sign_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_test(&mut e, Intel8080Register::B, 0x00, 1);
     assert!(e.read_flag(Intel8080Flag::Sign));
 }
 
 #[test]
-fn subtract_from_register_clears_parity_flag()
-{
+fn subtract_from_register_clears_parity_flag() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Parity, true);
@@ -792,8 +872,7 @@ fn subtract_from_register_clears_parity_flag()
 }
 
 #[test]
-fn subtract_from_register_sets_parity_flag()
-{
+fn subtract_from_register_sets_parity_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_test(&mut e, Intel8080Register::B, 0x04, 1);
 
@@ -802,8 +881,7 @@ fn subtract_from_register_sets_parity_flag()
 }
 
 #[test]
-fn subtract_from_register_clears_auxiliary_carry()
-{
+fn subtract_from_register_clears_auxiliary_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::AuxiliaryCarry, true);
     subtract_from_register_test(&mut e, Intel8080Register::C, 0x88, 0x03);
@@ -811,8 +889,7 @@ fn subtract_from_register_clears_auxiliary_carry()
 }
 
 #[test]
-fn subtract_from_register_doesnt_set_carry()
-{
+fn subtract_from_register_doesnt_set_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     subtract_from_register_test(&mut e, Intel8080Register::C, 0x88, 4);
@@ -824,60 +901,76 @@ fn subtract_from_register_using_twos_complement_test(
     e: &mut Intel8080Emulator,
     register: Intel8080Register,
     starting_value: u8,
-    delta: u8)
-{
+    delta: u8,
+) {
     e.set_register(register, starting_value);
     e.subtract_from_register_using_twos_complement(register, delta);
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_positive_from_positive()
-{
+fn subtract_from_register_using_twos_complement_positive_from_positive() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_using_twos_complement_test(&mut e, Intel8080Register::C, 0x88, 4);
     assert_eq!(e.read_register(Intel8080Register::C), 0x84);
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_positive_from_negative()
-{
+fn subtract_from_register_using_twos_complement_positive_from_negative() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_using_twos_complement_test(
-        &mut e, Intel8080Register::C, 0x09.twos_complement(), 0x02);
-    assert_eq!(e.read_register(Intel8080Register::C), 0x0B.twos_complement());
+        &mut e,
+        Intel8080Register::C,
+        0x09.twos_complement(),
+        0x02,
+    );
+    assert_eq!(
+        e.read_register(Intel8080Register::C),
+        0x0B.twos_complement()
+    );
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_negative_from_positive()
-{
+fn subtract_from_register_using_twos_complement_negative_from_positive() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_using_twos_complement_test(
-        &mut e, Intel8080Register::C, 0x09, 0x02.twos_complement());
+        &mut e,
+        Intel8080Register::C,
+        0x09,
+        0x02.twos_complement(),
+    );
     assert_eq!(e.read_register(Intel8080Register::C), 0x0B);
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_negative_from_negative()
-{
+fn subtract_from_register_using_twos_complement_negative_from_negative() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_using_twos_complement_test(
-        &mut e, Intel8080Register::C, 0x09.twos_complement(), 0x02.twos_complement());
-    assert_eq!(e.read_register(Intel8080Register::C), 0x07.twos_complement());
+        &mut e,
+        Intel8080Register::C,
+        0x09.twos_complement(),
+        0x02.twos_complement(),
+    );
+    assert_eq!(
+        e.read_register(Intel8080Register::C),
+        0x07.twos_complement()
+    );
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_negative_from_negative_clears_carry()
-{
+fn subtract_from_register_using_twos_complement_negative_from_negative_clears_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     subtract_from_register_using_twos_complement_test(
-        &mut e, Intel8080Register::C, 0x08.twos_complement(), 0x04);
+        &mut e,
+        Intel8080Register::C,
+        0x08.twos_complement(),
+        0x04,
+    );
     assert!(!e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_clears_carry()
-{
+fn subtract_from_register_using_twos_complement_clears_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     subtract_from_register_using_twos_complement_test(&mut e, Intel8080Register::C, 0x08, 0x04);
@@ -885,24 +978,21 @@ fn subtract_from_register_using_twos_complement_clears_carry()
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_sets_carry()
-{
+fn subtract_from_register_using_twos_complement_sets_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_using_twos_complement_test(&mut e, Intel8080Register::C, 0x05, 0x06);
     assert!(e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_clear_auxiliary_carry()
-{
+fn subtract_from_register_using_twos_complement_clear_auxiliary_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     subtract_from_register_using_twos_complement_test(&mut e, Intel8080Register::C, 0xA5, 0x04);
     assert!(e.read_flag(Intel8080Flag::AuxiliaryCarry));
 }
 
 #[test]
-fn subtract_from_register_using_twos_complement_sets_auxiliary_carry()
-{
+fn subtract_from_register_using_twos_complement_sets_auxiliary_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::AuxiliaryCarry, true);
     subtract_from_register_using_twos_complement_test(&mut e, Intel8080Register::C, 0xA5, 0x06);
@@ -910,8 +1000,7 @@ fn subtract_from_register_using_twos_complement_sets_auxiliary_carry()
 }
 
 #[test]
-fn push_and_pop_data()
-{
+fn push_and_pop_data() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x1234);
     e.push_u16_onto_stack(0xAABB);
@@ -920,8 +1009,7 @@ fn push_and_pop_data()
 }
 
 #[test]
-fn push_byte_order()
-{
+fn push_byte_order() {
     let mut e = Intel8080Emulator::new_for_test();
     let sp = e.read_register_pair(Intel8080Register::SP);
     e.push_u16_onto_stack(0x1234);
@@ -942,35 +1030,29 @@ const CALL_EXTRA_CYCLES: u8 = 12;
 const RETURN_EXTRA_CYCLES: u8 = 12;
 
 impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
-    fn complement_carry(&mut self)
-    {
+    fn complement_carry(&mut self) {
         let value = self.read_flag(Intel8080Flag::Carry);
         self.set_flag(Intel8080Flag::Carry, !value);
     }
 
-    fn set_carry(&mut self)
-    {
+    fn set_carry(&mut self) {
         self.set_flag(Intel8080Flag::Carry, true);
     }
 
-    fn increment_register_or_memory(&mut self, register: Intel8080Register)
-    {
+    fn increment_register_or_memory(&mut self, register: Intel8080Register) {
         self.add_to_register(register, 1, false /* update carry */);
     }
 
-    fn decrement_register_or_memory(&mut self, register: Intel8080Register)
-    {
+    fn decrement_register_or_memory(&mut self, register: Intel8080Register) {
         self.subtract_from_register(register, 1);
     }
 
-    fn complement_accumulator(&mut self)
-    {
+    fn complement_accumulator(&mut self) {
         let old_value = self.read_register(Intel8080Register::A);
         self.set_register(Intel8080Register::A, !old_value);
     }
 
-    fn decimal_adjust_accumulator(&mut self)
-    {
+    fn decimal_adjust_accumulator(&mut self) {
         /* The eight-bit hexadecimal number in the accumulator is adjusted to form two four-bit
          * binary-coded decimal digits by the follow two step process:
          *
@@ -999,8 +1081,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_flag(Intel8080Flag::Zero, accumulator == 0);
     }
 
-    fn no_operation(&mut self)
-    {
+    fn no_operation(&mut self) {
         /*
          * Easiest instruction to implement :)
          *
@@ -1027,116 +1108,98 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
          */
     }
 
-    fn move_data(&mut self, dest_register: Intel8080Register, src_register: Intel8080Register)
-    {
+    fn move_data(&mut self, dest_register: Intel8080Register, src_register: Intel8080Register) {
         let value = self.read_register(src_register);
         self.set_register(dest_register, value);
     }
 
-    fn store_accumulator(&mut self, register_pair: Intel8080Register)
-    {
+    fn store_accumulator(&mut self, register_pair: Intel8080Register) {
         let address = self.read_register_pair(register_pair);
         let value = self.read_register(Intel8080Register::A);
         self.set_memory(address, value);
     }
 
-    fn load_accumulator(&mut self, register_pair: Intel8080Register)
-    {
+    fn load_accumulator(&mut self, register_pair: Intel8080Register) {
         let address = self.read_register_pair(register_pair);
         let value = self.read_memory(address);
         self.set_register(Intel8080Register::A, value);
     }
 
-    fn add_to_accumulator(&mut self, register: Intel8080Register)
-    {
+    fn add_to_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.add_immediate_to_accumulator(value);
     }
 
-    fn add_to_accumulator_with_carry(&mut self, register: Intel8080Register)
-    {
+    fn add_to_accumulator_with_carry(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.add_immediate_to_accumulator_with_carry(value);
     }
 
-    fn subtract_from_accumulator(&mut self, register: Intel8080Register)
-    {
+    fn subtract_from_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.subtract_immediate_from_accumulator(value);
     }
 
-    fn subtract_from_accumulator_with_borrow(&mut self, register: Intel8080Register)
-    {
+    fn subtract_from_accumulator_with_borrow(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.subtract_immediate_from_accumulator_with_borrow(value);
     }
 
-    fn logical_and_with_accumulator(&mut self, register: Intel8080Register)
-    {
+    fn logical_and_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.and_immediate_with_accumulator(value);
     }
 
-    fn logical_exclusive_or_with_accumulator(&mut self, register: Intel8080Register)
-    {
+    fn logical_exclusive_or_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.exclusive_or_immediate_with_accumulator(value);
     }
 
-    fn logical_or_with_accumulator(&mut self, register: Intel8080Register)
-    {
+    fn logical_or_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.or_immediate_with_accumulator(value);
     }
 
-    fn compare_with_accumulator(&mut self, register: Intel8080Register)
-    {
+    fn compare_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.compare_immediate_with_accumulator(value);
     }
 
-    fn rotate_accumulator_left(&mut self)
-    {
+    fn rotate_accumulator_left(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_left(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn rotate_accumulator_right(&mut self)
-    {
+    fn rotate_accumulator_right(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_right(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn rotate_accumulator_left_through_carry(&mut self)
-    {
+    fn rotate_accumulator_left_through_carry(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_left_through_carry(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn rotate_accumulator_right_through_carry(&mut self)
-    {
+    fn rotate_accumulator_right_through_carry(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_right_through_carry(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn push_data_onto_stack(&mut self, register_pair: Intel8080Register)
-    {
+    fn push_data_onto_stack(&mut self, register_pair: Intel8080Register) {
         let pair_data = self.read_register_pair(register_pair);
         self.push_u16_onto_stack(pair_data);
     }
 
-    fn pop_data_off_stack(&mut self, register_pair: Intel8080Register)
-    {
+    fn pop_data_off_stack(&mut self, register_pair: Intel8080Register) {
         let pair_data = self.pop_u16_off_stack();
         self.set_register_pair(register_pair, pair_data);
     }
 
-    fn double_add(&mut self, register: Intel8080Register)
-    {
+    fn double_add(&mut self, register: Intel8080Register) {
         let value = self.read_register_pair(register);
         let old_value = self.read_register_pair(Intel8080Register::H);
         let new_value = old_value.wrapping_add(value);
@@ -1144,29 +1207,25 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_register_pair(Intel8080Register::H, new_value);
     }
 
-    fn increment_register_pair(&mut self, register: Intel8080Register)
-    {
+    fn increment_register_pair(&mut self, register: Intel8080Register) {
         let old_value = self.read_register_pair(register);
         let new_value = old_value.wrapping_add(1);
         self.set_register_pair(register, new_value);
     }
 
-    fn decrement_register_pair(&mut self, register: Intel8080Register)
-    {
+    fn decrement_register_pair(&mut self, register: Intel8080Register) {
         let old_value = self.read_register_pair(register);
         self.set_register_pair(register, old_value.wrapping_sub(1));
     }
 
-    fn exchange_registers(&mut self)
-    {
+    fn exchange_registers(&mut self) {
         let pair_h = self.read_register_pair(Intel8080Register::H);
         let pair_d = self.read_register_pair(Intel8080Register::D);
         self.set_register_pair(Intel8080Register::H, pair_d);
         self.set_register_pair(Intel8080Register::D, pair_h);
     }
 
-    fn exchange_stack(&mut self)
-    {
+    fn exchange_stack(&mut self) {
         let h_data = self.read_register(Intel8080Register::H);
         let l_data = self.read_register(Intel8080Register::L);
         let sp = self.read_register_pair(Intel8080Register::SP);
@@ -1179,29 +1238,24 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_register(Intel8080Register::L, mem_2);
     }
 
-    fn load_sp_from_h_and_l(&mut self)
-    {
+    fn load_sp_from_h_and_l(&mut self) {
         let h_data = self.read_register_pair(Intel8080Register::H);
         self.set_register_pair(Intel8080Register::SP, h_data);
     }
 
-    fn load_register_pair_immediate(&mut self, register: Intel8080Register, data: u16)
-    {
+    fn load_register_pair_immediate(&mut self, register: Intel8080Register, data: u16) {
         self.set_register_pair(register, data);
     }
 
-    fn move_immediate_data(&mut self, dest_register: Intel8080Register, data: u8)
-    {
+    fn move_immediate_data(&mut self, dest_register: Intel8080Register, data: u8) {
         self.set_register(dest_register, data);
     }
 
-    fn add_immediate_to_accumulator(&mut self, data: u8)
-    {
+    fn add_immediate_to_accumulator(&mut self, data: u8) {
         self.add_to_register(Intel8080Register::A, data, true /* update_carry */);
     }
 
-    fn add_immediate_to_accumulator_with_carry(&mut self, data: u8)
-    {
+    fn add_immediate_to_accumulator_with_carry(&mut self, data: u8) {
         let carry = self.read_flag(Intel8080Flag::Carry);
         self.add_to_register(Intel8080Register::A, data, true /* update_carry */);
 
@@ -1211,18 +1265,20 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
 
             self.add_to_register(Intel8080Register::A, 1, true /* update_carry */);
 
-            if carry { self.set_flag(Intel8080Flag::Carry, true) };
-            if aux_carry { self.set_flag(Intel8080Flag::AuxiliaryCarry, true) };
+            if carry {
+                self.set_flag(Intel8080Flag::Carry, true)
+            };
+            if aux_carry {
+                self.set_flag(Intel8080Flag::AuxiliaryCarry, true)
+            };
         }
     }
 
-    fn subtract_immediate_from_accumulator(&mut self, data: u8)
-    {
+    fn subtract_immediate_from_accumulator(&mut self, data: u8) {
         self.subtract_from_register_using_twos_complement(Intel8080Register::A, data);
     }
 
-    fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8)
-    {
+    fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8) {
         let carry = self.read_flag(Intel8080Flag::Carry);
         self.subtract_from_register_using_twos_complement(Intel8080Register::A, data);
 
@@ -1232,320 +1288,280 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
 
             self.subtract_from_register_using_twos_complement(Intel8080Register::A, 1);
 
-            if carry { self.set_flag(Intel8080Flag::Carry, true) };
-            if aux_carry { self.set_flag(Intel8080Flag::AuxiliaryCarry, true) };
+            if carry {
+                self.set_flag(Intel8080Flag::Carry, true)
+            };
+            if aux_carry {
+                self.set_flag(Intel8080Flag::AuxiliaryCarry, true)
+            };
         }
     }
 
-    fn and_immediate_with_accumulator(&mut self, data: u8)
-    {
+    fn and_immediate_with_accumulator(&mut self, data: u8) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_and(value, data);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn exclusive_or_immediate_with_accumulator(&mut self, data: u8)
-    {
+    fn exclusive_or_immediate_with_accumulator(&mut self, data: u8) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_exclusive_or(value, data);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn or_immediate_with_accumulator(&mut self, data: u8)
-    {
+    fn or_immediate_with_accumulator(&mut self, data: u8) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_or(value, data);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    fn compare_immediate_with_accumulator(&mut self, data: u8)
-    {
+    fn compare_immediate_with_accumulator(&mut self, data: u8) {
         let accumulator = self.read_register(Intel8080Register::A);
         self.perform_subtraction_using_twos_complement(accumulator, data);
     }
 
-    fn store_accumulator_direct(&mut self, address: u16)
-    {
+    fn store_accumulator_direct(&mut self, address: u16) {
         let value = self.read_register(Intel8080Register::A);
         self.set_memory(address, value);
     }
 
-    fn load_accumulator_direct(&mut self, address: u16)
-    {
+    fn load_accumulator_direct(&mut self, address: u16) {
         let value = self.read_memory(address);
         self.set_register(Intel8080Register::A, value);
     }
 
-    fn store_h_and_l_direct(&mut self, address: u16)
-    {
+    fn store_h_and_l_direct(&mut self, address: u16) {
         let value_l = self.read_register(Intel8080Register::L);
         let value_h = self.read_register(Intel8080Register::H);
         self.set_memory(address, value_l);
         self.set_memory(address + 1, value_h);
     }
 
-    fn load_h_and_l_direct(&mut self, address: u16)
-    {
+    fn load_h_and_l_direct(&mut self, address: u16) {
         let value1 = self.read_memory(address);
         let value2 = self.read_memory(address + 1);
         self.set_register(Intel8080Register::L, value1);
         self.set_register(Intel8080Register::H, value2);
     }
 
-    fn load_program_counter(&mut self)
-    {
+    fn load_program_counter(&mut self) {
         let value = self.read_register_pair(Intel8080Register::H);
         self.set_program_counter(value);
     }
 
-    fn jump(&mut self, address: u16)
-    {
+    fn jump(&mut self, address: u16) {
         self.set_program_counter(address);
     }
 
-    fn jump_if_carry(&mut self, address: u16)
-    {
+    fn jump_if_carry(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Carry) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_no_carry(&mut self, address: u16)
-    {
+    fn jump_if_no_carry(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_zero(&mut self, address: u16)
-    {
+    fn jump_if_zero(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Zero) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_not_zero(&mut self, address: u16)
-    {
+    fn jump_if_not_zero(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_minus(&mut self, address: u16)
-    {
+    fn jump_if_minus(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Sign) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_positive(&mut self, address: u16)
-    {
+    fn jump_if_positive(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_parity_even(&mut self, address: u16)
-    {
+    fn jump_if_parity_even(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Parity) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn jump_if_parity_odd(&mut self, address: u16)
-    {
+    fn jump_if_parity_odd(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.jump(address);
             self.add_cycles(JUMP_EXTRA_CYCLES);
         }
     }
 
-    fn call(&mut self, address: u16)
-    {
+    fn call(&mut self, address: u16) {
         let pc = self.read_program_counter();
         self.push_u16_onto_stack(pc);
         self.jump(address);
     }
 
-    fn call_if_carry(&mut self, address: u16)
-    {
+    fn call_if_carry(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Carry) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_no_carry(&mut self, address: u16)
-    {
+    fn call_if_no_carry(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_zero(&mut self, address: u16)
-    {
+    fn call_if_zero(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Zero) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_not_zero(&mut self, address: u16)
-    {
+    fn call_if_not_zero(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_minus(&mut self, address: u16)
-    {
+    fn call_if_minus(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Sign) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_plus(&mut self, address: u16)
-    {
+    fn call_if_plus(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_parity_even(&mut self, address: u16)
-    {
+    fn call_if_parity_even(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Parity) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn call_if_parity_odd(&mut self, address: u16)
-    {
+    fn call_if_parity_odd(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.call(address);
             self.add_cycles(CALL_EXTRA_CYCLES);
         }
     }
 
-    fn return_unconditionally(&mut self)
-    {
+    fn return_unconditionally(&mut self) {
         let address = self.pop_u16_off_stack();
         self.set_program_counter(address);
     }
 
-    fn return_if_carry(&mut self)
-    {
+    fn return_if_carry(&mut self) {
         if self.read_flag(Intel8080Flag::Carry) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_no_carry(&mut self)
-    {
+    fn return_if_no_carry(&mut self) {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_zero(&mut self)
-    {
+    fn return_if_zero(&mut self) {
         if self.read_flag(Intel8080Flag::Zero) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_not_zero(&mut self)
-    {
+    fn return_if_not_zero(&mut self) {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_minus(&mut self)
-    {
+    fn return_if_minus(&mut self) {
         if self.read_flag(Intel8080Flag::Sign) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_plus(&mut self)
-    {
+    fn return_if_plus(&mut self) {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_parity_even(&mut self)
-    {
+    fn return_if_parity_even(&mut self) {
         if self.read_flag(Intel8080Flag::Parity) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn return_if_parity_odd(&mut self)
-    {
+    fn return_if_parity_odd(&mut self) {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.return_unconditionally();
             self.add_cycles(RETURN_EXTRA_CYCLES);
         }
     }
 
-    fn rim(&mut self)
-    {
+    fn rim(&mut self) {
         panic!("rim: Not Implemented")
     }
 
-    fn disable_interrupts(&mut self)
-    {
+    fn disable_interrupts(&mut self) {
         self.set_interrupts_enabled(false);
     }
 
-    fn enable_interrupts(&mut self)
-    {
+    fn enable_interrupts(&mut self) {
         self.set_interrupts_enabled(true);
     }
 
-    fn input(&mut self, _data1: u8)
-    {
+    fn input(&mut self, _data1: u8) {
         panic!("input: Not Implemented")
     }
 
-    fn halt(&mut self)
-    {
+    fn halt(&mut self) {
         panic!("halt: Not Implemented")
     }
 
-    fn restart(&mut self, implicit_data: u8)
-    {
+    fn restart(&mut self, implicit_data: u8) {
         assert!(implicit_data <= 7);
         self.call((implicit_data as u16) << 3);
     }
 
-    fn output(&mut self, _data1: u8)
-    {
+    fn output(&mut self, _data1: u8) {
         panic!("output: Not Implemented")
     }
 
-    fn sim(&mut self)
-    {
+    fn sim(&mut self) {
         panic!("sim: Not Implemented")
     }
 }
@@ -1559,8 +1575,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
  */
 
 #[test]
-fn complement_carry_test_false_to_true()
-{
+fn complement_carry_test_false_to_true() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, false);
@@ -1571,8 +1586,7 @@ fn complement_carry_test_false_to_true()
 }
 
 #[test]
-fn complement_carry_test_true_to_false()
-{
+fn complement_carry_test_true_to_false() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -1583,8 +1597,7 @@ fn complement_carry_test_true_to_false()
 }
 
 #[test]
-fn set_carry_test_false_to_true()
-{
+fn set_carry_test_false_to_true() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, false);
@@ -1595,8 +1608,7 @@ fn set_carry_test_false_to_true()
 }
 
 #[test]
-fn set_carry_test_true_to_true()
-{
+fn set_carry_test_true_to_true() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, false);
@@ -1607,8 +1619,7 @@ fn set_carry_test_true_to_true()
 }
 
 #[test]
-fn decrement_register_or_memory_decrements_register()
-{
+fn decrement_register_or_memory_decrements_register() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0x40);
     e.decrement_register_or_memory(Intel8080Register::B);
@@ -1616,8 +1627,7 @@ fn decrement_register_or_memory_decrements_register()
 }
 
 #[test]
-fn decrement_register_or_memory_doesnt_update_carry()
-{
+fn decrement_register_or_memory_doesnt_update_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::B, 0x40);
@@ -1626,8 +1636,7 @@ fn decrement_register_or_memory_doesnt_update_carry()
 }
 
 #[test]
-fn decrement_register_or_memory_updates_auxiliary_carry()
-{
+fn decrement_register_or_memory_updates_auxiliary_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0x00);
     e.decrement_register_or_memory(Intel8080Register::B);
@@ -1635,8 +1644,7 @@ fn decrement_register_or_memory_updates_auxiliary_carry()
 }
 
 #[test]
-fn complement_accumulator()
-{
+fn complement_accumulator() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b10010101);
     e.complement_accumulator();
@@ -1644,8 +1652,7 @@ fn complement_accumulator()
 }
 
 #[test]
-fn decimal_adjust_accumulator_low_and_high_bits()
-{
+fn decimal_adjust_accumulator_low_and_high_bits() {
     let mut e = Intel8080Emulator::new_for_test();
     /*
      * Suppose the accumulator contains 9BH, and both carry bits aren't set.
@@ -1682,8 +1689,7 @@ fn decimal_adjust_accumulator_low_and_high_bits()
 }
 
 #[test]
-fn decimal_adjust_accumulator_low_bits_increment_only()
-{
+fn decimal_adjust_accumulator_low_bits_increment_only() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0x0F);
@@ -1694,20 +1700,21 @@ fn decimal_adjust_accumulator_low_bits_increment_only()
 }
 
 #[test]
-fn decimal_adjust_accumulator_high_bits_increment_only()
-{
+fn decimal_adjust_accumulator_high_bits_increment_only() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0xA0);
     e.decimal_adjust_accumulator();
 
-    assert_eq!(e.read_register(Intel8080Register::A), 0xA0u8.wrapping_add(6 << 4));
+    assert_eq!(
+        e.read_register(Intel8080Register::A),
+        0xA0u8.wrapping_add(6 << 4)
+    );
     assert!(e.read_flag(Intel8080Flag::Carry));
 }
 
 #[test]
-fn decimal_adjust_accumulator_carry_set()
-{
+fn decimal_adjust_accumulator_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -1718,8 +1725,7 @@ fn decimal_adjust_accumulator_carry_set()
 }
 
 #[test]
-fn decimal_adjust_accumulator_auxilliary_carry_set()
-{
+fn decimal_adjust_accumulator_auxilliary_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::AuxiliaryCarry, true);
@@ -1730,8 +1736,7 @@ fn decimal_adjust_accumulator_auxilliary_carry_set()
 }
 
 #[test]
-fn decimal_adjust_accumulator_carry_and_auxilliary_carry_set()
-{
+fn decimal_adjust_accumulator_carry_and_auxilliary_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -1743,15 +1748,13 @@ fn decimal_adjust_accumulator_carry_and_auxilliary_carry_set()
 }
 
 #[test]
-fn no_operation()
-{
+fn no_operation() {
     let mut e = Intel8080Emulator::new_for_test();
     e.no_operation();
 }
 
 #[test]
-fn move_data_moves_to_register()
-{
+fn move_data_moves_to_register() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0xA0);
@@ -1761,8 +1764,7 @@ fn move_data_moves_to_register()
 }
 
 #[test]
-fn move_data_same_destination_and_source()
-{
+fn move_data_same_destination_and_source() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0xA0);
@@ -1772,8 +1774,7 @@ fn move_data_same_destination_and_source()
 }
 
 #[test]
-fn move_data_moves_to_memory()
-{
+fn move_data_moves_to_memory() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0xBE);
@@ -1784,8 +1785,7 @@ fn move_data_moves_to_memory()
 }
 
 #[test]
-fn store_accumulator_at_address_in_b()
-{
+fn store_accumulator_at_address_in_b() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0xAF);
     e.set_register_pair(Intel8080Register::B, 0x3F16);
@@ -1795,8 +1795,7 @@ fn store_accumulator_at_address_in_b()
 }
 
 #[test]
-fn store_accumulator_at_address_in_d()
-{
+fn store_accumulator_at_address_in_d() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0xAF);
     e.set_register_pair(Intel8080Register::D, 0x3F16);
@@ -1806,8 +1805,7 @@ fn store_accumulator_at_address_in_d()
 }
 
 #[test]
-fn load_accumulator_from_address_in_b()
-{
+fn load_accumulator_from_address_in_b() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_memory(0x9388, 0xAF);
     e.set_register_pair(Intel8080Register::B, 0x9388);
@@ -1817,8 +1815,7 @@ fn load_accumulator_from_address_in_b()
 }
 
 #[test]
-fn load_accumulator_from_address_in_d()
-{
+fn load_accumulator_from_address_in_d() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_memory(0x9388, 0xAF);
     e.set_register_pair(Intel8080Register::D, 0x9388);
@@ -1828,8 +1825,7 @@ fn load_accumulator_from_address_in_d()
 }
 
 #[test]
-fn add_to_accumulator_from_register()
-{
+fn add_to_accumulator_from_register() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::D, 0xBD);
     e.set_register(Intel8080Register::A, 0x09);
@@ -1839,8 +1835,7 @@ fn add_to_accumulator_from_register()
 }
 
 #[test]
-fn add_to_accumulator_with_carry_from_register_and_carry_set()
-{
+fn add_to_accumulator_with_carry_from_register_and_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::D, 0xBD);
     e.set_register(Intel8080Register::A, 0x09);
@@ -1851,8 +1846,7 @@ fn add_to_accumulator_with_carry_from_register_and_carry_set()
 }
 
 #[test]
-fn add_to_accumulator_with_carry_from_register_and_carry_not_set()
-{
+fn add_to_accumulator_with_carry_from_register_and_carry_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::D, 0xBD);
     e.set_register(Intel8080Register::A, 0x09);
@@ -1862,8 +1856,7 @@ fn add_to_accumulator_with_carry_from_register_and_carry_not_set()
 }
 
 #[test]
-fn adding_to_accumulator_sets_carry_when_overflowing()
-{
+fn adding_to_accumulator_sets_carry_when_overflowing() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::D, 0x01);
     e.set_register(Intel8080Register::A, 0xFF);
@@ -1874,8 +1867,7 @@ fn adding_to_accumulator_sets_carry_when_overflowing()
 }
 
 #[test]
-fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry()
-{
+fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::D, 0x00);
     e.set_register(Intel8080Register::A, 0xFF);
@@ -1887,8 +1879,7 @@ fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry()
 }
 
 #[test]
-fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry_and_augend()
-{
+fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry_and_augend() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::D, 0xFF);
     e.set_register(Intel8080Register::A, 0x0);
@@ -1900,19 +1891,20 @@ fn adding_to_accumulator_sets_carry_when_overflowing_due_to_carry_and_augend()
 }
 
 #[test]
-fn subtract_from_accumulator_from_register()
-{
+fn subtract_from_accumulator_from_register() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0xF2);
     e.set_register(Intel8080Register::A, 0x1A);
     e.subtract_from_accumulator(Intel8080Register::B);
 
-    assert_eq!(e.read_register(Intel8080Register::A), 0x1Au8.wrapping_sub(0xF2));
+    assert_eq!(
+        e.read_register(Intel8080Register::A),
+        0x1Au8.wrapping_sub(0xF2)
+    );
 }
 
 #[test]
-fn subtract_from_accumulator_with_borrow_condition_flags_get_set()
-{
+fn subtract_from_accumulator_with_borrow_condition_flags_get_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::L, 0x02);
     e.set_register(Intel8080Register::A, 0x04);
@@ -1928,31 +1920,34 @@ fn subtract_from_accumulator_with_borrow_condition_flags_get_set()
 }
 
 #[test]
-fn subtract_from_accumulator_with_borrow_and_carry_set()
-{
+fn subtract_from_accumulator_with_borrow_and_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0xF2);
     e.set_register(Intel8080Register::A, 0x1A);
     e.set_flag(Intel8080Flag::Carry, true);
     e.subtract_from_accumulator_with_borrow(Intel8080Register::B);
 
-    assert_eq!(e.read_register(Intel8080Register::A), 0x1Au8.wrapping_sub(0xF2 + 1));
+    assert_eq!(
+        e.read_register(Intel8080Register::A),
+        0x1Au8.wrapping_sub(0xF2 + 1)
+    );
 }
 
 #[test]
-fn subtract_from_accumulator_with_borrow_and_carry_not_set()
-{
+fn subtract_from_accumulator_with_borrow_and_carry_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0xF2);
     e.set_register(Intel8080Register::A, 0x1A);
     e.subtract_from_accumulator_with_borrow(Intel8080Register::B);
 
-    assert_eq!(e.read_register(Intel8080Register::A), 0x1Au8.wrapping_sub(0xF2));
+    assert_eq!(
+        e.read_register(Intel8080Register::A),
+        0x1Au8.wrapping_sub(0xF2)
+    );
 }
 
 #[cfg(test)]
-fn subtract_with_borrow_carry_test(a: u8, b: u8, borrow: bool)
-{
+fn subtract_with_borrow_carry_test(a: u8, b: u8, borrow: bool) {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, a);
     e.set_register(Intel8080Register::B, b);
@@ -1963,8 +1958,7 @@ fn subtract_with_borrow_carry_test(a: u8, b: u8, borrow: bool)
 }
 
 #[test]
-fn subtract_from_accumulator_with_borrow_sets_carry()
-{
+fn subtract_from_accumulator_with_borrow_sets_carry() {
     subtract_with_borrow_carry_test(0x1, 0x1, true);
     subtract_with_borrow_carry_test(0x0, 0x0, true);
     subtract_with_borrow_carry_test(0x0, 0x1, false);
@@ -1972,8 +1966,7 @@ fn subtract_from_accumulator_with_borrow_sets_carry()
 }
 
 #[test]
-fn logical_and_with_accumulator()
-{
+fn logical_and_with_accumulator() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b00100110);
     e.set_register(Intel8080Register::A, 0b01000111);
@@ -1983,8 +1976,7 @@ fn logical_and_with_accumulator()
 }
 
 #[test]
-fn logical_and_with_accumulator_sets_zero_flag()
-{
+fn logical_and_with_accumulator_sets_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0x0);
     e.set_register(Intel8080Register::A, 0x4F);
@@ -1993,8 +1985,7 @@ fn logical_and_with_accumulator_sets_zero_flag()
 }
 
 #[test]
-fn logical_and_with_accumulator_sets_parity()
-{
+fn logical_and_with_accumulator_sets_parity() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b11011100);
     e.set_register(Intel8080Register::A, 0b11000000);
@@ -2004,8 +1995,7 @@ fn logical_and_with_accumulator_sets_parity()
 }
 
 #[test]
-fn logical_and_with_accumulator_sets_sign()
-{
+fn logical_and_with_accumulator_sets_sign() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b10000000);
     e.set_register(Intel8080Register::A, 0b10000000);
@@ -2015,8 +2005,7 @@ fn logical_and_with_accumulator_sets_sign()
 }
 
 #[test]
-fn logical_and_with_accumulator_clears_the_carry()
-{
+fn logical_and_with_accumulator_clears_the_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.logical_and_with_accumulator(Intel8080Register::B);
@@ -2024,8 +2013,7 @@ fn logical_and_with_accumulator_clears_the_carry()
 }
 
 #[test]
-fn logical_exclusive_or_with_accumulator()
-{
+fn logical_exclusive_or_with_accumulator() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b00100110);
     e.set_register(Intel8080Register::A, 0b01000111);
@@ -2035,8 +2023,7 @@ fn logical_exclusive_or_with_accumulator()
 }
 
 #[test]
-fn logical_exclusive_or_with_accumulator_zeros_accumulator()
-{
+fn logical_exclusive_or_with_accumulator_zeros_accumulator() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b01000111);
     e.logical_exclusive_or_with_accumulator(Intel8080Register::A);
@@ -2045,8 +2032,7 @@ fn logical_exclusive_or_with_accumulator_zeros_accumulator()
 }
 
 #[test]
-fn logical_exclusive_or_with_accumulator_sets_zero_flag()
-{
+fn logical_exclusive_or_with_accumulator_sets_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0xFF);
     e.set_register(Intel8080Register::A, 0xFF);
@@ -2055,8 +2041,7 @@ fn logical_exclusive_or_with_accumulator_sets_zero_flag()
 }
 
 #[test]
-fn logical_exclusive_or_with_accumulator_sets_parity()
-{
+fn logical_exclusive_or_with_accumulator_sets_parity() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b01001001);
     e.set_register(Intel8080Register::A, 0b00000001);
@@ -2065,8 +2050,7 @@ fn logical_exclusive_or_with_accumulator_sets_parity()
 }
 
 #[test]
-fn logical_exclusive_or_with_accumulator_sets_sign()
-{
+fn logical_exclusive_or_with_accumulator_sets_sign() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b10000000);
     e.set_register(Intel8080Register::A, 0b00100100);
@@ -2075,8 +2059,7 @@ fn logical_exclusive_or_with_accumulator_sets_sign()
 }
 
 #[test]
-fn logical_exclusive_or_with_accumulator_clears_carry()
-{
+fn logical_exclusive_or_with_accumulator_clears_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.logical_exclusive_or_with_accumulator(Intel8080Register::B);
@@ -2084,8 +2067,7 @@ fn logical_exclusive_or_with_accumulator_clears_carry()
 }
 
 #[test]
-fn logical_or_with_accumulator()
-{
+fn logical_or_with_accumulator() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b00100110);
     e.set_register(Intel8080Register::A, 0b01000111);
@@ -2095,8 +2077,7 @@ fn logical_or_with_accumulator()
 }
 
 #[test]
-fn logical_or_with_accumulator_sets_zero_flag()
-{
+fn logical_or_with_accumulator_sets_zero_flag() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0x00);
     e.set_register(Intel8080Register::A, 0x00);
@@ -2105,8 +2086,7 @@ fn logical_or_with_accumulator_sets_zero_flag()
 }
 
 #[test]
-fn logical_or_with_accumulator_sets_parity()
-{
+fn logical_or_with_accumulator_sets_parity() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b01001011);
     e.set_register(Intel8080Register::A, 0b00000001);
@@ -2115,8 +2095,7 @@ fn logical_or_with_accumulator_sets_parity()
 }
 
 #[test]
-fn logical_or_with_accumulator_sets_sign()
-{
+fn logical_or_with_accumulator_sets_sign() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0b10000000);
     e.set_register(Intel8080Register::A, 0b00100100);
@@ -2125,8 +2104,7 @@ fn logical_or_with_accumulator_sets_sign()
 }
 
 #[test]
-fn logical_or_with_accumulator_clears_carry()
-{
+fn logical_or_with_accumulator_clears_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.logical_or_with_accumulator(Intel8080Register::B);
@@ -2134,8 +2112,7 @@ fn logical_or_with_accumulator_clears_carry()
 }
 
 #[test]
-fn compare_with_accumulator_doesnt_affect_register_values()
-{
+fn compare_with_accumulator_doesnt_affect_register_values() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0x0A);
@@ -2147,8 +2124,7 @@ fn compare_with_accumulator_doesnt_affect_register_values()
 }
 
 #[test]
-fn compare_with_accumulator_clears_carry()
-{
+fn compare_with_accumulator_clears_carry() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -2161,8 +2137,7 @@ fn compare_with_accumulator_clears_carry()
 }
 
 #[test]
-fn compare_with_accumulator_sets_carry()
-{
+fn compare_with_accumulator_sets_carry() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0x0A);
@@ -2173,8 +2148,7 @@ fn compare_with_accumulator_sets_carry()
 }
 
 #[test]
-fn compare_with_accumulator_clears_carry_when_signs_differ()
-{
+fn compare_with_accumulator_clears_carry_when_signs_differ() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -2186,8 +2160,7 @@ fn compare_with_accumulator_clears_carry_when_signs_differ()
 }
 
 #[test]
-fn compare_with_accumulator_clears_sets_when_signs_differ()
-{
+fn compare_with_accumulator_clears_sets_when_signs_differ() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -2199,8 +2172,7 @@ fn compare_with_accumulator_clears_sets_when_signs_differ()
 }
 
 #[test]
-fn compare_with_accumulator_clears_zero_when_compared_with_zero()
-{
+fn compare_with_accumulator_clears_zero_when_compared_with_zero() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Carry, true);
@@ -2212,8 +2184,7 @@ fn compare_with_accumulator_clears_zero_when_compared_with_zero()
 }
 
 #[test]
-fn compare_with_accumulator_clears_zero()
-{
+fn compare_with_accumulator_clears_zero() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Zero, true);
@@ -2226,8 +2197,7 @@ fn compare_with_accumulator_clears_zero()
 }
 
 #[test]
-fn compare_with_accumulator_sets_zero()
-{
+fn compare_with_accumulator_sets_zero() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0x0A);
@@ -2238,8 +2208,7 @@ fn compare_with_accumulator_sets_zero()
 }
 
 #[test]
-fn compare_with_accumulator_clears_sign()
-{
+fn compare_with_accumulator_clears_sign() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_flag(Intel8080Flag::Sign, true);
@@ -2251,8 +2220,7 @@ fn compare_with_accumulator_clears_sign()
 }
 
 #[test]
-fn compare_with_accumulator_sets_sign()
-{
+fn compare_with_accumulator_sets_sign() {
     let mut e = Intel8080Emulator::new_for_test();
 
     e.set_register(Intel8080Register::A, 0x0A);
@@ -2263,8 +2231,7 @@ fn compare_with_accumulator_sets_sign()
 }
 
 #[test]
-fn rotate_accumulator_left_carry_set()
-{
+fn rotate_accumulator_left_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b10100111);
     e.rotate_accumulator_left();
@@ -2274,8 +2241,7 @@ fn rotate_accumulator_left_carry_set()
 }
 
 #[test]
-fn rotate_accumulator_left_carry_cleared()
-{
+fn rotate_accumulator_left_carry_cleared() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0b00100111);
@@ -2286,8 +2252,7 @@ fn rotate_accumulator_left_carry_cleared()
 }
 
 #[test]
-fn rotate_accumulator_right_carry_set()
-{
+fn rotate_accumulator_right_carry_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b10100111);
     e.rotate_accumulator_right();
@@ -2297,8 +2262,7 @@ fn rotate_accumulator_right_carry_set()
 }
 
 #[test]
-fn rotate_accumulator_right_carry_cleared()
-{
+fn rotate_accumulator_right_carry_cleared() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0b10100110);
@@ -2309,8 +2273,7 @@ fn rotate_accumulator_right_carry_cleared()
 }
 
 #[test]
-fn rotate_accumulator_left_through_carry_and_carry_set_to_reset()
-{
+fn rotate_accumulator_left_through_carry_and_carry_set_to_reset() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0b01100111);
@@ -2321,8 +2284,7 @@ fn rotate_accumulator_left_through_carry_and_carry_set_to_reset()
 }
 
 #[test]
-fn rotate_accumulator_left_through_carry_and_carry_stays_set()
-{
+fn rotate_accumulator_left_through_carry_and_carry_stays_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0b10100111);
@@ -2333,8 +2295,7 @@ fn rotate_accumulator_left_through_carry_and_carry_stays_set()
 }
 
 #[test]
-fn rotate_accumulator_left_through_carry_and_carry_reset_to_set()
-{
+fn rotate_accumulator_left_through_carry_and_carry_reset_to_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b10100111);
     e.rotate_accumulator_left_through_carry();
@@ -2344,8 +2305,7 @@ fn rotate_accumulator_left_through_carry_and_carry_reset_to_set()
 }
 
 #[test]
-fn rotate_accumulator_left_through_carry_and_carry_stays_reset()
-{
+fn rotate_accumulator_left_through_carry_and_carry_stays_reset() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b00100111);
     e.rotate_accumulator_left_through_carry();
@@ -2355,8 +2315,7 @@ fn rotate_accumulator_left_through_carry_and_carry_stays_reset()
 }
 
 #[test]
-fn rotate_accumulator_right_through_carry_and_carry_set_to_unset()
-{
+fn rotate_accumulator_right_through_carry_and_carry_set_to_unset() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0b10100110);
@@ -2367,8 +2326,7 @@ fn rotate_accumulator_right_through_carry_and_carry_set_to_unset()
 }
 
 #[test]
-fn rotate_accumulator_right_through_carry_and_carry_stays_set()
-{
+fn rotate_accumulator_right_through_carry_and_carry_stays_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.set_register(Intel8080Register::A, 0b10100111);
@@ -2379,8 +2337,7 @@ fn rotate_accumulator_right_through_carry_and_carry_stays_set()
 }
 
 #[test]
-fn rotate_accumulator_right_through_carry_and_carry_reset_to_set()
-{
+fn rotate_accumulator_right_through_carry_and_carry_reset_to_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b10100111);
     e.rotate_accumulator_right_through_carry();
@@ -2390,8 +2347,7 @@ fn rotate_accumulator_right_through_carry_and_carry_reset_to_set()
 }
 
 #[test]
-fn rotate_accumulator_right_through_carry_and_carry_stays_reset()
-{
+fn rotate_accumulator_right_through_carry_and_carry_stays_reset() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0b10100110);
     e.rotate_accumulator_right_through_carry();
@@ -2401,8 +2357,7 @@ fn rotate_accumulator_right_through_carry_and_carry_stays_reset()
 }
 
 #[test]
-fn push_when_sp_zero()
-{
+fn push_when_sp_zero() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::SP, 0);
     e.set_register_pair(Intel8080Register::B, 0xFBEE);
@@ -2411,8 +2366,7 @@ fn push_when_sp_zero()
 }
 
 #[test]
-fn pop_when_sp_ffff()
-{
+fn pop_when_sp_ffff() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::SP, 0xFFFF);
     e.pop_data_off_stack(Intel8080Register::B);
@@ -2420,8 +2374,7 @@ fn pop_when_sp_ffff()
 }
 
 #[test]
-fn push_register_pair_onto_stack()
-{
+fn push_register_pair_onto_stack() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::B, 0x34);
     e.set_register(Intel8080Register::C, 0xA7);
@@ -2433,8 +2386,7 @@ fn push_register_pair_onto_stack()
 }
 
 #[test]
-fn push_psw_onto_stack()
-{
+fn push_psw_onto_stack() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::PSW, 0x34FF);
     e.set_register_pair(Intel8080Register::SP, 0x20);
@@ -2445,8 +2397,7 @@ fn push_psw_onto_stack()
 }
 
 #[test]
-fn pop_register_pair_from_stack()
-{
+fn pop_register_pair_from_stack() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_memory(0x20, 0xF2);
     e.set_memory(0x20 + 1, 0x78);
@@ -2457,8 +2408,7 @@ fn pop_register_pair_from_stack()
 }
 
 #[test]
-fn pop_psw_from_stack()
-{
+fn pop_psw_from_stack() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_memory(0x20, 0xFF);
     e.set_memory(0x20 + 1, 0x78);
@@ -2469,8 +2419,7 @@ fn pop_psw_from_stack()
 }
 
 #[test]
-fn double_add()
-{
+fn double_add() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xABCD);
     e.set_register_pair(Intel8080Register::B, 0x1001);
@@ -2479,8 +2428,7 @@ fn double_add()
 }
 
 #[test]
-fn double_add_updates_carry()
-{
+fn double_add_updates_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xFBCD);
     e.set_register_pair(Intel8080Register::B, 0x1000);
@@ -2489,8 +2437,7 @@ fn double_add_updates_carry()
 }
 
 #[test]
-fn increment_register_pair()
-{
+fn increment_register_pair() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xFBCD);
     e.increment_register_pair(Intel8080Register::H);
@@ -2498,8 +2445,7 @@ fn increment_register_pair()
 }
 
 #[test]
-fn increment_register_pair_doesnt_update_carry()
-{
+fn increment_register_pair_doesnt_update_carry() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xFFFF);
     e.increment_register_pair(Intel8080Register::H);
@@ -2507,8 +2453,7 @@ fn increment_register_pair_doesnt_update_carry()
 }
 
 #[test]
-fn decrement_register_pair()
-{
+fn decrement_register_pair() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xFBCD);
     e.decrement_register_pair(Intel8080Register::H);
@@ -2516,8 +2461,7 @@ fn decrement_register_pair()
 }
 
 #[test]
-fn exchange_registers()
-{
+fn exchange_registers() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xFBCD);
     e.set_register_pair(Intel8080Register::D, 0x1122);
@@ -2527,8 +2471,7 @@ fn exchange_registers()
 }
 
 #[test]
-fn exchange_stack()
-{
+fn exchange_stack() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::SP, 0x1234);
     e.set_memory(0x1234, 0xBB);
@@ -2544,8 +2487,7 @@ fn exchange_stack()
 }
 
 #[test]
-fn load_sp_from_h_and_l()
-{
+fn load_sp_from_h_and_l() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0xDDEE);
     e.load_sp_from_h_and_l();
@@ -2553,24 +2495,21 @@ fn load_sp_from_h_and_l()
 }
 
 #[test]
-fn load_register_pair_immediate()
-{
+fn load_register_pair_immediate() {
     let mut e = Intel8080Emulator::new_for_test();
     e.load_register_pair_immediate(Intel8080Register::B, 0x1234);
     assert_eq!(e.read_register_pair(Intel8080Register::B), 0x1234);
 }
 
 #[test]
-fn move_immediate_data()
-{
+fn move_immediate_data() {
     let mut e = Intel8080Emulator::new_for_test();
     e.move_immediate_data(Intel8080Register::E, 0xF1);
     assert_eq!(e.read_register(Intel8080Register::E), 0xF1);
 }
 
 #[test]
-fn store_accumulator_direct()
-{
+fn store_accumulator_direct() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register(Intel8080Register::A, 0x8F);
     e.store_accumulator_direct(0x1234);
@@ -2578,8 +2517,7 @@ fn store_accumulator_direct()
 }
 
 #[test]
-fn load_accumulator_direct()
-{
+fn load_accumulator_direct() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_memory(0x1234, 0x8F);
     e.load_accumulator_direct(0x1234);
@@ -2587,8 +2525,7 @@ fn load_accumulator_direct()
 }
 
 #[test]
-fn store_h_and_l_direct()
-{
+fn store_h_and_l_direct() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0x1234);
     e.store_h_and_l_direct(0x8888);
@@ -2597,8 +2534,7 @@ fn store_h_and_l_direct()
 }
 
 #[test]
-fn load_h_and_l_direct()
-{
+fn load_h_and_l_direct() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_memory(0x8889, 0x12);
     e.set_memory(0x8888, 0x34);
@@ -2607,8 +2543,7 @@ fn load_h_and_l_direct()
 }
 
 #[test]
-fn store_and_load_h_and_l()
-{
+fn store_and_load_h_and_l() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0x1234);
     e.store_h_and_l_direct(0x8888);
@@ -2618,8 +2553,7 @@ fn store_and_load_h_and_l()
 }
 
 #[test]
-fn load_program_counter()
-{
+fn load_program_counter() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::H, 0x1234);
     e.load_program_counter();
@@ -2627,16 +2561,14 @@ fn load_program_counter()
 }
 
 #[test]
-fn jump()
-{
+fn jump() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn jump_if_carry_when_carry_is_set()
-{
+fn jump_if_carry_when_carry_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.jump_if_carry(0x1234);
@@ -2644,15 +2576,13 @@ fn jump_if_carry_when_carry_is_set()
 }
 
 #[test]
-fn jump_if_carry_when_carry_is_not_set()
-{
+fn jump_if_carry_when_carry_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_carry(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 #[test]
-fn jump_if_no_carry_when_carry_is_set()
-{
+fn jump_if_no_carry_when_carry_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.jump_if_no_carry(0x1234);
@@ -2660,16 +2590,14 @@ fn jump_if_no_carry_when_carry_is_set()
 }
 
 #[test]
-fn jump_if_no_carry_when_carry_is_not_set()
-{
+fn jump_if_no_carry_when_carry_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_no_carry(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn jump_if_zero_when_zero_is_set()
-{
+fn jump_if_zero_when_zero_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Zero, true);
     e.jump_if_zero(0x1234);
@@ -2677,15 +2605,13 @@ fn jump_if_zero_when_zero_is_set()
 }
 
 #[test]
-fn jump_if_zero_when_zero_is_not_set()
-{
+fn jump_if_zero_when_zero_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_zero(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 #[test]
-fn jump_if_not_zero_when_zero_is_set()
-{
+fn jump_if_not_zero_when_zero_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Zero, true);
     e.jump_if_not_zero(0x1234);
@@ -2693,16 +2619,14 @@ fn jump_if_not_zero_when_zero_is_set()
 }
 
 #[test]
-fn jump_if_not_zero_when_zero_is_not_set()
-{
+fn jump_if_not_zero_when_zero_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_not_zero(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn jump_if_minus_when_sign_is_set()
-{
+fn jump_if_minus_when_sign_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Sign, true);
     e.jump_if_minus(0x1234);
@@ -2710,15 +2634,13 @@ fn jump_if_minus_when_sign_is_set()
 }
 
 #[test]
-fn jump_if_minus_when_sign_is_not_set()
-{
+fn jump_if_minus_when_sign_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_minus(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 #[test]
-fn jump_if_positive_when_sign_is_set()
-{
+fn jump_if_positive_when_sign_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Sign, true);
     e.jump_if_positive(0x1234);
@@ -2726,16 +2648,14 @@ fn jump_if_positive_when_sign_is_set()
 }
 
 #[test]
-fn jump_if_positive_when_sign_is_not_set()
-{
+fn jump_if_positive_when_sign_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_positive(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn jump_if_parity_even_when_parity_is_set()
-{
+fn jump_if_parity_even_when_parity_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Parity, true);
     e.jump_if_parity_even(0x1234);
@@ -2743,15 +2663,13 @@ fn jump_if_parity_even_when_parity_is_set()
 }
 
 #[test]
-fn jump_if_parity_even_when_parity_is_not_set()
-{
+fn jump_if_parity_even_when_parity_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_parity_even(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 #[test]
-fn jump_if_parity_odd_when_parity_is_set()
-{
+fn jump_if_parity_odd_when_parity_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Parity, true);
     e.jump_if_parity_odd(0x1234);
@@ -2759,16 +2677,14 @@ fn jump_if_parity_odd_when_parity_is_set()
 }
 
 #[test]
-fn jump_if_parity_odd_when_parity_is_not_set()
-{
+fn jump_if_parity_odd_when_parity_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.jump_if_parity_odd(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn call()
-{
+fn call() {
     let mut e = Intel8080Emulator::new_for_test();
     e.program_counter = 0xFF88;
     e.call(0x1234);
@@ -2777,8 +2693,7 @@ fn call()
 }
 
 #[test]
-fn call_if_carry_when_carry_is_set()
-{
+fn call_if_carry_when_carry_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.call_if_carry(0x1234);
@@ -2786,16 +2701,14 @@ fn call_if_carry_when_carry_is_set()
 }
 
 #[test]
-fn call_if_carry_when_carry_is_not_set()
-{
+fn call_if_carry_when_carry_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.call_if_carry(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 
 #[test]
-fn call_if_zero_when_zero_is_set()
-{
+fn call_if_zero_when_zero_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Zero, true);
     e.call_if_zero(0x1234);
@@ -2803,16 +2716,14 @@ fn call_if_zero_when_zero_is_set()
 }
 
 #[test]
-fn call_if_zero_when_zero_is_not_set()
-{
+fn call_if_zero_when_zero_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.call_if_zero(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 
 #[test]
-fn call_if_minus_when_sign_is_set()
-{
+fn call_if_minus_when_sign_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Sign, true);
     e.call_if_minus(0x1234);
@@ -2820,16 +2731,14 @@ fn call_if_minus_when_sign_is_set()
 }
 
 #[test]
-fn call_if_minus_when_sign_is_not_set()
-{
+fn call_if_minus_when_sign_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.call_if_minus(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 
 #[test]
-fn call_if_plus_when_sign_is_set()
-{
+fn call_if_plus_when_sign_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Sign, true);
     e.call_if_plus(0x1234);
@@ -2837,16 +2746,14 @@ fn call_if_plus_when_sign_is_set()
 }
 
 #[test]
-fn call_if_plus_when_sign_is_not_set()
-{
+fn call_if_plus_when_sign_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.call_if_plus(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn call_if_parity_even_when_parity_is_set()
-{
+fn call_if_parity_even_when_parity_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Parity, true);
     e.call_if_parity_even(0x1234);
@@ -2854,16 +2761,14 @@ fn call_if_parity_even_when_parity_is_set()
 }
 
 #[test]
-fn call_if_parity_even_when_parity_is_not_set()
-{
+fn call_if_parity_even_when_parity_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.call_if_parity_even(0x1234);
     assert_eq!(e.program_counter, 0x0);
 }
 
 #[test]
-fn call_if_parity_odd_when_parity_is_set()
-{
+fn call_if_parity_odd_when_parity_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Parity, true);
     e.call_if_parity_odd(0x1234);
@@ -2871,16 +2776,14 @@ fn call_if_parity_odd_when_parity_is_set()
 }
 
 #[test]
-fn call_if_parity_odd_when_parity_is_not_set()
-{
+fn call_if_parity_odd_when_parity_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.call_if_parity_odd(0x1234);
     assert_eq!(e.program_counter, 0x1234);
 }
 
 #[test]
-fn return_unconditionally()
-{
+fn return_unconditionally() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_register_pair(Intel8080Register::SP, 0x0400);
     e.push_u16_onto_stack(0x22FF);
@@ -2890,8 +2793,7 @@ fn return_unconditionally()
 }
 
 #[test]
-fn return_if_carry_when_carry_is_set()
-{
+fn return_if_carry_when_carry_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.push_u16_onto_stack(0x22FF);
@@ -2900,8 +2802,7 @@ fn return_if_carry_when_carry_is_set()
 }
 
 #[test]
-fn return_if_carry_when_carry_is_not_set()
-{
+fn return_if_carry_when_carry_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_carry();
@@ -2909,8 +2810,7 @@ fn return_if_carry_when_carry_is_not_set()
 }
 
 #[test]
-fn return_if_no_carry_when_carry_is_set()
-{
+fn return_if_no_carry_when_carry_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Carry, true);
     e.push_u16_onto_stack(0x22FF);
@@ -2919,8 +2819,7 @@ fn return_if_no_carry_when_carry_is_set()
 }
 
 #[test]
-fn return_if_no_carry_when_carry_is_not_set()
-{
+fn return_if_no_carry_when_carry_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_no_carry();
@@ -2928,8 +2827,7 @@ fn return_if_no_carry_when_carry_is_not_set()
 }
 
 #[test]
-fn return_if_zero_when_zero_is_set()
-{
+fn return_if_zero_when_zero_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Zero, true);
     e.push_u16_onto_stack(0x22FF);
@@ -2938,8 +2836,7 @@ fn return_if_zero_when_zero_is_set()
 }
 
 #[test]
-fn return_if_zero_when_zero_is_not_set()
-{
+fn return_if_zero_when_zero_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_zero();
@@ -2947,8 +2844,7 @@ fn return_if_zero_when_zero_is_not_set()
 }
 
 #[test]
-fn return_if_not_zero_when_zero_is_set()
-{
+fn return_if_not_zero_when_zero_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Zero, true);
     e.push_u16_onto_stack(0x22FF);
@@ -2957,8 +2853,7 @@ fn return_if_not_zero_when_zero_is_set()
 }
 
 #[test]
-fn return_if_not_zero_when_zero_is_not_set()
-{
+fn return_if_not_zero_when_zero_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_not_zero();
@@ -2966,8 +2861,7 @@ fn return_if_not_zero_when_zero_is_not_set()
 }
 
 #[test]
-fn return_if_minus_when_sign_is_set()
-{
+fn return_if_minus_when_sign_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Sign, true);
     e.push_u16_onto_stack(0x22FF);
@@ -2976,8 +2870,7 @@ fn return_if_minus_when_sign_is_set()
 }
 
 #[test]
-fn return_if_minus_when_sign_is_not_set()
-{
+fn return_if_minus_when_sign_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_minus();
@@ -2985,8 +2878,7 @@ fn return_if_minus_when_sign_is_not_set()
 }
 
 #[test]
-fn return_if_plus_when_sign_is_set()
-{
+fn return_if_plus_when_sign_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Sign, true);
     e.push_u16_onto_stack(0x22FF);
@@ -2995,8 +2887,7 @@ fn return_if_plus_when_sign_is_set()
 }
 
 #[test]
-fn return_if_plus_when_sign_is_not_set()
-{
+fn return_if_plus_when_sign_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_plus();
@@ -3004,8 +2895,7 @@ fn return_if_plus_when_sign_is_not_set()
 }
 
 #[test]
-fn return_if_parity_even_when_parity_is_set()
-{
+fn return_if_parity_even_when_parity_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Parity, true);
     e.push_u16_onto_stack(0x22FF);
@@ -3014,8 +2904,7 @@ fn return_if_parity_even_when_parity_is_set()
 }
 
 #[test]
-fn return_if_parity_even_when_parity_is_not_set()
-{
+fn return_if_parity_even_when_parity_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_parity_even();
@@ -3023,8 +2912,7 @@ fn return_if_parity_even_when_parity_is_not_set()
 }
 
 #[test]
-fn return_if_parity_odd_when_parity_is_set()
-{
+fn return_if_parity_odd_when_parity_is_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.set_flag(Intel8080Flag::Parity, true);
     e.push_u16_onto_stack(0x22FF);
@@ -3033,8 +2921,7 @@ fn return_if_parity_odd_when_parity_is_set()
 }
 
 #[test]
-fn return_if_parity_odd_when_parity_is_not_set()
-{
+fn return_if_parity_odd_when_parity_is_not_set() {
     let mut e = Intel8080Emulator::new_for_test();
     e.push_u16_onto_stack(0x22FF);
     e.return_if_parity_odd();
@@ -3042,32 +2929,28 @@ fn return_if_parity_odd_when_parity_is_not_set()
 }
 
 #[test]
-fn restart_one()
-{
+fn restart_one() {
     let mut e = Intel8080Emulator::new_for_test();
     e.restart(1);
     assert_eq!(e.program_counter, 1 << 3);
 }
 
 #[test]
-fn restart_seven()
-{
+fn restart_seven() {
     let mut e = Intel8080Emulator::new_for_test();
     e.restart(7);
     assert_eq!(e.program_counter, 7 << 3);
 }
 
 #[test]
-fn disable_interrupts()
-{
+fn disable_interrupts() {
     let mut e = Intel8080Emulator::new_for_test();
     e.disable_interrupts();
     assert!(!e.interrupts_enabled);
 }
 
 #[test]
-fn enable_interrupts()
-{
+fn enable_interrupts() {
     let mut e = Intel8080Emulator::new_for_test();
     e.interrupts_enabled = false;
     e.enable_interrupts();
@@ -3083,12 +2966,11 @@ fn enable_interrupts()
  */
 
 impl<'a> Intel8080Emulator<'a> {
-    pub fn run_one_instruction(&mut self)
-    {
+    pub fn run_one_instruction(&mut self) {
         let pc = self.program_counter as usize;
         let instruction = match get_intel8080_instruction(&self.main_memory[pc..]) {
             Some(res) => res,
-            None => panic!("Unknown Opcode {}", self.main_memory[pc])
+            None => panic!("Unknown Opcode {}", self.main_memory[pc]),
         };
 
         self.program_counter += instruction.len() as u16;
@@ -3096,8 +2978,7 @@ impl<'a> Intel8080Emulator<'a> {
         dispatch_intel8080_instruction(&instruction, self);
     }
 
-    pub fn run(&mut self)
-    {
+    pub fn run(&mut self) {
         self.program_counter = ROM_ADDRESS as u16;
         while self.program_counter != 0 {
             self.run_one_instruction();
@@ -3124,8 +3005,7 @@ use std::io::{self, Read};
 use std::str;
 
 #[cfg(test)]
-fn console_print(e: &mut Intel8080Emulator, stream: &mut io::Write)
-{
+fn console_print(e: &mut Intel8080Emulator, stream: &mut io::Write) {
     match e.read_register(Intel8080Register::C) {
         9 => {
             let mut msg_addr = e.read_register_pair(Intel8080Register::D) as usize;
@@ -3133,11 +3013,11 @@ fn console_print(e: &mut Intel8080Emulator, stream: &mut io::Write)
                 write!(stream, "{}", e.main_memory[msg_addr] as char).unwrap();
                 msg_addr += 1;
             }
-        },
+        }
         2 => {
             write!(stream, "{}", e.read_register(Intel8080Register::E) as char).unwrap();
-        },
-        op => panic!("{} unknown print operation", op)
+        }
+        op => panic!("{} unknown print operation", op),
     }
 }
 
@@ -3149,7 +3029,7 @@ fn console_print(e: &mut Intel8080Emulator, stream: &mut io::Write)
 #[test]
 fn cpu_diagnostic_8080() {
     // Load up the ROM
-    let mut rom : Vec<u8> = vec![];
+    let mut rom: Vec<u8> = vec![];
     {
         let mut file = File::open("cpudiag.bin").unwrap();
         file.read_to_end(&mut rom).unwrap();

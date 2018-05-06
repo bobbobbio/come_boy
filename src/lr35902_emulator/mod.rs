@@ -67,7 +67,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
-            elapsed_cycles: 0,
+            elapsed_cycles: 102348,
             crash_message: None
         };
 
