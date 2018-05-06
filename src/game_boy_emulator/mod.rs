@@ -700,7 +700,7 @@ impl<'a> LCDController<'a> {
          * Update the LY register which represents the line being draw currently.
          */
         let ly = self.ly.read_value();
-        if ly == 153 {
+        if ly == 154 {
             self.ly.set_value(0);
         } else {
             self.ly.set_value(ly + 1);
@@ -974,7 +974,7 @@ impl<'a> GameBoyEmulator<'a> {
 
         let current_clock = self.cpu.elapsed_cycles;
 
-        if current_clock - self.last_draw > 40 {
+        if current_clock - self.last_draw >= 456 {
             self.lcd_controller.draw_one_line();
             self.lcd_controller.process_interrupts(&mut self.interrupt_flag);
             self.last_draw = current_clock;
@@ -1033,7 +1033,7 @@ impl<'a> GameBoyEmulator<'a> {
          * a very certain state. Since this is always the case, certain games may rely on this fact
          * (and indeed often times do.)
          */
-        self.cpu.set_register(Intel8080Register::A, 0x11);
+        self.cpu.set_register(Intel8080Register::A, 0x1);
         self.cpu.set_register(Intel8080Register::B, 0x0);
         self.cpu.set_register(Intel8080Register::C, 0x13);
         self.cpu.set_register(Intel8080Register::D, 0x0);
@@ -1145,7 +1145,7 @@ fn initial_state_test()
     let e = GameBoyEmulator::new();
 
     // Lock down the initial state.
-    assert_eq!(e.hash(), 2735489010);
+    assert_eq!(e.hash(), 1432835933);
 }
 
 /*  ____  _                         _____         _     ____   ___  __  __
