@@ -1,8 +1,9 @@
 # Copyright 2017 Remi Bernotavicius
 
 import json
-import textwrap
 import os
+import subprocess
+import textwrap
 
 SRC_PATH = os.path.dirname(os.path.realpath(__file__))
 while os.path.basename(SRC_PATH) != 'src':
@@ -395,3 +396,5 @@ def generate_opcode_rs(path, instruction_set_name):
         generator = OpcodeCodeGenerator(
             out_file, opcode_dict, instruction_set_name, module_path)
         generator.generate()
+
+    subprocess.check_call(['rustfmt', output_file])
