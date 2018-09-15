@@ -216,7 +216,9 @@ impl MemoryChunk {
     }
 
     fn release(&mut self) {
-        assert!(self.borrower);
+        if self.borrower == false {
+            return;
+        }
         self.borrower = false;
 
         let (ref mut borrowed, _) = *self.value.borrow_mut();
@@ -584,7 +586,8 @@ impl LCDDotData {
         }
     }
 
-    fn draw(&self, renderer: &mut sdl2::render::Renderer, x: i32, y: i32, ly: u8) {
+    fn draw_line(&self, renderer: &mut sdl2::render::Renderer, x: i32, y: i32, ly: u8) {
+        /*
         for (p, shade) in self.data.iter().enumerate() {
             let (offset_x, offset_y) = ((p as u8 % CHARACTER_SIZE), (p as u8 / CHARACTER_SIZE));
             if y + offset_y as i32 == ly as i32 {
@@ -598,6 +601,24 @@ impl LCDDotData {
                 renderer.set_draw_color(color);
                 renderer.fill_rect(rect).unwrap();
             }
+        }
+        */
+        assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
+
+        let target_line = ly as i32 - y;
+        let start_pixel = (target_line * CHARACTER_SIZE as i32) as usize;
+        let end_pixel = start_pixel + CHARACTER_SIZE as usize;
+        let iter = self.data[start_pixel..end_pixel].iter().enumerate();
+        for (offset_x, &shade) in iter {
+            let rect = sdl2::rect::Rect::new(
+                (x + offset_x as i32) * PIXEL_SCALE as i32,
+                ly as i32 * PIXEL_SCALE as i32,
+                PIXEL_SCALE,
+                PIXEL_SCALE,
+            );
+            let color = color_for_shade(shade);
+            renderer.set_draw_color(color);
+            renderer.fill_rect(rect).unwrap();
         }
     }
 }
@@ -781,7 +802,7 @@ impl<'a> LCDController<'a> {
         self.crash_message.is_some()
     }
 
-    fn draw(&mut self) {
+    fn check_for_screen_close(&mut self) {
         if self.renderer.is_none() {
             return;
         }
@@ -790,50 +811,101 @@ impl<'a> LCDController<'a> {
             match event {
                 sdl2::event::Event::Quit { .. } => {
                     self.crash_message = Some(String::from("Screen Closed"));
-                    return;
                 }
                 _ => {}
             }
         }
+    }
+
+    fn clear_line(&mut self, ly: u8) {
+        let rect = sdl2::rect::Rect::new(
+            0,
+            ly as i32 * PIXEL_SCALE as i32,
+            200 * PIXEL_SCALE,
+            PIXEL_SCALE,
+        );
+        let color = color_for_shade(LCDBGShade::Shade0);
+        self.renderer.as_mut().unwrap().set_draw_color(color);
+        self.renderer.as_mut().unwrap().fill_rect(rect).unwrap();
+    }
+
+    fn draw_bg_data(&mut self) {
+        if self.renderer.is_none() {
+            return;
+        }
+
+        let ly = self.registers.ly.read_value();
+
+        self.clear_line(ly);
 
         let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
+
+        if scroll_y > ly as i32 {
+            return;
+        }
 
         let iter = match self.read_lcd_control_flag(LCDControlFlag::BGCodeAreaSelection) {
             false => MemoryChunkIterator::new(&self.background_display_data_1),
             true => MemoryChunkIterator::new(&self.background_display_data_2),
-        }.enumerate();
+        };
 
-        let ly = self.registers.ly.read_value();
+        let tile_y = (ly as i32 - scroll_y) / CHARACTER_SIZE as i32;
+        let iter = iter.skip(tile_y as usize * CHARACTER_AREA_SIZE as usize)
+            .take(CHARACTER_AREA_SIZE as usize)
+            .enumerate();
 
-        for (c, character_code) in iter {
+        for (tile_x, character_code) in iter {
             let character_data = self.read_dot_data(character_code);
-            let character_x =
-                scroll_x + ((c as u16 % CHARACTER_AREA_SIZE) as u8 * CHARACTER_SIZE) as i32;
-            let character_y =
-                scroll_y + ((c as u16 / CHARACTER_AREA_SIZE) as u8 * CHARACTER_SIZE) as i32;
-            character_data.draw(
+            character_data.draw_line(
                 self.renderer.as_mut().unwrap(),
-                character_x,
-                character_y,
+                scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32),
+                scroll_y + (tile_y as i32 * CHARACTER_SIZE as i32),
                 ly,
             );
         }
+    }
+
+    #[allow(dead_code)]
+    fn draw_oam_data(&mut self) {
+        if self.renderer.is_none() {
+            return;
+        }
+
+        let ly = self.registers.ly.read_value();
 
         let (window_x, window_y) = self.get_window_origin_relative_to_lcd();
         let iter = LCDObjectIterator::new(&self.oam_data);
         for object in iter {
             let character_data = self.read_dot_data(object.character_code);
-            character_data.draw(
+            character_data.draw_line(
                 self.renderer.as_mut().unwrap(),
                 window_x + object.x_coordinate as i32,
                 window_y + object.y_coordinate as i32,
                 ly,
             );
         }
+    }
 
-        if ly == 143 {
-            self.renderer.as_mut().unwrap().present();
+    fn update_screen(&mut self) {
+        /*
+        self.renderer.as_mut().unwrap().clear();
+
+        for ly in 0..143 {
+            for character_code in 0..100 {
+                let character_data = self.read_dot_data(character_code);
+                let x_coordinate = (character_code % 16) * CHARACTER_SIZE;
+                let y_coordinate = (character_code / 16) * CHARACTER_SIZE;
+                character_data.draw_line(
+                    self.renderer.as_mut().unwrap(),
+                    x_coordinate as i32,
+                    y_coordinate as i32,
+                    ly,
+                );
+            }
         }
+        */
+
+        self.renderer.as_mut().unwrap().present();
     }
 
     // The LCD modes happen like this:
@@ -847,27 +919,27 @@ impl<'a> LCDController<'a> {
     // Mode 1 lasts for 4560 cycles.
 
     fn mode_2(&mut self, time: u64) {
-        if self.registers.ly.read_value() < 144 {
+        if self.read_lcd_control_flag(LCDControlFlag::OperationStop) {
             self.oam_data.borrow();
             self.unusable_memory.borrow();
             self.set_lcd_status_mode(0x2);
-            self.draw();
         }
         self.scheduler.schedule(time + 77, Self::mode_3);
     }
 
     fn mode_3(&mut self, time: u64) {
-        if self.registers.ly.read_value() < 144 {
+        if self.read_lcd_control_flag(LCDControlFlag::OperationStop) {
             self.character_data.borrow();
             self.background_display_data_1.borrow();
             self.background_display_data_2.borrow();
+            self.draw_bg_data();
             self.set_lcd_status_mode(0x3);
         }
         self.scheduler.schedule(time + 175, Self::mode_0);
     }
 
     fn mode_0(&mut self, time: u64) {
-        if self.registers.ly.read_value() < 144 {
+        if self.read_lcd_control_flag(LCDControlFlag::OperationStop) {
             self.character_data.release();
             self.background_display_data_1.release();
             self.background_display_data_2.release();
@@ -875,17 +947,9 @@ impl<'a> LCDController<'a> {
             self.unusable_memory.release();
 
             self.set_lcd_status_mode(0x0);
+        }
 
-            // let interrupt_flag_value = interrupt_flag.read_value();
-            // interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::VerticalBlanking as u8);
-
-            // let ly = self.ly.read_value();
-            // let lyc = self.lyc.read_value();
-            // interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::LCDSTAT as u8);
-            // self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
-
-            // self.lcd_controller
-            //     .set_lcd_status_flag(LCDStatusFlag::LYMatch, ly == lyc);
+        if self.registers.ly.read_value() < 143 {
             self.scheduler.schedule(time + 204, Self::mode_2);
         } else {
             self.scheduler.schedule(time + 204, Self::mode_1);
@@ -895,11 +959,10 @@ impl<'a> LCDController<'a> {
     fn advance_ly(&mut self, time: u64) {
         // This advances the ly register, which represent the horizontal line that is currently
         // being drawn on the LCD.
+        self.registers.ly.add(1);
 
         if self.registers.ly.read_value() >= 153 {
             self.registers.ly.set_value(0);
-        } else {
-            self.registers.ly.add(1);
         }
 
         self.scheduler.schedule(time + 456, Self::advance_ly);
@@ -916,7 +979,12 @@ impl<'a> LCDController<'a> {
     }
 
     fn mode_1(&mut self, time: u64) {
-        self.set_lcd_status_mode(0x1);
+        if self.read_lcd_control_flag(LCDControlFlag::OperationStop) {
+            self.set_lcd_status_mode(0x1);
+            self.update_screen();
+        }
+
+        self.check_for_screen_close();
 
         self.scheduler.schedule(time + 4560, Self::mode_2);
     }
