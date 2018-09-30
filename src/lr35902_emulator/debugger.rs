@@ -3,10 +3,9 @@
 use std::fmt;
 use std::io::{self, Result};
 
-use emulator_common::{
-    Debugger, DebuggerOps, Intel8080Register, MemoryAccessor, MemoryStream, SimpleMemoryAccessor,
-    SimulatedInstruction,
-};
+use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
+use emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};
+use emulator_common::Intel8080Register;
 use lr35902_emulator::opcodes::{dispatch_lr35902_instruction, get_lr35902_instruction};
 use lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
 

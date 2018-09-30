@@ -5,7 +5,7 @@ use std::mem;
 
 mod opcode_gen;
 
-use emulator_common::{
+use emulator_common::disassembler::{
     Disassembler, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
     SimpleMemoryAccessor,
 };
@@ -14,7 +14,7 @@ pub use lr35902_emulator::opcodes::opcode_gen::{
 };
 
 #[cfg(test)]
-use emulator_common::do_disassembler_test;
+use emulator_common::disassembler::do_disassembler_test;
 
 pub struct LR35902InstructionPrinter<'a> {
     stream_out: &'a mut io::Write,

@@ -14,7 +14,7 @@ use std::ops::Range;
 use std::rc::Rc;
 
 pub use self::debugger::run_debugger;
-use emulator_common::{MemoryAccessor, MemoryDescription};
+use emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 
 pub use self::disassembler::disassemble_game_boy_rom;
@@ -678,7 +678,8 @@ impl<'a> LCDController<'a> {
             CHARACTER_DATA_1.start
         } else {
             CHARACTER_DATA_2.start
-        } as usize + character_code as usize * 16;
+        } as usize
+            + character_code as usize * 16;
 
         let mut iter = MemoryChunkIterator::new(&self.character_data)
             .skip(location)
@@ -853,7 +854,8 @@ impl<'a> LCDController<'a> {
         };
 
         let tile_y = (ly as i32 - scroll_y) / CHARACTER_SIZE as i32;
-        let iter = iter.skip(tile_y as usize * CHARACTER_AREA_SIZE as usize)
+        let iter = iter
+            .skip(tile_y as usize * CHARACTER_AREA_SIZE as usize)
             .take(CHARACTER_AREA_SIZE as usize)
             .enumerate();
 

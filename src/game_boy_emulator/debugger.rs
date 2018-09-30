@@ -1,7 +1,8 @@
 use std::io::{self, Result};
 use std::{fmt, str};
 
-use emulator_common::{Debugger, DebuggerOps, Disassembler, SimulatedInstruction};
+use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
+use emulator_common::disassembler::Disassembler;
 use game_boy_emulator::{
     GameBoyEmulator, GameBoyRegister, LCDControlFlag, LCDController, LCDStatusFlag,
 };

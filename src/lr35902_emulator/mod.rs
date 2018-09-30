@@ -7,9 +7,10 @@ mod opcodes;
 
 use std::mem;
 
-pub use emulator_common::{
-    Intel8080Register, MemoryAccessor, MemoryIterator, MemoryStream, SimpleMemoryAccessor,
+pub use emulator_common::disassembler::{
+    MemoryAccessor, MemoryIterator, MemoryStream, SimpleMemoryAccessor,
 };
+pub use emulator_common::Intel8080Register;
 use intel_8080_emulator::{Intel8080Flag, Intel8080InstructionSet, Intel8080InstructionSetOps};
 pub use lr35902_emulator::debugger::run_debugger;
 pub use lr35902_emulator::opcodes::disassemble_lr35902_rom;

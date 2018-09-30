@@ -5,7 +5,7 @@ use std::mem;
 
 mod opcode_gen;
 
-use emulator_common::{
+use emulator_common::disassembler::{
     Disassembler, InstructionPrinter, InstructionPrinterFactory, SimpleMemoryAccessor,
 };
 pub use intel_8080_emulator::opcodes::opcode_gen::{
@@ -13,7 +13,7 @@ pub use intel_8080_emulator::opcodes::opcode_gen::{
 };
 
 #[cfg(test)]
-use emulator_common::do_disassembler_test;
+use emulator_common::disassembler::do_disassembler_test;
 
 pub struct Intel8080InstructionPrinter<'a> {
     stream_out: &'a mut io::Write,

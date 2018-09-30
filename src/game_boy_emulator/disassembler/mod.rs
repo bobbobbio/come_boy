@@ -1,6 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
-use emulator_common::{Disassembler, MemoryAccessor, MemoryDescription};
+use emulator_common::disassembler::{Disassembler, MemoryAccessor, MemoryDescription};
 use std::io::{self, Result};
 
 mod rgbds_assembly;
@@ -14,7 +14,7 @@ use std::fmt::Write;
 use std::str;
 
 #[cfg(test)]
-use emulator_common::SimpleMemoryAccessor;
+use emulator_common::disassembler::SimpleMemoryAccessor;
 
 pub fn create_disassembler<'a>(
     memory_accessor: &'a MemoryAccessor,
