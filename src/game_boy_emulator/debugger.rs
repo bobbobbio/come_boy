@@ -3,11 +3,9 @@ use std::{fmt, str};
 
 use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use emulator_common::disassembler::Disassembler;
-use game_boy_emulator::{
-    GameBoyEmulator, GameBoyRegister, LCDControlFlag, LCDController, LCDStatusFlag,
-};
-
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
+use game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
+use game_boy_emulator::{GameBoyEmulator, GameBoyRegister};
 
 impl<'a> fmt::Debug for GameBoyEmulator<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

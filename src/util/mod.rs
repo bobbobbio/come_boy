@@ -1,5 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
+use std::collections::BTreeMap;
 use std::io::{self, Result};
 use std::{mem, slice};
 
@@ -150,4 +151,53 @@ fn super_fast_hash_example_4() {
 fn super_fast_hash_example_5() {
     let v = [0x45u8];
     assert_eq!(super_fast_hash(&v), 3114100952);
+}
+
+/*  ____       _              _       _
+ * / ___|  ___| |__   ___  __| |_   _| | ___ _ __
+ * \___ \ / __| '_ \ / _ \/ _` | | | | |/ _ \ '__|
+ *  ___) | (__| | | |  __/ (_| | |_| | |  __/ |
+ * |____/ \___|_| |_|\___|\__,_|\__,_|_|\___|_|
+ */
+
+#[derive(Default)]
+pub struct Scheduler<T> {
+    timeline: BTreeMap<u64, Vec<for<'r> fn(&'r mut T, u64)>>,
+}
+
+impl<T> Scheduler<T> {
+    pub fn new() -> Self {
+        Scheduler {
+            timeline: BTreeMap::new(),
+        }
+    }
+
+    pub fn schedule(&mut self, time: u64, event: for<'r> fn(&'r mut T, u64)) {
+        if !self.timeline.contains_key(&time) {
+            self.timeline.insert(time, Vec::new());
+        }
+        self.timeline.get_mut(&time).unwrap().push(event);
+    }
+
+    pub fn poll(&mut self, current_time: u64) -> Vec<(u64, for<'r> fn(&'r mut T, u64))> {
+        // Find the times that have happened and have events.
+        let mut times_to_remove = vec![];
+        for &time in self.timeline.keys() {
+            if time > current_time {
+                break;
+            }
+            times_to_remove.push(time);
+        }
+
+        // Collect all the events to deliver
+        let events = times_to_remove
+            .iter()
+            .map(|v| (*v, self.timeline.remove(v).unwrap()))
+            .fold(vec![], |mut s, (t, ref v)| {
+                s.append(&mut v.iter().map(|&v| (t, v)).collect());
+                return s;
+            });
+
+        return events;
+    }
 }
