@@ -143,6 +143,7 @@ impl<'a> MemoryAccessor for GameBoyMemoryMap {
 struct MemoryChunk {
     value: Rc<RefCell<(bool, Vec<u8>)>>,
     borrower: bool,
+    read_only: bool,
 }
 
 impl MemoryChunk {
@@ -151,10 +152,14 @@ impl MemoryChunk {
         MemoryChunk {
             value: Rc::new(RefCell::new((false, v))),
             borrower: false,
+            read_only: false,
         }
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
+        if self.read_only {
+            return;
+        }
         let (borrowed, ref mut data) = *self.value.borrow_mut();
         if !borrowed || self.borrower {
             data[address as usize] = value;
@@ -174,6 +179,15 @@ impl MemoryChunk {
         MemoryChunk {
             value: self.value.clone(),
             borrower: false,
+            read_only: self.read_only,
+        }
+    }
+
+    fn clone_read_only(&mut self) -> MemoryChunk {
+        MemoryChunk {
+            value: self.value.clone(),
+            borrower: false,
+            read_only: true,
         }
     }
 
@@ -587,22 +601,6 @@ impl LCDDotData {
     }
 
     fn draw_line(&self, renderer: &mut sdl2::render::Renderer, x: i32, y: i32, ly: u8) {
-        /*
-        for (p, shade) in self.data.iter().enumerate() {
-            let (offset_x, offset_y) = ((p as u8 % CHARACTER_SIZE), (p as u8 / CHARACTER_SIZE));
-            if y + offset_y as i32 == ly as i32 {
-                let rect = sdl2::rect::Rect::new(
-                    (x + offset_x as i32) * PIXEL_SCALE as i32,
-                    (y + offset_y as i32) * PIXEL_SCALE as i32,
-                    PIXEL_SCALE,
-                    PIXEL_SCALE,
-                );
-                let color = color_for_shade(*shade);
-                renderer.set_draw_color(color);
-                renderer.fill_rect(rect).unwrap();
-            }
-        }
-        */
         assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
 
         let target_line = ly as i32 - y;
@@ -742,6 +740,11 @@ impl<'a> LCDController<'a> {
     fn set_lcd_status_mode(&mut self, value: u8) {
         let stat = self.registers.stat.read_value() & !(LCDStatusFlag::Mode as u8);
         self.registers.stat.set_value(stat | value);
+    }
+
+    #[allow(dead_code)]
+    fn read_lcd_status_mode(&mut self) -> u8 {
+        self.registers.stat.read_value() & (LCDStatusFlag::Mode as u8)
     }
 
     fn set_state_post_bios(&mut self) {
@@ -887,23 +890,9 @@ impl<'a> LCDController<'a> {
     }
 
     fn update_screen(&mut self) {
-        /*
-        self.renderer.as_mut().unwrap().clear();
-
-        for ly in 0..143 {
-            for character_code in 0..100 {
-                let character_data = self.read_dot_data(character_code);
-                let x_coordinate = (character_code % 16) * CHARACTER_SIZE;
-                let y_coordinate = (character_code / 16) * CHARACTER_SIZE;
-                character_data.draw_line(
-                    self.renderer.as_mut().unwrap(),
-                    x_coordinate as i32,
-                    y_coordinate as i32,
-                    ly,
-                );
-            }
+        if self.renderer.is_none() {
+            return;
         }
-        */
 
         self.renderer.as_mut().unwrap().present();
     }
@@ -957,25 +946,39 @@ impl<'a> LCDController<'a> {
     }
 
     fn advance_ly(&mut self, time: u64) {
-        // This advances the ly register, which represent the horizontal line that is currently
+        // This advances the ly register, which represents the horizontal line that is currently
         // being drawn on the LCD.
         self.registers.ly.add(1);
 
-        if self.registers.ly.read_value() >= 153 {
+        // There are only 154 lines, so wrap back to zero after that.
+        if self.registers.ly.read_value() > 153 {
             self.registers.ly.set_value(0);
         }
 
-        self.scheduler.schedule(time + 456, Self::advance_ly);
-    }
+        // If we are drawing the last line, it only takes 8 cycles, otherwise it takes 456.
+        if self.registers.ly.read_value() == 153 {
+            self.scheduler.schedule(time + 8, Self::advance_ly);
+            self.scheduler.schedule(time + 12, Self::unknown_event);
+        } else if self.registers.ly.read_value() == 0 {
+            self.scheduler.schedule(time + 904, Self::advance_ly);
+        } else {
+            self.scheduler.schedule(time + 456, Self::advance_ly);
+        }
 
-    fn unknown_event(&mut self, time: u64) {
         self.set_lcd_status_flag(LCDStatusFlag::Unknown, false);
 
-        if self.registers.ly.read_value() < 144 {
+        if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
             self.oam_data.borrow();
             self.unusable_memory.borrow();
         }
-        self.scheduler.schedule(time + 456, Self::unknown_event);
+    }
+
+    fn unknown_event(&mut self, _time: u64) {
+        self.set_lcd_status_flag(LCDStatusFlag::Unknown, true);
+    }
+
+    fn unknown_event2(&mut self, _time: u64) {
+        self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
     }
 
     fn mode_1(&mut self, time: u64) {
@@ -986,7 +989,15 @@ impl<'a> LCDController<'a> {
 
         self.check_for_screen_close();
 
-        self.scheduler.schedule(time + 4560, Self::mode_2);
+        self.scheduler.schedule(time + 4552, Self::after_mode_1);
+    }
+
+    fn after_mode_1(&mut self, time: u64) {
+        self.set_lcd_status_mode(0x0);
+        self.oam_data.borrow();
+        self.unusable_memory.borrow();
+
+        self.scheduler.schedule(time + 8, Self::mode_2);
     }
 }
 
@@ -1161,9 +1172,10 @@ impl<'a> GameBoyEmulator<'a> {
         e.cpu
             .memory_accessor
             .map_chunk(0xFF01, e.registers.serial_transfer_data.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF02, e.registers.serial_transfer_control.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF02,
+            e.registers.serial_transfer_control.chunk.clone_read_only(),
+        );
 
         e.cpu
             .memory_accessor
@@ -1191,9 +1203,10 @@ impl<'a> GameBoyEmulator<'a> {
         e.cpu
             .memory_accessor
             .map_chunk(0xFF40, e.lcd_controller.registers.lcdc.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF41, e.lcd_controller.registers.stat.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF41,
+            e.lcd_controller.registers.stat.chunk.clone_read_only(),
+        );
         e.cpu
             .memory_accessor
             .map_chunk(0xFF42, e.lcd_controller.registers.scy.chunk.clone());
@@ -1247,6 +1260,8 @@ impl<'a> GameBoyEmulator<'a> {
         let elapsed_cycles = e.cpu.elapsed_cycles;
         e.scheduler
             .schedule(elapsed_cycles + 52, Self::divider_tick);
+        e.scheduler
+            .schedule(elapsed_cycles + 98584, Self::unknown_event);
 
         e.lcd_controller
             .scheduler
@@ -1254,12 +1269,16 @@ impl<'a> GameBoyEmulator<'a> {
         e.lcd_controller
             .scheduler
             .schedule(elapsed_cycles + 56 + 456, LCDController::advance_ly);
-
         e.lcd_controller
             .scheduler
-            .schedule(102860, LCDController::unknown_event);
+            .schedule(elapsed_cycles + 98648, LCDController::unknown_event2);
 
         return e;
+    }
+
+    fn unknown_event(&mut self, _time: u64) {
+        let value = self.registers.interrupt_flag.read_value();
+        self.registers.interrupt_flag.set_value(value | 0xE0);
     }
 
     fn load_rom(&mut self, rom: &[u8]) {

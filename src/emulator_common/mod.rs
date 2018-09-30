@@ -659,7 +659,7 @@ impl<'a> Debugger<'a> {
         self.logging = false;
     }
 
-    fn dispatch_command(&mut self, command: &str, is_interrupted: &Fn() -> bool) {
+    fn dispatch_command_inner(&mut self, command: &str, is_interrupted: &Fn() -> bool) {
         let mut iter = command.split_whitespace();
         let func = match iter.next() {
             None => "",
@@ -728,8 +728,15 @@ impl<'a> Debugger<'a> {
                 return;
             }
         }
+    }
 
-        self.last_command = String::from(func);
+    fn dispatch_command(&mut self, command: &str, is_interrupted: &Fn() -> bool) {
+        for command in command.split(" && ") {
+            self.dispatch_command_inner(command, is_interrupted);
+        }
+        if command != "" {
+            self.last_command = command.into();
+        }
     }
 
     fn process_command(&mut self, is_interrupted: &Fn() -> bool) {
