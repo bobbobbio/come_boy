@@ -1,8 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
 use std::collections::HashSet;
-use std::io::{self, Result};
-use std::str;
+use std::{error, fmt, io, num, result, str};
 
 #[cfg(test)]
 use std::collections::HashMap;
@@ -25,14 +24,51 @@ impl SimulatedInstruction {
 
 pub trait DebuggerOps {
     fn read_memory(&self, address: u16) -> u8;
-    fn format<'a>(&self, &mut io::Write) -> Result<()>;
+    fn format<'a>(&self, &mut io::Write) -> io::Result<()>;
     fn next(&mut self);
     fn simulate_next(&mut self, &mut SimulatedInstruction);
     fn read_program_counter(&self) -> u16;
     fn crashed(&self) -> Option<&String>;
     fn set_program_counter(&mut self, address: u16);
-    fn disassemble(&mut self, f: &mut io::Write) -> Result<()>;
+    fn disassemble(&mut self, f: &mut io::Write) -> io::Result<()>;
 }
+
+#[derive(Debug)]
+struct ParseError {
+    message: String,
+}
+
+impl ParseError {
+    fn new(message: String) -> Self {
+        ParseError { message }
+    }
+}
+
+impl error::Error for ParseError {
+    fn description(&self) -> &str {
+        &self.message
+    }
+
+    fn cause(&self) -> Option<&error::Error> {
+        None
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl From<num::ParseIntError> for ParseError {
+    fn from(e: num::ParseIntError) -> Self {
+        ParseError {
+            message: e.to_string(),
+        }
+    }
+}
+
+type Result<T> = result::Result<T, ParseError>;
 
 pub struct Debugger<'a> {
     emulator: &'a mut DebuggerOps,
@@ -153,20 +189,22 @@ impl<'a> Debugger<'a> {
         }
     }
 
-    fn read_address(&mut self, iter: &mut str::SplitWhitespace) -> Option<u16> {
+    fn parse_string<'b>(
+        &mut self,
+        iter: &mut Iterator<Item = &'b str>,
+        message: &str,
+    ) -> Result<&'b str> {
         match iter.next() {
-            None => {
-                writeln!(self.out, "provide an address").unwrap();
-                return None;
-            }
-            Some(x) => match u16::from_str_radix(x, 16) {
-                Err(_) => {
-                    writeln!(self.out, "{} is not a valid address", x).unwrap();
-                    return None;
-                }
-                Ok(x) => Some(x),
-            },
+            None => Err(ParseError::new(message.into())),
+            Some(x) => Ok(x),
         }
+    }
+
+    fn parse_address(&mut self, iter: &mut Iterator<Item = &str>) -> Result<u16> {
+        Ok(u16::from_str_radix(
+            self.parse_string(iter, "provide an address")?,
+            16,
+        )?)
     }
 
     fn examine_memory(&mut self, start_address: u16) {
@@ -199,84 +237,145 @@ impl<'a> Debugger<'a> {
         self.logging = false;
     }
 
-    fn dispatch_command_inner(&mut self, command: &str, is_interrupted: &Fn() -> bool) {
-        let mut iter = command.split_whitespace();
-        let func = match iter.next() {
-            None => "",
-            Some(x) => x,
-        };
-        match func {
-            "state" => self.state(),
-            "disassemble" => self.disassemble(),
-            "next" => self.next(iter.next().map_or(1, |v| v.parse().unwrap_or(1))),
-            "exit" => self.exit(),
-            "run" => self.run_emulator(is_interrupted),
-            "break" => match self.read_address(&mut iter) {
-                Some(address) => self.set_breakpoint(address),
-                None => {}
-            },
-            "watch" => match self.read_address(&mut iter) {
-                Some(address) => self.set_watchpoint(address),
-                None => {}
-            },
-            "logging" => match iter.next() {
-                Some("enable") => self.enable_logging(),
-                Some("disable") => self.disable_logging(),
-                _ => {
-                    writeln!(self.out, "Choices are 'enable' or 'disable'").unwrap();
-                    return;
-                }
-            },
-            "set" => {
-                match iter.next() {
-                    Some("pc") => {}
-                    Some(o) => {
-                        writeln!(self.out, "Unknown operand {}", o).unwrap();
-                        return;
-                    }
-                    None => {
-                        writeln!(self.out, "Missing operand").unwrap();
-                        return;
-                    }
-                }
-                match self.read_address(&mut iter) {
-                    Some(address) => self.emulator.set_program_counter(address),
-                    None => {
-                        writeln!(self.out, "Missing operand").unwrap();
-                        return;
-                    }
-                }
-            }
-            "x" => match self.read_address(&mut iter) {
-                Some(address) => self.examine_memory(address),
-                None => {
-                    writeln!(self.out, "Missing operand").unwrap();
-                    return;
-                }
-            },
-            "" => {
-                let c = self.last_command.clone();
-                if c == "" {
-                    writeln!(self.out, "empty command").unwrap();
-                } else {
-                    self.dispatch_command(&c, is_interrupted);
-                }
-                return;
-            }
-            _ => {
-                writeln!(self.out, "Unknown command {}", func).unwrap();
-                return;
-            }
+    fn parse_end(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        if iter.next().is_some() {
+            Err(ParseError::new("extra input".into()))
+        } else {
+            Ok(())
         }
     }
 
-    fn dispatch_command(&mut self, command: &str, is_interrupted: &Fn() -> bool) {
+    fn parse_state(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        self.parse_end(iter)?;
+        self.state();
+        Ok(())
+    }
+
+    fn parse_disassemble(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        self.parse_end(iter)?;
+        self.disassemble();
+        Ok(())
+    }
+
+    fn parse_next(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let mut times = 1;
+        if let Some(v) = iter.next() {
+            times = v.parse()?;
+        };
+        self.parse_end(iter)?;
+
+        if times == 0 {
+            return Err(ParseError::new("invalid argument".into()));
+        }
+        self.next(times);
+        Ok(())
+    }
+
+    fn parse_exit(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        self.parse_end(iter)?;
+        self.exit();
+        Ok(())
+    }
+
+    fn parse_run(
+        &mut self,
+        iter: &mut Iterator<Item = &str>,
+        is_interrupted: &Fn() -> bool,
+    ) -> Result<()> {
+        self.parse_end(iter)?;
+        self.run_emulator(is_interrupted);
+        Ok(())
+    }
+
+    fn parse_break(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let address = self.parse_address(iter)?;
+        self.parse_end(iter)?;
+
+        self.set_breakpoint(address);
+        Ok(())
+    }
+
+    fn parse_watch(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let address = self.parse_address(iter)?;
+        self.parse_end(iter)?;
+
+        self.set_watchpoint(address);
+        Ok(())
+    }
+
+    fn parse_logging(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let help_msg = "Choices are 'enable' or 'disable'";
+        let command = self.parse_string(iter, help_msg)?;
+        self.parse_end(iter)?;
+
+        match command {
+            "enable" => self.enable_logging(),
+            "disable" => self.disable_logging(),
+            _ => {
+                return Err(ParseError::new(help_msg.into()));
+            }
+        };
+        Ok(())
+    }
+
+    fn parse_set(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let operand = self.parse_string(iter, "provide an operand")?;
+        if operand != "pc" {
+            return Err(ParseError::new(format!("unknown operand {}", operand)));
+        }
+        let address = self.parse_address(iter)?;
+        self.parse_end(iter)?;
+
+        self.emulator.set_program_counter(address);
+        Ok(())
+    }
+
+    fn parse_x(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let address = self.parse_address(iter)?;
+        self.parse_end(iter)?;
+
+        self.examine_memory(address);
+        Ok(())
+    }
+
+    fn dispatch_command_inner(
+        &mut self,
+        command: &str,
+        is_interrupted: &Fn() -> bool,
+    ) -> Result<()> {
+        let mut iter = command.split_whitespace();
+        let func = self.parse_string(&mut iter, "empty command")?;
+        match func {
+            "state" => self.parse_state(&mut iter)?,
+            "disassemble" => self.parse_disassemble(&mut iter)?,
+            "next" => self.parse_next(&mut iter)?,
+            "exit" => self.parse_exit(&mut iter)?,
+            "run" => self.parse_run(&mut iter, is_interrupted)?,
+            "break" => self.parse_break(&mut iter)?,
+            "watch" => self.parse_watch(&mut iter)?,
+            "logging" => self.parse_logging(&mut iter)?,
+            "set" => self.parse_set(&mut iter)?,
+            "x" => self.parse_x(&mut iter)?,
+            _ => {
+                return Err(ParseError::new(format!("unknown command {}", func)));
+            }
+        };
+        Ok(())
+    }
+
+    fn dispatch_command(&mut self, command: &str, is_interrupted: &Fn() -> bool) -> Result<()> {
+        let mut command: String = command.into();
+        if command == "" {
+            command = self.last_command.clone();
+        }
+
         for command in command.split(" && ") {
-            self.dispatch_command_inner(command, is_interrupted);
+            self.dispatch_command_inner(command, is_interrupted)?;
         }
-        if command != "" {
-            self.last_command = command.into();
-        }
+
+        self.last_command = command;
+
+        Ok(())
     }
 
     fn process_command(&mut self, is_interrupted: &Fn() -> bool) {
@@ -294,7 +393,9 @@ impl<'a> Debugger<'a> {
 
         let command = &buffer[0..buffer.len() - 1];
 
-        self.dispatch_command(command, is_interrupted);
+        if let Err(e) = self.dispatch_command(command, is_interrupted) {
+            write!(self.out, "Error: {}\n", &e.message).unwrap();
+        };
     }
 
     pub fn run(&mut self, is_interrupted: &Fn() -> bool) {
@@ -334,7 +435,7 @@ impl DebuggerOps for TestDebuggerOps {
         }
     }
 
-    fn format<'a>(&self, s: &'a mut io::Write) -> Result<()> {
+    fn format<'a>(&self, s: &'a mut io::Write) -> io::Result<()> {
         write!(s, "TestDebuggerOps pc={:x}", self.current_address)
     }
 
@@ -362,7 +463,7 @@ impl DebuggerOps for TestDebuggerOps {
         self.current_address = address
     }
 
-    fn disassemble(&mut self, _f: &mut io::Write) -> Result<()> {
+    fn disassemble(&mut self, _f: &mut io::Write) -> io::Result<()> {
         Ok(())
     }
 }
@@ -404,221 +505,331 @@ fn debugger_interrupt() {
     );
 }
 
+#[cfg(test)]
+struct DebuggerTest {
+    input: Vec<&'static str>,
+    expected_log: String,
+    ops: TestDebuggerOps,
+}
+
+#[cfg(test)]
+impl DebuggerTest {
+    fn new() -> Self {
+        DebuggerTest {
+            input: vec![],
+            expected_log: String::new(),
+            ops: TestDebuggerOps::new(),
+        }
+    }
+
+    fn run_command(&mut self, cmd: &'static str) {
+        self.expected_log += "(debugger) ";
+        self.input.push(cmd);
+    }
+
+    fn expect_line(&mut self, line: &str) {
+        self.expected_log += &format!("{}\n", line);
+    }
+
+    fn expect_state(&mut self, pc: u16) {
+        self.expect_line(&format!("TestDebuggerOps pc={}", pc));
+    }
+
+    fn expect_error(&mut self, msg: &str) {
+        self.expect_line(&format!("Error: {}", msg));
+    }
+
+    fn expect_breakpoint(&mut self) {
+        self.expect_line("Hit breakpoint");
+    }
+
+    fn expect_watchpoint(&mut self) {
+        self.expect_line("Hit watchpoint");
+    }
+
+    fn run(&mut self) {
+        self.expect_line("(debugger) exiting");
+
+        run_debugger_test_with_ops(&mut self.ops, &self.input[..], &self.expected_log);
+    }
+}
+
+#[cfg(test)]
+impl Drop for DebuggerTest {
+    fn drop(&mut self) {
+        self.run()
+    }
+}
+
 #[test]
 fn debugger_state() {
-    run_debugger_test(
-        &["state"],
-        "\
-         (debugger) \
-         TestDebuggerOps pc=0\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("state");
+    test.expect_state(0);
 }
 
 #[test]
 fn debugger_next() {
-    run_debugger_test(
-        &["next"],
-        "\
-         (debugger) \
-         TestDebuggerOps pc=1\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("next");
+    test.expect_state(1);
+}
+
+#[test]
+fn debugger_next_multiple() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("next 2");
+    test.expect_state(2);
+}
+
+#[test]
+fn debugger_next_invalid_input() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("next -1");
+    test.expect_error("invalid digit found in string");
+}
+
+#[test]
+fn debugger_next_zero_is_invalid_input() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("next 0");
+    test.expect_error("invalid argument");
 }
 
 #[test]
 fn debugger_exit() {
-    run_debugger_test(
-        &["exit"],
-        "\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    run_debugger_test(&["exit"], "(debugger) exiting\n");
 }
 
 #[test]
 fn debugger_stops_on_breakpoint_when_calling_next() {
-    run_debugger_test(
-        &["break 2", "next", "next"],
-        "\
-         (debugger) \
-         (debugger) \
-         TestDebuggerOps pc=1\n\
-         (debugger) \
-         TestDebuggerOps pc=2\n\
-         Hit breakpoint\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("break 2");
+
+    test.run_command("next");
+    test.expect_state(1);
+
+    test.run_command("next");
+    test.expect_state(2);
+    test.expect_breakpoint();
 }
 
 #[test]
 fn debugger_stops_on_breakpoint_when_calling_run() {
-    run_debugger_test(
-        &["break 2", "run"],
-        "\
-         (debugger) \
-         (debugger) \
-         Hit breakpoint\n\
-         TestDebuggerOps pc=2\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("break 2");
+    test.run_command("run");
+    test.expect_breakpoint();
+    test.expect_state(2);
 }
 
 #[test]
 fn debugger_stops_on_watchpoint_when_calling_run() {
-    let mut test_ops = TestDebuggerOps::new();
-    test_ops.memory_changed.insert(0x3);
-    run_debugger_test_with_ops(
-        &mut test_ops,
-        &["watch 3", "run"],
-        "\
-         (debugger) \
-         (debugger) \
-         Hit watchpoint\n\
-         TestDebuggerOps pc=1\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+    test.ops.memory_changed.insert(0x3);
+
+    test.run_command("watch 3");
+    test.run_command("run");
+    test.expect_watchpoint();
+    test.expect_state(1);
 }
 
 #[test]
 fn debugger_errors_when_setting_breakpoint_without_address() {
-    run_debugger_test(
-        &["break"],
-        "\
-         (debugger) \
-         provide an address\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+    test.ops.memory_changed.insert(0x3);
+
+    test.run_command("break");
+    test.expect_error("provide an address");
 }
 
 #[test]
 fn debugger_errors_when_setting_breakpoint_without_invalid_address() {
-    run_debugger_test(
-        &["break derp"],
-        "\
-         (debugger) \
-         derp is not a valid address\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+    test.ops.memory_changed.insert(0x3);
+
+    test.run_command("break derp");
+    test.expect_error("invalid digit found in string");
 }
 
 #[test]
 fn debugger_errors_when_given_unknown_command() {
-    run_debugger_test(
-        &["derp"],
-        "\
-         (debugger) \
-         Unknown command derp\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+    test.ops.memory_changed.insert(0x3);
+
+    test.run_command("derp");
+    test.expect_error("unknown command derp");
 }
 
 #[test]
 fn debugger_repeats_last_command() {
-    run_debugger_test(
-        &["next", ""],
-        "\
-         (debugger) \
-         TestDebuggerOps pc=1\n\
-         (debugger) \
-         TestDebuggerOps pc=2\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("next");
+    test.expect_state(1);
+
+    test.run_command("");
+    test.expect_state(2);
 }
 
 #[test]
 fn debugger_errors_on_empty_command() {
-    run_debugger_test(
-        &[""],
-        "\
-         (debugger) \
-         empty command\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("");
+    test.expect_error("empty command");
 }
 
 #[test]
 fn debugger_stops_when_emulator_crashes() {
-    let mut test_ops = TestDebuggerOps::new();
-    test_ops.crash_message = Some("test crash".to_string());
-    run_debugger_test_with_ops(
-        &mut test_ops,
-        &["run"],
-        "\
-         (debugger) \
-         Emulator crashed: test crash\n\
-         TestDebuggerOps pc=0\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+    test.ops.crash_message = Some("test crash".into());
+
+    test.run_command("run");
+    test.expect_line("Emulator crashed: test crash");
+    test.expect_state(0);
 }
 
 #[test]
 fn debugger_can_set_current_address() {
-    run_debugger_test(
-        &["set pc 45", "state"],
-        "\
-         (debugger) \
-         (debugger) \
-         TestDebuggerOps pc=45\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("set pc 45");
+    test.run_command("state");
+    test.expect_state(45);
+}
+
+#[test]
+fn debugger_set_invalid_input() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("set");
+    test.expect_error("provide an operand");
+
+    test.run_command("set poot");
+    test.expect_error("unknown operand poot");
+
+    test.run_command("set pc asdfd");
+    test.expect_error("invalid digit found in string");
 }
 
 #[test]
 fn debugger_can_enable_logging() {
-    run_debugger_test(
-        &["logging enable", "break 2", "run"],
-        "\
-         (debugger) \
-         (debugger) \
-         (debugger) \
-         TestDebuggerOps pc=1\n\
-         TestDebuggerOps pc=2\n\
-         Hit breakpoint\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("logging enable");
+    test.run_command("break 2");
+    test.run_command("run");
+
+    test.expect_state(1);
+    test.expect_state(2);
+    test.expect_breakpoint();
 }
 
 #[test]
 fn debugger_can_disable_logging() {
-    run_debugger_test(
-        &["logging enable", "logging disable", "break 2", "run"],
-        "\
-         (debugger) \
-         (debugger) \
-         (debugger) \
-         (debugger) \
-         Hit breakpoint\n\
-         TestDebuggerOps pc=2\n\
-         (debugger) \
-         exiting\n\
-         ",
-    );
+    let mut test = DebuggerTest::new();
+
+    test.run_command("logging enable");
+    test.run_command("logging disable");
+    test.run_command("break 2");
+    test.run_command("run");
+
+    test.expect_breakpoint();
+    test.expect_state(2);
+}
+
+#[test]
+fn debugger_logging_invalid_input() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("logging derp");
+    test.expect_error("Choices are 'enable' or 'disable'");
+
+    test.run_command("logging");
+    test.expect_error("Choices are 'enable' or 'disable'");
+}
+
+#[test]
+fn debugger_extra_input_fails() {
+    let commands = &[
+        "state xxx",
+        "disassemble xxx",
+        "next 1 xxx",
+        "exit xxx",
+        "run xxx",
+        "break 1 xxx",
+        "watch 3 xxx",
+        "logging enable xxx",
+        "set pc 12 xxx",
+        "x 2 xxx",
+    ];
+
+    let mut test = DebuggerTest::new();
+    for command in commands {
+        test.run_command(command);
+        test.expect_error("extra input");
+    }
+}
+
+#[test]
+fn debugger_multiple_commands() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("state && next");
+    test.expect_state(0);
+    test.expect_state(1);
+
+    test.run_command("next && next && next");
+    test.expect_state(2);
+    test.expect_state(3);
+    test.expect_state(4);
+
+    test.run_command("");
+    test.expect_state(5);
+    test.expect_state(6);
+    test.expect_state(7);
+}
+
+#[test]
+fn debugger_examine_memory() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("x 2");
+
+    test.expect_line("0000002:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000012:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000022:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000032:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000042:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000052:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000062:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000072:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000082:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000092:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("00000a2:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("00000b2:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("00000c2:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("00000d2:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("00000e2:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("00000f2:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000102:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000112:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000122:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+    test.expect_line("0000132:  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00");
+}
+
+#[test]
+fn debugger_examine_memory_missing_address() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("x");
+    test.expect_error("provide an address");
 }
