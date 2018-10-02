@@ -84,6 +84,8 @@ pub trait Intel8080InstructionSetOps {
     fn read_raw_register_pair(&self, index: usize) -> u16;
     fn set_raw_register_pair(&mut self, index: usize, value: u16);
     fn add_cycles(&mut self, cycles: u8);
+    fn push_frame(&mut self, address: u16);
+    fn pop_frame(&mut self);
 
     /*
      * 8008 Registers are laid out in a specified order in memory. (See enum Intel8080Register for
@@ -301,6 +303,7 @@ pub struct Intel8080Emulator<'a> {
     program_counter: u16,
     interrupts_enabled: bool,
     call_table: HashMap<u16, &'a mut FnMut(&mut Intel8080Emulator)>,
+    call_stack: Vec<u16>,
 }
 
 impl<'a> Intel8080Emulator<'a> {
@@ -311,6 +314,7 @@ impl<'a> Intel8080Emulator<'a> {
             program_counter: 0,
             interrupts_enabled: true,
             call_table: HashMap::new(),
+            call_stack: Vec::new(),
         };
 
         return emu;
@@ -437,6 +441,14 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
     }
 
     fn add_cycles(&mut self, _cycles: u8) {}
+
+    fn push_frame(&mut self, address: u16) {
+        self.call_stack.push(address);
+    }
+
+    fn pop_frame(&mut self) {
+        self.call_stack.pop();
+    }
 }
 
 /*  _ __ ___  __ _(_)___| |_ ___ _ __   ___  ___| |_     / /
@@ -1413,6 +1425,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         let pc = self.read_program_counter();
         self.push_u16_onto_stack(pc);
         self.jump(address);
+        self.push_frame(pc);
     }
 
     fn call_if_carry(&mut self, address: u16) {
@@ -1474,6 +1487,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     fn return_unconditionally(&mut self) {
         let address = self.pop_u16_off_stack();
         self.set_program_counter(address);
+        self.pop_frame();
     }
 
     fn return_if_carry(&mut self) {
@@ -2955,6 +2969,57 @@ fn enable_interrupts() {
     e.interrupts_enabled = false;
     e.enable_interrupts();
     assert!(e.interrupts_enabled);
+}
+
+#[test]
+fn call_updates_call_stack() {
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_program_counter(0x1111);
+    e.call(0x2222);
+    e.call(0x3333);
+    e.call(0x4444);
+
+    assert_eq!(e.call_stack, vec![0x1111, 0x2222, 0x3333]);
+}
+
+#[test]
+fn return_updates_call_stack() {
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_program_counter(0x1111);
+    e.call(0x2222);
+    e.call(0x3333);
+    e.call(0x4444);
+    e.return_unconditionally();
+
+    assert_eq!(e.call_stack, vec![0x1111, 0x2222]);
+}
+
+#[test]
+fn if_carry_updates_call_stack() {
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_flag(Intel8080Flag::Carry, true);
+
+    e.set_program_counter(0x1111);
+
+    e.call_if_carry(0x3333);
+    assert_eq!(e.call_stack, vec![0x1111]);
+
+    e.return_if_carry();
+    assert_eq!(e.call_stack, vec![]);
+}
+
+#[test]
+fn if_no_carry_updates_call_stack() {
+    let mut e = Intel8080Emulator::new_for_test();
+    e.set_flag(Intel8080Flag::Carry, false);
+
+    e.set_program_counter(0x1111);
+
+    e.call_if_no_carry(0x3333);
+    assert_eq!(e.call_stack, vec![0x1111]);
+
+    e.return_if_no_carry();
+    assert_eq!(e.call_stack, vec![]);
 }
 
 /*  _____                     _   _

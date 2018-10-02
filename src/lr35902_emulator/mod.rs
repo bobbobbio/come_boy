@@ -469,6 +469,14 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
     fn add_cycles(&mut self, cycles: u8) {
         self.add_cycles(cycles);
     }
+
+    fn push_frame(&mut self, address: u16) {
+        self.push_frame(address);
+    }
+
+    fn pop_frame(&mut self) {
+        self.pop_frame();
+    }
 }
 
 /*   ___              _____         _
@@ -989,8 +997,6 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
     fn call(&mut self, address: u16) {
         Intel8080InstructionSet::call(self, address);
-        let pc = self.read_program_counter();
-        self.push_frame(pc);
     }
 
     fn return_if_no_carry(&mut self) {
