@@ -48,7 +48,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
         self.cpu.set_program_counter(address)
     }
 
-    fn disassemble(&mut self, f: &mut io::Write) -> Result<()> {
+    fn disassemble(&mut self, address: u16, f: &mut io::Write) -> Result<()> {
         let mut buffer = vec![];
         {
             let mut dis = Disassembler::new(
@@ -56,7 +56,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
                 RGBDSInstructionPrinterFactory,
                 &mut buffer,
             );
-            dis.index = self.cpu.read_program_counter();
+            dis.index = address;
             dis.disassemble_multiple().unwrap();
         }
         write!(f, "{}", str::from_utf8(&buffer).unwrap())

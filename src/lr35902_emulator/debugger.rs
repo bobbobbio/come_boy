@@ -156,7 +156,7 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
         self.set_program_counter(address)
     }
 
-    fn disassemble(&mut self, _f: &mut io::Write) -> Result<()> {
+    fn disassemble(&mut self, _address: u16, _f: &mut io::Write) -> Result<()> {
         Ok(())
     }
 

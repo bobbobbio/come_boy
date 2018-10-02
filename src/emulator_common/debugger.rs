@@ -31,7 +31,7 @@ pub trait DebuggerOps {
     fn read_call_stack(&self) -> Vec<u16>;
     fn crashed(&self) -> Option<&String>;
     fn set_program_counter(&mut self, address: u16);
-    fn disassemble(&mut self, f: &mut io::Write) -> io::Result<()>;
+    fn disassemble(&mut self, address: u16, f: &mut io::Write) -> io::Result<()>;
 }
 
 #[derive(Debug)]
@@ -105,8 +105,8 @@ impl<'a> Debugger<'a> {
         writeln!(self.out).unwrap();
     }
 
-    fn disassemble(&mut self) {
-        self.emulator.disassemble(self.out).unwrap();
+    fn disassemble(&mut self, address: u16) {
+        self.emulator.disassemble(address, self.out).unwrap();
         writeln!(self.out).unwrap();
     }
 
@@ -271,8 +271,12 @@ impl<'a> Debugger<'a> {
     }
 
     fn parse_disassemble(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        let mut address = self.emulator.read_program_counter();
+        if let Some(v) = iter.next() {
+            address = u16::from_str_radix(v, 16)?;
+        }
         self.parse_end(iter)?;
-        self.disassemble();
+        self.disassemble(address);
         Ok(())
     }
 
@@ -485,8 +489,8 @@ impl DebuggerOps for TestDebuggerOps {
         self.current_address = address
     }
 
-    fn disassemble(&mut self, _f: &mut io::Write) -> io::Result<()> {
-        Ok(())
+    fn disassemble(&mut self, address: u16, f: &mut io::Write) -> io::Result<()> {
+        write!(f, "assembly at {:02x}", address)
     }
 
     fn read_call_stack(&self) -> Vec<u16> {
@@ -788,7 +792,7 @@ fn debugger_extra_input_fails() {
     let commands = &[
         "backtrace xxx",
         "break 1 xxx",
-        "disassemble xxx",
+        "disassemble 123 xxx",
         "exit xxx",
         "logging enable xxx",
         "next 1 xxx",
@@ -879,4 +883,20 @@ fn debugger_empty_backtrace() {
     let mut test = DebuggerTest::new();
 
     test.run_command("backtrace");
+}
+
+#[test]
+fn debugger_disassemble_address() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("disassemble 10");
+    test.expect_line("assembly at 10");
+}
+
+#[test]
+fn debugger_disassemble() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("disassemble");
+    test.expect_line("assembly at 00");
 }
