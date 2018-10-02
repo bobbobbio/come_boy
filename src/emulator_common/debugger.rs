@@ -28,6 +28,7 @@ pub trait DebuggerOps {
     fn next(&mut self);
     fn simulate_next(&mut self, &mut SimulatedInstruction);
     fn read_program_counter(&self) -> u16;
+    fn read_call_stack(&self) -> Vec<u16>;
     fn crashed(&self) -> Option<&String>;
     fn set_program_counter(&mut self, address: u16);
     fn disassemble(&mut self, f: &mut io::Write) -> io::Result<()>;
@@ -237,6 +238,24 @@ impl<'a> Debugger<'a> {
         self.logging = false;
     }
 
+    fn backtrace(&mut self) {
+        for (n, address) in self
+            .emulator
+            .read_call_stack()
+            .into_iter()
+            .rev()
+            .enumerate()
+        {
+            write!(self.out, "#{} 0x{:02x}\n", n, address).unwrap();
+        }
+    }
+
+    fn parse_backtrace(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+        self.parse_end(iter)?;
+        self.backtrace();
+        Ok(())
+    }
+
     fn parse_end(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
         if iter.next().is_some() {
             Err(ParseError::new("extra input".into()))
@@ -346,15 +365,16 @@ impl<'a> Debugger<'a> {
         let mut iter = command.split_whitespace();
         let func = self.parse_string(&mut iter, "empty command")?;
         match func {
-            "state" => self.parse_state(&mut iter)?,
-            "disassemble" => self.parse_disassemble(&mut iter)?,
-            "next" => self.parse_next(&mut iter)?,
-            "exit" => self.parse_exit(&mut iter)?,
-            "run" => self.parse_run(&mut iter, is_interrupted)?,
+            "backtrace" => self.parse_backtrace(&mut iter)?,
             "break" => self.parse_break(&mut iter)?,
-            "watch" => self.parse_watch(&mut iter)?,
+            "disassemble" => self.parse_disassemble(&mut iter)?,
+            "exit" => self.parse_exit(&mut iter)?,
             "logging" => self.parse_logging(&mut iter)?,
+            "next" => self.parse_next(&mut iter)?,
+            "run" => self.parse_run(&mut iter, is_interrupted)?,
             "set" => self.parse_set(&mut iter)?,
+            "state" => self.parse_state(&mut iter)?,
+            "watch" => self.parse_watch(&mut iter)?,
             "x" => self.parse_x(&mut iter)?,
             _ => {
                 return Err(ParseError::new(format!("unknown command {}", func)));
@@ -412,6 +432,7 @@ struct TestDebuggerOps {
     memory: HashMap<u16, u8>,
     crash_message: Option<String>,
     memory_changed: HashSet<u16>,
+    call_stack: Vec<u16>,
 }
 
 #[cfg(test)]
@@ -422,6 +443,7 @@ impl TestDebuggerOps {
             memory: HashMap::new(),
             crash_message: None,
             memory_changed: HashSet::new(),
+            call_stack: Vec::new(),
         }
     }
 }
@@ -465,6 +487,10 @@ impl DebuggerOps for TestDebuggerOps {
 
     fn disassemble(&mut self, _f: &mut io::Write) -> io::Result<()> {
         Ok(())
+    }
+
+    fn read_call_stack(&self) -> Vec<u16> {
+        self.call_stack.clone()
     }
 }
 
@@ -760,15 +786,16 @@ fn debugger_logging_invalid_input() {
 #[test]
 fn debugger_extra_input_fails() {
     let commands = &[
-        "state xxx",
-        "disassemble xxx",
-        "next 1 xxx",
-        "exit xxx",
-        "run xxx",
+        "backtrace xxx",
         "break 1 xxx",
-        "watch 3 xxx",
+        "disassemble xxx",
+        "exit xxx",
         "logging enable xxx",
+        "next 1 xxx",
+        "run xxx",
         "set pc 12 xxx",
+        "state xxx",
+        "watch 3 xxx",
         "x 2 xxx",
     ];
 
@@ -832,4 +859,24 @@ fn debugger_examine_memory_missing_address() {
 
     test.run_command("x");
     test.expect_error("provide an address");
+}
+
+#[test]
+fn debugger_backtrace() {
+    let mut test = DebuggerTest::new();
+    test.ops
+        .call_stack
+        .append(&mut vec![0x1234, 0x5678, 0x9abc]);
+
+    test.run_command("backtrace");
+    test.expect_line("#0 0x9abc");
+    test.expect_line("#1 0x5678");
+    test.expect_line("#2 0x1234");
+}
+
+#[test]
+fn debugger_empty_backtrace() {
+    let mut test = DebuggerTest::new();
+
+    test.run_command("backtrace");
 }

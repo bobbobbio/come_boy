@@ -61,6 +61,10 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
         }
         write!(f, "{}", str::from_utf8(&buffer).unwrap())
     }
+
+    fn read_call_stack(&self) -> Vec<u16> {
+        self.cpu.call_stack.clone()
+    }
 }
 
 impl<'a> fmt::Debug for LCDController<'a> {

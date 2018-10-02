@@ -52,6 +52,7 @@ pub struct LR35902Emulator<M: MemoryAccessor> {
     interrupts_enabled: bool,
     pub elapsed_cycles: u64,
     pub crash_message: Option<String>,
+    pub call_stack: Vec<u16>,
 }
 
 impl<M: MemoryAccessor> LR35902Emulator<M> {
@@ -63,6 +64,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
             interrupts_enabled: true,
             elapsed_cycles: 102348,
             crash_message: None,
+            call_stack: Vec::new(),
         };
 
         e.set_register_pair(Intel8080Register::SP, 0xFFFE);
@@ -201,6 +203,8 @@ pub trait LR35902InstructionSetOps {
     fn set_interrupts_enabled(&mut self, value: bool);
     fn get_interrupts_enabled(&self) -> bool;
     fn add_cycles(&mut self, cycles: u8);
+    fn push_frame(&mut self, address: u16);
+    fn pop_frame(&mut self);
 
     fn get_relative_address(&self, n: u8) -> u16 {
         self.read_program_counter()
@@ -348,6 +352,14 @@ impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
 
     fn add_cycles(&mut self, cycles: u8) {
         self.add_cycles(cycles);
+    }
+
+    fn push_frame(&mut self, address: u16) {
+        self.call_stack.push(address);
+    }
+
+    fn pop_frame(&mut self) {
+        self.call_stack.pop();
     }
 }
 
@@ -955,7 +967,8 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     }
 
     fn return_unconditionally(&mut self) {
-        Intel8080InstructionSet::return_unconditionally(self)
+        Intel8080InstructionSet::return_unconditionally(self);
+        self.pop_frame();
     }
 
     fn jump_if_not_zero(&mut self, address: u16) {
@@ -975,7 +988,9 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     }
 
     fn call(&mut self, address: u16) {
-        Intel8080InstructionSet::call(self, address)
+        Intel8080InstructionSet::call(self, address);
+        let pc = self.read_program_counter();
+        self.push_frame(pc);
     }
 
     fn return_if_no_carry(&mut self) {

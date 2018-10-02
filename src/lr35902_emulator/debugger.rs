@@ -78,6 +78,10 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     }
 
     fn add_cycles(&mut self, _cycles: u8) {}
+
+    fn push_frame(&mut self, _address: u16) {}
+
+    fn pop_frame(&mut self) {}
 }
 
 impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {
@@ -154,6 +158,10 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
 
     fn disassemble(&mut self, _f: &mut io::Write) -> Result<()> {
         Ok(())
+    }
+
+    fn read_call_stack(&self) -> Vec<u16> {
+        self.call_stack.clone()
     }
 }
 
