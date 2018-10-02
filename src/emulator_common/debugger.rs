@@ -239,13 +239,9 @@ impl<'a> Debugger<'a> {
     }
 
     fn backtrace(&mut self) {
-        for (n, address) in self
-            .emulator
-            .read_call_stack()
-            .into_iter()
-            .rev()
-            .enumerate()
-        {
+        let mut frames = self.emulator.read_call_stack();
+        frames.push(self.emulator.read_program_counter());
+        for (n, address) in frames.into_iter().rev().enumerate() {
             write!(self.out, "#{} 0x{:02x}\n", n, address).unwrap();
         }
     }
@@ -868,21 +864,25 @@ fn debugger_examine_memory_missing_address() {
 #[test]
 fn debugger_backtrace() {
     let mut test = DebuggerTest::new();
+    test.ops.current_address = 0x1121;
     test.ops
         .call_stack
         .append(&mut vec![0x1234, 0x5678, 0x9abc]);
 
     test.run_command("backtrace");
-    test.expect_line("#0 0x9abc");
-    test.expect_line("#1 0x5678");
-    test.expect_line("#2 0x1234");
+    test.expect_line("#0 0x1121");
+    test.expect_line("#1 0x9abc");
+    test.expect_line("#2 0x5678");
+    test.expect_line("#3 0x1234");
 }
 
 #[test]
 fn debugger_empty_backtrace() {
     let mut test = DebuggerTest::new();
+    test.ops.current_address = 0x1121;
 
     test.run_command("backtrace");
+    test.expect_line("#0 0x1121");
 }
 
 #[test]
