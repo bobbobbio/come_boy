@@ -2235,6 +2235,13 @@ fn blargg_test_rom_cpu_instrs_1_special() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/01-special.gb", 0xc7d2);
 }
 
+// This test does not pass
+#[ignore]
+#[test]
+fn blargg_test_rom_cpu_instrs_2_interrupts() {
+    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/02-interrupts.gb", 0xc7f4);
+}
+
 #[test]
 fn blargg_test_rom_cpu_instrs_3_op_sp_hl() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/03-op sp,hl.gb", 0xcb44);
