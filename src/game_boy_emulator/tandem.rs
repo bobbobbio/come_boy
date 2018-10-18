@@ -112,10 +112,10 @@ impl<A: AbstractEmulator, B: AbstractEmulator> EmulatorComparer<A, B> {
             b_state = self.b.get_state();
         }
 
-        let mut file = File::create("emulator_a.bin").unwrap();
+        let mut file = File::create("/tmp/emulator_a.bin").unwrap();
         self.a.write_memory(&mut file).unwrap();
 
-        let mut file = File::create("emulator_b.bin").unwrap();
+        let mut file = File::create("/tmp/emulator_b.bin").unwrap();
         self.b.write_memory(&mut file).unwrap();
 
         return (a_state, b_state);
