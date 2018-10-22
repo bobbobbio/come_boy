@@ -3,8 +3,18 @@ name = "come_boy"
 version = "0.1.0"
 authors = ["Remi Bernotavicius <remi@.abort.cc>"]
 
+build = "build.rs"
+
 [dependencies]
 
 argparse = "0.2.1"
 sdl2 = "0.29.1"
 nix = "*"
+
+[build-dependencies]
+
+quote = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+proc-macro2 = "*"

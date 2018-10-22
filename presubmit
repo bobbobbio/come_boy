@@ -5,15 +5,6 @@ set -ex
 # Download the test roms
 $( dirname $0 )/download_test_roms
 
-# Run pylint on all the python
-$( dirname $0 )/pylint
-
-# Run the python tests
-$( dirname $0 )/pytest
-
-# Generate any generated code
-$( dirname $0 )/code_gen
-
 CHANGES=$( git diff )
 if [ "$CHANGES" != "" ]; then
     echo "Untracked Changes"
