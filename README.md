@@ -7,12 +7,9 @@ Written by Remi Bernotavicius (remi@abort.cc)
 Currently in a pre-release state.  Doesn't yet run any games.
 
 # Building
-Build like as follows. You only need to run `./code_gen` if you made changes.
+Build like as follows.
 
-    ./code_gen
     cargo build
-
-Depends on python 2.7.10 (greater or less).
 
 # Running Tests
 Run tests as follow. You only need to run `./download_test_roms` once.
