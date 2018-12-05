@@ -176,7 +176,7 @@ impl<'a> GameBoyEmulator<'a> {
         // Registers
         e.cpu
             .memory_accessor
-            .map_chunk(0xFF00, e.registers.p1_joypad.chunk.clone());
+            .map_chunk(0xFF00, e.registers.p1_joypad.chunk.clone_read_only());
         e.cpu
             .memory_accessor
             .map_chunk(0xFF01, e.registers.serial_transfer_data.chunk.clone());
