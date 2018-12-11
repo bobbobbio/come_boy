@@ -726,16 +726,14 @@ fn generate_opcode_rs(
 }
 
 fn generate_opcodes(opcodes_path: &str, name: &'static str) {
-    let opcodes: BTreeMap<String, OpcodeOnDisk> =
-        serde_json::from_reader(File::open(&format!("src/{}/opcodes.json", opcodes_path)).unwrap())
-            .unwrap();
+    let opcodes_json = format!("src/{}/opcodes.json", opcodes_path);
+    println!("cargo:rerun-if-changed={}", opcodes_json);
 
-    generate_opcode_rs(
-        &format!("src/{}/opcode_gen.rs", opcodes_path),
-        opcodes_path,
-        name,
-        opcodes,
-    );
+    let opcodes: BTreeMap<String, OpcodeOnDisk> =
+        serde_json::from_reader(File::open(&opcodes_json).unwrap()).unwrap();
+
+    let output_file = format!("src/{}/opcode_gen.rs", opcodes_path);
+    generate_opcode_rs(&output_file, opcodes_path, name, opcodes);
 }
 
 fn main() {
