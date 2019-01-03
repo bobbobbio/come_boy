@@ -2130,10 +2130,11 @@ pub fn get_lr35902_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
         0x0D => (vec![0x0D], 1u8),
         0x0E => (vec![0x0E], 2u8),
         0x0F => (vec![0x0F], 1u8),
-        0x10 => match (0x10 as u16) << 8 | match read_u8(&mut stream) {
-            Ok(x) => x,
-            _ => return None,
-        } as u16
+        0x10 => match (0x10 as u16) << 8
+            | match read_u8(&mut stream) {
+                Ok(x) => x,
+                _ => return None,
+            } as u16
         {
             0x1000 => (vec![0x10, 0x00], 2u8),
             _ => return None,
@@ -2324,10 +2325,11 @@ pub fn get_lr35902_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
         0xC8 => (vec![0xC8], 1u8),
         0xC9 => (vec![0xC9], 1u8),
         0xCA => (vec![0xCA], 3u8),
-        0xCB => match (0xCB as u16) << 8 | match read_u8(&mut stream) {
-            Ok(x) => x,
-            _ => return None,
-        } as u16
+        0xCB => match (0xCB as u16) << 8
+            | match read_u8(&mut stream) {
+                Ok(x) => x,
+                _ => return None,
+            } as u16
         {
             0xCB00 => (vec![0xCB, 0x00], 2u8),
             0xCB01 => (vec![0xCB, 0x01], 2u8),

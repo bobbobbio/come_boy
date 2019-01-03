@@ -130,7 +130,8 @@ impl<'a> Debugger<'a> {
                 self.out,
                 "Emulator crashed: {}",
                 self.emulator.crashed().unwrap()
-            ).unwrap();
+            )
+            .unwrap();
             return false;
         }
         if Some(self.emulator.read_program_counter()) == self.breakpoint {
@@ -220,7 +221,8 @@ impl<'a> Debugger<'a> {
                     "{}{:07x}:",
                     if i == 0 { "" } else { "\n" },
                     address
-                ).unwrap();
+                )
+                .unwrap();
             }
             if i % 8 == 0 {
                 write!(self.out, " ").unwrap();

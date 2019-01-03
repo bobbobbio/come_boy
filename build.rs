@@ -45,7 +45,8 @@ impl OpcodeParameterType {
             OpcodeParameterType::ImmediateTwoByteData => "#${:02x}",
             OpcodeParameterType::ConstantValue => "{}",
             OpcodeParameterType::Address => "${:02x}",
-        }.into()
+        }
+        .into()
     }
 }
 
@@ -716,13 +717,11 @@ fn generate_opcode_rs(
     write!(out, "{}", tokens);
     out.flush().unwrap();
 
-    assert!(
-        Command::new("rustfmt")
-            .arg(output_file)
-            .status()
-            .unwrap()
-            .success()
-    );
+    assert!(Command::new("rustfmt")
+        .arg(output_file)
+        .status()
+        .unwrap()
+        .success());
 }
 
 fn generate_opcodes(opcodes_path: &str, name: &'static str) {
