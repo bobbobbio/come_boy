@@ -94,10 +94,79 @@ struct GameBoyRegisters {
     serial_transfer_data: GameBoyRegister,
     serial_transfer_control: GameBoyRegister,
     divider: GameBoyRegister,
+}
 
-    timer_counter: GameBoyRegister,
-    timer_modulo: GameBoyRegister,
-    timer_control: GameBoyRegister,
+#[derive(Default)]
+struct GameBoyTimer {
+    counter: GameBoyRegister,
+    modulo: GameBoyRegister,
+    control: GameBoyRegister,
+    scheduler: Scheduler<GameBoyTimer>,
+    interrupt_requested: bool,
+}
+
+enum TimerFlags {
+    Enabled = 0b00000100,
+    Speed = 0b00000011,
+}
+
+impl GameBoyTimer {
+    fn enabled(&self) -> bool {
+        self.control.read_value() & (TimerFlags::Enabled as u8) != 0
+    }
+
+    fn timer_speed(&self) -> u64 {
+        let speed = match self.control.read_value() & (TimerFlags::Speed as u8) {
+            0b00 => 4096,
+            0b01 => 262144,
+            0b10 => 65536,
+            0b11 => 16384,
+            _ => panic!(),
+        };
+
+        // 4Mhz = 4M clock ticks/s / speed ticks/s
+        4194304 / speed
+    }
+
+    fn set_state_post_bios(&mut self) {
+        self.counter.set_value(0x0);
+        self.modulo.set_value(0x0);
+        self.control.set_value(0xf8);
+    }
+
+    fn schedule_initial_events(&mut self, now: u64) {
+        let speed = self.timer_speed();
+        self.scheduler.schedule(now + speed, Self::tick);
+    }
+
+    fn tick(&mut self, now: u64) {
+        if self.enabled() {
+            let counter = self.counter.read_value().wrapping_add(1);
+            if counter == 0 {
+                self.interrupt_requested = true;
+                let modulo_value = self.modulo.read_value();
+                self.counter.set_value(modulo_value);
+            } else {
+                self.counter.set_value(counter);
+            }
+        }
+        let speed = self.timer_speed();
+        self.scheduler.schedule(now + speed, Self::tick);
+    }
+
+    fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyRegister) {
+        if self.interrupt_requested {
+            let interrupt_flag_value = interrupt_flag.read_value();
+            interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::Timer as u8);
+            self.interrupt_requested = false;
+        }
+    }
+
+    fn deliver_events(&mut self, now: u64) {
+        for (time, event) in self.scheduler.poll(now) {
+            event(self, time);
+        }
+    }
 }
 
 struct GameBoyEmulator<'a> {
@@ -111,6 +180,7 @@ struct GameBoyEmulator<'a> {
 
     registers: GameBoyRegisters,
     scheduler: Scheduler<GameBoyEmulator<'a>>,
+    timer: GameBoyTimer,
 }
 
 impl<'a> GameBoyEmulator<'a> {
@@ -125,6 +195,7 @@ impl<'a> GameBoyEmulator<'a> {
             internal_ram_b: MemoryChunk::from_range(INTERNAL_RAM_B),
             registers: Default::default(),
             scheduler: Scheduler::new(),
+            timer: Default::default(),
         };
 
         // Restart and interrupt vectors (unmapped) 0x0000 - 0x00FF
@@ -190,13 +261,13 @@ impl<'a> GameBoyEmulator<'a> {
             .map_chunk(0xFF04, e.registers.divider.chunk.clone());
         e.cpu
             .memory_accessor
-            .map_chunk(0xFF05, e.registers.timer_counter.chunk.clone());
+            .map_chunk(0xFF05, e.timer.counter.chunk.clone());
         e.cpu
             .memory_accessor
-            .map_chunk(0xFF06, e.registers.timer_modulo.chunk.clone());
+            .map_chunk(0xFF06, e.timer.modulo.chunk.clone());
         e.cpu
             .memory_accessor
-            .map_chunk(0xFF07, e.registers.timer_control.chunk.clone());
+            .map_chunk(0xFF07, e.timer.control.chunk.clone());
 
         e.cpu
             .memory_accessor
@@ -261,25 +332,9 @@ impl<'a> GameBoyEmulator<'a> {
             .memory_accessor
             .map_chunk(0xFFFF, e.registers.interrupt_enable.chunk.clone());
 
-        e.lcd_controller.set_state_post_bios();
-
         e.set_state_post_bios();
 
-        let elapsed_cycles = e.cpu.elapsed_cycles;
-        e.scheduler
-            .schedule(elapsed_cycles + 52, Self::divider_tick);
-        e.scheduler
-            .schedule(elapsed_cycles + 98584, Self::unknown_event);
-
-        e.lcd_controller
-            .scheduler
-            .schedule(elapsed_cycles + 56 + 4, LCDController::mode_2);
-        e.lcd_controller
-            .scheduler
-            .schedule(elapsed_cycles + 56 + 456, LCDController::advance_ly);
-        e.lcd_controller
-            .scheduler
-            .schedule(elapsed_cycles + 98648, LCDController::unknown_event2);
+        e.schedule_initial_events();
 
         return e;
     }
@@ -310,51 +365,56 @@ impl<'a> GameBoyEmulator<'a> {
         self.scheduler.schedule(time + 256, Self::divider_tick);
     }
 
-    fn tick(&mut self) {
-        self.cpu.run_one_instruction();
-
-        let current_clock = self.cpu.elapsed_cycles;
-
-        for (time, event) in self.scheduler.poll(current_clock) {
+    fn deliver_events(&mut self, now: u64) {
+        for (time, event) in self.scheduler.poll(now) {
             event(self, time);
         }
 
-        for (time, event) in self.lcd_controller.scheduler.poll(current_clock) {
-            event(&mut self.lcd_controller, time);
-        }
+        self.lcd_controller.deliver_events(now);
+        self.timer.deliver_events(now);
+    }
+
+    fn tick(&mut self) {
+        self.cpu.run_one_instruction();
+
+        let now = self.cpu.elapsed_cycles;
+
+        self.deliver_events(now);
+        self.timer
+            .schedule_interrupts(&mut self.registers.interrupt_flag);
 
         if self.cpu.get_interrupts_enabled() {
             self.handle_interrupts();
         }
     }
 
-    fn handle_interrupts(&mut self) {
+    fn deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) {
         let interrupt_flag_value = self.registers.interrupt_flag.read_value();
         let interrupt_enable_value = self.registers.interrupt_enable.read_value();
 
-        if interrupt_flag_value & InterruptFlag::VerticalBlanking as u8 != 0
-            && interrupt_enable_value & InterruptFlag::VerticalBlanking as u8 != 0
-        {
+        if interrupt_flag_value & flag as u8 != 0 && interrupt_enable_value & flag as u8 != 0 {
             self.registers
                 .interrupt_flag
-                .set_value(interrupt_flag_value & !(InterruptFlag::VerticalBlanking as u8));
-            self.cpu.interrupt(VERTICAL_BLANKING_INTERRUPT_ADDRESS);
-        }
-
-        if interrupt_flag_value & InterruptFlag::LCDSTAT as u8 != 0
-            && interrupt_enable_value & InterruptFlag::LCDSTAT as u8 != 0
-        {
-            self.cpu.interrupt(LCDCSTATUS_INTERRUPT_ADDRESS);
-        }
-
-        if interrupt_flag_value & InterruptFlag::Timer as u8 != 0
-            && interrupt_enable_value & InterruptFlag::Timer as u8 != 0
-        {
-            self.cpu.interrupt(TIMER_INTERRUPT_ADDRESS);
+                .set_value(interrupt_flag_value & !(flag as u8));
+            self.registers
+                .interrupt_enable
+                .set_value(interrupt_flag_value & !(flag as u8));
+            self.cpu.interrupt(address);
         }
     }
 
+    fn handle_interrupts(&mut self) {
+        self.deliver_interrupt(
+            InterruptFlag::VerticalBlanking,
+            VERTICAL_BLANKING_INTERRUPT_ADDRESS,
+        );
+        self.deliver_interrupt(InterruptFlag::LCDSTAT, LCDCSTATUS_INTERRUPT_ADDRESS);
+        self.deliver_interrupt(InterruptFlag::Timer, TIMER_INTERRUPT_ADDRESS);
+    }
+
     fn set_state_post_bios(&mut self) {
+        self.lcd_controller.set_state_post_bios();
+
         /*
          * After running the BIOS (the part of the gameboy that shows the logo) the cpu is left in
          * a very certain state. Since this is always the case, certain games may rely on this fact
@@ -377,9 +437,7 @@ impl<'a> GameBoyEmulator<'a> {
         self.registers.serial_transfer_control.set_value(0x7e);
 
         self.registers.divider.set_value(0xab);
-        self.registers.timer_counter.set_value(0x0);
-        self.registers.timer_modulo.set_value(0x0);
-        self.registers.timer_control.set_value(0xf8);
+        self.timer.set_state_post_bios();
 
         self.registers.interrupt_flag.set_value(0xe1);
 
@@ -403,6 +461,15 @@ impl<'a> GameBoyEmulator<'a> {
         self.internal_ram_b.clone_from_slice(&internal_ram[split..]);
 
         self.registers.interrupt_enable.set_value(0x0);
+    }
+
+    fn schedule_initial_events(&mut self) {
+        let now = self.cpu.elapsed_cycles;
+        self.scheduler.schedule(now + 52, Self::divider_tick);
+        self.scheduler.schedule(now + 98584, Self::unknown_event);
+
+        self.lcd_controller.schedule_initial_events(now);
+        self.timer.schedule_initial_events(now);
     }
 
     fn run(&mut self) {
@@ -487,7 +554,20 @@ fn initial_state_test() {
  */
 
 #[cfg(test)]
-use lr35902_emulator::{read_blargg_test_rom, run_blargg_test_rom};
+use lr35902_emulator::{assert_blargg_test_rom_success, read_blargg_test_rom};
+
+#[cfg(test)]
+fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
+    let mut pc = e.cpu.read_program_counter();
+    // This address is where the rom ends.  At this address is an infinite loop where normally the
+    // rom will sit at forever.
+    while pc != stop_address {
+        e.tick();
+        pc = e.cpu.read_program_counter();
+    }
+
+    assert_blargg_test_rom_success(&e.cpu);
+}
 
 #[test]
 #[ignore]
@@ -496,7 +576,7 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
     e.load_rom(&read_blargg_test_rom(
         "cpu_instrs/individual/02-interrupts.gb",
     ));
-    run_blargg_test_rom(&mut e.cpu, 0xc7f4);
+    run_blargg_test_rom(&mut e, 0xc7f4);
 }
 
 pub fn run_emulator(rom: &[u8]) {

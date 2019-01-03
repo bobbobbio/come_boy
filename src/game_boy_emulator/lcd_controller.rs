@@ -201,6 +201,18 @@ impl<'a> LCDController<'a> {
         }
     }
 
+    pub fn schedule_initial_events(&mut self, now: u64) {
+        self.scheduler.schedule(now + 56 + 4, Self::mode_2);
+        self.scheduler.schedule(now + 56 + 456, Self::advance_ly);
+        self.scheduler.schedule(now + 98648, Self::unknown_event2);
+    }
+
+    pub fn deliver_events(&mut self, now: u64) {
+        for (time, event) in self.scheduler.poll(now) {
+            event(self, time);
+        }
+    }
+
     pub fn start_rendering(&mut self) {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();

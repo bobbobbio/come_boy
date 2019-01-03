@@ -2198,7 +2198,7 @@ pub fn read_blargg_test_rom(name: &str) -> Vec<u8> {
 }
 
 #[cfg(test)]
-pub fn run_blargg_test_rom<M: MemoryAccessor>(e: &mut LR35902Emulator<M>, stop_address: u16) {
+fn run_blargg_test_rom<M: MemoryAccessor>(e: &mut LR35902Emulator<M>, stop_address: u16) {
     let mut pc = e.read_program_counter();
     // This address is where the rom ends.  At this address is an infinite loop where normally the
     // rom will sit at forever.
@@ -2207,6 +2207,11 @@ pub fn run_blargg_test_rom<M: MemoryAccessor>(e: &mut LR35902Emulator<M>, stop_a
         pc = e.read_program_counter();
     }
 
+    assert_blargg_test_rom_success(e);
+}
+
+#[cfg(test)]
+pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(e: &LR35902Emulator<M>) {
     // Scrape from memory what is displayed on the screen
     let mut message = String::new();
     let iter = &mut MemoryIterator::new(&e.memory_accessor, 0x9800..0x9BFF).peekable();
