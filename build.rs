@@ -714,7 +714,7 @@ fn generate_opcode_rs(
     generator.generate(&mut tokens);
 
     let mut out = File::create(output_file).unwrap();
-    write!(out, "{}", tokens);
+    write!(out, "{}", tokens).unwrap();
     out.flush().unwrap();
 
     assert!(Command::new("rustfmt")
