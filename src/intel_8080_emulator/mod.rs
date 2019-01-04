@@ -288,6 +288,8 @@ pub trait Intel8080InstructionSetOps {
         self.set_register_pair(Intel8080Register::SP, sp.wrapping_add(2));
         self.read_memory_u16(sp)
     }
+
+    fn wait_until_interrupt(&mut self);
 }
 
 /*  ___       _       _  ___   ___   ___   ___  _____                 _       _
@@ -449,6 +451,8 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
     fn pop_frame(&mut self) {
         self.call_stack.pop();
     }
+
+    fn wait_until_interrupt(&mut self) {}
 }
 
 /*  _ __ ___  __ _(_)___| |_ ___ _ __   ___  ___| |_     / /
@@ -1563,7 +1567,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
     }
 
     fn halt(&mut self) {
-        panic!("halt: Not Implemented")
+        self.wait_until_interrupt();
     }
 
     fn restart(&mut self, implicit_data: u8) {

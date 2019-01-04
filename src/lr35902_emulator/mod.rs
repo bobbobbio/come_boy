@@ -53,6 +53,7 @@ pub struct LR35902Emulator<M: MemoryAccessor> {
     pub elapsed_cycles: u64,
     pub crash_message: Option<String>,
     pub call_stack: Vec<u16>,
+    halted: bool,
 }
 
 impl<M: MemoryAccessor> LR35902Emulator<M> {
@@ -65,6 +66,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
             elapsed_cycles: 102348,
             crash_message: None,
             call_stack: Vec::new(),
+            halted: false,
         };
 
         e.set_register_pair(Intel8080Register::SP, 0xFFFE);
@@ -171,6 +173,10 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
 
     fn add_cycles(&mut self, cycles: u8) {
         self.elapsed_cycles += cycles as u64;
+    }
+
+    pub fn resume(&mut self) {
+        self.halted = false;
     }
 }
 
@@ -291,6 +297,8 @@ pub trait LR35902InstructionSetOps {
 
         return new_value;
     }
+
+    fn wait_until_interrupt(&mut self);
 }
 
 impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
@@ -360,6 +368,10 @@ impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
 
     fn pop_frame(&mut self) {
         self.call_stack.pop();
+    }
+
+    fn wait_until_interrupt(&mut self) {
+        self.halted = true;
     }
 }
 
@@ -476,6 +488,10 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
 
     fn pop_frame(&mut self) {
         self.pop_frame();
+    }
+
+    fn wait_until_interrupt(&mut self) {
+        self.wait_until_interrupt();
     }
 }
 
@@ -2148,6 +2164,11 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     }
 
     pub fn run_one_instruction(&mut self) {
+        if self.halted {
+            self.add_cycles(4);
+            return;
+        }
+
         let instr;
         {
             let pc = self.read_program_counter();
@@ -2238,13 +2259,6 @@ fn run_blargg_test_rom_cpu_instrs(name: &str, address: u16) {
 #[test]
 fn blargg_test_rom_cpu_instrs_1_special() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/01-special.gb", 0xc7d2);
-}
-
-// This test does not pass
-#[ignore]
-#[test]
-fn blargg_test_rom_cpu_instrs_2_interrupts() {
-    run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/02-interrupts.gb", 0xc7f4);
 }
 
 #[test]

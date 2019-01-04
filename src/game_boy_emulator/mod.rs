@@ -383,9 +383,7 @@ impl<'a> GameBoyEmulator<'a> {
         self.timer
             .schedule_interrupts(&mut self.registers.interrupt_flag);
 
-        if self.cpu.get_interrupts_enabled() {
-            self.handle_interrupts();
-        }
+        self.handle_interrupts();
     }
 
     fn deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) {
@@ -393,13 +391,14 @@ impl<'a> GameBoyEmulator<'a> {
         let interrupt_enable_value = self.registers.interrupt_enable.read_value();
 
         if interrupt_flag_value & flag as u8 != 0 && interrupt_enable_value & flag as u8 != 0 {
-            self.registers
-                .interrupt_flag
-                .set_value(interrupt_flag_value & !(flag as u8));
-            self.registers
-                .interrupt_enable
-                .set_value(interrupt_flag_value & !(flag as u8));
-            self.cpu.interrupt(address);
+            self.cpu.resume();
+
+            if self.cpu.get_interrupts_enabled() {
+                self.registers
+                    .interrupt_flag
+                    .set_value(interrupt_flag_value & !(flag as u8));
+                self.cpu.interrupt(address);
+            }
         }
     }
 
@@ -570,7 +569,6 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
     let mut e = GameBoyEmulator::new();
     e.load_rom(&read_blargg_test_rom(
