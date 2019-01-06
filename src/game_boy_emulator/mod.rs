@@ -2,6 +2,7 @@
 
 mod debugger;
 mod disassembler;
+mod game_pak;
 mod lcd_controller;
 mod memory_controller;
 mod tandem;
@@ -9,8 +10,9 @@ mod tandem;
 use std::io::{self, Write};
 use std::ops::Range;
 
+use self::game_pak::GamePak;
 use self::lcd_controller::{InterruptFlag, LCDController};
-use self::memory_controller::{GameBoyMemoryMap, GameBoyRegister, MemoryChunk};
+use self::memory_controller::{GameBoyMemoryMap, GameBoyRegister, MappingType, MemoryChunk};
 use emulator_common::disassembler::MemoryAccessor;
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use util::{super_fast_hash, Scheduler};
@@ -181,6 +183,7 @@ struct GameBoyEmulator<'a> {
     registers: GameBoyRegisters,
     scheduler: Scheduler<GameBoyEmulator<'a>>,
     timer: GameBoyTimer,
+    game_pak: Option<GamePak>,
 }
 
 impl<'a> GameBoyEmulator<'a> {
@@ -196,6 +199,7 @@ impl<'a> GameBoyEmulator<'a> {
             registers: Default::default(),
             scheduler: Scheduler::new(),
             timer: Default::default(),
+            game_pak: None,
         };
 
         // Restart and interrupt vectors (unmapped) 0x0000 - 0x00FF
@@ -206,131 +210,187 @@ impl<'a> GameBoyEmulator<'a> {
         e.cpu.memory_accessor.map_chunk(
             CHARACTER_DATA.start,
             e.lcd_controller.character_data.clone(),
+            MappingType::ReadWrite,
         );
 
         // Background display data 0x9800 - 0x9FFF
         e.cpu.memory_accessor.map_chunk(
             BACKGROUND_DISPLAY_DATA_1.start,
             e.lcd_controller.background_display_data_1.clone(),
+            MappingType::ReadWrite,
         );
         e.cpu.memory_accessor.map_chunk(
             BACKGROUND_DISPLAY_DATA_2.start,
             e.lcd_controller.background_display_data_2.clone(),
+            MappingType::ReadWrite,
         );
 
         // Cartridge RAM (unmapped) 0xA000 - 0xBFFF
 
         // Internal RAM 0xC000 - 0xDFFF
-        e.cpu
-            .memory_accessor
-            .map_chunk(INTERNAL_RAM_A.start, e.internal_ram_a.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(INTERNAL_RAM_B.start, e.internal_ram_b.clone());
+        e.cpu.memory_accessor.map_chunk(
+            INTERNAL_RAM_A.start,
+            e.internal_ram_a.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            INTERNAL_RAM_B.start,
+            e.internal_ram_b.clone(),
+            MappingType::ReadWrite,
+        );
 
         // Echo RAM 0xE000 - 0xFDFF
-        e.cpu
-            .memory_accessor
-            .map_chunk(ECHO_RAM.start, e.internal_ram_a.clone());
+        e.cpu.memory_accessor.map_chunk(
+            ECHO_RAM.start,
+            e.internal_ram_a.clone(),
+            MappingType::ReadWrite,
+        );
 
         // OAM Data 0xFE00 - 0xFE9F
-        e.cpu
-            .memory_accessor
-            .map_chunk(OAM_DATA.start, e.lcd_controller.oam_data.clone());
+        e.cpu.memory_accessor.map_chunk(
+            OAM_DATA.start,
+            e.lcd_controller.oam_data.clone(),
+            MappingType::ReadWrite,
+        );
 
         // Unusable memory 0xFEA0 - 0xFEFF
         e.cpu.memory_accessor.map_chunk(
             UNUSABLE_MEMORY.start,
             e.lcd_controller.unusable_memory.clone(),
+            MappingType::ReadWrite,
         );
 
         // Registers
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF00, e.registers.p1_joypad.chunk.clone_read_only());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF01, e.registers.serial_transfer_data.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF00,
+            e.registers.p1_joypad.chunk.clone(),
+            MappingType::Read,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF01,
+            e.registers.serial_transfer_data.chunk.clone(),
+            MappingType::ReadWrite,
+        );
         e.cpu.memory_accessor.map_chunk(
             0xFF02,
-            e.registers.serial_transfer_control.chunk.clone_read_only(),
+            e.registers.serial_transfer_control.chunk.clone(),
+            MappingType::Read,
         );
 
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF04, e.registers.divider.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF05, e.timer.counter.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF06, e.timer.modulo.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF07, e.timer.control.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF04,
+            e.registers.divider.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF05,
+            e.timer.counter.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF06,
+            e.timer.modulo.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF07,
+            e.timer.control.chunk.clone(),
+            MappingType::ReadWrite,
+        );
 
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF0F, e.registers.interrupt_flag.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF0F,
+            e.registers.interrupt_flag.chunk.clone(),
+            MappingType::ReadWrite,
+        );
 
         // Other IO Registers 0xFF10 - 0xFF3F
-        e.cpu
-            .memory_accessor
-            .map_chunk(IO_PORTS_A.start, e.io_ports_a.clone());
+        e.cpu.memory_accessor.map_chunk(
+            IO_PORTS_A.start,
+            e.io_ports_a.clone(),
+            MappingType::ReadWrite,
+        );
 
         // LCD Registers 0xFF40 - 0xFF4B
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF40, e.lcd_controller.registers.lcdc.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF40,
+            e.lcd_controller.registers.lcdc.chunk.clone(),
+            MappingType::ReadWrite,
+        );
         e.cpu.memory_accessor.map_chunk(
             0xFF41,
-            e.lcd_controller.registers.stat.chunk.clone_read_only(),
+            e.lcd_controller.registers.stat.chunk.clone(),
+            MappingType::Read,
         );
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF42, e.lcd_controller.registers.scy.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF43, e.lcd_controller.registers.scx.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF44, e.lcd_controller.registers.ly.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF45, e.lcd_controller.registers.lyc.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF46, e.lcd_controller.registers.dma.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF47, e.lcd_controller.registers.bgp.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF48, e.lcd_controller.registers.obp0.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF49, e.lcd_controller.registers.obp1.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF4A, e.lcd_controller.registers.wy.chunk.clone());
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFF4B, e.lcd_controller.registers.wx.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFF42,
+            e.lcd_controller.registers.scy.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF43,
+            e.lcd_controller.registers.scx.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF44,
+            e.lcd_controller.registers.ly.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF45,
+            e.lcd_controller.registers.lyc.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF46,
+            e.lcd_controller.registers.dma.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF47,
+            e.lcd_controller.registers.bgp.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF48,
+            e.lcd_controller.registers.obp0.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF49,
+            e.lcd_controller.registers.obp1.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF4A,
+            e.lcd_controller.registers.wy.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+        e.cpu.memory_accessor.map_chunk(
+            0xFF4B,
+            e.lcd_controller.registers.wx.chunk.clone(),
+            MappingType::ReadWrite,
+        );
 
         // Other IO Registers 0xFF4C - 0xFF7F
-        e.cpu
-            .memory_accessor
-            .map_chunk(IO_PORTS_B.start, e.io_ports_b.clone());
+        e.cpu.memory_accessor.map_chunk(
+            IO_PORTS_B.start,
+            e.io_ports_b.clone(),
+            MappingType::ReadWrite,
+        );
 
         // High RAM 0xFF80 - 0xFFFE
         e.cpu
             .memory_accessor
-            .map_chunk(HIGH_RAM.start, e.high_ram.clone());
+            .map_chunk(HIGH_RAM.start, e.high_ram.clone(), MappingType::ReadWrite);
 
         // interrupt enable register
-        e.cpu
-            .memory_accessor
-            .map_chunk(0xFFFF, e.registers.interrupt_enable.chunk.clone());
+        e.cpu.memory_accessor.map_chunk(
+            0xFFFF,
+            e.registers.interrupt_enable.chunk.clone(),
+            MappingType::ReadWrite,
+        );
 
         e.set_state_post_bios();
 
@@ -344,10 +404,10 @@ impl<'a> GameBoyEmulator<'a> {
         self.registers.interrupt_flag.set_value(value | 0xE0);
     }
 
-    fn load_rom(&mut self, rom: &[u8]) {
-        self.cpu
-            .memory_accessor
-            .map_chunk(0, MemoryChunk::new(rom.to_vec()));
+    fn load_game_pak(&mut self, mut game_pak: GamePak) {
+        println!("Loading {:?}", &game_pak);
+        game_pak.map(&mut self.cpu.memory_accessor);
+        self.game_pak = Some(game_pak);
     }
 
     fn crashed(&self) -> Option<&String> {
@@ -377,9 +437,14 @@ impl<'a> GameBoyEmulator<'a> {
     fn tick(&mut self) {
         self.cpu.run_one_instruction();
 
-        let now = self.cpu.elapsed_cycles;
+        match self.game_pak {
+            Some(ref mut game_pak) => game_pak.tick(),
+            None => (),
+        }
 
+        let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
+
         self.timer
             .schedule_interrupts(&mut self.registers.interrupt_flag);
 
@@ -571,15 +636,15 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
 #[test]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
     let mut e = GameBoyEmulator::new();
-    e.load_rom(&read_blargg_test_rom(
+    e.load_game_pak(GamePak::from(&read_blargg_test_rom(
         "cpu_instrs/individual/02-interrupts.gb",
-    ));
+    )));
     run_blargg_test_rom(&mut e, 0xc7f4);
 }
 
 pub fn run_emulator(rom: &[u8]) {
     let mut e = GameBoyEmulator::new();
-    e.load_rom(&rom);
+    e.load_game_pak(GamePak::from(rom));
     e.run();
 }
 

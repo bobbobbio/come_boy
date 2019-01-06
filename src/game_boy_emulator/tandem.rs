@@ -2,7 +2,7 @@
 
 use emulator_common::Intel8080Register;
 use game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
-use game_boy_emulator::GameBoyEmulator;
+use game_boy_emulator::{GameBoyEmulator, GamePak};
 
 use std::fmt;
 use std::fs::File;
@@ -429,7 +429,7 @@ pub fn run(replay_file_path: &str, rom: &[u8]) {
     let e1 = EmulatorReplayer::new(&f);
 
     let mut e2 = GameBoyEmulator::new();
-    e2.load_rom(rom);
+    e2.load_game_pak(GamePak::from(rom));
 
     let mut comparer = EmulatorComparer::new(e1, e2);
 

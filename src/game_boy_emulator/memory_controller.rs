@@ -4,6 +4,7 @@ use emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::ops::Range;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 pub struct GameBoyRegister {
@@ -44,20 +45,38 @@ impl GameBoyRegister {
     }
 }
 
-pub struct GameBoyMemoryMap {
-    memory_map: BTreeMap<u16, MemoryChunk>,
+pub enum MappingType {
+    Read,
+    Write,
+    ReadWrite,
 }
 
-impl<'a> GameBoyMemoryMap {
+pub trait MemoryMappedHardware {
+    fn read_value(&self, address: u16) -> u8;
+    fn set_value(&mut self, address: u16, value: u8);
+    fn len(&self) -> u16;
+}
+
+pub struct GameBoyMemoryMap {
+    read_map: BTreeMap<u16, Box<MemoryMappedHardware>>,
+    write_map: BTreeMap<u16, Box<MemoryMappedHardware>>,
+}
+
+impl GameBoyMemoryMap {
     pub fn new() -> GameBoyMemoryMap {
         return GameBoyMemoryMap {
-            memory_map: BTreeMap::new(),
+            read_map: BTreeMap::new(),
+            write_map: BTreeMap::new(),
         };
     }
 
-    pub fn map_chunk(&mut self, address: u16, mut chunk: MemoryChunk) {
+    fn map_chunk_internal<M: MemoryMappedHardware + 'static>(
+        map: &mut BTreeMap<u16, Box<MemoryMappedHardware>>,
+        address: u16,
+        chunk: M,
+    ) {
         // Assert the chunk we are mapping doesn't overlap with any existing chunks
-        match self.memory_map.range(..address).last() {
+        match map.range(..address).last() {
             Some((&key, value)) => assert!(
                 address < key || address >= key + value.len(),
                 "Chunk overlaps existing chunk"
@@ -65,7 +84,7 @@ impl<'a> GameBoyMemoryMap {
             None => (),
         }
 
-        match self.memory_map.range(address..).next() {
+        match map.range(address..).next() {
             Some((&key, _)) => assert!(
                 address + chunk.len() <= key,
                 "Chunk overlaps existing chunk"
@@ -80,47 +99,65 @@ impl<'a> GameBoyMemoryMap {
             );
         }
 
-        self.memory_map.insert(address, chunk.clone());
+        map.insert(address, Box::new(chunk));
     }
 
-    // XXX this isn't used, but might be useful.
-    #[allow(dead_code)]
-    pub fn unmap_chunk(&mut self, address: u16) {
-        self.memory_map.remove(&address);
-    }
-
-    pub fn get_chunk_for_address(&self, address: u16) -> Option<(&u16, &MemoryChunk)> {
-        if address == 0xFFFF {
-            self.memory_map.iter().last()
-        } else {
-            self.memory_map.range(..address + 1).last()
-        }
-    }
-
-    pub fn get_chunk_for_address_mut(&mut self, address: u16) -> Option<(&u16, &mut MemoryChunk)> {
-        if address == 0xFFFF {
-            self.memory_map.iter_mut().last()
-        } else {
-            self.memory_map.range_mut(..address + 1).last()
-        }
-    }
-
-    // XXX this isn't used, but might be useful.
-    #[allow(dead_code)]
-    pub fn get_address_for_chunk(&self, c: &MemoryChunk) -> Option<u16> {
-        for (&address, chunk) in &self.memory_map {
-            if chunk.ptr_eq(c) {
-                return Some(address);
+    pub fn map_chunk<M: MemoryMappedHardware + Clone + 'static>(
+        &mut self,
+        address: u16,
+        chunk: M,
+        t: MappingType,
+    ) {
+        match t {
+            MappingType::Read => Self::map_chunk_internal(&mut self.read_map, address, chunk),
+            MappingType::Write => Self::map_chunk_internal(&mut self.write_map, address, chunk),
+            MappingType::ReadWrite => {
+                Self::map_chunk_internal(&mut self.read_map, address, chunk.clone());
+                Self::map_chunk_internal(&mut self.write_map, address, chunk);
             }
         }
+    }
 
-        return None;
+    fn get_chunk_for_address(
+        &self,
+        address: u16,
+        t: MappingType,
+    ) -> Option<(&u16, &(dyn MemoryMappedHardware + 'static))> {
+        let map = match t {
+            MappingType::Read => &self.read_map,
+            MappingType::Write => &self.write_map,
+            MappingType::ReadWrite => panic!(),
+        };
+        if address == 0xFFFF {
+            map.iter().last()
+        } else {
+            map.range(..address + 1).last()
+        }
+        .map(|(a, v)| (a, v.deref()))
+    }
+
+    fn get_chunk_for_address_mut(
+        &mut self,
+        address: u16,
+        t: MappingType,
+    ) -> Option<(&u16, &mut (dyn MemoryMappedHardware + 'static))> {
+        let map = match t {
+            MappingType::Read => &mut self.read_map,
+            MappingType::Write => &mut self.write_map,
+            MappingType::ReadWrite => panic!(),
+        };
+        if address == 0xFFFF {
+            map.iter_mut().last()
+        } else {
+            map.range_mut(..address + 1).last()
+        }
+        .map(|(a, v)| (a, v.deref_mut()))
     }
 }
 
-impl<'a> MemoryAccessor for GameBoyMemoryMap {
+impl MemoryAccessor for GameBoyMemoryMap {
     fn read_memory(&self, address: u16) -> u8 {
-        match self.get_chunk_for_address(address) {
+        match self.get_chunk_for_address(address, MappingType::Read) {
             None => 0xFF,
             Some((key, ref chunk)) => {
                 if address - key >= chunk.len() {
@@ -133,7 +170,7 @@ impl<'a> MemoryAccessor for GameBoyMemoryMap {
     }
 
     fn set_memory(&mut self, address: u16, value: u8) {
-        match self.get_chunk_for_address_mut(address) {
+        match self.get_chunk_for_address_mut(address, MappingType::Write) {
             None => {}
             Some((key, chunk)) => {
                 if address - key < chunk.len() {
@@ -152,30 +189,17 @@ impl<'a> MemoryAccessor for GameBoyMemoryMap {
 pub struct MemoryChunk {
     value: Rc<RefCell<(bool, Vec<u8>)>>,
     borrower: bool,
-    read_only: bool,
 }
 
-impl MemoryChunk {
-    pub fn new(v: Vec<u8>) -> MemoryChunk {
-        assert!(v.len() > 0);
-        MemoryChunk {
-            value: Rc::new(RefCell::new((false, v))),
-            borrower: false,
-            read_only: false,
-        }
-    }
-
-    pub fn set_value(&mut self, address: u16, value: u8) {
-        if self.read_only {
-            return;
-        }
+impl MemoryMappedHardware for MemoryChunk {
+    fn set_value(&mut self, address: u16, value: u8) {
         let (borrowed, ref mut data) = *self.value.borrow_mut();
         if !borrowed || self.borrower {
             data[address as usize] = value;
         }
     }
 
-    pub fn read_value(&self, address: u16) -> u8 {
+    fn read_value(&self, address: u16) -> u8 {
         let (borrowed, ref data) = *self.value.borrow();
         if borrowed && !self.borrower {
             0xFF
@@ -184,25 +208,28 @@ impl MemoryChunk {
         }
     }
 
-    pub fn clone(&mut self) -> MemoryChunk {
-        MemoryChunk {
-            value: self.value.clone(),
-            borrower: false,
-            read_only: self.read_only,
-        }
-    }
-
-    pub fn clone_read_only(&mut self) -> MemoryChunk {
-        MemoryChunk {
-            value: self.value.clone(),
-            borrower: false,
-            read_only: true,
-        }
-    }
-
-    pub fn len(&self) -> u16 {
+    fn len(&self) -> u16 {
         let (_, ref data) = *self.value.borrow_mut();
         (*data).len() as u16
+    }
+}
+
+impl Clone for MemoryChunk {
+    fn clone(&self) -> Self {
+        MemoryChunk {
+            value: self.value.clone(),
+            borrower: false,
+        }
+    }
+}
+
+impl MemoryChunk {
+    pub fn new(v: Vec<u8>) -> MemoryChunk {
+        assert!(v.len() > 0);
+        MemoryChunk {
+            value: Rc::new(RefCell::new((false, v))),
+            borrower: false,
+        }
     }
 
     pub fn from_range(range: Range<u16>) -> MemoryChunk {
@@ -221,10 +248,6 @@ impl MemoryChunk {
         let (ref borrowed, ref mut data) = *self.value.borrow_mut();
         assert!(!borrowed);
         ((*data)[range]).clone_from_slice(slice);
-    }
-
-    pub fn ptr_eq(&self, other: &MemoryChunk) -> bool {
-        Rc::<RefCell<(bool, Vec<u8>)>>::ptr_eq(&self.value, &other.value)
     }
 
     pub fn borrow(&mut self) {
@@ -282,45 +305,56 @@ impl<'a> MemoryChunkIterator<'a> {
 #[should_panic]
 fn overlapping_inside_chunk() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
-    mm.map_chunk(13, MemoryChunk::new(vec![1]));
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
+    mm.map_chunk(13, MemoryChunk::new(vec![1]), MappingType::ReadWrite);
+}
+
+#[test]
+fn overlapping_chunk_different_mapping() {
+    let mut mm = GameBoyMemoryMap::new();
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]), MappingType::Read);
+    mm.map_chunk(13, MemoryChunk::new(vec![1]), MappingType::Write);
 }
 
 #[test]
 #[should_panic]
 fn overlapping_left_side_chunk() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
-    mm.map_chunk(10, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
+    mm.map_chunk(10, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
 }
 
 #[test]
 #[should_panic]
 fn overlapping_right_side_chunk() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
-    mm.map_chunk(14, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
+    mm.map_chunk(14, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
 }
 
 #[test]
 fn non_overlapping_left_chunk() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(3, MemoryChunk::new(vec![1, 2, 3]));
-    mm.map_chunk(0, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(3, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
+    mm.map_chunk(0, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
 }
 
 #[test]
 fn non_overlapping_right_chunk() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]));
-    mm.map_chunk(15, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(12, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
+    mm.map_chunk(15, MemoryChunk::new(vec![1, 2, 3]), MappingType::ReadWrite);
 }
 
 #[test]
 #[should_panic]
 fn mapping_past_end_of_range() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(0xFFFF, MemoryChunk::new(vec![1, 2, 3]));
+    mm.map_chunk(
+        0xFFFF,
+        MemoryChunk::new(vec![1, 2, 3]),
+        MappingType::ReadWrite,
+    );
 }
 
 #[test]
@@ -332,7 +366,7 @@ fn accessing_unmapped_region() {
 #[test]
 fn accessing_unmapped_region_with_region_mapped() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]));
+    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]), MappingType::ReadWrite);
     assert_eq!(mm.read_memory(24), 0xff);
 }
 
@@ -346,7 +380,7 @@ fn setting_unmapped_region() {
 #[test]
 fn setting_unmapped_region_with_region_mapped() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]));
+    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]), MappingType::ReadWrite);
     mm.set_memory(24, 99);
     assert_eq!(mm.read_memory(24), 0xFF);
 }
@@ -354,7 +388,7 @@ fn setting_unmapped_region_with_region_mapped() {
 #[test]
 fn accessing_mapped_region() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]));
+    mm.map_chunk(10, MemoryChunk::new(vec![9, 8, 7]), MappingType::ReadWrite);
     assert_eq!(mm.read_memory(10), 9);
     assert_eq!(mm.read_memory(11), 8);
     assert_eq!(mm.read_memory(12), 7);
@@ -363,15 +397,15 @@ fn accessing_mapped_region() {
 #[test]
 fn accessing_end_of_address_range() {
     let mut mm = GameBoyMemoryMap::new();
-    mm.map_chunk(0xFFFF, MemoryChunk::new(vec![9]));
+    mm.map_chunk(0xFFFF, MemoryChunk::new(vec![9]), MappingType::ReadWrite);
     assert_eq!(mm.read_memory(0xFFFF), 9);
 }
 
 #[test]
 fn setting_end_of_address_range() {
     let mut mm = GameBoyMemoryMap::new();
-    let mut chunk = MemoryChunk::new(vec![9]);
-    mm.map_chunk(0xFFFF, chunk.clone());
+    let chunk = MemoryChunk::new(vec![9]);
+    mm.map_chunk(0xFFFF, chunk.clone(), MappingType::ReadWrite);
     mm.set_memory(0xFFFF, 99);
     assert_eq!(chunk.read_value(0), 99);
 }
@@ -379,8 +413,8 @@ fn setting_end_of_address_range() {
 #[test]
 fn setting_mapped_region() {
     let mut mm = GameBoyMemoryMap::new();
-    let mut chunk = MemoryChunk::new(vec![9, 8, 7]);
-    mm.map_chunk(10, chunk.clone());
+    let chunk = MemoryChunk::new(vec![9, 8, 7]);
+    mm.map_chunk(10, chunk.clone(), MappingType::ReadWrite);
     mm.set_memory(11, 88);
     assert_eq!(chunk.read_value(1), 88);
 }

@@ -4,6 +4,7 @@ use std::{fmt, str};
 use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use emulator_common::disassembler::Disassembler;
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
+use game_boy_emulator::game_pak::GamePak;
 use game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
 use game_boy_emulator::{GameBoyEmulator, GameBoyRegister};
 
@@ -149,7 +150,7 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
 
 pub fn run_debugger(rom: &[u8], is_interrupted: &Fn() -> bool) {
     let mut e = GameBoyEmulator::new();
-    e.load_rom(&rom);
+    e.load_game_pak(GamePak::from(&rom));
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();
     let stdout = &mut io::stdout();
