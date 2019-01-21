@@ -69,6 +69,10 @@ impl SwitchableBank {
     fn clone_bank(&self, number: usize) -> MemoryChunk {
         self.banks.borrow().banks[number].clone()
     }
+
+    fn len(&self) -> usize {
+        self.banks.borrow().banks.len()
+    }
 }
 
 impl MemoryMappedHardware for SwitchableBank {
@@ -166,10 +170,18 @@ impl<R: CartridgeRam> MemoryBankController for MemoryBankController1<R> {
     fn tick(&mut self) {
         let mut rom_bank_value = (self.rom_bank_number.value() & 0x0F) as usize;
 
+        // ROM bank zero cannot be selected, and this extends to higher numbered banks that can be
+        // selected below using the ram_bank_number (0x20, 0x40, 0x60) => (0x21, 0x41, 0x61).
+        if rom_bank_value == 0 {
+            rom_bank_value += 1;
+        }
+
         if self.rom_ram_select.value() == 0 {
             rom_bank_value |= ((self.ram_bank_number.value() & 0b00000011) as usize) << 4;
         }
 
+        // XXX remi: I'm not sure whats suppose to happen if a non-existent ROM bank is requested.
+        rom_bank_value %= self.switchable_bank.len();
         self.switchable_bank.switch_bank(rom_bank_value);
 
         if self.rom_ram_select.value() != 0 && self.ram_enable.value() & 0x0F == 0x0A {
