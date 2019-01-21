@@ -228,7 +228,7 @@ impl<'a> LCDController<'a> {
         let mut renderer = window.renderer().build().unwrap();
         renderer.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
         renderer.clear();
-        renderer.present();
+        self.update_screen();
 
         self.renderer = Some(renderer);
         self.event_pump = Some(event_pump);
@@ -455,11 +455,32 @@ impl<'a> LCDController<'a> {
     }
 
     fn update_screen(&mut self) {
-        if self.renderer.is_none() {
-            return;
+        match self.renderer.as_mut() {
+            Some(r) => r.present(),
+            None => {}
         }
+    }
 
-        self.renderer.as_mut().unwrap().present();
+    // XXX remi: This should return a Result, also leaving this here because it might be useful.
+    #[allow(dead_code)]
+    fn save_screenshot<P: AsRef<std::path::Path>>(&mut self, path: P) {
+        match self.renderer.as_mut() {
+            Some(r) => {
+                let mut pixels = r
+                    .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)
+                    .unwrap();
+                let s = sdl2::surface::Surface::from_data(
+                    &mut pixels,
+                    160 * PIXEL_SCALE,
+                    140 * PIXEL_SCALE,
+                    160 * PIXEL_SCALE * 4,
+                    sdl2::pixels::PixelFormatEnum::ABGR8888,
+                )
+                .unwrap();
+                s.save_bmp(path).unwrap();
+            }
+            None => {}
+        }
     }
 
     // The LCD modes happen like this:
