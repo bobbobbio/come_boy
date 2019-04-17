@@ -2,7 +2,7 @@
 
 use emulator_common::Intel8080Register;
 use game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
-use game_boy_emulator::{GameBoyEmulator, GamePak};
+use game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
 
 use std::fmt;
 use std::fs::File;
@@ -34,6 +34,23 @@ struct AbstractEmulatorRegisters {
     wx: u8,
 }
 
+pub fn fmt_flags(flags: u8, f: &mut fmt::Formatter) -> fmt::Result {
+    let all = [
+        LR35902Flag::Zero,
+        LR35902Flag::Subtract,
+        LR35902Flag::HalfCarry,
+        LR35902Flag::Carry,
+    ];
+    let mut set = vec![];
+
+    for f in all.iter() {
+        if *f as u8 & flags != 0 {
+            set.push(*f);
+        }
+    }
+    write!(f, "0x{:02x}: {:?}", flags, set)
+}
+
 impl fmt::Debug for AbstractEmulatorRegisters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let le = if f.alternate() { "\n" } else { "" };
@@ -48,7 +65,9 @@ impl fmt::Debug for AbstractEmulatorRegisters {
         write!(f, "{}e: 0x{:x},{}", sep, self.e, le)?;
         write!(f, "{}h: 0x{:x},{}", sep, self.h, le)?;
         write!(f, "{}l: 0x{:x},{}", sep, self.l, le)?;
-        write!(f, "{}flags: 0x{:x}{}", sep, self.flags, le)?;
+        write!(f, "{}flags: ", sep)?;
+        fmt_flags(self.flags, f)?;
+        write!(f, "{}", le)?;
 
         write!(f, "{}lcdc: ", sep)?;
         fmt_lcdc(self.lcdc, f)?;
