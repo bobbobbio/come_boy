@@ -169,21 +169,16 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let iter = &mut data.iter().peekable();
         while iter.peek().is_some() {
             if include_opcodes {
-                try!(write!(self.stream_out, "{:07x}          ", index));
+                write!(self.stream_out, "{:07x}          ", index)?;
             }
-            try!(write!(
-                self.stream_out,
-                "{:04} ${:02X}",
-                "db",
-                iter.next().unwrap()
-            ));
+            write!(self.stream_out, "{:04} ${:02X}", "db", iter.next().unwrap())?;
             index += 1;
             for d in iter.take(15) {
-                try!(write!(self.stream_out, ",${:02X}", d));
+                write!(self.stream_out, ",${:02X}", d)?;
                 index += 1;
             }
             if iter.peek().is_some() {
-                try!(writeln!(self.stream_out));
+                writeln!(self.stream_out)?;
             }
         }
         Ok(())
@@ -211,7 +206,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         match str::from_utf8(&data) {
             Ok(s) => {
                 if include_opcodes {
-                    try!(write!(self.stream_out, "{:07x}          ", start));
+                    write!(self.stream_out, "{:07x}          ", start)?;
                 }
                 write!(self.stream_out, "{:04} \"{}\"", "db", s)
             }
@@ -247,17 +242,17 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let skip = lines.lines().count().saturating_sub(context as usize);
 
         for line in lines.lines().skip(skip) {
-            try!(writeln!(self.stream_out, "{}", line));
+            writeln!(self.stream_out, "{}", line)?;
         }
 
-        try!(self.disassemble_one(true));
-        try!(writeln!(self.stream_out, " <---"));
+        self.disassemble_one(true)?;
+        writeln!(self.stream_out, " <---")?;
 
         for _ in 0..(context - 1) {
-            try!(self.disassemble_one(true));
-            try!(writeln!(self.stream_out));
+            self.disassemble_one(true)?;
+            writeln!(self.stream_out)?;
         }
-        try!(self.disassemble_one(true));
+        self.disassemble_one(true)?;
 
         self.index = current;
 
@@ -273,7 +268,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
             let stream = MemoryStream::new(self.memory_accessor, self.index);
             printed = match opcode_printer.get_instruction(stream) {
                 Some(res) => {
-                    try!(opcode_printer.print_instruction(&res, self.index));
+                    opcode_printer.print_instruction(&res, self.index)?;
                     instr = res;
                     true
                 }
@@ -295,13 +290,13 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
                 raw_assembly.push_str(format!("{:02x} ", code).as_str());
             }
 
-            try!(write!(
+            write!(
                 self.stream_out,
                 "{:07x} {:9}{}",
                 self.index, raw_assembly, str_instr
-            ));
+            )?;
         } else {
-            try!(write!(self.stream_out, "{}", str_instr));
+            write!(self.stream_out, "{}", str_instr)?;
         }
 
         self.index += instr.len() as u16;
@@ -312,8 +307,8 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
     pub fn disassemble(&mut self, range: Range<u16>, include_opcodes: bool) -> Result<()> {
         self.index = range.start;
         while self.index < range.end {
-            try!(self.disassemble_one(include_opcodes));
-            try!(writeln!(self.stream_out, ""));
+            self.disassemble_one(include_opcodes)?;
+            writeln!(self.stream_out, "")?;
         }
         Ok(())
     }

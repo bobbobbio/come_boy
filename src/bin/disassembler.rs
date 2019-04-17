@@ -36,8 +36,8 @@ fn disassemble_rom(rom: &Vec<u8>, instruction_set: &String, include_opcodes: boo
 }
 
 fn read_rom_from_file(file_path: &String, mut rom: &mut Vec<u8>) -> Result<()> {
-    let mut file = try!(File::open(&file_path));
-    try!(file.read_to_end(&mut rom));
+    let mut file = File::open(&file_path)?;
+    file.read_to_end(&mut rom)?;
     Ok(())
 }
 

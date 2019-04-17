@@ -10,11 +10,9 @@ use game_boy_emulator::{GameBoyEmulator, GameBoyRegister};
 
 impl<'a> fmt::Debug for GameBoyEmulator<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(f, "{:?}", self.cpu));
-
-        try!(writeln!(f));
-
-        try!(write!(f, "{:?}", self.lcd_controller));
+        writeln!(f, "{:?}", self.cpu)?;
+        writeln!(f)?;
+        write!(f, "{:?}", self.lcd_controller)?;
 
         Ok(())
     }
@@ -71,18 +69,18 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
 impl<'a> fmt::Debug for LCDController<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // XXX: I don't like how this mapping information is repeated here.
-        try!(fmt_lcd_register(0xFF40, &self.registers.lcdc, "LCDC", f));
-        try!(fmt_lcd_register(0xFF41, &self.registers.stat, "STAT", f));
-        try!(fmt_lcd_register(0xFF42, &self.registers.scy, "SCY", f));
-        try!(fmt_lcd_register(0xFF43, &self.registers.scx, "SCX", f));
-        try!(fmt_lcd_register(0xFF44, &self.registers.ly, "LY", f));
-        try!(fmt_lcd_register(0xFF45, &self.registers.lyc, "LYC", f));
-        try!(fmt_lcd_register(0xFF46, &self.registers.dma, "DMA", f));
-        try!(fmt_lcd_register(0xFF47, &self.registers.bgp, "BGP", f));
-        try!(fmt_lcd_register(0xFF48, &self.registers.obp0, "OBP0", f));
-        try!(fmt_lcd_register(0xFF49, &self.registers.obp1, "OBP1", f));
-        try!(fmt_lcd_register(0xFF4A, &self.registers.wy, "WX", f));
-        try!(fmt_lcd_register(0xFF4B, &self.registers.wx, "WY", f));
+        fmt_lcd_register(0xFF40, &self.registers.lcdc, "LCDC", f)?;
+        fmt_lcd_register(0xFF41, &self.registers.stat, "STAT", f)?;
+        fmt_lcd_register(0xFF42, &self.registers.scy, "SCY", f)?;
+        fmt_lcd_register(0xFF43, &self.registers.scx, "SCX", f)?;
+        fmt_lcd_register(0xFF44, &self.registers.ly, "LY", f)?;
+        fmt_lcd_register(0xFF45, &self.registers.lyc, "LYC", f)?;
+        fmt_lcd_register(0xFF46, &self.registers.dma, "DMA", f)?;
+        fmt_lcd_register(0xFF47, &self.registers.bgp, "BGP", f)?;
+        fmt_lcd_register(0xFF48, &self.registers.obp0, "OBP0", f)?;
+        fmt_lcd_register(0xFF49, &self.registers.obp1, "OBP1", f)?;
+        fmt_lcd_register(0xFF4A, &self.registers.wy, "WX", f)?;
+        fmt_lcd_register(0xFF4B, &self.registers.wx, "WY", f)?;
 
         Ok(())
     }

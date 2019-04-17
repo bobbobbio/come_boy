@@ -88,7 +88,7 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
 
 impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        try!(writeln!(
+        writeln!(
             f,
             "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
             self.read_register(Intel8080Register::B),
@@ -98,22 +98,22 @@ impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {
             self.read_register(Intel8080Register::H),
             self.read_register(Intel8080Register::L),
             self.read_register(Intel8080Register::A)
-        ));
-        try!(writeln!(
+        )?;
+        writeln!(
             f,
             "Zero: {}, Subtract: {}, HalfCarry: {}, Carry: {}",
             self.read_flag(LR35902Flag::Zero),
             self.read_flag(LR35902Flag::Subtract),
             self.read_flag(LR35902Flag::HalfCarry),
             self.read_flag(LR35902Flag::Carry)
-        ));
-        try!(write!(
+        )?;
+        write!(
             f,
             "PC: {:x}, SP: {:x}, M: {:x}",
             self.read_program_counter(),
             self.read_register_pair(Intel8080Register::SP),
             self.read_register(Intel8080Register::M)
-        ));
+        )?;
 
         Ok(())
     }
