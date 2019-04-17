@@ -64,6 +64,33 @@ fn str_from_register_pair(reg: Intel8080Register) -> &'static str {
     }
 }
 
+fn comment_from_address(address: u16) -> &'static str {
+    match address {
+        0xFF00 => " ; P1 Joypad",
+        0xFF01 => " ; Serial Transfer Data",
+        0xFF02 => " ; Serial Transfer Control",
+        0xFF04 => " ; Divider",
+        0xFF05 => " ; Timer Counter",
+        0xFF06 => " ; Timer Modulo",
+        0xFF07 => " ; Timer Control",
+        0xFF0F => " ; IF",
+        0xFF40 => " ; LCDC",
+        0xFF41 => " ; STAT",
+        0xFF42 => " ; SCY",
+        0xFF43 => " ; SCX",
+        0xFF44 => " ; LY",
+        0xFF45 => " ; LYC",
+        0xFF46 => " ; DMA",
+        0xFF47 => " ; BGP",
+        0xFF48 => " ; OBP0",
+        0xFF49 => " ; OBP1",
+        0xFF4A => " ; WY",
+        0xFF4B => " ; WX",
+        0xFFFF => " ; IE",
+        _ => "",
+    }
+}
+
 impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
     fn reset_bit(&mut self, implicit_data1: u8, register2: Intel8080Register) {
         self.error = write!(
@@ -219,7 +246,13 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "ccf");
     }
     fn load_accumulator_direct(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} a,[${:04X}]", "ld", address1);
+        self.error = write!(
+            self.stream_out,
+            "{:04} a,[${:04X}]{}",
+            "ld",
+            address1,
+            comment_from_address(address1)
+        );
     }
     fn return_if_not_zero(&mut self) {
         self.error = write!(self.stream_out, "{:04} nz", "ret");
@@ -247,7 +280,13 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} nz,${:04X}", "call", address1);
     }
     fn store_sp_direct(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} [${:04X}],sp", "ld", address1);
+        self.error = write!(
+            self.stream_out,
+            "{:04} [${:04X}],sp{}",
+            "ld",
+            address1,
+            comment_from_address(address1)
+        );
     }
     fn subtract_immediate_from_accumulator(&mut self, data1: u8) {
         self.error = write!(self.stream_out, "{:04} a,${:02X}", "sub", data1);
@@ -268,7 +307,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
             self.stream_out,
             "{:04} a,[{}]",
             "ld",
-            str_from_register_pair(register1)
+            str_from_register_pair(register1),
         );
     }
     fn move_and_decrement_hl(
@@ -317,7 +356,13 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "rra");
     }
     fn store_accumulator_direct_one_byte(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} [$FF{:02X}],a", "ldh", data1);
+        self.error = write!(
+            self.stream_out,
+            "{:04} [$FF{:02X}],a{}",
+            "ldh",
+            data1,
+            comment_from_address(0xFF00 + data1 as u16)
+        );
     }
     fn logical_and_with_accumulator(&mut self, register1: Intel8080Register) {
         self.error = write!(
@@ -353,7 +398,13 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} z,${:04X}", "call", address1);
     }
     fn load_accumulator_direct_one_byte(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,[$FF{:02X}]", "ldh", data1);
+        self.error = write!(
+            self.stream_out,
+            "{:04} a,[$FF{:02X}]{}",
+            "ldh",
+            data1,
+            comment_from_address(0xFF00 + data1 as u16)
+        );
     }
     fn jump_if_carry(&mut self, address1: u16) {
         self.error = write!(self.stream_out, "{:04} c,${:04X}", "jp", address1);
@@ -370,7 +421,13 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} a,${:02X}", "adc", data1);
     }
     fn store_accumulator_direct(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} [${:04X}],a", "ld", address1);
+        self.error = write!(
+            self.stream_out,
+            "{:04} [${:04X}],a{}",
+            "ld",
+            address1,
+            comment_from_address(address1)
+        );
     }
     fn swap_register(&mut self, register1: Intel8080Register) {
         self.error = write!(
