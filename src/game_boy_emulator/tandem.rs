@@ -1,12 +1,14 @@
 // Copyright 2018 Remi Bernotavicius
 
+use emulator_common::disassembler::Disassembler;
 use emulator_common::Intel8080Register;
 use game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
+use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
 
-use std::fmt;
 use std::fs::File;
 use std::io::{self, Bytes, Read, Write};
+use std::{fmt, str};
 
 #[derive(Clone, Copy, Default, PartialEq)]
 struct AbstractEmulatorRegisters {
@@ -105,44 +107,31 @@ trait AbstractEmulator {
     fn write_memory(&self, w: &mut Write) -> io::Result<()>;
 }
 
-struct EmulatorComparer<A: AbstractEmulator, B: AbstractEmulator> {
-    a: A,
-    b: B,
-    runs: u64,
-}
-
-impl<A: AbstractEmulator, B: AbstractEmulator> EmulatorComparer<A, B> {
-    fn new(a: A, b: B) -> EmulatorComparer<A, B> {
-        return EmulatorComparer {
-            a: a,
-            b: b,
-            runs: 0,
-        };
+fn compare_emulators<A: AbstractEmulator, B: AbstractEmulator>(
+    a: &mut A,
+    b: &mut B,
+) -> (
+    Option<AbstractEmulatorState>,
+    Option<AbstractEmulatorState>,
+    u64,
+) {
+    let mut runs = 0;
+    let (mut a_state, mut b_state) = (a.get_state(), b.get_state());
+    while a_state == b_state {
+        runs += 1;
+        a.run_one();
+        b.run_one();
+        a_state = a.get_state();
+        b_state = b.get_state();
     }
 
-    fn run(&mut self) -> (Option<AbstractEmulatorState>, Option<AbstractEmulatorState>) {
-        self.runs = 0;
-        let (mut a_state, mut b_state) = (self.a.get_state(), self.b.get_state());
-        while a_state == b_state {
-            self.runs += 1;
-            self.a.run_one();
-            self.b.run_one();
-            a_state = self.a.get_state();
-            b_state = self.b.get_state();
-        }
+    let mut file = File::create("/tmp/emulator_a.bin").unwrap();
+    a.write_memory(&mut file).unwrap();
 
-        let mut file = File::create("/tmp/emulator_a.bin").unwrap();
-        self.a.write_memory(&mut file).unwrap();
+    let mut file = File::create("/tmp/emulator_b.bin").unwrap();
+    b.write_memory(&mut file).unwrap();
 
-        let mut file = File::create("/tmp/emulator_b.bin").unwrap();
-        self.b.write_memory(&mut file).unwrap();
-
-        return (a_state, b_state);
-    }
-
-    fn runs(&self) -> u64 {
-        self.runs
-    }
+    return (a_state, b_state, runs);
 }
 
 #[cfg(test)]
@@ -268,10 +257,9 @@ const TEST_STATE3: AbstractEmulatorState = AbstractEmulatorState {
 
 #[test]
 fn compares_states() {
-    let te1 = TestEmulator::new(vec![TEST_STATE1, TEST_STATE2]);
-    let te2 = TestEmulator::new(vec![TEST_STATE1, TEST_STATE3]);
-    let mut ec = EmulatorComparer::new(te1, te2);
-    let (a_state, b_state) = ec.run();
+    let mut te1 = TestEmulator::new(vec![TEST_STATE1, TEST_STATE2]);
+    let mut te2 = TestEmulator::new(vec![TEST_STATE1, TEST_STATE3]);
+    let (a_state, b_state, _) = compare_emulators(&mut te1, &mut te2);
     assert_ne!(a_state, b_state);
     assert_eq!(a_state, Some(TEST_STATE2));
     assert_eq!(b_state, Some(TEST_STATE3));
@@ -445,18 +433,28 @@ fn emulator_replayer() {
 
 pub fn run(replay_file_path: &str, rom: &[u8]) {
     let f = File::open(replay_file_path).unwrap();
-    let e1 = EmulatorReplayer::new(&f);
+    let mut e1 = EmulatorReplayer::new(&f);
 
     let mut e2 = GameBoyEmulator::new();
     e2.load_game_pak(GamePak::from(rom));
 
-    let mut comparer = EmulatorComparer::new(e1, e2);
+    let (a, b, runs) = compare_emulators(&mut e1, &mut e2);
 
-    let (a, b) = comparer.run();
-
-    println!("differed after {} runs", comparer.runs());
+    println!("differed after {} runs", runs);
     println!("Replay from path {}:", replay_file_path);
     println!("{:#?}", a);
     println!("Comeboy:");
     println!("{:#?}", b);
+
+    let mut buffer = vec![];
+    {
+        let mut dis = Disassembler::new(
+            &e2.cpu.memory_accessor,
+            RGBDSInstructionPrinterFactory,
+            &mut buffer,
+        );
+        dis.index = e2.cpu.read_program_counter();
+        dis.disassemble_multiple().unwrap();
+    }
+    println!("{}", str::from_utf8(&buffer).unwrap())
 }
