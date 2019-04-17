@@ -2241,7 +2241,7 @@ pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(e: &LR35902Emulator<M>)
             // The rom happens to use ASCII as the way it maps characters to the correct tile.
             message.push(c as char);
         }
-        message = String::from(message.trim_right());
+        message = String::from(message.trim_end());
         message.push('\n');
     }
 

@@ -9,7 +9,7 @@ use argparse::ArgumentParser;
 use std::fs::File;
 use std::io::{Read, Result};
 use std::process::exit;
-use std::sync::atomic::{AtomicBool, Ordering, ATOMIC_BOOL_INIT};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use come_boy::game_boy_emulator;
 
@@ -30,7 +30,7 @@ fn read_rom_from_file(file_path: &String, mut rom: &mut Vec<u8>) -> Result<()> {
     Ok(())
 }
 
-static INTERRUPTED: AtomicBool = ATOMIC_BOOL_INIT;
+static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 extern "C" fn handle_sigint(_: i32) {
     INTERRUPTED.store(true, Ordering::Relaxed)
