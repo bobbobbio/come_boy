@@ -435,11 +435,15 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn tick(&mut self) {
-        self.cpu.run_one_instruction();
+        self.cpu.load_instruction();
 
-        match self.game_pak {
-            Some(ref mut game_pak) => game_pak.tick(),
-            None => (),
+        let now = self.cpu.elapsed_cycles;
+        self.deliver_events(now);
+
+        self.cpu.execute_instruction();
+
+        if let Some(game_pak) = &mut self.game_pak {
+            game_pak.tick();
         }
 
         let now = self.cpu.elapsed_cycles;

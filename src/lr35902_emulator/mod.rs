@@ -54,6 +54,7 @@ pub struct LR35902Emulator<M: MemoryAccessor> {
     pub crash_message: Option<String>,
     pub call_stack: Vec<u16>,
     halted: bool,
+    instr: Option<Vec<u8>>,
 }
 
 impl<M: MemoryAccessor> LR35902Emulator<M> {
@@ -67,6 +68,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
             crash_message: None,
             call_stack: Vec::new(),
             halted: false,
+            instr: None,
         };
 
         e.set_register_pair(Intel8080Register::SP, 0xFFFE);
@@ -2152,10 +2154,8 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     }
 
     fn run_lr35902_instruction(&mut self, instruction: &[u8]) {
-        let pc = self.read_program_counter() as usize;
-        self.set_program_counter((pc + instruction.len()) as u16);
-        let duration = dispatch_lr35902_instruction(&instruction, self);
-        self.add_cycles(duration);
+        let total_duration = dispatch_lr35902_instruction(&instruction, self);
+        self.add_cycles(total_duration - (instruction.len() * 4) as u8);
     }
 
     fn crash_from_unkown_opcode(&mut self) {
@@ -2163,25 +2163,43 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.crash(format!("Unknown opcode at address {:x}", pc));
     }
 
-    pub fn run_one_instruction(&mut self) {
+    pub fn load_instruction(&mut self) {
         if self.halted {
             self.add_cycles(4);
             return;
         }
 
+        let pc = self.read_program_counter();
         let instr;
         {
-            let pc = self.read_program_counter();
             let stream = MemoryStream::new(&self.memory_accessor, pc);
             instr = get_lr35902_instruction(stream);
         }
-        match instr {
+
+        if let Some(instr) = &instr {
+            self.set_program_counter(pc + instr.len() as u16);
+            self.add_cycles((instr.len() * 4) as u8);
+        }
+        self.instr = instr;
+    }
+
+    pub fn execute_instruction(&mut self) {
+        if self.halted {
+            return;
+        }
+
+        match self.instr.take() {
             Some(res) => {
                 self.run_lr35902_instruction(&res);
                 return;
             }
             None => self.crash_from_unkown_opcode(),
         };
+    }
+
+    pub fn run_one_instruction(&mut self) {
+        self.load_instruction();
+        self.execute_instruction();
     }
 }
 
