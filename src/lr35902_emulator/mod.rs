@@ -945,7 +945,8 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     }
 
     fn decrement_register_or_memory(&mut self, register: Intel8080Register) {
-        Intel8080InstructionSet::decrement_register_or_memory(self, register)
+        Intel8080InstructionSet::decrement_register_or_memory(self, register);
+        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
     fn halt(&mut self) {
@@ -1083,7 +1084,8 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     }
 
     fn compare_immediate_with_accumulator(&mut self, data: u8) {
-        Intel8080InstructionSet::compare_immediate_with_accumulator(self, data)
+        Intel8080InstructionSet::compare_immediate_with_accumulator(self, data);
+        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
     fn move_immediate_data(&mut self, dest_register: Intel8080Register, data: u8) {
