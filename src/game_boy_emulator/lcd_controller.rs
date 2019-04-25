@@ -582,6 +582,7 @@ impl<'a> LCDController<'a> {
 
         self.enabled = true;
         self.scheduler.schedule(time + 204, Self::mode_2);
+        self.scheduler.schedule(time + 904, Self::advance_ly);
     }
 
     fn disable(&mut self) {
