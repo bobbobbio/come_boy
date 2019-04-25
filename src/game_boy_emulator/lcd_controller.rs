@@ -577,14 +577,21 @@ impl<'a> LCDController<'a> {
         self.scheduler.schedule(time + 8, Self::mode_2);
     }
 
-    fn enable(&mut self) {
+    fn enable(&mut self, time: u64) {
         assert!(!self.enabled);
 
         self.enabled = true;
+        self.scheduler.schedule(time + 204, Self::mode_2);
     }
 
     fn disable(&mut self) {
         assert!(self.enabled);
+
+        self.character_data.release();
+        self.background_display_data_1.release();
+        self.background_display_data_2.release();
+        self.oam_data.release();
+        self.unusable_memory.release();
 
         self.set_lcd_status_mode(0x0);
         self.registers.ly.set_value(0);
@@ -593,18 +600,18 @@ impl<'a> LCDController<'a> {
         self.enabled = false;
     }
 
-    fn check_enabled_state(&mut self) {
+    fn check_enabled_state(&mut self, time: u64) {
         let lcdc_enabled = self.read_lcd_control_flag(LCDControlFlag::DisplayOn);
         if self.enabled != lcdc_enabled {
             if lcdc_enabled {
-                self.enable();
+                self.enable(time);
             } else {
                 self.disable();
             }
         }
     }
 
-    pub fn tick(&mut self) {
-        self.check_enabled_state();
+    pub fn tick(&mut self, time: u64) {
+        self.check_enabled_state(time);
     }
 }
