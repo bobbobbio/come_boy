@@ -493,8 +493,6 @@ impl<'a> LCDController<'a> {
     // Mode 1 lasts for 4560 cycles.
 
     pub fn mode_2(&mut self, time: u64) {
-        println!("mode 2 {}", time);
-
         self.oam_data.borrow();
         self.unusable_memory.borrow();
         self.set_lcd_status_mode(0x2);
@@ -502,8 +500,6 @@ impl<'a> LCDController<'a> {
     }
 
     fn mode_3(&mut self, time: u64) {
-        println!("mode 3 {}", time);
-
         self.character_data.borrow();
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
@@ -513,8 +509,6 @@ impl<'a> LCDController<'a> {
     }
 
     fn mode_0(&mut self, time: u64) {
-        println!("mode 0 {}", time);
-
         self.character_data.release();
         self.background_display_data_1.release();
         self.background_display_data_2.release();
@@ -567,8 +561,6 @@ impl<'a> LCDController<'a> {
     }
 
     fn mode_1(&mut self, time: u64) {
-        println!("mode 1 {}", time);
-
         self.set_lcd_status_mode(0x1);
         self.update_screen();
 
@@ -578,8 +570,6 @@ impl<'a> LCDController<'a> {
     }
 
     fn after_mode_1(&mut self, time: u64) {
-        println!("after mode 1 {}", time);
-
         self.set_lcd_status_mode(0x0);
         self.oam_data.borrow();
         self.unusable_memory.borrow();
