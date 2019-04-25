@@ -158,10 +158,11 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
     fn load_register_pair_immediate(&mut self, register1: Intel8080Register, data2: u16) {
         self.error = write!(
             self.stream_out,
-            "{:04} {},${:04X}",
+            "{:04} {},${:04X}{}",
             "ld",
             str_from_register_pair(register1),
-            data2
+            data2,
+            comment_from_address(data2),
         );
     }
     fn move_data(&mut self, register1: Intel8080Register, register2: Intel8080Register) {
