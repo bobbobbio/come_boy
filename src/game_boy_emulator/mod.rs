@@ -5,6 +5,7 @@ mod disassembler;
 mod game_pak;
 mod lcd_controller;
 mod memory_controller;
+mod sound_controller;
 mod tandem;
 
 use std::io::{self, Write};
@@ -13,6 +14,7 @@ use std::ops::Range;
 use self::game_pak::GamePak;
 use self::lcd_controller::{InterruptFlag, LCDController};
 use self::memory_controller::{GameBoyMemoryMap, GameBoyRegister, MappingType, MemoryChunk};
+use self::sound_controller::SoundController;
 use emulator_common::disassembler::MemoryAccessor;
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use util::{super_fast_hash, Scheduler};
@@ -61,14 +63,6 @@ const OAM_DATA: Range<u16> = Range {
 const UNUSABLE_MEMORY: Range<u16> = Range {
     start: 0xFEA0,
     end: 0xFF00,
-};
-const IO_PORTS_A: Range<u16> = Range {
-    start: 0xFF10,
-    end: 0xFF40,
-};
-const IO_PORTS_B: Range<u16> = Range {
-    start: 0xFF4C,
-    end: 0xFF80,
 };
 const HIGH_RAM: Range<u16> = Range {
     start: 0xFF80,
@@ -173,9 +167,8 @@ impl GameBoyTimer {
 
 struct GameBoyEmulator<'a> {
     cpu: LR35902Emulator<GameBoyMemoryMap>,
+    sound_controller: SoundController,
     lcd_controller: LCDController<'a>,
-    io_ports_a: MemoryChunk,
-    io_ports_b: MemoryChunk,
     high_ram: MemoryChunk,
     internal_ram_a: MemoryChunk,
     internal_ram_b: MemoryChunk,
@@ -191,8 +184,7 @@ impl<'a> GameBoyEmulator<'a> {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(GameBoyMemoryMap::new()),
             lcd_controller: LCDController::new(),
-            io_ports_a: MemoryChunk::from_range(IO_PORTS_A),
-            io_ports_b: MemoryChunk::from_range(IO_PORTS_B),
+            sound_controller: Default::default(),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
             internal_ram_a: MemoryChunk::from_range(INTERNAL_RAM_A),
             internal_ram_b: MemoryChunk::from_range(INTERNAL_RAM_B),
@@ -304,10 +296,136 @@ impl<'a> GameBoyEmulator<'a> {
             MappingType::ReadWrite,
         );
 
-        // Other IO Registers 0xFF10 - 0xFF3F
+        /* Sound Registers 0xFF10 - 0xFF26 */
         e.cpu.memory_accessor.map_chunk(
-            IO_PORTS_A.start,
-            e.io_ports_a.clone(),
+            0xFF10,
+            e.sound_controller.channel1.sweep.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF11,
+            e.sound_controller.channel1.sound_length.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF12,
+            e.sound_controller.channel1.volume_envelope.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF13,
+            e.sound_controller.channel1.frequency_low.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF14,
+            e.sound_controller.channel1.frequency_high.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF16,
+            e.sound_controller.channel2.sound_length.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF17,
+            e.sound_controller.channel2.volume_envelope.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF18,
+            e.sound_controller.channel2.frequency_low.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF19,
+            e.sound_controller.channel2.frequency_high.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF1A,
+            e.sound_controller.channel3.enabled.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF1B,
+            e.sound_controller.channel3.sound_length.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF1C,
+            e.sound_controller.channel3.output_level.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF1D,
+            e.sound_controller.channel3.frequency_low.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF1E,
+            e.sound_controller.channel3.frequency_high.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF20,
+            e.sound_controller.channel4.sound_length.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF21,
+            e.sound_controller.channel4.volume_envelope.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF22,
+            e.sound_controller.channel4.polynomial_counter.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF23,
+            e.sound_controller.channel4.counter.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF24,
+            e.sound_controller.channel_control.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF25,
+            e.sound_controller.output_terminal.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF26,
+            e.sound_controller.enabled.chunk.clone(),
+            MappingType::ReadWrite,
+        );
+
+        e.cpu.memory_accessor.map_chunk(
+            0xFF30,
+            e.sound_controller.channel3.wave_pattern.clone(),
             MappingType::ReadWrite,
         );
 
@@ -370,13 +488,6 @@ impl<'a> GameBoyEmulator<'a> {
         e.cpu.memory_accessor.map_chunk(
             0xFF4B,
             e.lcd_controller.registers.wx.chunk.clone(),
-            MappingType::ReadWrite,
-        );
-
-        // Other IO Registers 0xFF4C - 0xFF7F
-        e.cpu.memory_accessor.map_chunk(
-            IO_PORTS_B.start,
-            e.io_ports_b.clone(),
             MappingType::ReadWrite,
         );
 
@@ -483,6 +594,7 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn set_state_post_bios(&mut self) {
+        self.sound_controller.set_state_post_bios();
         self.lcd_controller.set_state_post_bios();
 
         /*
@@ -511,14 +623,9 @@ impl<'a> GameBoyEmulator<'a> {
 
         self.registers.interrupt_flag.set_value(0xe1);
 
-        // Initialize io ports
-        let io_ports_a = include_bytes!("assets/io_ports_a.bin");
-        self.io_ports_a.clone_from_slice(&io_ports_a[..]);
+        /* 10 - 26 Sound Controller */
 
         /* 40 - 4B LCD Controller */
-
-        let io_ports_b = include_bytes!("assets/io_ports_b.bin");
-        self.io_ports_b.clone_from_slice(&io_ports_b[..]);
 
         let high_ram = include_bytes!("assets/high_ram.bin");
         self.high_ram.clone_from_slice(&high_ram[..]);
