@@ -107,7 +107,7 @@ fn fmt_lcd_register<'a>(
 
 pub fn fmt_lcdc(lcdc: u8, f: &mut fmt::Formatter) -> fmt::Result {
     let all = [
-        LCDControlFlag::OperationStop,
+        LCDControlFlag::DisplayOn,
         LCDControlFlag::WindowCodeAreaSelection,
         LCDControlFlag::WindowingOn,
         LCDControlFlag::BGCharacterDataSelection,

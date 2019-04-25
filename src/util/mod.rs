@@ -200,4 +200,8 @@ impl<T> Scheduler<T> {
 
         return events;
     }
+
+    pub fn drop_events(&mut self) {
+        self.timeline = BTreeMap::new();
+    }
 }

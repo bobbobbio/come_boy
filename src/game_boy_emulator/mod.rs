@@ -446,6 +446,8 @@ impl<'a> GameBoyEmulator<'a> {
             game_pak.tick();
         }
 
+        self.lcd_controller.tick();
+
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
 
