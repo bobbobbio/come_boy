@@ -420,7 +420,7 @@ impl<'a> GameBoyEmulator<'a> {
         e.cpu.memory_accessor.map_chunk(
             0xFF26,
             e.sound_controller.enabled.chunk.clone(),
-            MappingType::ReadWrite,
+            MappingType::Read,
         );
 
         e.cpu.memory_accessor.map_chunk(
