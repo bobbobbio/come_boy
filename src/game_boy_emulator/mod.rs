@@ -462,7 +462,7 @@ impl<'a> GameBoyEmulator<'a> {
         );
         e.cpu.memory_accessor.map_chunk(
             0xFF46,
-            e.lcd_controller.registers.dma.chunk.clone(),
+            e.lcd_controller.registers.dma.clone(),
             MappingType::ReadWrite,
         );
         e.cpu.memory_accessor.map_chunk(
@@ -557,7 +557,7 @@ impl<'a> GameBoyEmulator<'a> {
             game_pak.tick();
         }
 
-        self.lcd_controller.tick(now);
+        self.lcd_controller.tick(&mut self.cpu.memory_accessor, now);
 
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
