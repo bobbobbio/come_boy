@@ -441,7 +441,6 @@ impl<'a> LCDController<'a> {
         }
     }
 
-    #[allow(dead_code)]
     fn draw_oam_data(&mut self) {
         if self.renderer.is_none() {
             return;
@@ -453,12 +452,11 @@ impl<'a> LCDController<'a> {
         let iter = LCDObjectIterator::new(&self.oam_data);
         for object in iter {
             let character_data = self.read_dot_data(object.character_code);
-            character_data.draw_line(
-                self.renderer.as_mut().unwrap(),
-                window_x + object.x_coordinate as i32,
-                window_y + object.y_coordinate as i32,
-                ly,
-            );
+            let x = window_x + object.x_coordinate as i32 - 8;
+            let y = window_y + object.y_coordinate as i32 - 16;
+            if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
+                character_data.draw_line(self.renderer.as_mut().unwrap(), x, y, ly);
+            }
         }
     }
 
@@ -513,6 +511,7 @@ impl<'a> LCDController<'a> {
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
         self.draw_bg_data();
+        self.draw_oam_data();
         self.set_lcd_status_mode(0x3);
         self.scheduler.schedule(time + 175, Self::mode_0);
     }
