@@ -562,6 +562,8 @@ impl<'a> GameBoyEmulator<'a> {
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
 
+        self.lcd_controller
+            .schedule_interrupts(&mut self.registers.interrupt_flag);
         self.timer
             .schedule_interrupts(&mut self.registers.interrupt_flag);
 

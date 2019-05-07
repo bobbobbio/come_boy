@@ -185,6 +185,7 @@ pub struct LCDController<'a> {
     pub registers: LCDControllerRegisters,
     scheduler: Scheduler<LCDController<'a>>,
     enabled: bool,
+    interrupt_requested: bool,
 }
 
 impl<'a> LCDController<'a> {
@@ -204,6 +205,14 @@ impl<'a> LCDController<'a> {
         self.scheduler.schedule(now + 56 + 4, Self::mode_2);
         self.scheduler.schedule(now + 56 + 456, Self::advance_ly);
         self.scheduler.schedule(now + 98648, Self::unknown_event2);
+    }
+
+    pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyRegister) {
+        if self.interrupt_requested {
+            let interrupt_flag_value = interrupt_flag.read_value();
+            interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::VerticalBlanking as u8);
+            self.interrupt_requested = false;
+        }
     }
 
     pub fn deliver_events(&mut self, now: u64) {
@@ -563,6 +572,7 @@ impl<'a> LCDController<'a> {
     fn mode_1(&mut self, time: u64) {
         self.set_lcd_status_mode(0x1);
         self.update_screen();
+        self.interrupt_requested = true;
 
         self.check_for_screen_close();
 
