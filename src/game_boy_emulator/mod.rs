@@ -13,7 +13,9 @@ use std::ops::Range;
 
 use self::game_pak::GamePak;
 use self::lcd_controller::{InterruptFlag, LCDController};
-use self::memory_controller::{GameBoyMemoryMap, GameBoyRegister, MappingType, MemoryChunk};
+use self::memory_controller::{
+    GameBoyFlags, GameBoyMemoryMap, GameBoyRegister, MappingType, MemoryChunk,
+};
 use self::sound_controller::SoundController;
 use emulator_common::disassembler::MemoryAccessor;
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
@@ -83,8 +85,8 @@ const ECHO_RAM: Range<u16> = Range {
 
 #[derive(Default)]
 struct GameBoyRegisters {
-    interrupt_flag: GameBoyRegister,
-    interrupt_enable: GameBoyRegister,
+    interrupt_flag: GameBoyFlags<InterruptFlag>,
+    interrupt_enable: GameBoyFlags<InterruptFlag>,
 
     p1_joypad: GameBoyRegister,
     serial_transfer_data: GameBoyRegister,
@@ -150,10 +152,9 @@ impl GameBoyTimer {
         self.scheduler.schedule(now + speed, Self::tick);
     }
 
-    fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyRegister) {
+    fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.interrupt_requested {
-            let interrupt_flag_value = interrupt_flag.read_value();
-            interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::Timer as u8);
+            interrupt_flag.set_flag(InterruptFlag::Timer, true);
             self.interrupt_requested = false;
         }
     }
@@ -571,16 +572,14 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) {
-        let interrupt_flag_value = self.registers.interrupt_flag.read_value();
-        let interrupt_enable_value = self.registers.interrupt_enable.read_value();
+        let interrupt_flag_value = self.registers.interrupt_flag.read_flag(flag);
+        let interrupt_enable_value = self.registers.interrupt_enable.read_flag(flag);
 
-        if interrupt_flag_value & flag as u8 != 0 && interrupt_enable_value & flag as u8 != 0 {
+        if interrupt_flag_value && interrupt_enable_value {
             self.cpu.resume();
 
             if self.cpu.get_interrupts_enabled() {
-                self.registers
-                    .interrupt_flag
-                    .set_value(interrupt_flag_value & !(flag as u8));
+                self.registers.interrupt_flag.set_flag(flag, false);
                 self.cpu.interrupt(address);
             }
         }

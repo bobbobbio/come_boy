@@ -3,6 +3,7 @@
 use emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
 use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::ops::Range;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -42,6 +43,53 @@ impl GameBoyRegister {
     pub fn subtract(&mut self, value: u8) {
         let old_value = self.read_value();
         self.set_value(old_value.wrapping_sub(value));
+    }
+}
+
+pub struct GameBoyFlags<T> {
+    pub chunk: MemoryChunk,
+    phantom: PhantomData<T>,
+}
+
+impl<T> Default for GameBoyFlags<T> {
+    fn default() -> Self {
+        GameBoyFlags::new()
+    }
+}
+
+impl<T> GameBoyFlags<T> {
+    pub fn new() -> Self {
+        Self {
+            chunk: MemoryChunk::from_range(0..1),
+            phantom: Default::default(),
+        }
+    }
+
+    pub fn read_value(&self) -> u8 {
+        self.chunk.read_value(0)
+    }
+
+    pub fn set_value(&mut self, value: u8) {
+        self.chunk.set_value(0, value)
+    }
+}
+
+impl<T> GameBoyFlags<T>
+where
+    u8: From<T>,
+{
+    pub fn read_flag(&self, f: T) -> bool {
+        let value = self.read_value();
+        value & u8::from(f) != 0
+    }
+
+    pub fn set_flag(&mut self, f: T, v: bool) {
+        let value = self.read_value();
+        if v {
+            self.set_value(value | u8::from(f));
+        } else {
+            self.set_value(value & !u8::from(f));
+        }
     }
 }
 

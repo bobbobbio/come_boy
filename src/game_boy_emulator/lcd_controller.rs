@@ -8,7 +8,8 @@ use std::rc::Rc;
 
 use emulator_common::disassembler::MemoryAccessor;
 use game_boy_emulator::memory_controller::{
-    GameBoyMemoryMap, GameBoyRegister, MemoryChunk, MemoryChunkIterator, MemoryMappedHardware,
+    GameBoyFlags, GameBoyMemoryMap, GameBoyRegister, MemoryChunk, MemoryChunkIterator,
+    MemoryMappedHardware,
 };
 use game_boy_emulator::{
     BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
@@ -71,8 +72,8 @@ impl DmaRegister {
 
 #[derive(Default)]
 pub struct LCDControllerRegisters {
-    pub lcdc: GameBoyRegister,
-    pub stat: GameBoyRegister,
+    pub lcdc: GameBoyFlags<LCDControlFlag>,
+    pub stat: GameBoyFlags<LCDStatusFlag>,
     pub scy: GameBoyRegister,
     pub scx: GameBoyRegister,
     pub ly: GameBoyRegister,
@@ -100,6 +101,16 @@ fn color_for_shade(shade: LCDBGShade) -> sdl2::pixels::Color {
         LCDBGShade::Shade2 => sdl2::pixels::Color::RGB(50, 50, 50),
         LCDBGShade::Shade3 => sdl2::pixels::Color::RGB(0, 0, 0),
     }
+}
+
+macro_rules! from_u8 {
+    ($($cname:ident),*) => ($(
+        impl From<$cname> for u8 {
+            fn from(f: $cname) -> u8 {
+                f as u8
+            }
+        }
+    )*)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -152,6 +163,13 @@ enum LCDObjectAttributeFlag {
     HorizantalFlip = 0b00100000,
     Palette = 0b00010000,
 }
+
+from_u8!(
+    LCDControlFlag,
+    LCDStatusFlag,
+    InterruptFlag,
+    LCDObjectAttributeFlag
+);
 
 impl LCDObject {
     #[allow(dead_code)]
@@ -257,10 +275,9 @@ impl<'a> LCDController<'a> {
         self.scheduler.schedule(now + 98648, Self::unknown_event2);
     }
 
-    pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyRegister) {
+    pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.interrupt_requested {
-            let interrupt_flag_value = interrupt_flag.read_value();
-            interrupt_flag.set_value(interrupt_flag_value | InterruptFlag::VerticalBlanking as u8);
+            interrupt_flag.set_flag(InterruptFlag::VerticalBlanking, true);
             self.interrupt_requested = false;
         }
     }
@@ -295,7 +312,11 @@ impl<'a> LCDController<'a> {
     fn read_dot_data(&self, character_code: u8) -> LCDDotData {
         let mut dot_data = LCDDotData::new();
 
-        let location = if self.read_lcd_control_flag(LCDControlFlag::BGCharacterDataSelection) {
+        let bg_character_data_selection = self
+            .registers
+            .lcdc
+            .read_flag(LCDControlFlag::BGCharacterDataSelection);
+        let location = if bg_character_data_selection {
             CHARACTER_DATA_1.start
         } else {
             CHARACTER_DATA_2.start
@@ -329,36 +350,6 @@ impl<'a> LCDController<'a> {
         return dot_data;
     }
 
-    fn read_lcd_control_flag(&self, flag: LCDControlFlag) -> bool {
-        self.registers.lcdc.read_value() & flag as u8 == flag as u8
-    }
-
-    fn set_lcd_control_flag(&mut self, flag: LCDControlFlag, value: bool) {
-        let old_value = self.registers.lcdc.read_value();
-        if value {
-            self.registers.lcdc.set_value(old_value | flag as u8);
-        } else {
-            self.registers.lcdc.set_value(old_value & !(flag as u8));
-        }
-    }
-
-    #[allow(dead_code)]
-    fn read_lcd_status_flag(&self, flag: LCDStatusFlag) -> bool {
-        self.registers.stat.read_value() & flag as u8 == flag as u8
-    }
-
-    fn set_lcd_status_flag(&mut self, flag: LCDStatusFlag, value: bool) {
-        // Mode is a four-value flag
-        assert!(flag != LCDStatusFlag::Mode);
-
-        let old_value = self.registers.stat.read_value();
-        if value {
-            self.registers.stat.set_value(old_value | flag as u8);
-        } else {
-            self.registers.stat.set_value(old_value & !(flag as u8));
-        }
-    }
-
     fn set_lcd_status_mode(&mut self, value: u8) {
         let stat = self.registers.stat.read_value() & !(LCDStatusFlag::Mode as u8);
         self.registers.stat.set_value(stat | value);
@@ -370,13 +361,21 @@ impl<'a> LCDController<'a> {
     }
 
     pub fn set_state_post_bios(&mut self) {
-        self.set_lcd_control_flag(LCDControlFlag::DisplayOn, true);
-        self.set_lcd_control_flag(LCDControlFlag::BGCharacterDataSelection, true);
-        self.set_lcd_control_flag(LCDControlFlag::BGDisplayOn, true);
+        self.registers
+            .lcdc
+            .set_flag(LCDControlFlag::DisplayOn, true);
+        self.registers
+            .lcdc
+            .set_flag(LCDControlFlag::BGCharacterDataSelection, true);
+        self.registers
+            .lcdc
+            .set_flag(LCDControlFlag::BGDisplayOn, true);
         self.registers.bgp.set_value(0xFC);
 
-        self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
-        self.set_lcd_status_flag(LCDStatusFlag::Unknown, true);
+        self.registers
+            .stat
+            .set_flag(LCDStatusFlag::InterruptLYMatching, true);
+        self.registers.stat.set_flag(LCDStatusFlag::Unknown, true);
         self.set_lcd_status_mode(0x1);
         self.registers.dma.set_value(0xff);
         self.registers.obp0.set_value(0xff);
@@ -469,7 +468,12 @@ impl<'a> LCDController<'a> {
             return;
         }
 
-        let iter = match self.read_lcd_control_flag(LCDControlFlag::BGCodeAreaSelection) {
+        let bg_code_area_selection = self
+            .registers
+            .lcdc
+            .read_flag(LCDControlFlag::BGCodeAreaSelection);
+
+        let iter = match bg_code_area_selection {
             false => MemoryChunkIterator::new(&self.background_display_data_1),
             true => MemoryChunkIterator::new(&self.background_display_data_2),
         };
@@ -602,7 +606,7 @@ impl<'a> LCDController<'a> {
             self.scheduler.schedule(time + 456, Self::advance_ly);
         }
 
-        self.set_lcd_status_flag(LCDStatusFlag::Unknown, false);
+        self.registers.stat.set_flag(LCDStatusFlag::Unknown, false);
 
         if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
             self.oam_data.borrow();
@@ -611,11 +615,13 @@ impl<'a> LCDController<'a> {
     }
 
     pub fn unknown_event(&mut self, _time: u64) {
-        self.set_lcd_status_flag(LCDStatusFlag::Unknown, true);
+        self.registers.stat.set_flag(LCDStatusFlag::Unknown, true);
     }
 
     pub fn unknown_event2(&mut self, _time: u64) {
-        self.set_lcd_status_flag(LCDStatusFlag::InterruptLYMatching, true);
+        self.registers
+            .stat
+            .set_flag(LCDStatusFlag::InterruptLYMatching, true);
     }
 
     fn mode_1(&mut self, time: u64) {
@@ -661,7 +667,7 @@ impl<'a> LCDController<'a> {
     }
 
     fn check_enabled_state(&mut self, time: u64) {
-        let lcdc_enabled = self.read_lcd_control_flag(LCDControlFlag::DisplayOn);
+        let lcdc_enabled = self.registers.lcdc.read_flag(LCDControlFlag::DisplayOn);
         if self.enabled != lcdc_enabled {
             if lcdc_enabled {
                 self.enable(time);
