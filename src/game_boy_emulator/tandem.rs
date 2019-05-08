@@ -435,7 +435,7 @@ pub fn run(replay_file_path: &str, rom: &[u8]) {
     let f = File::open(replay_file_path).unwrap();
     let mut e1 = EmulatorReplayer::new(&f);
 
-    let mut e2 = GameBoyEmulator::new();
+    let mut e2 = GameBoyEmulator::new(4);
     e2.load_game_pak(GamePak::from(rom));
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2);

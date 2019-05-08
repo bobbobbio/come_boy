@@ -147,7 +147,7 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 pub fn run_debugger(rom: &[u8], is_interrupted: &Fn() -> bool) {
-    let mut e = GameBoyEmulator::new();
+    let mut e = GameBoyEmulator::new(4);
     e.load_game_pak(GamePak::from(&rom));
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();

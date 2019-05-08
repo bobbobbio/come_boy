@@ -17,11 +17,6 @@ use game_boy_emulator::{
 };
 use util::Scheduler;
 
-/*
- * Number of pixels (both horizontal and vertical) on the screen per gameboy pixel.
- */
-const PIXEL_SCALE: u32 = 4;
-
 const CHARACTER_SIZE: u8 = 8;
 const CHARACTER_AREA_SIZE: u16 = 32;
 
@@ -200,12 +195,14 @@ impl<'a> LCDObjectIterator<'a> {
 
 struct LCDDotData {
     data: [LCDBGShade; 64],
+    pixel_scale: u32,
 }
 
 impl LCDDotData {
-    fn new() -> LCDDotData {
+    fn new(pixel_scale: u32) -> LCDDotData {
         LCDDotData {
             data: [LCDBGShade::Shade0; 64],
+            pixel_scale,
         }
     }
 
@@ -218,10 +215,10 @@ impl LCDDotData {
         let iter = self.data[start_pixel..end_pixel].iter().enumerate();
         for (offset_x, &shade) in iter {
             let rect = sdl2::rect::Rect::new(
-                (x + offset_x as i32) * PIXEL_SCALE as i32,
-                ly as i32 * PIXEL_SCALE as i32,
-                PIXEL_SCALE,
-                PIXEL_SCALE,
+                (x + offset_x as i32) * self.pixel_scale as i32,
+                ly as i32 * self.pixel_scale as i32,
+                self.pixel_scale,
+                self.pixel_scale,
             );
             let color = color_for_shade(shade);
             renderer.set_draw_color(color);
@@ -244,10 +241,11 @@ pub struct LCDController<'a> {
     scheduler: Scheduler<LCDController<'a>>,
     enabled: bool,
     interrupt_requested: bool,
+    pixel_scale: u32,
 }
 
 impl<'a> LCDController<'a> {
-    pub fn new() -> Self {
+    pub fn new(pixel_scale: u32) -> Self {
         LCDController {
             character_data: MemoryChunk::from_range(CHARACTER_DATA),
             background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
@@ -255,6 +253,7 @@ impl<'a> LCDController<'a> {
             oam_data: MemoryChunk::from_range(OAM_DATA),
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
+            pixel_scale,
             ..Default::default()
         }
     }
@@ -284,7 +283,7 @@ impl<'a> LCDController<'a> {
         let event_pump = sdl_context.event_pump().unwrap();
 
         let window = video_subsystem
-            .window("come boy", 160 * PIXEL_SCALE, 144 * PIXEL_SCALE)
+            .window("come boy", 160 * self.pixel_scale, 144 * self.pixel_scale)
             .position_centered()
             .opengl()
             .build()
@@ -300,7 +299,7 @@ impl<'a> LCDController<'a> {
     }
 
     fn read_dot_data(&self, character_code: u8) -> LCDDotData {
-        let mut dot_data = LCDDotData::new();
+        let mut dot_data = LCDDotData::new(self.pixel_scale);
 
         let bg_character_data_selection = self
             .registers
@@ -424,9 +423,9 @@ impl<'a> LCDController<'a> {
     fn clear_line(&mut self, ly: u8) {
         let rect = sdl2::rect::Rect::new(
             0,
-            ly as i32 * PIXEL_SCALE as i32,
-            200 * PIXEL_SCALE,
-            PIXEL_SCALE,
+            ly as i32 * self.pixel_scale as i32,
+            200 * self.pixel_scale,
+            self.pixel_scale,
         );
         let color = color_for_shade(LCDBGShade::Shade0);
         self.renderer.as_mut().unwrap().set_draw_color(color);
@@ -511,9 +510,9 @@ impl<'a> LCDController<'a> {
                     .unwrap();
                 let s = sdl2::surface::Surface::from_data(
                     &mut pixels,
-                    160 * PIXEL_SCALE,
-                    140 * PIXEL_SCALE,
-                    160 * PIXEL_SCALE * 4,
+                    160 * self.pixel_scale,
+                    140 * self.pixel_scale,
+                    160 * self.pixel_scale * 4,
                     sdl2::pixels::PixelFormatEnum::ABGR8888,
                 )
                 .unwrap();

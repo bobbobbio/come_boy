@@ -13,12 +13,17 @@ fn main() {
     // List of files
     let mut files: Vec<String> = Vec::new();
 
+    // Scale
+    let mut scale: u32 = 4;
+
     // Parse the arguments
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("Game Boy (DMG) Emulator");
         ap.refer(&mut files)
             .add_argument("files", argparse::Collect, "Files");
+        ap.refer(&mut scale)
+            .add_option(&["--scale"], argparse::Store, "Scale");
         ap.parse_args_or_exit();
     }
 
@@ -26,6 +31,6 @@ fn main() {
         let mut file = File::open(&arg).unwrap();
         let mut rom: Vec<u8> = vec![];
         file.read_to_end(&mut rom).unwrap();
-        game_boy_emulator::run_emulator(&rom);
+        game_boy_emulator::run_emulator(&rom, scale);
     }
 }
