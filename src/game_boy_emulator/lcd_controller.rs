@@ -103,16 +103,6 @@ fn color_for_shade(shade: LCDBGShade) -> sdl2::pixels::Color {
     }
 }
 
-macro_rules! from_u8 {
-    ($($cname:ident),*) => ($(
-        impl From<$cname> for u8 {
-            fn from(f: $cname) -> u8 {
-                f as u8
-            }
-        }
-    )*)
-}
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LCDControlFlag {
     DisplayOn = 0b10000000,
@@ -350,16 +340,6 @@ impl<'a> LCDController<'a> {
         return dot_data;
     }
 
-    fn set_lcd_status_mode(&mut self, value: u8) {
-        let stat = self.registers.stat.read_value() & !(LCDStatusFlag::Mode as u8);
-        self.registers.stat.set_value(stat | value);
-    }
-
-    #[allow(dead_code)]
-    fn read_lcd_status_mode(&mut self) -> u8 {
-        self.registers.stat.read_value() & (LCDStatusFlag::Mode as u8)
-    }
-
     pub fn set_state_post_bios(&mut self) {
         self.registers
             .lcdc
@@ -376,7 +356,7 @@ impl<'a> LCDController<'a> {
             .stat
             .set_flag(LCDStatusFlag::InterruptLYMatching, true);
         self.registers.stat.set_flag(LCDStatusFlag::Unknown, true);
-        self.set_lcd_status_mode(0x1);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
         self.registers.dma.set_value(0xff);
         self.registers.obp0.set_value(0xff);
         self.registers.obp1.set_value(0xff);
@@ -556,7 +536,7 @@ impl<'a> LCDController<'a> {
     pub fn mode_2(&mut self, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
-        self.set_lcd_status_mode(0x2);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x2);
         self.scheduler.schedule(time + 77, Self::mode_3);
     }
 
@@ -566,7 +546,7 @@ impl<'a> LCDController<'a> {
         self.background_display_data_2.borrow();
         self.draw_bg_data();
         self.draw_oam_data();
-        self.set_lcd_status_mode(0x3);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x3);
         self.scheduler.schedule(time + 175, Self::mode_0);
     }
 
@@ -577,7 +557,7 @@ impl<'a> LCDController<'a> {
         self.oam_data.release();
         self.unusable_memory.release();
 
-        self.set_lcd_status_mode(0x0);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
 
         if self.registers.ly.read_value() < 143 {
             self.scheduler.schedule(time + 204, Self::mode_2);
@@ -625,7 +605,7 @@ impl<'a> LCDController<'a> {
     }
 
     fn mode_1(&mut self, time: u64) {
-        self.set_lcd_status_mode(0x1);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
         self.update_screen();
         self.interrupt_requested = true;
 
@@ -635,7 +615,7 @@ impl<'a> LCDController<'a> {
     }
 
     fn after_mode_1(&mut self, time: u64) {
-        self.set_lcd_status_mode(0x0);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
         self.oam_data.borrow();
         self.unusable_memory.borrow();
 
@@ -659,7 +639,7 @@ impl<'a> LCDController<'a> {
         self.oam_data.release();
         self.unusable_memory.release();
 
-        self.set_lcd_status_mode(0x0);
+        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
         self.registers.ly.set_value(0);
         self.scheduler.drop_events();
 

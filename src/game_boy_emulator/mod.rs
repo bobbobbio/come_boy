@@ -98,7 +98,7 @@ struct GameBoyRegisters {
 struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
-    control: GameBoyRegister,
+    control: GameBoyFlags<TimerFlags>,
     scheduler: Scheduler<GameBoyTimer>,
     interrupt_requested: bool,
 }
@@ -108,13 +108,15 @@ enum TimerFlags {
     Speed = 0b00000011,
 }
 
+from_u8!(TimerFlags);
+
 impl GameBoyTimer {
     fn enabled(&self) -> bool {
-        self.control.read_value() & (TimerFlags::Enabled as u8) != 0
+        self.control.read_flag(TimerFlags::Enabled)
     }
 
     fn timer_speed(&self) -> u64 {
-        let speed = match self.control.read_value() & (TimerFlags::Speed as u8) {
+        let speed = match self.control.read_flag_value(TimerFlags::Speed) {
             0b00 => 4096,
             0b01 => 262144,
             0b10 => 65536,

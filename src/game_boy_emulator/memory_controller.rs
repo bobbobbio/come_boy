@@ -79,18 +79,42 @@ where
     u8: From<T>,
 {
     pub fn read_flag(&self, f: T) -> bool {
+        self.read_flag_value(f) != 0
+    }
+
+    pub fn read_flag_value(&self, f: T) -> u8 {
         let value = self.read_value();
-        value & u8::from(f) != 0
+        let mask = u8::from(f);
+        (value & mask) >> mask.trailing_zeros()
     }
 
     pub fn set_flag(&mut self, f: T, v: bool) {
-        let value = self.read_value();
-        if v {
-            self.set_value(value | u8::from(f));
-        } else {
-            self.set_value(value & !u8::from(f));
-        }
+        self.set_flag_value(f, if v { 1 } else { 0 });
     }
+
+    pub fn set_flag_value(&mut self, f: T, v: u8) {
+        let value = self.read_value();
+        let mask = u8::from(f);
+        let v = (v << mask.trailing_zeros()) & mask;
+        self.set_value((value & !mask) | v);
+    }
+}
+
+#[test]
+fn set_flag_then_read_flag() {
+    let mut f: GameBoyFlags<u8> = GameBoyFlags::new();
+    f.set_flag(0b0010, true);
+    assert!(f.read_flag(0b0010));
+
+    f.set_flag(0b0010, false);
+    assert!(!f.read_flag(0b0010));
+}
+
+#[test]
+fn set_flag_value_then_read_flag_value() {
+    let mut f: GameBoyFlags<u8> = GameBoyFlags::new();
+    f.set_flag_value(0b001110, 0b101);
+    assert_eq!(f.read_flag_value(0b001110), 0b101);
 }
 
 pub enum MappingType {

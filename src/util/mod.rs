@@ -4,6 +4,16 @@ use std::collections::BTreeMap;
 use std::io::{self, Result};
 use std::{mem, slice};
 
+macro_rules! from_u8 {
+    ($($cname:ident),*) => ($(
+        impl From<$cname> for u8 {
+            fn from(f: $cname) -> u8 {
+                f as u8
+            }
+        }
+    )*)
+}
+
 pub fn read_u16<T: io::Read>(mut stream: T) -> Result<u16> {
     let mut arg_buffer = [0; 2];
     stream.read_exact(&mut arg_buffer)?;
