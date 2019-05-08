@@ -40,12 +40,17 @@ fn main() {
     // List of files
     let mut files: Vec<String> = Vec::new();
 
+    // Scale
+    let mut scale = 4;
+
     // Parse the arguments
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("Come Boy Debugger");
         ap.refer(&mut files)
             .add_argument("files", argparse::Collect, "Files");
+        ap.refer(&mut scale)
+            .add_option(&["--scale"], argparse::Store, "Scale");
         ap.parse_args_or_exit();
     }
 
@@ -64,7 +69,9 @@ fn main() {
             return_code = 1;
             continue;
         }
-        game_boy_emulator::run_debugger(&rom, &|| INTERRUPTED.swap(false, Ordering::Relaxed));
+        game_boy_emulator::run_debugger(&rom, scale, &|| {
+            INTERRUPTED.swap(false, Ordering::Relaxed)
+        });
     }
     exit(return_code);
 }
