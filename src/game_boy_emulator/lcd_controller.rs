@@ -1,12 +1,12 @@
 // Copyright 2018 Remi Bernotavicius
 
-extern crate sdl2;
-
+use crate::sdl2;
 use std::cell::RefCell;
 use std::iter;
 use std::rc::Rc;
 
 use emulator_common::disassembler::MemoryAccessor;
+use game_boy_emulator::joypad_register::KeyEvent;
 use game_boy_emulator::memory_controller::{
     GameBoyFlags, GameBoyMemoryMap, GameBoyRegister, MemoryChunk, MemoryChunkIterator,
     MemoryMappedHardware,
@@ -405,19 +405,35 @@ impl<'a> LCDController<'a> {
         self.crash_message.is_some()
     }
 
-    fn check_for_screen_close(&mut self) {
+    pub fn poll_renderer(&mut self) -> Vec<KeyEvent> {
         if self.renderer.is_none() {
-            return;
+            return vec![];
         }
+
+        let mut key_events = vec![];
 
         for event in self.event_pump.as_mut().unwrap().poll_iter() {
             match event {
                 sdl2::event::Event::Quit { .. } => {
                     self.crash_message = Some(String::from("Screen Closed"));
                 }
+                sdl2::event::Event::KeyDown {
+                    keycode: Some(code),
+                    ..
+                } => {
+                    key_events.push(KeyEvent::Down(code));
+                }
+                sdl2::event::Event::KeyUp {
+                    keycode: Some(code),
+                    ..
+                } => {
+                    key_events.push(KeyEvent::Up(code));
+                }
                 _ => {}
             }
         }
+
+        key_events
     }
 
     fn clear_line(&mut self, ly: u8) {
@@ -611,8 +627,6 @@ impl<'a> LCDController<'a> {
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
         self.update_screen();
         self.interrupt_requested = true;
-
-        self.check_for_screen_close();
 
         self.scheduler.schedule(time + 4552, Self::after_mode_1);
     }

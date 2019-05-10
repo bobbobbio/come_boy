@@ -1,5 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
+extern crate sdl2;
+
 #[macro_use]
 mod util;
 mod emulator_common;

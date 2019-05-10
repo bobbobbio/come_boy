@@ -3,6 +3,7 @@
 mod debugger;
 mod disassembler;
 mod game_pak;
+mod joypad_register;
 mod lcd_controller;
 mod memory_controller;
 mod sound_controller;
@@ -12,6 +13,7 @@ use std::io::{self, Write};
 use std::ops::Range;
 
 use self::game_pak::GamePak;
+use self::joypad_register::JoyPadRegister;
 use self::lcd_controller::{InterruptFlag, LCDController};
 use self::memory_controller::{
     GameBoyFlags, GameBoyMemoryMap, GameBoyRegister, MappingType, MemoryChunk,
@@ -88,7 +90,6 @@ struct GameBoyRegisters {
     interrupt_flag: GameBoyFlags<InterruptFlag>,
     interrupt_enable: GameBoyFlags<InterruptFlag>,
 
-    p1_joypad: GameBoyRegister,
     serial_transfer_data: GameBoyRegister,
     serial_transfer_control: GameBoyRegister,
     divider: GameBoyRegister,
@@ -180,6 +181,7 @@ struct GameBoyEmulator<'a> {
     scheduler: Scheduler<GameBoyEmulator<'a>>,
     timer: GameBoyTimer,
     game_pak: Option<GamePak>,
+    joypad_register: JoyPadRegister,
 }
 
 impl<'a> GameBoyEmulator<'a> {
@@ -195,6 +197,7 @@ impl<'a> GameBoyEmulator<'a> {
             scheduler: Scheduler::new(),
             timer: Default::default(),
             game_pak: None,
+            joypad_register: JoyPadRegister::new(),
         };
 
         // Restart and interrupt vectors (unmapped) 0x0000 - 0x00FF
@@ -256,11 +259,9 @@ impl<'a> GameBoyEmulator<'a> {
         );
 
         // Registers
-        e.cpu.memory_accessor.map_chunk(
-            0xFF00,
-            e.registers.p1_joypad.chunk.clone(),
-            MappingType::Read,
-        );
+        e.cpu
+            .memory_accessor
+            .map_chunk(0xFF00, e.joypad_register.clone(), MappingType::ReadWrite);
         e.cpu.memory_accessor.map_chunk(
             0xFF01,
             e.registers.serial_transfer_data.chunk.clone(),
@@ -562,6 +563,10 @@ impl<'a> GameBoyEmulator<'a> {
 
         self.lcd_controller.tick(&mut self.cpu.memory_accessor, now);
 
+        let key_events = self.lcd_controller.poll_renderer();
+
+        self.joypad_register.tick(key_events);
+
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
 
@@ -617,7 +622,6 @@ impl<'a> GameBoyEmulator<'a> {
         self.cpu.set_flag(LR35902Flag::Subtract, false);
         self.cpu.set_flag(LR35902Flag::Zero, true);
 
-        self.registers.p1_joypad.set_value(0xcf);
         self.registers.serial_transfer_data.set_value(0x0);
         self.registers.serial_transfer_control.set_value(0x7e);
 
