@@ -1031,7 +1031,6 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
     fn add_immediate_to_accumulator_with_carry(&mut self, data: u8) {
         Intel8080InstructionSet::add_immediate_to_accumulator_with_carry(self, data);
-        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
     fn increment_register_pair(&mut self, register: Intel8080Register) {
@@ -1104,7 +1103,6 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8) {
         Intel8080InstructionSet::subtract_immediate_from_accumulator_with_borrow(self, data);
-        self.set_flag(LR35902Flag::HalfCarry, false);
     }
 }
 
@@ -2284,9 +2282,7 @@ fn blargg_test_rom_cpu_instrs_3_op_sp_hl() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/03-op sp,hl.gb", 0xcb44);
 }
 
-// XXX: Why does this test fail? I have no idea!
 #[test]
-#[ignore]
 fn blargg_test_rom_cpu_instrs_4_op_r_imm() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/04-op r,imm.gb", 0xcb35);
 }
