@@ -488,10 +488,10 @@ impl<'a> LCDController<'a> {
         let (window_x, window_y) = self.get_window_origin_relative_to_lcd();
         let iter = LCDObjectIterator::new(&self.oam_data);
         for object in iter {
-            let character_data = self.read_dot_data(object.character_code);
             let x = window_x + object.x_coordinate as i32 - 8;
             let y = window_y + object.y_coordinate as i32 - 16;
             if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
+                let character_data = self.read_dot_data(object.character_code);
                 character_data.draw_line(self.renderer.as_mut().unwrap(), x, y, ly);
             }
         }
