@@ -2321,3 +2321,9 @@ fn blargg_test_rom_cpu_instrs_10_bit_ops() {
 fn blargg_test_rom_cpu_instrs_11_op_a_hl() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/11-op a,(hl).gb", 0xcc62);
 }
+
+#[test]
+#[ignore]
+fn blargg_test_rom_instr_timing() {
+    run_blargg_test_rom_cpu_instrs("instr_timing/instr_timing.gb", 0xc8b0);
+}
