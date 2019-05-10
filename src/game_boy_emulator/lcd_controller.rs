@@ -479,6 +479,10 @@ impl<'a> LCDController<'a> {
             return;
         }
 
+        if !self.registers.lcdc.read_flag(LCDControlFlag::ObjectOn) {
+            return;
+        }
+
         let ly = self.registers.ly.read_value();
 
         let (window_x, window_y) = self.get_window_origin_relative_to_lcd();
