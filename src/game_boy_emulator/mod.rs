@@ -170,7 +170,8 @@ impl GameBoyTimer {
 }
 
 struct GameBoyEmulator<'a> {
-    cpu: LR35902Emulator<GameBoyMemoryMap>,
+    cpu: LR35902Emulator,
+    memory_map: GameBoyMemoryMap,
     sound_controller: SoundController,
     lcd_controller: LCDController<'a>,
     high_ram: MemoryChunk,
@@ -187,7 +188,8 @@ struct GameBoyEmulator<'a> {
 impl<'a> GameBoyEmulator<'a> {
     fn new(pixel_scale: u32) -> GameBoyEmulator<'a> {
         let mut e = GameBoyEmulator {
-            cpu: LR35902Emulator::new(GameBoyMemoryMap::new()),
+            cpu: LR35902Emulator::new(),
+            memory_map: GameBoyMemoryMap::new(),
             lcd_controller: LCDController::new(pixel_scale),
             sound_controller: Default::default(),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
@@ -205,19 +207,19 @@ impl<'a> GameBoyEmulator<'a> {
         // Rom (unmapped) 0x0100 - 0x7FFF
 
         // Character data 0x8000 - 0x97FF
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             CHARACTER_DATA.start,
             e.lcd_controller.character_data.clone(),
             MappingType::ReadWrite,
         );
 
         // Background display data 0x9800 - 0x9FFF
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             BACKGROUND_DISPLAY_DATA_1.start,
             e.lcd_controller.background_display_data_1.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             BACKGROUND_DISPLAY_DATA_2.start,
             e.lcd_controller.background_display_data_2.clone(),
             MappingType::ReadWrite,
@@ -226,282 +228,277 @@ impl<'a> GameBoyEmulator<'a> {
         // Cartridge RAM (unmapped) 0xA000 - 0xBFFF
 
         // Internal RAM 0xC000 - 0xDFFF
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             INTERNAL_RAM_A.start,
             e.internal_ram_a.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             INTERNAL_RAM_B.start,
             e.internal_ram_b.clone(),
             MappingType::ReadWrite,
         );
 
         // Echo RAM 0xE000 - 0xFDFF
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             ECHO_RAM.start,
             e.internal_ram_a.clone(),
             MappingType::ReadWrite,
         );
 
         // OAM Data 0xFE00 - 0xFE9F
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             OAM_DATA.start,
             e.lcd_controller.oam_data.clone(),
             MappingType::ReadWrite,
         );
 
         // Unusable memory 0xFEA0 - 0xFEFF
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             UNUSABLE_MEMORY.start,
             e.lcd_controller.unusable_memory.clone(),
             MappingType::ReadWrite,
         );
 
         // Registers
-        e.cpu
-            .memory_accessor
+        e.memory_map
             .map_chunk(0xFF00, e.joypad_register.clone(), MappingType::ReadWrite);
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF01,
             e.registers.serial_transfer_data.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF02,
             e.registers.serial_transfer_control.chunk.clone(),
             MappingType::Read,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF04,
             e.registers.divider.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF05,
             e.timer.counter.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
-            0xFF06,
-            e.timer.modulo.chunk.clone(),
-            MappingType::ReadWrite,
-        );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map
+            .map_chunk(0xFF06, e.timer.modulo.chunk.clone(), MappingType::ReadWrite);
+        e.memory_map.map_chunk(
             0xFF07,
             e.timer.control.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF0F,
             e.registers.interrupt_flag.chunk.clone(),
             MappingType::ReadWrite,
         );
 
         /* Sound Registers 0xFF10 - 0xFF26 */
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF10,
             e.sound_controller.channel1.sweep.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF11,
             e.sound_controller.channel1.sound_length.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF12,
             e.sound_controller.channel1.volume_envelope.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF13,
             e.sound_controller.channel1.frequency_low.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF14,
             e.sound_controller.channel1.frequency_high.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF16,
             e.sound_controller.channel2.sound_length.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF17,
             e.sound_controller.channel2.volume_envelope.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF18,
             e.sound_controller.channel2.frequency_low.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF19,
             e.sound_controller.channel2.frequency_high.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF1A,
             e.sound_controller.channel3.enabled.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF1B,
             e.sound_controller.channel3.sound_length.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF1C,
             e.sound_controller.channel3.output_level.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF1D,
             e.sound_controller.channel3.frequency_low.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF1E,
             e.sound_controller.channel3.frequency_high.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF20,
             e.sound_controller.channel4.sound_length.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF21,
             e.sound_controller.channel4.volume_envelope.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF22,
             e.sound_controller.channel4.polynomial_counter.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF23,
             e.sound_controller.channel4.counter.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF24,
             e.sound_controller.channel_control.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF25,
             e.sound_controller.output_terminal.chunk.clone(),
             MappingType::ReadWrite,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF26,
             e.sound_controller.enabled.chunk.clone(),
             MappingType::Read,
         );
 
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF30,
             e.sound_controller.channel3.wave_pattern.clone(),
             MappingType::ReadWrite,
         );
 
         // LCD Registers 0xFF40 - 0xFF4B
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF40,
             e.lcd_controller.registers.lcdc.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF41,
             e.lcd_controller.registers.stat.chunk.clone(),
             MappingType::Read,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF42,
             e.lcd_controller.registers.scy.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF43,
             e.lcd_controller.registers.scx.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF44,
             e.lcd_controller.registers.ly.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF45,
             e.lcd_controller.registers.lyc.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF46,
             e.lcd_controller.registers.dma.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF47,
             e.lcd_controller.registers.bgp.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF48,
             e.lcd_controller.registers.obp0.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF49,
             e.lcd_controller.registers.obp1.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF4A,
             e.lcd_controller.registers.wy.chunk.clone(),
             MappingType::ReadWrite,
         );
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFF4B,
             e.lcd_controller.registers.wx.chunk.clone(),
             MappingType::ReadWrite,
         );
 
         // High RAM 0xFF80 - 0xFFFE
-        e.cpu
-            .memory_accessor
+        e.memory_map
             .map_chunk(HIGH_RAM.start, e.high_ram.clone(), MappingType::ReadWrite);
 
         // interrupt enable register
-        e.cpu.memory_accessor.map_chunk(
+        e.memory_map.map_chunk(
             0xFFFF,
             e.registers.interrupt_enable.chunk.clone(),
             MappingType::ReadWrite,
@@ -521,7 +518,7 @@ impl<'a> GameBoyEmulator<'a> {
 
     fn load_game_pak(&mut self, mut game_pak: GamePak) {
         println!("Loading {:?}", &game_pak);
-        game_pak.map(&mut self.cpu.memory_accessor);
+        game_pak.map(&mut self.memory_map);
         self.game_pak = Some(game_pak);
     }
 
@@ -550,18 +547,18 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn tick(&mut self) {
-        self.cpu.load_instruction();
+        self.cpu.load_instruction(&self.memory_map);
 
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
 
-        self.cpu.execute_instruction();
+        self.cpu.execute_instruction(&mut self.memory_map);
 
         if let Some(game_pak) = &mut self.game_pak {
             game_pak.tick();
         }
 
-        self.lcd_controller.tick(&mut self.cpu.memory_accessor, now);
+        self.lcd_controller.tick(&mut self.memory_map, now);
 
         let key_events = self.lcd_controller.poll_renderer();
 
@@ -587,7 +584,7 @@ impl<'a> GameBoyEmulator<'a> {
 
             if self.cpu.get_interrupts_enabled() {
                 self.registers.interrupt_flag.set_flag(flag, false);
-                self.cpu.interrupt(address);
+                self.cpu.interrupt(&mut self.memory_map, address);
             }
         }
     }
@@ -672,7 +669,7 @@ impl<'a> GameBoyEmulator<'a> {
     fn write_memory(&self, w: &mut Write) -> io::Result<()> {
         let mut mem = [0u8; 0x10000];
         for i in 0..0x10000 {
-            mem[i] = self.cpu.memory_accessor.read_memory(i as u16);
+            mem[i] = self.memory_map.read_memory(i as u16);
         }
 
         w.write(&mem)?;
@@ -682,7 +679,7 @@ impl<'a> GameBoyEmulator<'a> {
     fn hash(&self) -> u32 {
         let mut mem = [0u8; 0x10000 + 15];
         for i in 0..0x10000 {
-            mem[i] = self.cpu.memory_accessor.read_memory(i as u16);
+            mem[i] = self.memory_map.read_memory(i as u16);
         }
 
         mem[0x10000 + 0] = self.cpu.read_register(Intel8080Register::A);
@@ -750,7 +747,7 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
         pc = e.cpu.read_program_counter();
     }
 
-    assert_blargg_test_rom_success(&e.cpu);
+    assert_blargg_test_rom_success(&e.memory_map);
 }
 
 #[test]

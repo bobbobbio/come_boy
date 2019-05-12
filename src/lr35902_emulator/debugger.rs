@@ -9,19 +9,22 @@ use emulator_common::Intel8080Register;
 use lr35902_emulator::opcodes::{dispatch_lr35902_instruction, get_lr35902_instruction};
 use lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
 
-struct SimulatedInstructionLR35902<'a, M: MemoryAccessor + 'a> {
-    emulator: &'a LR35902Emulator<M>,
+struct SimulatedInstructionLR35902<'a, M: MemoryAccessor> {
+    emulator: &'a LR35902Emulator,
+    memory_accessor: &'a mut M,
     instruction: &'a mut SimulatedInstruction,
 }
 
-impl<'a, M: MemoryAccessor + 'a> SimulatedInstructionLR35902<'a, M> {
+impl<'a, M: MemoryAccessor> SimulatedInstructionLR35902<'a, M> {
     fn new(
-        emulator: &'a LR35902Emulator<M>,
+        emulator: &'a LR35902Emulator,
+        memory_accessor: &'a mut M,
         instruction: &'a mut SimulatedInstruction,
     ) -> SimulatedInstructionLR35902<'a, M> {
         SimulatedInstructionLR35902 {
-            emulator: emulator,
-            instruction: instruction,
+            emulator,
+            memory_accessor,
+            instruction,
         }
     }
 }
@@ -34,19 +37,19 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     }
 
     fn read_memory(&self, address: u16) -> u8 {
-        self.emulator.read_memory(address)
+        self.memory_accessor.read_memory(address)
     }
 
     fn set_memory(&mut self, address: u16, value: u8) {
-        self.instruction.set_memory(address, value);
+        self.memory_accessor.set_memory(address, value);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16 {
-        self.emulator.read_memory_u16(address)
+        self.memory_accessor.read_memory_u16(address)
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16) {
-        self.instruction.set_memory(address, (value >> 8) as u8);
+        self.memory_accessor.set_memory(address, (value >> 8) as u8);
         if address != 0xFFFF {
             self.instruction
                 .set_memory(address.wrapping_add(1), value as u8);
@@ -86,7 +89,7 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     fn wait_until_interrupt(&mut self) {}
 }
 
-impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {
+impl fmt::Debug for LR35902Emulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(
             f,
@@ -119,26 +122,43 @@ impl<M: MemoryAccessor> fmt::Debug for LR35902Emulator<M> {
     }
 }
 
-impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
+pub struct LR35902Debugger<'a, M: MemoryAccessor> {
+    emulator: &'a mut LR35902Emulator,
+    memory_accessor: &'a mut M,
+}
+
+impl<'a, M: MemoryAccessor> LR35902Debugger<'a, M> {
+    pub fn new(emulator: &'a mut LR35902Emulator, memory_accessor: &'a mut M) -> Self {
+        Self {
+            emulator,
+            memory_accessor,
+        }
+    }
+}
+
+impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
     fn read_memory(&self, address: u16) -> u8 {
-        self.read_memory(address)
+        self.memory_accessor.read_memory(address)
     }
 
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()> {
-        writeln!(s, "{:?}", self)
+        writeln!(s, "{:?}", &self.emulator)
     }
 
     fn next(&mut self) {
-        self.run_one_instruction();
+        self.emulator.run_one_instruction(self.memory_accessor);
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
         let pc = self.read_program_counter();
-        let stream = MemoryStream::new(&self.memory_accessor, pc);
-        let instr = get_lr35902_instruction(stream);
+        let instr = get_lr35902_instruction(MemoryStream::new(self.memory_accessor, pc));
         match instr {
             Some(res) => {
-                let mut wrapping_instruction = SimulatedInstructionLR35902::new(self, instruction);
+                let mut wrapping_instruction = SimulatedInstructionLR35902::new(
+                    self.emulator,
+                    self.memory_accessor,
+                    instruction,
+                );
                 dispatch_lr35902_instruction(&res, &mut wrapping_instruction);
                 return;
             }
@@ -147,15 +167,15 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
     }
 
     fn read_program_counter(&self) -> u16 {
-        self.read_program_counter()
+        self.emulator.read_program_counter()
     }
 
     fn crashed(&self) -> Option<&String> {
-        self.crash_message.as_ref()
+        self.emulator.crash_message.as_ref()
     }
 
     fn set_program_counter(&mut self, address: u16) {
-        self.set_program_counter(address)
+        self.emulator.set_program_counter(address)
     }
 
     fn disassemble(&mut self, _address: u16, _f: &mut io::Write) -> Result<()> {
@@ -163,17 +183,18 @@ impl<M: MemoryAccessor> DebuggerOps for LR35902Emulator<M> {
     }
 
     fn read_call_stack(&self) -> Vec<u16> {
-        self.call_stack.clone()
+        self.emulator.call_stack.clone()
     }
 }
 
 pub fn run_debugger(rom: &[u8], is_interrupted: &Fn() -> bool) {
     let mut ma = SimpleMemoryAccessor::new();
     ma.memory[0..rom.len()].clone_from_slice(rom);
-    let mut e = LR35902Emulator::new(ma);
+    let mut e = LR35902Emulator::new();
+    let mut d = LR35902Debugger::new(&mut e, &mut ma);
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();
     let stdout = &mut io::stdout();
-    let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
+    let mut debugger = Debugger::new(stdin_locked, stdout, &mut d);
     debugger.run(is_interrupted);
 }

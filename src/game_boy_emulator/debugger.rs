@@ -2,11 +2,12 @@ use std::io::{self, Result};
 use std::{fmt, str};
 
 use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
-use emulator_common::disassembler::Disassembler;
+use emulator_common::disassembler::{Disassembler, MemoryAccessor};
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use game_boy_emulator::game_pak::GamePak;
 use game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
 use game_boy_emulator::GameBoyEmulator;
+use lr35902_emulator::debugger::LR35902Debugger;
 
 impl<'a> fmt::Debug for GameBoyEmulator<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -20,7 +21,7 @@ impl<'a> fmt::Debug for GameBoyEmulator<'a> {
 
 impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     fn read_memory(&self, address: u16) -> u8 {
-        self.cpu.read_memory(address)
+        self.memory_map.read_memory(address)
     }
 
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()> {
@@ -32,7 +33,8 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
-        self.cpu.simulate_next(instruction);
+        let mut d = LR35902Debugger::new(&mut self.cpu, &mut self.memory_map);
+        d.simulate_next(instruction);
     }
 
     fn read_program_counter(&self) -> u16 {
@@ -51,7 +53,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
         let mut buffer = vec![];
         {
             let mut dis = Disassembler::new(
-                &self.cpu.memory_accessor,
+                &self.memory_map,
                 RGBDSInstructionPrinterFactory,
                 &mut buffer,
             );

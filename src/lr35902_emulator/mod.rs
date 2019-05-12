@@ -45,8 +45,7 @@ pub enum LR35902Flag {
     ValidityMask = 0b11110000,
 }
 
-pub struct LR35902Emulator<M: MemoryAccessor> {
-    pub memory_accessor: M,
+pub struct LR35902Emulator {
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16,
     interrupts_enabled: bool,
@@ -57,10 +56,9 @@ pub struct LR35902Emulator<M: MemoryAccessor> {
     instr: Option<Vec<u8>>,
 }
 
-impl<M: MemoryAccessor> LR35902Emulator<M> {
-    pub fn new(memory_accessor: M) -> LR35902Emulator<M> {
+impl LR35902Emulator {
+    pub fn new() -> LR35902Emulator {
         let mut e = LR35902Emulator {
-            memory_accessor: memory_accessor,
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
@@ -89,10 +87,6 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.registers[Intel8080Register::FLAGS as usize] & flag as u8 == flag as u8
     }
 
-    pub fn read_memory(&self, address: u16) -> u8 {
-        self.memory_accessor.read_memory(address)
-    }
-
     pub fn read_register(&self, register: Intel8080Register) -> u8 {
         self.read_raw_register(register as usize)
     }
@@ -107,18 +101,6 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
 
     pub fn set_register_pair(&mut self, register: Intel8080Register, value: u16) {
         self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
-    }
-
-    pub fn set_memory(&mut self, address: u16, value: u8) {
-        self.memory_accessor.set_memory(address, value);
-    }
-
-    fn read_memory_u16(&self, address: u16) -> u16 {
-        self.memory_accessor.read_memory_u16(address)
-    }
-
-    fn set_memory_u16(&mut self, address: u16, value: u16) {
-        self.memory_accessor.set_memory_u16(address, value);
     }
 
     fn read_raw_register(&self, index: usize) -> u8 {
@@ -155,7 +137,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.program_counter
     }
 
-    fn set_program_counter(&mut self, address: u16) {
+    pub fn set_program_counter(&mut self, address: u16) {
         self.program_counter = address;
     }
 
@@ -167,11 +149,11 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.interrupts_enabled
     }
 
-    pub fn interrupt(&mut self, address: u16) {
+    pub fn interrupt<M: MemoryAccessor>(&mut self, memory_accessor: &mut M, address: u16) {
         assert!(self.interrupts_enabled);
         self.interrupts_enabled = false;
 
-        let mut instruction = LR35902Instruction::new(self);
+        let mut instruction = LR35902Instruction::new(self, memory_accessor);
         Intel8080InstructionSet::call(&mut instruction, address);
     }
 
@@ -182,11 +164,6 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     pub fn resume(&mut self) {
         self.halted = false;
     }
-}
-
-#[cfg(test)]
-fn new_lr35902_emulator_for_test() -> LR35902Emulator<SimpleMemoryAccessor> {
-    return LR35902Emulator::<SimpleMemoryAccessor>::new(SimpleMemoryAccessor::new());
 }
 
 /*   ___
@@ -306,12 +283,16 @@ pub trait LR35902InstructionSetOps {
 }
 
 struct LR35902Instruction<'a, M: MemoryAccessor> {
-    emulator: &'a mut LR35902Emulator<M>,
+    emulator: &'a mut LR35902Emulator,
+    memory_accessor: &'a mut M,
 }
 
 impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
-    fn new(emulator: &'a mut LR35902Emulator<M>) -> Self {
-        Self { emulator }
+    fn new(emulator: &'a mut LR35902Emulator, memory_accessor: &'a mut M) -> Self {
+        Self {
+            emulator,
+            memory_accessor,
+        }
     }
 }
 
@@ -325,19 +306,19 @@ impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
     }
 
     fn read_memory(&self, address: u16) -> u8 {
-        self.emulator.read_memory(address)
+        self.memory_accessor.read_memory(address)
     }
 
     fn set_memory(&mut self, address: u16, value: u8) {
-        self.emulator.set_memory(address, value);
+        self.memory_accessor.set_memory(address, value);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16 {
-        self.emulator.read_memory_u16(address)
+        self.memory_accessor.read_memory_u16(address)
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16) {
-        self.emulator.set_memory_u16(address, value);
+        self.memory_accessor.set_memory_u16(address, value);
     }
 
     fn read_program_counter(&self) -> u16 {
@@ -1204,8 +1185,9 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
 
 #[cfg(test)]
 fn instruction_test<F: Fn(&mut LR35902Instruction<SimpleMemoryAccessor>)>(func: F) {
-    let mut emulator = new_lr35902_emulator_for_test();
-    let mut instruction = LR35902Instruction::new(&mut emulator);
+    let mut emulator = LR35902Emulator::new();
+    let mut memory_accessor = SimpleMemoryAccessor::new();
+    let mut instruction = LR35902Instruction::new(&mut emulator, &mut memory_accessor);
     func(&mut instruction);
 }
 
@@ -2351,7 +2333,7 @@ fn flags_register_keeps_zero_flags_zero() {
  *
  */
 
-impl<M: MemoryAccessor> LR35902Emulator<M> {
+impl LR35902Emulator {
     fn crash(&mut self, message: String) {
         self.crash_message = Some(message);
     }
@@ -2360,9 +2342,13 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.crash_message.is_some()
     }
 
-    fn run_lr35902_instruction(&mut self, instruction: &[u8]) {
+    fn run_lr35902_instruction<M: MemoryAccessor>(
+        &mut self,
+        instruction: &[u8],
+        memory_accessor: &mut M,
+    ) {
         let total_duration = {
-            let mut instr = LR35902Instruction::new(self);
+            let mut instr = LR35902Instruction::new(self, memory_accessor);
             dispatch_lr35902_instruction(&instruction, &mut instr)
         };
         self.add_cycles(total_duration - (instruction.len() * 4) as u8);
@@ -2373,7 +2359,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.crash(format!("Unknown opcode at address {:x}", pc));
     }
 
-    pub fn load_instruction(&mut self) {
+    pub fn load_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &M) {
         if self.halted {
             self.add_cycles(4);
             return;
@@ -2382,7 +2368,7 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         let pc = self.read_program_counter();
         let instr;
         {
-            let stream = MemoryStream::new(&self.memory_accessor, pc);
+            let stream = MemoryStream::new(memory_accessor, pc);
             instr = get_lr35902_instruction(stream);
         }
 
@@ -2393,32 +2379,33 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
         self.instr = instr;
     }
 
-    pub fn execute_instruction(&mut self) {
+    pub fn execute_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
         if self.halted {
             return;
         }
 
         match self.instr.take() {
             Some(res) => {
-                self.run_lr35902_instruction(&res);
+                self.run_lr35902_instruction(&res, memory_accessor);
                 return;
             }
             None => self.crash_from_unkown_opcode(),
         };
     }
 
-    pub fn run_one_instruction(&mut self) {
-        self.load_instruction();
-        self.execute_instruction();
+    pub fn run_one_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
+        self.load_instruction(memory_accessor);
+        self.execute_instruction(memory_accessor);
     }
 }
 
 #[test]
 fn emulator_crashes_on_unkown_opcode() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.memory_accessor.memory[0..1].clone_from_slice(&[0xfc]);
+    let mut e = LR35902Emulator::new();
+    let mut memory_accessor = SimpleMemoryAccessor::new();
+    memory_accessor.memory[0..1].clone_from_slice(&[0xfc]);
     e.set_program_counter(0);
-    e.run_one_instruction();
+    e.run_one_instruction(&mut memory_accessor);
     assert_eq!(e.crash_message.unwrap(), "Unknown opcode at address 0");
 }
 
@@ -2432,8 +2419,8 @@ fn emulator_crashes_on_unkown_opcode() {
  */
 
 #[cfg(test)]
-fn load_rom(e: &mut LR35902Emulator<SimpleMemoryAccessor>, rom: &Vec<u8>) {
-    e.memory_accessor.memory[0..rom.len()].clone_from_slice(rom);
+fn load_rom(memory_accessor: &mut SimpleMemoryAccessor, rom: &Vec<u8>) {
+    memory_accessor.memory[0..rom.len()].clone_from_slice(rom);
 }
 
 #[cfg(test)]
@@ -2447,23 +2434,27 @@ pub fn read_blargg_test_rom(name: &str) -> Vec<u8> {
 }
 
 #[cfg(test)]
-fn run_blargg_test_rom<M: MemoryAccessor>(e: &mut LR35902Emulator<M>, stop_address: u16) {
+fn run_blargg_test_rom<M: MemoryAccessor>(
+    e: &mut LR35902Emulator,
+    memory_accessor: &mut M,
+    stop_address: u16,
+) {
     let mut pc = e.read_program_counter();
     // This address is where the rom ends.  At this address is an infinite loop where normally the
     // rom will sit at forever.
     while pc != stop_address {
-        e.run_one_instruction();
+        e.run_one_instruction(memory_accessor);
         pc = e.read_program_counter();
     }
 
-    assert_blargg_test_rom_success(e);
+    assert_blargg_test_rom_success(memory_accessor);
 }
 
 #[cfg(test)]
-pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(e: &LR35902Emulator<M>) {
+pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
     // Scrape from memory what is displayed on the screen
     let mut message = String::new();
-    let iter = &mut MemoryIterator::new(&e.memory_accessor, 0x9800..0x9BFF).peekable();
+    let iter = &mut MemoryIterator::new(memory_accessor, 0x9800..0x9BFF).peekable();
     while iter.peek() != None {
         for c in iter.take(0x20) {
             // The rom happens to use ASCII as the way it maps characters to the correct tile.
@@ -2479,9 +2470,10 @@ pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(e: &LR35902Emulator<M>)
 
 #[cfg(test)]
 fn run_blargg_test_rom_cpu_instrs(name: &str, address: u16) {
-    let mut e = new_lr35902_emulator_for_test();
-    load_rom(&mut e, &read_blargg_test_rom(name));
-    run_blargg_test_rom(&mut e, address);
+    let mut e = LR35902Emulator::new();
+    let mut memory_accessor = SimpleMemoryAccessor::new();
+    load_rom(&mut memory_accessor, &read_blargg_test_rom(name));
+    run_blargg_test_rom(&mut e, &mut memory_accessor, address);
 }
 
 #[test]

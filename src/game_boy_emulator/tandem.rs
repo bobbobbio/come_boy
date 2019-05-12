@@ -448,11 +448,8 @@ pub fn run(replay_file_path: &str, rom: &[u8]) {
 
     let mut buffer = vec![];
     {
-        let mut dis = Disassembler::new(
-            &e2.cpu.memory_accessor,
-            RGBDSInstructionPrinterFactory,
-            &mut buffer,
-        );
+        let mut dis =
+            Disassembler::new(&e2.memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
         dis.index = e2.cpu.read_program_counter();
         dis.disassemble_multiple().unwrap();
     }
