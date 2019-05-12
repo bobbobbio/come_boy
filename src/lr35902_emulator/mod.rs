@@ -94,19 +94,19 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     }
 
     pub fn read_register(&self, register: Intel8080Register) -> u8 {
-        Intel8080InstructionSetOps::read_register(self, register)
+        self.read_raw_register(register as usize)
     }
 
     pub fn set_register(&mut self, register: Intel8080Register, value: u8) {
-        Intel8080InstructionSetOps::set_register(self, register, value);
+        self.set_raw_register(register as usize, value)
     }
 
     pub fn read_register_pair(&self, register: Intel8080Register) -> u16 {
-        Intel8080InstructionSetOps::read_register_pair(self, register)
+        u16::from_be(self.read_raw_register_pair(register as usize / 2))
     }
 
     pub fn set_register_pair(&mut self, register: Intel8080Register, value: u16) {
-        Intel8080InstructionSetOps::set_register_pair(self, register, value);
+        self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
     }
 
     pub fn set_memory(&mut self, address: u16, value: u8) {
@@ -170,7 +170,9 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     pub fn interrupt(&mut self, address: u16) {
         assert!(self.interrupts_enabled);
         self.interrupts_enabled = false;
-        Intel8080InstructionSet::call(self, address);
+
+        let mut instruction = LR35902Instruction::new(self);
+        Intel8080InstructionSet::call(&mut instruction, address);
     }
 
     fn add_cycles(&mut self, cycles: u8) {
@@ -303,7 +305,59 @@ pub trait LR35902InstructionSetOps {
     fn wait_until_interrupt(&mut self);
 }
 
-impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
+struct LR35902Instruction<'a, M: MemoryAccessor> {
+    emulator: &'a mut LR35902Emulator<M>,
+}
+
+impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
+    fn new(emulator: &'a mut LR35902Emulator<M>) -> Self {
+        Self { emulator }
+    }
+}
+
+impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
+    fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
+        self.emulator.set_flag(flag, value);
+    }
+
+    fn read_flag(&self, flag: LR35902Flag) -> bool {
+        self.emulator.read_flag(flag)
+    }
+
+    fn read_memory(&self, address: u16) -> u8 {
+        self.emulator.read_memory(address)
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8) {
+        self.emulator.set_memory(address, value);
+    }
+
+    fn read_memory_u16(&self, address: u16) -> u16 {
+        self.emulator.read_memory_u16(address)
+    }
+
+    fn set_memory_u16(&mut self, address: u16, value: u16) {
+        self.emulator.set_memory_u16(address, value);
+    }
+
+    fn read_program_counter(&self) -> u16 {
+        self.emulator.read_program_counter()
+    }
+
+    fn set_program_counter(&mut self, address: u16) {
+        self.emulator.set_program_counter(address);
+    }
+
+    fn set_interrupts_enabled(&mut self, value: bool) {
+        self.emulator.set_interrupts_enabled(value);
+    }
+
+    fn get_interrupts_enabled(&self) -> bool {
+        self.emulator.get_interrupts_enabled()
+    }
+}
+
+impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for LR35902Instruction<'a, M> {
     fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
         self.set_flag(flag, value);
     }
@@ -329,19 +383,19 @@ impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
     }
 
     fn read_raw_register(&self, index: usize) -> u8 {
-        self.read_raw_register(index)
+        self.emulator.read_raw_register(index)
     }
 
     fn set_raw_register(&mut self, index: usize, value: u8) {
-        self.set_raw_register(index, value);
+        self.emulator.set_raw_register(index, value);
     }
 
     fn read_raw_register_pair(&self, index: usize) -> u16 {
-        self.read_raw_register_pair(index)
+        self.emulator.read_raw_register_pair(index)
     }
 
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
-        self.set_raw_register_pair(index, value);
+        self.emulator.set_raw_register_pair(index, value);
     }
 
     fn read_program_counter(&self) -> u16 {
@@ -361,19 +415,19 @@ impl<M: MemoryAccessor> LR35902InstructionSetOps for LR35902Emulator<M> {
     }
 
     fn add_cycles(&mut self, cycles: u8) {
-        self.add_cycles(cycles);
+        self.emulator.add_cycles(cycles);
     }
 
     fn push_frame(&mut self, address: u16) {
-        self.call_stack.push(address);
+        self.emulator.call_stack.push(address);
     }
 
     fn pop_frame(&mut self) {
-        self.call_stack.pop();
+        self.emulator.call_stack.pop();
     }
 
     fn wait_until_interrupt(&mut self) {
-        self.halted = true;
+        self.emulator.halted = true;
     }
 }
 
@@ -508,125 +562,159 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
 
 #[test]
 fn can_set_and_read_memory() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_memory(0x1122, 0x88);
-    assert_eq!(e.read_memory(0x1122), 0x88);
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.set_memory(0x1122, 0x88);
+        assert_eq!(e.read_memory(0x1122), 0x88);
+    });
 }
 
 #[test]
 fn can_set_and_read_memory_16_bit() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_memory_u16(0x1122, 0x2233);
-    assert_eq!(e.read_memory_u16(0x1122), 0x2233);
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.set_memory_u16(0x1122, 0x2233);
+        assert_eq!(e.read_memory_u16(0x1122), 0x2233);
+    });
 }
 
 #[test]
 fn can_set_and_read_regiser() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x45);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x45);
+    instruction_test(|e| {
+        let e: &mut Intel8080InstructionSetOps = e;
+        e.set_register(Intel8080Register::A, 0x45);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x45);
+    });
 }
 
 #[test]
 fn can_set_and_read_regiser_pair() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::B, 0x4523);
-    assert_eq!(e.read_register_pair(Intel8080Register::B), 0x4523);
+    instruction_test(|e| {
+        let e: &mut Intel8080InstructionSetOps = e;
+        e.set_register_pair(Intel8080Register::B, 0x4523);
+        assert_eq!(e.read_register_pair(Intel8080Register::B), 0x4523);
+    });
 }
 
 #[test]
 fn perform_addition() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    assert_eq!(
-        e.perform_addition(0x33, 0x11, false /* update carry */),
-        0x44
-    );
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        assert_eq!(
+            e.perform_addition(0x33, 0x11, false /* update carry */),
+            0x44
+        );
+    });
 }
 
 #[test]
 fn perform_addition_with_overflow() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    assert_eq!(
-        e.perform_addition(0xF3, 0x11, false /* update carry */),
-        0x04
-    );
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        assert_eq!(
+            e.perform_addition(0xF3, 0x11, false /* update carry */),
+            0x04
+        );
+    });
 }
 
 #[test]
 fn perform_addition_sets_zero_flag() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_addition(0xF3, 0x0D, false /* update carry */);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_addition(0xF3, 0x0D, false /* update carry */);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn perform_addition_sets_half_carry() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_addition(0x0F, 0x01, false /* update carry */);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_addition(0x0F, 0x01, false /* update carry */);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn perform_addition_clears_subtract_flag() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.perform_addition(0x0D, 0x01, false /* update carry */);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.perform_addition(0x0D, 0x01, false /* update carry */);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn perform_addition_does_not_set_carry() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_addition(0xFF, 0x01, false /* update carry */);
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_addition(0xFF, 0x01, false /* update carry */);
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn perform_addition_clears_carry() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Carry, true);
-    e.perform_addition(0xF1, 0x01, true /* update carry */);
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.set_flag(LR35902Flag::Carry, true);
+        e.perform_addition(0xF1, 0x01, true /* update carry */);
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn perform_addition_sets_carry() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_addition(0xFF, 0x01, true /* update carry */);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_addition(0xFF, 0x01, true /* update carry */);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn perform_subtraction() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    assert_eq!(e.perform_subtraction(0x12, 0x11), 0x01);
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        assert_eq!(e.perform_subtraction(0x12, 0x11), 0x01);
+    });
 }
 
 #[test]
 fn perform_subtraction_with_underflow() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    assert_eq!(e.perform_subtraction(0x12, 0x13), 0xFF);
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        assert_eq!(e.perform_subtraction(0x12, 0x13), 0xFF);
+    });
 }
 
 #[test]
 fn perform_subtraction_sets_zero_flag() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_subtraction(0x12, 0x12);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_subtraction(0x12, 0x12);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn perform_subtraction_sets_subtract_flag() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_subtraction(0x12, 0x04);
-    assert!(e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_subtraction(0x12, 0x04);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn perform_subtraction_sets_half_carry_flag() {
-    let e: &mut LR35902InstructionSetOps = &mut new_lr35902_emulator_for_test();
-    e.perform_subtraction(0x03, 0x04);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        let e: &mut LR35902InstructionSetOps = e;
+        e.perform_subtraction(0x03, 0x04);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 /*  ___           _                   _   _
@@ -1114,801 +1202,897 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
  *
  */
 
+#[cfg(test)]
+fn instruction_test<F: Fn(&mut LR35902Instruction<SimpleMemoryAccessor>)>(func: F) {
+    let mut emulator = new_lr35902_emulator_for_test();
+    let mut instruction = LR35902Instruction::new(&mut emulator);
+    func(&mut instruction);
+}
+
 #[test]
 fn move_and_increment_hl() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0x1122);
-    e.set_register(Intel8080Register::M, 0x99);
-    e.move_and_increment_hl(Intel8080Register::A, Intel8080Register::M);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x99);
-    assert_eq!(e.read_register_pair(Intel8080Register::H), 0x1123);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0x1122);
+        e.set_register(Intel8080Register::M, 0x99);
+        e.move_and_increment_hl(Intel8080Register::A, Intel8080Register::M);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x99);
+        assert_eq!(e.read_register_pair(Intel8080Register::H), 0x1123);
+    })
 }
 
 #[test]
 fn move_and_increment_hl_overflows() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0xFFFF);
-    e.move_and_increment_hl(Intel8080Register::A, Intel8080Register::M);
-    assert_eq!(e.read_register_pair(Intel8080Register::H), 0x0);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0xFFFF);
+        e.move_and_increment_hl(Intel8080Register::A, Intel8080Register::M);
+        assert_eq!(e.read_register_pair(Intel8080Register::H), 0x0);
+    });
 }
 
 #[test]
 fn move_and_decrement_hl() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0x1122);
-    e.set_register(Intel8080Register::M, 0x99);
-    e.move_and_decrement_hl(Intel8080Register::A, Intel8080Register::M);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x99);
-    assert_eq!(e.read_register_pair(Intel8080Register::H), 0x1121);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0x1122);
+        e.set_register(Intel8080Register::M, 0x99);
+        e.move_and_decrement_hl(Intel8080Register::A, Intel8080Register::M);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x99);
+        assert_eq!(e.read_register_pair(Intel8080Register::H), 0x1121);
+    });
 }
 
 #[test]
 fn move_and_decrement_hl_underflows() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0x0);
-    e.move_and_decrement_hl(Intel8080Register::A, Intel8080Register::M);
-    assert_eq!(e.read_register_pair(Intel8080Register::H), 0xFFFF);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0x0);
+        e.move_and_decrement_hl(Intel8080Register::A, Intel8080Register::M);
+        assert_eq!(e.read_register_pair(Intel8080Register::H), 0xFFFF);
+    });
 }
 
 #[test]
 fn store_accumulator_direct() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x44);
-    LR35902InstructionSet::store_accumulator_direct(&mut e, 0x5588);
-    assert_eq!(e.read_memory(0x5588), 0x44);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x44);
+        LR35902InstructionSet::store_accumulator_direct(e, 0x5588);
+        assert_eq!(e.read_memory(0x5588), 0x44);
+    });
 }
 
 #[test]
 fn store_sp_plus_immediate() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x4488);
-    e.store_sp_plus_immediate(0x77);
-    assert_eq!(e.read_register_pair(Intel8080Register::H), 0x4488 + 0x77);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x4488);
+        e.store_sp_plus_immediate(0x77);
+        assert_eq!(e.read_register_pair(Intel8080Register::H), 0x4488 + 0x77);
+    });
 }
 
 #[test]
 fn store_sp_plus_immediate_with_overflow() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0xFF88);
-    e.store_sp_plus_immediate(0x77);
-    assert_eq!(
-        e.read_register_pair(Intel8080Register::H),
-        0xFF88u16.wrapping_add(0x77)
-    );
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0xFF88);
+        e.store_sp_plus_immediate(0x77);
+        assert_eq!(
+            e.read_register_pair(Intel8080Register::H),
+            0xFF88u16.wrapping_add(0x77)
+        );
+    });
 }
 
 #[test]
 fn add_immediate_to_sp() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x4488);
-    e.add_immediate_to_sp(0x22);
-    assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x44aa);
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x4488);
+        e.add_immediate_to_sp(0x22);
+        assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x44aa);
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn add_immediate_to_sp_example1() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0xFFFF);
-    e.add_immediate_to_sp(0x01);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0xFFFF);
+        e.add_immediate_to_sp(0x01);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn add_immediate_to_sp_example2() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x00FF);
-    e.add_immediate_to_sp(0x01);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x00FF);
+        e.add_immediate_to_sp(0x01);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn add_immediate_to_sp_example3() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x00F0);
-    e.add_immediate_to_sp(0x10);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x00F0);
+        e.add_immediate_to_sp(0x10);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn add_immediate_to_sp_example4() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0xFFFF);
-    e.add_immediate_to_sp(0x84);
-    assert_eq!(e.read_register_pair(Intel8080Register::SP), 0xFF83);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0xFFFF);
+        e.add_immediate_to_sp(0x84);
+        assert_eq!(e.read_register_pair(Intel8080Register::SP), 0xFF83);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn add_immediate_to_sp_example5() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x000F);
-    e.add_immediate_to_sp(0x01);
-    assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0010);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x000F);
+        e.add_immediate_to_sp(0x01);
+        assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0010);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn add_immediate_to_sp_example6() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x0000);
-    e.add_immediate_to_sp(0x90);
-    assert_eq!(e.read_register_pair(Intel8080Register::SP), 0xFF90);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x0000);
+        e.add_immediate_to_sp(0x90);
+        assert_eq!(e.read_register_pair(Intel8080Register::SP), 0xFF90);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn subtract_immediate_from_accumulator_example1() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0xFF);
-    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x01);
-    assert_eq!(e.read_register(Intel8080Register::A), 0xFE);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0xFF);
+        LR35902InstructionSet::subtract_immediate_from_accumulator(e, 0x01);
+        assert_eq!(e.read_register(Intel8080Register::A), 0xFE);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn subtract_immediate_from_accumulator_example2() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x04);
-    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x05);
-    assert_eq!(e.read_register(Intel8080Register::A), 0xFF);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x04);
+        LR35902InstructionSet::subtract_immediate_from_accumulator(e, 0x05);
+        assert_eq!(e.read_register(Intel8080Register::A), 0xFF);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn subtract_immediate_from_accumulator_example3() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x14);
-    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x05);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x0F);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x14);
+        LR35902InstructionSet::subtract_immediate_from_accumulator(e, 0x05);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x0F);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn subtract_immediate_from_accumulator_example4() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x14);
-    LR35902InstructionSet::subtract_immediate_from_accumulator(&mut e, 0x86);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x8E);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x14);
+        LR35902InstructionSet::subtract_immediate_from_accumulator(e, 0x86);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x8E);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn double_add_updates_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0x0FFF);
-    e.set_register_pair(Intel8080Register::B, 0x0001);
-    LR35902InstructionSet::double_add(&mut e, Intel8080Register::B);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0x0FFF);
+        e.set_register_pair(Intel8080Register::B, 0x0001);
+        LR35902InstructionSet::double_add(e, Intel8080Register::B);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn double_add_does_not_update_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0x00FF);
-    e.set_register_pair(Intel8080Register::B, 0x0001);
-    LR35902InstructionSet::double_add(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0x00FF);
+        e.set_register_pair(Intel8080Register::B, 0x0001);
+        LR35902InstructionSet::double_add(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn double_add_adds() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::H, 0x000F);
-    e.set_register_pair(Intel8080Register::B, 0x0001);
-    LR35902InstructionSet::double_add(&mut e, Intel8080Register::B);
-    assert_eq!(e.read_register_pair(Intel8080Register::H), 0x0010);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::H, 0x000F);
+        e.set_register_pair(Intel8080Register::B, 0x0001);
+        LR35902InstructionSet::double_add(e, Intel8080Register::B);
+        assert_eq!(e.read_register_pair(Intel8080Register::H), 0x0010);
+    });
 }
 
 #[test]
 fn store_accumulator_direct_one_byte() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x34);
-    e.store_accumulator_direct_one_byte(0x22);
-    assert_eq!(e.read_memory(0xFF22), 0x34);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x34);
+        e.store_accumulator_direct_one_byte(0x22);
+        assert_eq!(e.read_memory(0xFF22), 0x34);
+    });
 }
 
 #[test]
 fn load_accumulator_direct_one_byte() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_memory(0xFF22, 0x34);
-    e.load_accumulator_direct_one_byte(0x22);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x34);
+    instruction_test(|e| {
+        e.set_memory(0xFF22, 0x34);
+        e.load_accumulator_direct_one_byte(0x22);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x34);
+    });
 }
 
 #[test]
 fn store_accumulator_one_byte() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x34);
-    e.set_register(Intel8080Register::C, 0x22);
-    e.store_accumulator_one_byte();
-    assert_eq!(e.read_memory(0xFF22), 0x34);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x34);
+        e.set_register(Intel8080Register::C, 0x22);
+        e.store_accumulator_one_byte();
+        assert_eq!(e.read_memory(0xFF22), 0x34);
+    });
 }
 
 #[test]
 fn load_accumulator_one_byte() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_memory(0xFF22, 0x34);
-    e.set_register(Intel8080Register::C, 0x22);
-    e.load_accumulator_one_byte();
-    assert_eq!(e.read_register(Intel8080Register::A), 0x34);
+    instruction_test(|e| {
+        e.set_memory(0xFF22, 0x34);
+        e.set_register(Intel8080Register::C, 0x22);
+        e.load_accumulator_one_byte();
+        assert_eq!(e.read_register(Intel8080Register::A), 0x34);
+    });
 }
 
 #[test]
 fn return_and_enable_interrupts() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x0400);
-    e.return_and_enable_interrupts();
-    assert_eq!(e.read_program_counter(), 0x0000);
-    assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0402);
-    assert!(e.get_interrupts_enabled());
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x0400);
+        e.return_and_enable_interrupts();
+        assert_eq!(e.read_program_counter(), 0x0000);
+        assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0402);
+        assert!(e.get_interrupts_enabled());
+    });
 }
 
 #[test]
 fn jump_relative_negative() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_program_counter(0x1234);
-    e.jump_relative(-4i8 as u8);
-    assert_eq!(e.read_program_counter(), 0x1230);
+    instruction_test(|e| {
+        e.set_program_counter(0x1234);
+        e.jump_relative(-4i8 as u8);
+        assert_eq!(e.read_program_counter(), 0x1230);
+    });
 }
 
 #[test]
 fn jump_relative_example() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_program_counter(0x297);
-    e.jump_relative(0xFC);
-    assert_eq!(e.read_program_counter(), 0x293);
+    instruction_test(|e| {
+        e.set_program_counter(0x297);
+        e.jump_relative(0xFC);
+        assert_eq!(e.read_program_counter(), 0x293);
+    });
 }
 
 #[test]
 fn jump_relative() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_program_counter(0x1234);
-    e.jump_relative(0x11);
-    assert_eq!(e.read_program_counter(), 0x1245);
+    instruction_test(|e| {
+        e.set_program_counter(0x1234);
+        e.jump_relative(0x11);
+        assert_eq!(e.read_program_counter(), 0x1245);
+    });
 }
 
 #[test]
 fn jump_relative_if_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Zero, true);
-    e.set_program_counter(0x1234);
-    e.jump_relative_if_zero(0x11);
-    assert_eq!(e.read_program_counter(), 0x1245);
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Zero, true);
+        e.set_program_counter(0x1234);
+        e.jump_relative_if_zero(0x11);
+        assert_eq!(e.read_program_counter(), 0x1245);
+    });
 }
 
 #[test]
 fn jump_relative_if_not_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_program_counter(0x1234);
-    e.jump_relative_if_not_zero(0x11);
-    assert_eq!(e.read_program_counter(), 0x1245);
+    instruction_test(|e| {
+        e.set_program_counter(0x1234);
+        e.jump_relative_if_not_zero(0x11);
+        assert_eq!(e.read_program_counter(), 0x1245);
+    });
 }
 
 #[test]
 fn jump_relative_if_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Carry, true);
-    e.set_program_counter(0x1234);
-    e.jump_relative_if_carry(0x11);
-    assert_eq!(e.read_program_counter(), 0x1245);
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Carry, true);
+        e.set_program_counter(0x1234);
+        e.jump_relative_if_carry(0x11);
+        assert_eq!(e.read_program_counter(), 0x1245);
+    });
 }
 
 #[test]
 fn jump_relative_if_no_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_program_counter(0x1234);
-    e.jump_relative_if_no_carry(0x11);
-    assert_eq!(e.read_program_counter(), 0x1245);
+    instruction_test(|e| {
+        e.set_program_counter(0x1234);
+        e.jump_relative_if_no_carry(0x11);
+        assert_eq!(e.read_program_counter(), 0x1245);
+    });
 }
 
 #[test]
 fn store_sp_direct() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x9923);
-    e.store_sp_direct(0x8833);
-    assert_eq!(e.read_memory_u16(0x8833), 0x9923);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x9923);
+        e.store_sp_direct(0x8833);
+        assert_eq!(e.read_memory_u16(0x8833), 0x9923);
+    });
 }
 
 #[test]
 fn store_sp_at_ffff() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x9923);
-    e.store_sp_direct(0xFFFF);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x9923);
+        e.store_sp_direct(0xFFFF);
 
-    // This address is the Interrupt Enable Flag, so this test isn't quite legit.
-    assert_eq!(e.read_memory(0xFFFF), 0x23);
+        // This address is the Interrupt Enable Flag, so this test isn't quite legit.
+        assert_eq!(e.read_memory(0xFFFF), 0x23);
+    });
 }
 
 #[test]
 fn reset_bit() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0xFF);
-    e.reset_bit(4, Intel8080Register::A);
-    e.reset_bit(0, Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b11101110);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0xFF);
+        e.reset_bit(4, Intel8080Register::A);
+        e.reset_bit(0, Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b11101110);
+    });
 }
 
 #[test]
 fn set_bit() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0);
-    e.set_bit(4, Intel8080Register::A);
-    e.set_bit(0, Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b00010001);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0);
+        e.set_bit(4, Intel8080Register::A);
+        e.set_bit(0, Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b00010001);
+    });
 }
 
 #[test]
 fn test_bit_false() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b00010000);
-    e.test_bit(4, Intel8080Register::A);
-    assert_eq!(e.read_flag(LR35902Flag::Zero), false);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b00010000);
+        e.test_bit(4, Intel8080Register::A);
+        assert_eq!(e.read_flag(LR35902Flag::Zero), false);
+    });
 }
 
 #[test]
 fn test_bit_true() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0);
-    e.test_bit(4, Intel8080Register::A);
-    assert_eq!(e.read_flag(LR35902Flag::Zero), true);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0);
+        e.test_bit(4, Intel8080Register::A);
+        assert_eq!(e.read_flag(LR35902Flag::Zero), true);
+    });
 }
 
 #[test]
 fn shift_register_right_signed() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.shift_register_right_signed(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b11011101);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.shift_register_right_signed(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b11011101);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn shift_register_right_signed_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.shift_register_right_signed(Intel8080Register::A);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.shift_register_right_signed(Intel8080Register::A);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn shift_register_right_signed_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.shift_register_right_signed(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.shift_register_right_signed(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn shift_register_right_signed_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.shift_register_right_signed(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.shift_register_right_signed(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn shift_register_right() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.shift_register_right(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b01011101);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.shift_register_right(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b01011101);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn shift_register_right_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.shift_register_right(Intel8080Register::A);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.shift_register_right(Intel8080Register::A);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn shift_register_right_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.shift_register_right(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.shift_register_right(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn shift_register_right_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.shift_register_right(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.shift_register_right(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn shift_register_left() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.shift_register_left(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b01110110);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.shift_register_left(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b01110110);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn shift_register_left_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.shift_register_left(Intel8080Register::A);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.shift_register_left(Intel8080Register::A);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn shift_register_left_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.shift_register_left(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.shift_register_left(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn shift_register_left_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.shift_register_left(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.shift_register_left(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn swap_register() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0xF8);
-    e.swap_register(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x8F);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0xF8);
+        e.swap_register(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x8F);
+    });
 }
 
 #[test]
 fn swap_register_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.swap_register(Intel8080Register::A);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.swap_register(Intel8080Register::A);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn swap_register_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.swap_register(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.swap_register(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn swap_register_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.swap_register(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.swap_register(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn rotate_register_right() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.rotate_register_right(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b11011101);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.rotate_register_right(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b11011101);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn rotate_register_right_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.rotate_register_right(Intel8080Register::A);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.rotate_register_right(Intel8080Register::A);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn rotate_register_right_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.rotate_register_right(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.rotate_register_right(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn rotate_register_right_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.rotate_register_right(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.rotate_register_right(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn rotate_register_left() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.rotate_register_left(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b01110111);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.rotate_register_left(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b01110111);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn rotate_register_left_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.rotate_register_left(Intel8080Register::A);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.rotate_register_left(Intel8080Register::A);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn rotate_register_left_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.rotate_register_left(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.rotate_register_left(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn rotate_register_left_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.rotate_register_left(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.rotate_register_left(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn rotate_register_right_through_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.set_flag(LR35902Flag::Carry, false);
-    e.rotate_register_right_through_carry(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b01011101);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.set_flag(LR35902Flag::Carry, false);
+        e.rotate_register_right_through_carry(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b01011101);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn rotate_register_right_through_carry_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.rotate_register_right_through_carry(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.rotate_register_right_through_carry(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn rotate_register_right_through_carry_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.rotate_register_right_through_carry(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.rotate_register_right_through_carry(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn rotate_register_left_through_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.set_flag(LR35902Flag::Carry, false);
-    e.rotate_register_left_through_carry(Intel8080Register::A);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b01110110);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.set_flag(LR35902Flag::Carry, false);
+        e.rotate_register_left_through_carry(Intel8080Register::A);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b01110110);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn rotate_register_left_through_carry_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.rotate_register_left_through_carry(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.rotate_register_left_through_carry(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn rotate_register_left_through_carry_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.set_register(Intel8080Register::A, 0b10111011);
-    e.rotate_register_left_through_carry(Intel8080Register::A);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.set_register(Intel8080Register::A, 0b10111011);
+        e.rotate_register_left_through_carry(Intel8080Register::A);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn logical_and_with_accumulator() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b00000001);
-    e.set_register(Intel8080Register::B, 0b11000001);
-    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b00000001);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b00000001);
+        e.set_register(Intel8080Register::B, 0b11000001);
+        LR35902InstructionSet::logical_and_with_accumulator(e, Intel8080Register::B);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b00000001);
+    });
 }
 
 #[test]
 fn logical_and_with_accumulator_sets_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x0);
-    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x0);
+        LR35902InstructionSet::logical_and_with_accumulator(e, Intel8080Register::B);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn logical_and_with_accumulator_clears_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Zero, true);
-    e.set_register(Intel8080Register::A, 0b00110001);
-    e.set_register(Intel8080Register::B, 0b00010000);
-    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Zero, true);
+        e.set_register(Intel8080Register::A, 0b00110001);
+        e.set_register(Intel8080Register::B, 0b00010000);
+        LR35902InstructionSet::logical_and_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn logical_and_with_accumulator_clears_subtract() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_and_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn logical_and_with_accumulator_clears_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Carry, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Carry, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_and_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn logical_and_with_accumulator_sets_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_and_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_and_with_accumulator(e, Intel8080Register::B);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn logical_exclusive_or_with_accumulator() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b00000001);
-    e.set_register(Intel8080Register::B, 0b11000001);
-    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b11000000);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b00000001);
+        e.set_register(Intel8080Register::B, 0b11000001);
+        LR35902InstructionSet::logical_exclusive_or_with_accumulator(e, Intel8080Register::B);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b11000000);
+    });
 }
 
 #[test]
 fn logical_exclusive_or_with_accumulator_sets_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x33);
-    e.set_register(Intel8080Register::B, 0x33);
-    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x33);
+        e.set_register(Intel8080Register::B, 0x33);
+        LR35902InstructionSet::logical_exclusive_or_with_accumulator(e, Intel8080Register::B);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn logical_exclusive_or_with_accumulator_clears_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Zero, true);
-    e.set_register(Intel8080Register::A, 0b00110001);
-    e.set_register(Intel8080Register::B, 0b00010000);
-    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Zero, true);
+        e.set_register(Intel8080Register::A, 0b00110001);
+        e.set_register(Intel8080Register::B, 0b00010000);
+        LR35902InstructionSet::logical_exclusive_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn logical_exclusive_or_with_accumulator_clears_subtract() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_exclusive_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn logical_exclusive_or_with_accumulator_clears_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Carry, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Carry, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_exclusive_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn logical_exclusive_or_with_accumulator_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_exclusive_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_exclusive_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn logical_or_with_accumulator() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0b00000001);
-    e.set_register(Intel8080Register::B, 0b11000001);
-    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert_eq!(e.read_register(Intel8080Register::A), 0b11000001);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0b00000001);
+        e.set_register(Intel8080Register::B, 0b11000001);
+        LR35902InstructionSet::logical_or_with_accumulator(e, Intel8080Register::B);
+        assert_eq!(e.read_register(Intel8080Register::A), 0b11000001);
+    });
 }
 
 #[test]
 fn logical_or_with_accumulator_sets_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.set_register(Intel8080Register::B, 0x0);
-    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.set_register(Intel8080Register::B, 0x0);
+        LR35902InstructionSet::logical_or_with_accumulator(e, Intel8080Register::B);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn logical_or_with_accumulator_clears_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Zero, true);
-    e.set_register(Intel8080Register::A, 0b00110001);
-    e.set_register(Intel8080Register::B, 0b00010000);
-    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Zero, true);
+        e.set_register(Intel8080Register::A, 0b00110001);
+        e.set_register(Intel8080Register::B, 0b00010000);
+        LR35902InstructionSet::logical_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn logical_or_with_accumulator_clears_subtract() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn logical_or_with_accumulator_clears_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Carry, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Carry, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn logical_or_with_accumulator_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.set_register(Intel8080Register::A, 0x11);
-    e.set_register(Intel8080Register::B, 0x22);
-    LR35902InstructionSet::logical_or_with_accumulator(&mut e, Intel8080Register::B);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.set_register(Intel8080Register::A, 0x11);
+        e.set_register(Intel8080Register::B, 0x22);
+        LR35902InstructionSet::logical_or_with_accumulator(e, Intel8080Register::B);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn decimal_adjust_accumulator_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.set_register(Intel8080Register::A, 0x88);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.set_register(Intel8080Register::A, 0x88);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[cfg(test)]
 fn daa_test(input: u8, expected: u8) {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, input);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert_eq!(e.read_register(Intel8080Register::A), expected);
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, input);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert_eq!(e.read_register(Intel8080Register::A), expected);
+    });
 }
 
 #[test]
@@ -1921,217 +2105,242 @@ fn decimal_adjust_accumulator_examples() {
 
 #[test]
 fn decimal_adjust_accumulator_sets_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x9a);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x9a);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn decimal_adjust_accumulator_resets_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x91);
-    e.set_flag(LR35902Flag::Zero, true);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert!(!e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x91);
+        e.set_flag(LR35902Flag::Zero, true);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert!(!e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn decimal_adjust_accumulator_sets_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x9b);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x9b);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn decimal_adjust_accumulator_reads_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x73);
-    e.set_flag(LR35902Flag::Carry, true);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert_eq!(e.read_register(Intel8080Register::A), 0xd3);
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x73);
+        e.set_flag(LR35902Flag::Carry, true);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert_eq!(e.read_register(Intel8080Register::A), 0xd3);
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn decimal_adjust_accumulator_reads_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    e.set_flag(LR35902Flag::Carry, true);
-    LR35902InstructionSet::decimal_adjust_accumulator(&mut e);
-    assert_eq!(e.read_register(Intel8080Register::A), 0x66);
-    assert!(e.read_flag(LR35902Flag::Carry));
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        e.set_flag(LR35902Flag::Carry, true);
+        LR35902InstructionSet::decimal_adjust_accumulator(e);
+        assert_eq!(e.read_register(Intel8080Register::A), 0x66);
+        assert!(e.read_flag(LR35902Flag::Carry));
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn and_immediate_with_accumulator_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    LR35902InstructionSet::and_immediate_with_accumulator(&mut e, 0x0);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        LR35902InstructionSet::and_immediate_with_accumulator(e, 0x0);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn and_immediate_with_accumulator_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    LR35902InstructionSet::and_immediate_with_accumulator(&mut e, 0x12);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        LR35902InstructionSet::and_immediate_with_accumulator(e, 0x12);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn exclusive_or_immediate_with_accumulator_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    LR35902InstructionSet::exclusive_or_immediate_with_accumulator(&mut e, 0x0);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        LR35902InstructionSet::exclusive_or_immediate_with_accumulator(e, 0x0);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn exclusive_or_immediate_with_accumulator_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    LR35902InstructionSet::exclusive_or_immediate_with_accumulator(&mut e, 0x12);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        LR35902InstructionSet::exclusive_or_immediate_with_accumulator(e, 0x12);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn or_immediate_with_accumulator_sets_zero_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x0);
-    LR35902InstructionSet::or_immediate_with_accumulator(&mut e, 0x0);
-    assert!(e.read_flag(LR35902Flag::Zero));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x0);
+        LR35902InstructionSet::or_immediate_with_accumulator(e, 0x0);
+        assert!(e.read_flag(LR35902Flag::Zero));
+    });
 }
 
 #[test]
 fn or_immediate_with_accumulator_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    LR35902InstructionSet::or_immediate_with_accumulator(&mut e, 0x12);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        LR35902InstructionSet::or_immediate_with_accumulator(e, 0x12);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn complement_accumulator_sets_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    LR35902InstructionSet::complement_accumulator(&mut e);
-    assert!(e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        LR35902InstructionSet::complement_accumulator(e);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn complement_accumulator_sets_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    LR35902InstructionSet::complement_accumulator(&mut e);
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        LR35902InstructionSet::complement_accumulator(e);
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn set_carry_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    LR35902InstructionSet::set_carry(&mut e);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        LR35902InstructionSet::set_carry(e);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn set_carry_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    LR35902InstructionSet::set_carry(&mut e);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        LR35902InstructionSet::set_carry(e);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn complement_carry_clears_subtract_flag() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::Subtract, true);
-    LR35902InstructionSet::complement_carry(&mut e);
-    assert!(!e.read_flag(LR35902Flag::Subtract));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::Subtract, true);
+        LR35902InstructionSet::complement_carry(e);
+        assert!(!e.read_flag(LR35902Flag::Subtract));
+    });
 }
 
 #[test]
 fn complement_carry_clears_half_carry() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_flag(LR35902Flag::HalfCarry, true);
-    LR35902InstructionSet::complement_carry(&mut e);
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_flag(LR35902Flag::HalfCarry, true);
+        LR35902InstructionSet::complement_carry(e);
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn compare_immediate_with_accumulator_example1() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x45);
-    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0xF3);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x45);
+        LR35902InstructionSet::compare_immediate_with_accumulator(e, 0xF3);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn compare_immediate_with_accumulator_example2() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x02);
-    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x01);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x02);
+        LR35902InstructionSet::compare_immediate_with_accumulator(e, 0x01);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn compare_immediate_with_accumulator_example3() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x80);
-    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x01);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x80);
+        LR35902InstructionSet::compare_immediate_with_accumulator(e, 0x01);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn compare_immediate_with_accumulator_example4() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x40);
-    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x01);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(!e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x40);
+        LR35902InstructionSet::compare_immediate_with_accumulator(e, 0x01);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(!e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn compare_immediate_with_accumulator_example5() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0x40);
-    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0xFF);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::HalfCarry));
-    assert!(e.read_flag(LR35902Flag::Carry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0x40);
+        LR35902InstructionSet::compare_immediate_with_accumulator(e, 0xFF);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::HalfCarry));
+        assert!(e.read_flag(LR35902Flag::Carry));
+    });
 }
 
 #[test]
 fn compare_immediate_with_accumulator_example6() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register(Intel8080Register::A, 0);
-    LR35902InstructionSet::compare_immediate_with_accumulator(&mut e, 0x90);
-    assert!(e.read_flag(LR35902Flag::Subtract));
-    assert!(e.read_flag(LR35902Flag::Carry));
-    assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    instruction_test(|e| {
+        e.set_register(Intel8080Register::A, 0);
+        LR35902InstructionSet::compare_immediate_with_accumulator(e, 0x90);
+        assert!(e.read_flag(LR35902Flag::Subtract));
+        assert!(e.read_flag(LR35902Flag::Carry));
+        assert!(!e.read_flag(LR35902Flag::HalfCarry));
+    });
 }
 
 #[test]
 fn increment_register_pair_example1() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::SP, 0x000F);
-    LR35902InstructionSet::increment_register_pair(&mut e, Intel8080Register::SP);
-    assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0010);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::SP, 0x000F);
+        LR35902InstructionSet::increment_register_pair(e, Intel8080Register::SP);
+        assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0010);
+    });
 }
 
 #[test]
 fn flags_register_keeps_zero_flags_zero() {
-    let mut e = new_lr35902_emulator_for_test();
-    e.set_register_pair(Intel8080Register::PSW, 0xFFFF);
-    assert_eq!(e.read_register_pair(Intel8080Register::PSW), 0xFFF0);
+    instruction_test(|e| {
+        e.set_register_pair(Intel8080Register::PSW, 0xFFFF);
+        assert_eq!(e.read_register_pair(Intel8080Register::PSW), 0xFFF0);
+    });
 }
 
 /*  _____                     _   _
@@ -2152,7 +2361,10 @@ impl<M: MemoryAccessor> LR35902Emulator<M> {
     }
 
     fn run_lr35902_instruction(&mut self, instruction: &[u8]) {
-        let total_duration = dispatch_lr35902_instruction(&instruction, self);
+        let total_duration = {
+            let mut instr = LR35902Instruction::new(self);
+            dispatch_lr35902_instruction(&instruction, &mut instr)
+        };
         self.add_cycles(total_duration - (instruction.len() * 4) as u8);
     }
 
