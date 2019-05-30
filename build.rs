@@ -717,11 +717,8 @@ fn generate_opcode_rs(
     write!(out, "{}", tokens).unwrap();
     out.flush().unwrap();
 
-    assert!(Command::new("rustfmt")
-        .arg(output_file)
-        .status()
-        .unwrap()
-        .success());
+    // Try to run rustfmt on it, but don't fail if we are unable.
+    Command::new("rustfmt").arg(output_file).status().ok();
 }
 
 fn generate_opcodes(opcodes_path: &str, name: &'static str) {
