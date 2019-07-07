@@ -1,15 +1,11 @@
 // Copyright 2018 Remi Bernotavicius
 
 use crate::sdl2;
-use std::cell::RefCell;
 use std::iter;
-use std::rc::Rc;
 
-use emulator_common::disassembler::MemoryAccessor;
 use game_boy_emulator::joypad_register::KeyEvent;
 use game_boy_emulator::memory_controller::{
-    GameBoyFlags, GameBoyMemoryMap, GameBoyRegister, MemoryChunk, MemoryChunkIterator,
-    MemoryMappedHardware,
+    GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryChunkIterator, MemoryMappedHardware,
 };
 use game_boy_emulator::{
     BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
@@ -21,14 +17,9 @@ const CHARACTER_SIZE: u8 = 8;
 const CHARACTER_AREA_SIZE: u16 = 32;
 
 #[derive(Default)]
-struct DmaRegisterInner {
+pub struct DmaRegister {
     value: u8,
     requested: bool,
-}
-
-#[derive(Default, Clone)]
-pub struct DmaRegister {
-    inner: Rc<RefCell<DmaRegisterInner>>,
 }
 
 impl MemoryMappedHardware for DmaRegister {
@@ -38,18 +29,14 @@ impl MemoryMappedHardware for DmaRegister {
 
     fn set_value(&mut self, _: u16, value: u8) {
         self.set_value(value);
-        self.inner.borrow_mut().requested = true;
-    }
-
-    fn len(&self) -> u16 {
-        1
+        self.requested = true;
     }
 }
 
 impl DmaRegister {
-    fn take_request(&mut self) -> Option<u16> {
-        if self.inner.borrow().requested {
-            self.inner.borrow_mut().requested = false;
+    pub fn take_request(&mut self) -> Option<u16> {
+        if self.requested {
+            self.requested = false;
             Some(self.read_value() as u16 * 0x100)
         } else {
             None
@@ -57,11 +44,11 @@ impl DmaRegister {
     }
 
     pub fn read_value(&self) -> u8 {
-        self.inner.borrow().value
+        self.value
     }
 
     pub fn set_value(&mut self, value: u8) {
-        self.inner.borrow_mut().value = value;
+        self.value = value;
     }
 }
 
@@ -674,18 +661,7 @@ impl<'a> LCDController<'a> {
         }
     }
 
-    fn execute_dma(&mut self, memory_accessor: &mut GameBoyMemoryMap) {
-        // XXX This is suppose to take about 40 cycles to complete.
-        if let Some(address) = self.registers.dma.take_request() {
-            for (dst_address, src_address) in OAM_DATA.zip(address..) {
-                let value = memory_accessor.read_memory(src_address);
-                memory_accessor.set_memory(dst_address, value);
-            }
-        }
-    }
-
-    pub fn tick(&mut self, memory_accessor: &mut GameBoyMemoryMap, time: u64) {
+    pub fn tick(&mut self, time: u64) {
         self.check_enabled_state(time);
-        self.execute_dma(memory_accessor);
     }
 }

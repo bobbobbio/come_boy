@@ -1,5 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
+#![recursion_limit = "128"]
+
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -7,14 +9,16 @@ extern crate serde_derive;
 #[macro_use]
 extern crate quote;
 extern crate proc_macro2;
+extern crate syn;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::fs::File;
 use std::io::Write;
+use std::iter;
 use std::num::ParseIntError;
 use std::process::Command;
 use std::str::FromStr;
@@ -735,7 +739,263 @@ fn generate_opcodes(opcodes_path: &str, name: &'static str) {
     generate_opcode_rs(&output_file, opcodes_path, name, opcodes);
 }
 
+#[derive(Hash, PartialEq, Eq)]
+enum AddressRange {
+    Exact(u16),
+    Range { start: u16, end: u16 },
+}
+
+impl AddressRange {
+    fn start(&self) -> u16 {
+        match self {
+            AddressRange::Exact(v) => *v,
+            AddressRange::Range { start, .. } => *start,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct ParseAddressRangeError {
+    message: String,
+}
+
+impl Display for ParseAddressRangeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for ParseAddressRangeError {
+    fn description(&self) -> &str {
+        &self.message
+    }
+    fn cause(&self) -> Option<&Error> {
+        None
+    }
+}
+
+impl ParseAddressRangeError {
+    fn new(message: String) -> Self {
+        Self { message }
+    }
+}
+
+impl From<ParseIntError> for ParseAddressRangeError {
+    fn from(p: ParseIntError) -> Self {
+        Self {
+            message: format!("{}", p),
+        }
+    }
+}
+
+fn parse_hex(s: &str) -> Result<u16, ParseIntError> {
+    if &s[..2] == "0x" {
+        u16::from_str_radix(&s[2..], 16)
+    } else {
+        u16::from_str_radix(s, 16)
+    }
+}
+
+impl std::str::FromStr for AddressRange {
+    type Err = ParseAddressRangeError;
+
+    fn from_str(s: &str) -> Result<Self, ParseAddressRangeError> {
+        let mut parts = s.split("..");
+        let start = parts
+            .next()
+            .ok_or(ParseAddressRangeError::new("Missing start of range".into()))?;
+        if let Some(end) = parts.next() {
+            Ok(AddressRange::Range {
+                start: parse_hex(start)?,
+                end: parse_hex(end)?,
+            })
+        } else {
+            Ok(AddressRange::Exact(parse_hex(start)?))
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Copy, PartialEq, Eq)]
+enum MappingType {
+    Read,
+    ReadWrite,
+    Write,
+}
+
+#[derive(Deserialize)]
+#[allow(dead_code)]
+struct MemoryMapping {
+    field: String,
+    mapping_type: MappingType,
+    #[serde(default)]
+    full_address: bool,
+}
+
+fn filter_read<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
+    if mapping_type == &MappingType::Read || mapping_type == &MappingType::ReadWrite {
+        Some(v)
+    } else {
+        None
+    }
+}
+
+fn filter_write<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
+    if mapping_type == &MappingType::Write || mapping_type == &MappingType::ReadWrite {
+        Some(v)
+    } else {
+        None
+    }
+}
+
+fn generate_memory_map_from_mapping(
+    mapping: &HashMap<AddressRange, MemoryMapping>,
+    mutable: bool,
+) -> TokenStream {
+    let values: HashSet<String> = mapping.values().map(|v| v.field.clone()).collect();
+
+    let src_path: &Vec<syn::Expr> = &values
+        .iter()
+        .map(|v| syn::parse_str(v.as_ref()).unwrap())
+        .collect();
+    let field_name: &Vec<Ident> = &values
+        .iter()
+        .map(|v| Ident::new(&v.replace(".", "_"), Span::call_site()))
+        .collect();
+
+    let name: Ident = if mutable {
+        syn::parse_quote!(GameBoyMemoryMapMut)
+    } else {
+        syn::parse_quote!(GameBoyMemoryMap)
+    };
+
+    let macro_name: Ident = if mutable {
+        syn::parse_quote!(build_memory_map_mut)
+    } else {
+        syn::parse_quote!(build_memory_map)
+    };
+
+    let maybe_mut_a = iter::once(if mutable {
+        Some(syn::token::Mut(Span::call_site()))
+    } else {
+        None
+    })
+    .cycle();
+    let maybe_mut_b = maybe_mut_a.clone();
+
+    let expr: &Vec<(syn::Expr, MappingType)> = &mapping
+        .iter()
+        .map(|(k, v)| {
+            (
+                match k {
+                    AddressRange::Range { start, end } if *start > 0 => {
+                        syn::parse_quote!(address >= #start && address < #end)
+                    }
+                    AddressRange::Range { start: _, end } => syn::parse_quote!(address < #end),
+                    AddressRange::Exact(address) => syn::parse_quote!(address == #address),
+                },
+                v.mapping_type,
+            )
+        })
+        .collect();
+
+    let offset: &Vec<(syn::Expr, MappingType)> = &mapping
+        .iter()
+        .map(|(k, v)| {
+            let offset = if v.full_address { 0 } else { k.start() };
+            (syn::parse_quote!(#offset), v.mapping_type)
+        })
+        .collect();
+
+    let selected_field: &Vec<(Ident, MappingType)> = &mapping
+        .values()
+        .map(|v| {
+            (
+                Ident::new(&v.field.replace(".", "_"), Span::call_site()),
+                v.mapping_type,
+            )
+        })
+        .collect();
+
+    let read_expr = expr.iter().filter_map(filter_read);
+    let set_expr = expr.iter().filter_map(filter_write);
+    let read_field = selected_field.iter().filter_map(filter_read);
+    let set_field = selected_field.iter().filter_map(filter_write);
+    let read_offset = offset.iter().filter_map(filter_read);
+    let set_offset = offset.iter().filter_map(filter_write);
+
+    let set_memory_body: syn::Expr = if mutable {
+        syn::parse_quote!(
+            #(if #set_expr {
+                self.#set_field.set_value(address - #set_offset, value)
+            }) else *
+        )
+    } else {
+        syn::parse_quote!(panic!("Called set_memory on non-mutable MemoryMap"))
+    };
+
+    quote!(
+        pub struct #name<'a> {
+            #(pub #field_name: &'a #maybe_mut_a dyn super::MemoryMappedHardware,)*
+        }
+
+        #[macro_export]
+        macro_rules! #macro_name {
+            ($f:expr) => {
+                crate::game_boy_emulator::memory_controller::memory_map::#name {
+                    #(#field_name: & #maybe_mut_b $f.#src_path,)*
+                }
+            };
+        }
+
+        impl<'a> super::MemoryAccessor for #name<'a> {
+            fn read_memory(&self, address: u16) -> u8 {
+                #(if #read_expr {
+                    self.#read_field.read_value(address - #read_offset)
+                }) else *
+                else {
+                    0xFF
+                }
+            }
+
+            #[allow(unused_variables)]
+            fn set_memory(&mut self, address: u16, value: u8) {
+                #set_memory_body
+            }
+
+            fn describe_address(&self, _address: u16) -> super::MemoryDescription {
+                super::MemoryDescription::Instruction
+            }
+        }
+    )
+    .into()
+}
+
+fn generate_memory_map(memory_map_path: &str, _name: &'static str) {
+    let memory_map_json = format!("src/{}/memory_map.json", memory_map_path);
+    println!("cargo:rerun-if-changed={}", memory_map_json);
+
+    let mapping: HashMap<String, MemoryMapping> =
+        serde_json::from_reader(File::open(&memory_map_json).unwrap()).unwrap();
+    let mapping: HashMap<AddressRange, MemoryMapping> = mapping
+        .into_iter()
+        .map(|(k, v)| (k.parse().unwrap(), v))
+        .collect();
+
+    let output_file = &format!("src/{}/memory_map.rs", memory_map_path);
+    let mut out = File::create(output_file).unwrap();
+
+    for &mutable in &[true, false] {
+        let tokens = generate_memory_map_from_mapping(&mapping, mutable);
+        write!(out, "{}", tokens).unwrap();
+    }
+
+    out.flush().unwrap();
+
+    Command::new("rustfmt").arg(output_file).status().ok();
+}
+
 fn main() {
     generate_opcodes("intel_8080_emulator/opcodes", "Intel8080");
     generate_opcodes("lr35902_emulator/opcodes", "LR35902");
+    generate_memory_map("game_boy_emulator/memory_controller", "GameBoy");
 }

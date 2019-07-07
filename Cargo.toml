@@ -18,3 +18,7 @@ serde = "*"
 serde_derive = "*"
 serde_json = "*"
 proc-macro2 = "*"
+
+[build-dependencies.syn]
+version = "*"
+features = ["full"]
