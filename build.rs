@@ -13,7 +13,7 @@ extern crate syn;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::ToTokens;
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::fs::File;
@@ -739,7 +739,7 @@ fn generate_opcodes(opcodes_path: &str, name: &'static str) {
     generate_opcode_rs(&output_file, opcodes_path, name, opcodes);
 }
 
-#[derive(Hash, PartialEq, Eq)]
+#[derive(Hash, PartialEq, Eq, PartialOrd, Ord)]
 enum AddressRange {
     Exact(u16),
     Range { start: u16, end: u16 },
@@ -848,10 +848,10 @@ fn filter_write<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
 }
 
 fn generate_memory_map_from_mapping(
-    mapping: &HashMap<AddressRange, MemoryMapping>,
+    mapping: &BTreeMap<AddressRange, MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
-    let values: HashSet<String> = mapping.values().map(|v| v.field.clone()).collect();
+    let values: BTreeSet<String> = mapping.values().map(|v| v.field.clone()).collect();
 
     let src_path: &Vec<syn::Expr> = &values
         .iter()
@@ -974,9 +974,9 @@ fn generate_memory_map(memory_map_path: &str, _name: &'static str) {
     let memory_map_json = format!("src/{}/memory_map.json", memory_map_path);
     println!("cargo:rerun-if-changed={}", memory_map_json);
 
-    let mapping: HashMap<String, MemoryMapping> =
+    let mapping: BTreeMap<String, MemoryMapping> =
         serde_json::from_reader(File::open(&memory_map_json).unwrap()).unwrap();
-    let mapping: HashMap<AddressRange, MemoryMapping> = mapping
+    let mapping: BTreeMap<AddressRange, MemoryMapping> = mapping
         .into_iter()
         .map(|(k, v)| (k.parse().unwrap(), v))
         .collect();
