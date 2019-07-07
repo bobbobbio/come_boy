@@ -1,15 +1,11 @@
 // Copyright 2019 Remi Bernotavicius
 
-use std::cell::RefCell;
+use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use std::fmt;
 use std::ops::Range;
-use std::rc::Rc;
 use std::str;
 
-use super::memory_controller::{GameBoyMemoryMap, MappingType, MemoryChunk, MemoryMappedHardware};
-
-trait MemoryBankController: fmt::Debug {
-    fn map(&self, ma: &mut GameBoyMemoryMap);
+trait MemoryBankController: fmt::Debug + MemoryMappedHardware {
     fn tick(&mut self) {}
 }
 
@@ -29,84 +25,72 @@ impl fmt::Debug for MemoryBankController0 {
     }
 }
 
-impl MemoryBankController for MemoryBankController0 {
-    fn map(&self, ma: &mut GameBoyMemoryMap) {
-        ma.map_chunk(0, self.banks[0].clone(), MappingType::Read);
-        ma.map_chunk(0x4000, self.banks[1].clone(), MappingType::Read);
+impl MemoryBankController for MemoryBankController0 {}
+
+impl MemoryMappedHardware for MemoryBankController0 {
+    fn read_value(&self, address: u16) -> u8 {
+        if address < 0x4000 {
+            self.banks[0].read_value(address)
+        } else if address < 0x8000 {
+            self.banks[1].read_value(address - 0x4000)
+        } else {
+            0xFF
+        }
     }
+
+    fn set_value(&mut self, _address: u16, _value: u8) {}
 }
 
-struct SwitchableBankInner {
+struct SwitchableBank {
     banks: Vec<MemoryChunk>,
     current_bank: usize,
-}
-
-#[derive(Clone)]
-struct SwitchableBank {
-    banks: Rc<RefCell<SwitchableBankInner>>,
 }
 
 impl SwitchableBank {
     fn new(banks: Vec<MemoryChunk>) -> Self {
         SwitchableBank {
-            banks: Rc::new(RefCell::new(SwitchableBankInner {
-                banks,
-                current_bank: 1,
-            })),
+            banks,
+            current_bank: 1,
         }
     }
 
     fn switch_bank(&mut self, new_bank: usize) {
-        let mut inner = self.banks.borrow_mut();
         let new_bank = match new_bank {
             0 => 1,
-            v if v > inner.banks.len() => panic!("Switch to non-existent bank {}", v),
+            v if v > self.banks.len() => panic!("Switch to non-existent bank {}", v),
             v => v,
         };
-        inner.current_bank = new_bank;
-    }
-
-    fn clone_bank(&self, number: usize) -> MemoryChunk {
-        self.banks.borrow().banks[number].clone()
+        self.current_bank = new_bank;
     }
 
     fn len(&self) -> usize {
-        self.banks.borrow().banks.len()
+        self.banks.len()
     }
 }
 
 impl MemoryMappedHardware for SwitchableBank {
     fn read_value(&self, address: u16) -> u8 {
-        let current_bank = self.banks.borrow().current_bank;
-        self.banks.borrow().banks[current_bank].read_value(address)
+        self.banks[self.current_bank].read_value(address)
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        let current_bank = self.banks.borrow().current_bank;
-        self.banks.borrow_mut().banks[current_bank].set_value(address, value)
-    }
-
-    fn len(&self) -> u16 {
-        BANK_SIZE
+        self.banks[self.current_bank].set_value(address, value);
     }
 }
 
 #[derive(Clone)]
 struct RangeRegister {
-    value: Rc<RefCell<u8>>,
+    value: u8,
     size: u16,
 }
 
 impl RangeRegister {
     fn new(size: u16) -> Self {
-        RangeRegister {
-            value: Rc::new(RefCell::new(0)),
-            size,
-        }
+        RangeRegister { value: 0, size }
     }
 
     fn value(&self) -> u8 {
-        *self.value.borrow()
+        self.value
     }
 }
 
@@ -116,11 +100,7 @@ impl MemoryMappedHardware for RangeRegister {
     }
 
     fn set_value(&mut self, _address: u16, value: u8) {
-        *self.value.borrow_mut() = value;
-    }
-
-    fn len(&self) -> u16 {
-        self.size
+        self.value = value;
     }
 }
 
@@ -131,6 +111,32 @@ struct MemoryBankController1<R: CartridgeRam> {
     ram_enable: RangeRegister,
     switchable_bank: SwitchableBank,
     ram: R,
+}
+
+impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
+    fn read_value(&self, address: u16) -> u8 {
+        if address < 0x4000 {
+            self.switchable_bank.banks[0].read_value(address)
+        } else if address < 0xA000 {
+            self.switchable_bank.read_value(address - 0x4000)
+        } else {
+            self.ram.read_value(address - 0xA000)
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        if address < 0x2000 {
+            self.ram_bank_number.set_value(address, value);
+        } else if address < 0x4000 {
+            self.rom_bank_number.set_value(address - 0x2000, value);
+        } else if address < 0x6000 {
+            self.ram_bank_number.set_value(address - 0x4000, value);
+        } else if address < 0xA000 {
+            self.rom_bank_number.set_value(address - 0x6000, value);
+        } else {
+            self.ram.set_value(address - 0xA000, value);
+        }
+    }
 }
 
 impl<R: CartridgeRam> fmt::Debug for MemoryBankController1<R> {
@@ -157,16 +163,6 @@ impl<R: CartridgeRam> MemoryBankController1<R> {
 }
 
 impl<R: CartridgeRam> MemoryBankController for MemoryBankController1<R> {
-    fn map(&self, ma: &mut GameBoyMemoryMap) {
-        ma.map_chunk(0, self.switchable_bank.clone_bank(0), MappingType::Read);
-        ma.map_chunk(0, self.ram_bank_number.clone(), MappingType::Write);
-        ma.map_chunk(0x2000, self.rom_bank_number.clone(), MappingType::Write);
-        ma.map_chunk(0x4000, self.ram_bank_number.clone(), MappingType::Write);
-        ma.map_chunk(0x4000, self.switchable_bank.clone(), MappingType::Read);
-        ma.map_chunk(0x6000, self.rom_ram_select.clone(), MappingType::Write);
-        self.ram.map(ma);
-    }
-
     fn tick(&mut self) {
         let mut rom_bank_value = (self.rom_bank_number.value() & 0x0F) as usize;
 
@@ -208,18 +204,23 @@ impl<R: CartridgeRam> MemoryBankController5<R> {
     }
 }
 
-impl<R: CartridgeRam> MemoryBankController for MemoryBankController5<R> {
-    fn map(&self, ma: &mut GameBoyMemoryMap) {
-        self.inner.map(ma);
+impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController5<R> {
+    fn read_value(&self, address: u16) -> u8 {
+        self.inner.read_value(address)
     }
 
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.inner.set_value(address, value);
+    }
+}
+
+impl<R: CartridgeRam> MemoryBankController for MemoryBankController5<R> {
     fn tick(&mut self) {
         self.inner.tick();
     }
 }
 
-trait CartridgeRam: fmt::Debug {
-    fn map(&self, ma: &mut GameBoyMemoryMap);
+trait CartridgeRam: fmt::Debug + MemoryMappedHardware {
     fn switch_bank(&mut self, bank: usize);
 }
 
@@ -231,8 +232,14 @@ impl fmt::Debug for NoRam {
     }
 }
 
+impl MemoryMappedHardware for NoRam {
+    fn read_value(&self, _address: u16) -> u8 {
+        0xFF
+    }
+    fn set_value(&mut self, _address: u16, _value: u8) {}
+}
+
 impl CartridgeRam for NoRam {
-    fn map(&self, _: &mut GameBoyMemoryMap) {}
     fn switch_bank(&mut self, _bank: usize) {}
 }
 
@@ -254,18 +261,23 @@ impl VolatileRam {
     }
 }
 
-impl CartridgeRam for VolatileRam {
-    fn map(&self, ma: &mut GameBoyMemoryMap) {
-        ma.map_chunk(0xA000, self.switchable_bank.clone(), MappingType::ReadWrite);
+impl MemoryMappedHardware for VolatileRam {
+    fn read_value(&self, address: u16) -> u8 {
+        self.switchable_bank.read_value(address)
     }
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.switchable_bank.set_value(address, value);
+    }
+}
 
+impl CartridgeRam for VolatileRam {
     fn switch_bank(&mut self, bank: usize) {
         self.switchable_bank.switch_bank(bank)
     }
 }
 
 struct NonVolatileRam {
-    _inner: VolatileRam,
+    inner: VolatileRam,
 }
 
 impl fmt::Debug for NonVolatileRam {
@@ -277,19 +289,37 @@ impl fmt::Debug for NonVolatileRam {
 impl NonVolatileRam {
     fn new(banks: Vec<MemoryChunk>) -> Self {
         NonVolatileRam {
-            _inner: VolatileRam::new(banks),
+            inner: VolatileRam::new(banks),
         }
     }
 }
 
+impl MemoryMappedHardware for NonVolatileRam {
+    fn read_value(&self, address: u16) -> u8 {
+        self.inner.read_value(address)
+    }
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.inner.set_value(address, value);
+    }
+}
+
 impl CartridgeRam for NonVolatileRam {
-    fn map(&self, _: &mut GameBoyMemoryMap) {}
     fn switch_bank(&mut self, _bank: usize) {}
 }
 
 pub struct GamePak {
     title: String,
     mbc: Box<MemoryBankController>,
+}
+
+impl MemoryMappedHardware for GamePak {
+    fn read_value(&self, address: u16) -> u8 {
+        self.mbc.read_value(address)
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.mbc.set_value(address, value);
+    }
 }
 
 const BANK_SIZE: u16 = 0x4000;
@@ -393,10 +423,6 @@ impl GamePak {
         };
 
         GamePak { title, mbc }
-    }
-
-    pub fn map(&mut self, ma: &mut GameBoyMemoryMap) {
-        self.mbc.map(ma)
     }
 
     pub fn tick(&mut self) {

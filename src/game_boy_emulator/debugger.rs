@@ -21,7 +21,8 @@ impl<'a> fmt::Debug for GameBoyEmulator<'a> {
 
 impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     fn read_memory(&self, address: u16) -> u8 {
-        self.memory_map.read_memory(address)
+        let memory_map = build_memory_map!(self);
+        memory_map.read_memory(address)
     }
 
     fn format<'b>(&self, s: &'b mut io::Write) -> Result<()> {
@@ -33,7 +34,8 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
-        let mut d = LR35902Debugger::new(&mut self.cpu, &mut self.memory_map);
+        let mut memory_map = build_memory_map_mut!(self);
+        let mut d = LR35902Debugger::new(&mut self.cpu, &mut memory_map);
         d.simulate_next(instruction);
     }
 
@@ -52,11 +54,9 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     fn disassemble(&mut self, address: u16, f: &mut io::Write) -> Result<()> {
         let mut buffer = vec![];
         {
-            let mut dis = Disassembler::new(
-                &self.memory_map,
-                RGBDSInstructionPrinterFactory,
-                &mut buffer,
-            );
+            let memory_map = build_memory_map!(self);
+            let mut dis =
+                Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
             dis.index = address;
             dis.disassemble_multiple().unwrap();
         }
