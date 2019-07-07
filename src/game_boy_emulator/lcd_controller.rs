@@ -5,7 +5,7 @@ use std::iter;
 
 use game_boy_emulator::joypad_register::KeyEvent;
 use game_boy_emulator::memory_controller::{
-    GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryChunkIterator, MemoryMappedHardware,
+    GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
 use game_boy_emulator::{
     BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
@@ -151,7 +151,7 @@ impl LCDObject {
 }
 
 struct LCDObjectIterator<'a> {
-    chunk_iterator: iter::Peekable<MemoryChunkIterator<'a>>,
+    chunk_iterator: iter::Peekable<std::slice::Iter<'a, u8>>,
 }
 
 impl<'a> Iterator for LCDObjectIterator<'a> {
@@ -162,10 +162,10 @@ impl<'a> Iterator for LCDObjectIterator<'a> {
             return None;
         } else {
             let lcd_object = LCDObject {
-                y_coordinate: self.chunk_iterator.next().unwrap(),
-                x_coordinate: self.chunk_iterator.next().unwrap(),
-                character_code: self.chunk_iterator.next().unwrap(),
-                flags: self.chunk_iterator.next().unwrap(),
+                y_coordinate: *self.chunk_iterator.next().unwrap(),
+                x_coordinate: *self.chunk_iterator.next().unwrap(),
+                character_code: *self.chunk_iterator.next().unwrap(),
+                flags: *self.chunk_iterator.next().unwrap(),
             };
             return Some(lcd_object);
         }
@@ -175,7 +175,7 @@ impl<'a> Iterator for LCDObjectIterator<'a> {
 impl<'a> LCDObjectIterator<'a> {
     fn new(chunk: &'a MemoryChunk) -> LCDObjectIterator<'a> {
         LCDObjectIterator {
-            chunk_iterator: MemoryChunkIterator::new(chunk).peekable(),
+            chunk_iterator: chunk.as_slice().iter().peekable(),
         }
     }
 }
@@ -299,15 +299,15 @@ impl<'a> LCDController<'a> {
         } as usize
             + character_code as usize * 16;
 
-        let mut iter = MemoryChunkIterator::new(&self.character_data)
-            .skip(location)
+        let mut iter = self.character_data.as_slice()[location..]
+            .iter()
             .take(16)
             .peekable();
 
         let mut i = 0;
         while iter.peek() != None {
-            let byte1: u8 = iter.next().unwrap();
-            let byte2: u8 = iter.next().unwrap();
+            let byte1: u8 = *iter.next().unwrap();
+            let byte2: u8 = *iter.next().unwrap();
             for bit in (0..8).rev() {
                 let shade_upper = ((byte1 >> bit) & 0x1) << 1;
                 let shade_lower = (byte2 >> bit) & 0x1;
@@ -456,8 +456,8 @@ impl<'a> LCDController<'a> {
             .read_flag(LCDControlFlag::BGCodeAreaSelection);
 
         let iter = match bg_code_area_selection {
-            false => MemoryChunkIterator::new(&self.background_display_data_1),
-            true => MemoryChunkIterator::new(&self.background_display_data_2),
+            false => self.background_display_data_1.as_slice().iter(),
+            true => self.background_display_data_2.as_slice().iter(),
         };
 
         let tile_y = (ly as i32 - scroll_y) / CHARACTER_SIZE as i32;
@@ -467,7 +467,7 @@ impl<'a> LCDController<'a> {
             .enumerate();
 
         for (tile_x, character_code) in iter {
-            let character_data = self.read_dot_data(character_code);
+            let character_data = self.read_dot_data(*character_code);
             character_data.draw_line(
                 self.renderer.as_mut().unwrap(),
                 scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32),

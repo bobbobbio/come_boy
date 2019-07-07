@@ -214,41 +214,21 @@ impl MemoryChunk {
         self.borrowed = false;
     }
 
+    /*
     pub fn len(&self) -> u16 {
         self.value.len() as u16
     }
+    */
 
-    fn read_value_internal(&self, address: u16) -> u8 {
-        self.value[address as usize]
+    pub fn as_slice(&self) -> &[u8] {
+        self.value.as_slice()
     }
-}
 
-pub struct MemoryChunkIterator<'a> {
-    chunk: &'a MemoryChunk,
-    current: u16,
-}
-
-impl<'a> Iterator for MemoryChunkIterator<'a> {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<u8> {
-        if self.current < self.chunk.len() {
-            let mem = self.chunk.read_value_internal(self.current);
-            self.current += 1;
-            return Some(mem);
-        } else {
-            return None;
-        }
+    /*
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.value.as_mut_slice()
     }
-}
-
-impl<'a> MemoryChunkIterator<'a> {
-    pub fn new(chunk: &'a MemoryChunk) -> MemoryChunkIterator {
-        return MemoryChunkIterator {
-            chunk: chunk,
-            current: 0,
-        };
-    }
+    */
 }
 
 #[test]
