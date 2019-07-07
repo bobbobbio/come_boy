@@ -217,6 +217,10 @@ impl MemoryChunk {
     pub fn len(&self) -> u16 {
         self.value.len() as u16
     }
+
+    fn read_value_internal(&self, address: u16) -> u8 {
+        self.value[address as usize]
+    }
 }
 
 pub struct MemoryChunkIterator<'a> {
@@ -229,7 +233,7 @@ impl<'a> Iterator for MemoryChunkIterator<'a> {
 
     fn next(&mut self) -> Option<u8> {
         if self.current < self.chunk.len() {
-            let mem = self.chunk.read_value(self.current);
+            let mem = self.chunk.read_value_internal(self.current);
             self.current += 1;
             return Some(mem);
         } else {
