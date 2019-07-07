@@ -214,11 +214,10 @@ impl MemoryChunk {
         self.borrowed = false;
     }
 
-    /*
+    #[cfg(test)]
     pub fn len(&self) -> u16 {
         self.value.len() as u16
     }
-    */
 
     pub fn as_slice(&self) -> &[u8] {
         self.value.as_slice()
