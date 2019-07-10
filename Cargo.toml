@@ -11,7 +11,7 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 
 [dependencies]
 argparse = "0.2.1"
-sdl2 = "0.29.1"
+sdl2 = "0.32.*"
 nix = "*"
 
 [build-dependencies]

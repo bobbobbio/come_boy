@@ -193,7 +193,7 @@ impl LCDDotData {
         }
     }
 
-    fn draw_line(&self, renderer: &mut sdl2::render::Renderer, x: i32, y: i32, ly: u8) {
+    fn draw_line(&self, canvas: &mut sdl2::render::WindowCanvas, x: i32, y: i32, ly: u8) {
         assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
 
         let target_line = ly as i32 - y;
@@ -208,15 +208,15 @@ impl LCDDotData {
                 self.pixel_scale,
             );
             let color = color_for_shade(shade);
-            renderer.set_draw_color(color);
-            renderer.fill_rect(rect).unwrap();
+            canvas.set_draw_color(color);
+            canvas.fill_rect(rect).unwrap();
         }
     }
 }
 
 #[derive(Default)]
 pub struct LCDController<'a> {
-    renderer: Option<sdl2::render::Renderer<'a>>,
+    canvas: Option<sdl2::render::WindowCanvas>,
     event_pump: Option<sdl2::EventPump>,
     pub crash_message: Option<String>,
     pub character_data: MemoryChunk,
@@ -276,12 +276,12 @@ impl<'a> LCDController<'a> {
             .build()
             .unwrap();
 
-        let mut renderer = window.renderer().build().unwrap();
-        renderer.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
-        renderer.clear();
+        let mut canvas = window.into_canvas().build().unwrap();
+        canvas.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
+        canvas.clear();
         self.update_screen();
 
-        self.renderer = Some(renderer);
+        self.canvas = Some(canvas);
         self.event_pump = Some(event_pump);
     }
 
@@ -393,7 +393,7 @@ impl<'a> LCDController<'a> {
     }
 
     pub fn poll_renderer(&mut self) -> Vec<KeyEvent> {
-        if self.renderer.is_none() {
+        if self.canvas.is_none() {
             return vec![];
         }
 
@@ -431,12 +431,12 @@ impl<'a> LCDController<'a> {
             self.pixel_scale,
         );
         let color = color_for_shade(LCDBGShade::Shade0);
-        self.renderer.as_mut().unwrap().set_draw_color(color);
-        self.renderer.as_mut().unwrap().fill_rect(rect).unwrap();
+        self.canvas.as_mut().unwrap().set_draw_color(color);
+        self.canvas.as_mut().unwrap().fill_rect(rect).unwrap();
     }
 
     fn draw_bg_data(&mut self) {
-        if self.renderer.is_none() {
+        if self.canvas.is_none() {
             return;
         }
 
@@ -469,7 +469,7 @@ impl<'a> LCDController<'a> {
         for (tile_x, character_code) in iter {
             let character_data = self.read_dot_data(*character_code);
             character_data.draw_line(
-                self.renderer.as_mut().unwrap(),
+                self.canvas.as_mut().unwrap(),
                 scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32),
                 scroll_y + (tile_y as i32 * CHARACTER_SIZE as i32),
                 ly,
@@ -478,7 +478,7 @@ impl<'a> LCDController<'a> {
     }
 
     fn draw_oam_data(&mut self) {
-        if self.renderer.is_none() {
+        if self.canvas.is_none() {
             return;
         }
 
@@ -495,13 +495,13 @@ impl<'a> LCDController<'a> {
             let y = window_y + object.y_coordinate as i32 - 16;
             if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
                 let character_data = self.read_dot_data(object.character_code);
-                character_data.draw_line(self.renderer.as_mut().unwrap(), x, y, ly);
+                character_data.draw_line(self.canvas.as_mut().unwrap(), x, y, ly);
             }
         }
     }
 
     fn update_screen(&mut self) {
-        match self.renderer.as_mut() {
+        match self.canvas.as_mut() {
             Some(r) => r.present(),
             None => {}
         }
@@ -510,7 +510,7 @@ impl<'a> LCDController<'a> {
     // XXX remi: This should return a Result, also leaving this here because it might be useful.
     #[allow(dead_code)]
     fn save_screenshot<P: AsRef<std::path::Path>>(&mut self, path: P) {
-        match self.renderer.as_mut() {
+        match self.canvas.as_mut() {
             Some(r) => {
                 let mut pixels = r
                     .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)
