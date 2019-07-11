@@ -256,10 +256,6 @@ impl<'a> GameBoyEmulator<'a> {
         self.lcd_controller.tick(now);
         self.execute_dma();
 
-        let key_events = self.lcd_controller.poll_renderer();
-
-        self.joypad_register.tick(key_events);
-
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
 
@@ -269,6 +265,12 @@ impl<'a> GameBoyEmulator<'a> {
             .schedule_interrupts(&mut self.registers.interrupt_flag);
 
         self.handle_interrupts();
+    }
+
+    fn drive_joypad(&mut self, time: u64) {
+        let key_events = self.lcd_controller.poll_renderer();
+        self.joypad_register.tick(key_events);
+        self.scheduler.schedule(time + 456, Self::drive_joypad);
     }
 
     fn execute_dma(&mut self) {
@@ -356,6 +358,7 @@ impl<'a> GameBoyEmulator<'a> {
         let now = self.cpu.elapsed_cycles;
         self.scheduler.schedule(now + 52, Self::divider_tick);
         self.scheduler.schedule(now + 98584, Self::unknown_event);
+        self.scheduler.schedule(now + 456, Self::drive_joypad);
 
         self.lcd_controller.schedule_initial_events(now);
         self.timer.schedule_initial_events(now);

@@ -272,7 +272,7 @@ impl<'a> LCDController<'a> {
         let window = video_subsystem
             .window("come boy", 160 * self.pixel_scale, 144 * self.pixel_scale)
             .position_centered()
-            .opengl()
+            .allow_highdpi()
             .build()
             .unwrap();
 
@@ -423,26 +423,12 @@ impl<'a> LCDController<'a> {
         key_events
     }
 
-    fn clear_line(&mut self, ly: u8) {
-        let rect = sdl2::rect::Rect::new(
-            0,
-            ly as i32 * self.pixel_scale as i32,
-            200 * self.pixel_scale,
-            self.pixel_scale,
-        );
-        let color = color_for_shade(LCDBGShade::Shade0);
-        self.canvas.as_mut().unwrap().set_draw_color(color);
-        self.canvas.as_mut().unwrap().fill_rect(rect).unwrap();
-    }
-
     fn draw_bg_data(&mut self) {
         if self.canvas.is_none() {
             return;
         }
 
         let ly = self.registers.ly.read_value();
-
-        self.clear_line(ly);
 
         let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
 
