@@ -494,6 +494,16 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
     run_blargg_test_rom(&mut e, 0xc7f4);
 }
 
+#[test]
+#[ignore]
+fn blargg_test_rom_instr_timing() {
+    let mut e = GameBoyEmulator::new(4);
+    e.load_game_pak(GamePak::from(&read_blargg_test_rom(
+        "instr_timing/instr_timing.gb",
+    )));
+    run_blargg_test_rom(&mut e, 0xc8b0);
+}
+
 pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
     let mut e = GameBoyEmulator::new(pixel_scale);
     e.load_game_pak(GamePak::from(rom));
