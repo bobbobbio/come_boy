@@ -366,9 +366,30 @@ impl<'a> GameBoyEmulator<'a> {
 
     fn run(&mut self) {
         self.lcd_controller.start_rendering();
+
+        let mut last_cycles = self.cpu.elapsed_cycles;
+        let mut last_instant = std::time::Instant::now();
+
         while self.crashed().is_none() {
             self.tick();
+
+            let elapsed_cycles = self.cpu.elapsed_cycles - last_cycles;
+
+            // We can't sleep every tick, so just so it every so often.
+            if elapsed_cycles > 3648 {
+                // 4.19 Mhz means each cycles takes roughly 238 nanoseconds;
+                let expected_time = std::time::Duration::from_nanos(elapsed_cycles * 238);
+
+                // If we didn't take long enough, sleep the difference.
+                if let Some(sleep_time) = expected_time.checked_sub(last_instant.elapsed()) {
+                    std::thread::sleep(sleep_time);
+                }
+
+                last_cycles = self.cpu.elapsed_cycles;
+                last_instant = std::time::Instant::now();
+            }
         }
+
         if self.cpu.crashed() {
             println!(
                 "Emulator crashed: {}",
