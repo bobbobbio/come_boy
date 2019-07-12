@@ -165,7 +165,7 @@ impl GameBoyTimer {
     }
 
     fn deliver_events(&mut self, now: u64) {
-        for (time, event) in self.scheduler.poll(now) {
+        while let Some((time, event)) = self.scheduler.poll(now) {
             event(self, time);
         }
     }
@@ -232,7 +232,7 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn deliver_events(&mut self, now: u64) {
-        for (time, event) in self.scheduler.poll(now) {
+        while let Some((time, event)) = self.scheduler.poll(now) {
             event(self, time);
         }
 

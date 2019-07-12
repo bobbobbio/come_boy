@@ -189,26 +189,18 @@ impl<T> Scheduler<T> {
         self.timeline.get_mut(&time).unwrap().push(event);
     }
 
-    pub fn poll(&mut self, current_time: u64) -> Vec<(u64, for<'r> fn(&'r mut T, u64))> {
-        // Find the times that have happened and have events.
-        let mut times_to_remove = vec![];
-        for &time in self.timeline.keys() {
-            if time > current_time {
-                break;
+    pub fn poll(&mut self, current_time: u64) -> Option<(u64, for<'r> fn(&'r mut T, u64))> {
+        let entry = self.timeline.range_mut(..=current_time).next();
+        if let Some((k, v)) = entry {
+            let key = *k;
+            let entry = (key, v.pop().unwrap());
+            if v.len() == 0 {
+                self.timeline.remove(&key);
             }
-            times_to_remove.push(time);
+            Some(entry)
+        } else {
+            None
         }
-
-        // Collect all the events to deliver
-        let events = times_to_remove
-            .iter()
-            .map(|v| (*v, self.timeline.remove(v).unwrap()))
-            .fold(vec![], |mut s, (t, ref v)| {
-                s.append(&mut v.iter().map(|&v| (t, v)).collect());
-                return s;
-            });
-
-        return events;
     }
 
     pub fn drop_events(&mut self) {
