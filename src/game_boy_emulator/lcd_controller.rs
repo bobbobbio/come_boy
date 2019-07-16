@@ -5,7 +5,7 @@ use std::iter;
 
 use game_boy_emulator::joypad_register::KeyEvent;
 use game_boy_emulator::memory_controller::{
-    GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
+    FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
 use game_boy_emulator::{
     BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
@@ -97,6 +97,12 @@ pub enum LCDControlFlag {
     BGDisplayOn = 0b00000001,
 }
 
+impl FlagMask for LCDControlFlag {
+    fn mask() -> u8 {
+        0xFF
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LCDStatusFlag {
     InterruptLYMatching = 0b10000000,
@@ -108,6 +114,12 @@ pub enum LCDStatusFlag {
     Mode = 0b00000011,
 }
 
+impl FlagMask for LCDStatusFlag {
+    fn mask() -> u8 {
+        0xFF
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InterruptFlag {
     VerticalBlanking = 0b00000001,
@@ -117,6 +129,57 @@ pub enum InterruptFlag {
     Serial = 0b00001000,
     #[allow(dead_code)]
     Joypad = 0b00010000,
+}
+
+impl FlagMask for InterruptFlag {
+    fn mask() -> u8 {
+        InterruptFlag::VerticalBlanking as u8
+            | InterruptFlag::LCDSTAT as u8
+            | InterruptFlag::Timer as u8
+            | InterruptFlag::Serial as u8
+            | InterruptFlag::Joypad as u8
+    }
+}
+
+impl From<InterruptEnableFlag> for InterruptFlag {
+    fn from(f: InterruptEnableFlag) -> Self {
+        match f {
+            InterruptEnableFlag::VerticalBlanking => InterruptFlag::VerticalBlanking,
+            InterruptEnableFlag::LCDSTAT => InterruptFlag::LCDSTAT,
+            InterruptEnableFlag::Timer => InterruptFlag::Timer,
+            InterruptEnableFlag::Serial => InterruptFlag::Serial,
+            InterruptEnableFlag::Joypad => InterruptFlag::Joypad,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum InterruptEnableFlag {
+    VerticalBlanking = 0b00000001,
+    LCDSTAT = 0b00000010,
+    Timer = 0b00000100,
+    #[allow(dead_code)]
+    Serial = 0b00001000,
+    #[allow(dead_code)]
+    Joypad = 0b00010000,
+}
+
+impl FlagMask for InterruptEnableFlag {
+    fn mask() -> u8 {
+        0xFF
+    }
+}
+
+impl From<InterruptFlag> for InterruptEnableFlag {
+    fn from(f: InterruptFlag) -> Self {
+        match f {
+            InterruptFlag::VerticalBlanking => InterruptEnableFlag::VerticalBlanking,
+            InterruptFlag::LCDSTAT => InterruptEnableFlag::LCDSTAT,
+            InterruptFlag::Timer => InterruptEnableFlag::Timer,
+            InterruptFlag::Serial => InterruptEnableFlag::Serial,
+            InterruptFlag::Joypad => InterruptEnableFlag::Joypad,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -140,6 +203,7 @@ from_u8!(
     LCDControlFlag,
     LCDStatusFlag,
     InterruptFlag,
+    InterruptEnableFlag,
     LCDObjectAttributeFlag
 );
 

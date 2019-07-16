@@ -16,8 +16,8 @@ use std::ops::Range;
 
 use self::game_pak::GamePak;
 use self::joypad_register::JoyPadRegister;
-use self::lcd_controller::{InterruptFlag, LCDController};
-use self::memory_controller::{GameBoyFlags, GameBoyRegister, MemoryChunk};
+use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
+use self::memory_controller::{FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk};
 use self::sound_controller::SoundController;
 use emulator_common::disassembler::MemoryAccessor;
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
@@ -90,7 +90,7 @@ const ECHO_RAM: Range<u16> = Range {
 #[derive(Default)]
 struct GameBoyRegisters {
     interrupt_flag: GameBoyFlags<InterruptFlag>,
-    interrupt_enable: GameBoyFlags<InterruptFlag>,
+    interrupt_enable: GameBoyFlags<InterruptEnableFlag>,
 
     serial_transfer_data: GameBoyRegister,
     serial_transfer_control: GameBoyRegister,
@@ -109,6 +109,12 @@ struct GameBoyTimer {
 enum TimerFlags {
     Enabled = 0b00000100,
     Speed = 0b00000011,
+}
+
+impl FlagMask for TimerFlags {
+    fn mask() -> u8 {
+        TimerFlags::Enabled as u8 | TimerFlags::Speed as u8
+    }
 }
 
 from_u8!(TimerFlags);
@@ -286,7 +292,7 @@ impl<'a> GameBoyEmulator<'a> {
 
     fn deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) {
         let interrupt_flag_value = self.registers.interrupt_flag.read_flag(flag);
-        let interrupt_enable_value = self.registers.interrupt_enable.read_flag(flag);
+        let interrupt_enable_value = self.registers.interrupt_enable.read_flag(flag.into());
 
         if interrupt_flag_value && interrupt_enable_value {
             self.cpu.resume();

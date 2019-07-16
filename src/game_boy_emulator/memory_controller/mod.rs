@@ -58,6 +58,10 @@ impl GameBoyRegister {
     }
 }
 
+pub trait FlagMask {
+    fn mask() -> u8;
+}
+
 pub struct GameBoyFlags<T> {
     chunk: MemoryChunk,
     phantom: PhantomData<T>,
@@ -69,7 +73,7 @@ impl<T> Default for GameBoyFlags<T> {
     }
 }
 
-impl<T> MemoryMappedHardware for GameBoyFlags<T> {
+impl<T: FlagMask> MemoryMappedHardware for GameBoyFlags<T> {
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         self.chunk.read_value(address)
@@ -77,7 +81,8 @@ impl<T> MemoryMappedHardware for GameBoyFlags<T> {
 
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
-        self.chunk.set_value(address, value)
+        self.chunk
+            .set_value(address, (value & T::mask()) | !T::mask())
     }
 }
 
@@ -92,9 +97,11 @@ impl<T> GameBoyFlags<T> {
     pub fn read_value(&self) -> u8 {
         self.chunk.read_value(0)
     }
+}
 
+impl<T: FlagMask> GameBoyFlags<T> {
     pub fn set_value(&mut self, value: u8) {
-        self.chunk.set_value(0, value)
+        self.chunk.set_value(0, (value & T::mask()) | !T::mask())
     }
 }
 
@@ -120,7 +127,7 @@ where
         let value = self.read_value();
         let mask = u8::from(f);
         let v = (v << mask.trailing_zeros()) & mask;
-        self.set_value((value & !mask) | v);
+        self.chunk.set_value(0, (value & !mask) | v);
     }
 }
 
