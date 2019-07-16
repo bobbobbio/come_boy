@@ -6,6 +6,7 @@ use emulator_common::disassembler::{Disassembler, MemoryAccessor};
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use game_boy_emulator::game_pak::GamePak;
 use game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
+use game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use game_boy_emulator::GameBoyEmulator;
 use lr35902_emulator::debugger::LR35902Debugger;
 
@@ -21,7 +22,7 @@ impl<'a> fmt::Debug for GameBoyEmulator<'a> {
 
 impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     fn read_memory(&self, address: u16) -> u8 {
-        let memory_map = build_memory_map!(self);
+        let memory_map = game_boy_memory_map!(self);
         memory_map.read_memory(address)
     }
 
@@ -34,7 +35,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
-        let mut memory_map = build_memory_map_mut!(self);
+        let mut memory_map = game_boy_memory_map!(self);
         let mut d = LR35902Debugger::new(&mut self.cpu, &mut memory_map);
         d.simulate_next(instruction);
     }
@@ -54,7 +55,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     fn disassemble(&mut self, address: u16, f: &mut io::Write) -> Result<()> {
         let mut buffer = vec![];
         {
-            let memory_map = build_memory_map!(self);
+            let memory_map = game_boy_memory_map!(self);
             let mut dis =
                 Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
             dis.index = address;

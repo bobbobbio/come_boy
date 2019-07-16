@@ -1,0 +1,90 @@
+{
+    "0xFF10": {
+        "field": "channel1.sweep",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF11": {
+        "field": "channel1.sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF12": {
+        "field": "channel1.volume_envelope",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF13": {
+        "field": "channel1.frequency_low",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF14": {
+        "field": "channel1.frequency_high",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF16": {
+        "field": "channel2.sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF17": {
+        "field": "channel2.volume_envelope",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF18": {
+        "field": "channel2.frequency_low",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF19": {
+        "field": "channel2.frequency_high",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1A": {
+        "field": "channel3.enabled",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1B": {
+        "field": "channel3.sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1C": {
+        "field": "channel3.output_level",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1D": {
+        "field": "channel3.frequency_low",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1E": {
+        "field": "channel3.frequency_high",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF20": {
+        "field": "channel4.sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF21": {
+        "field": "channel4.volume_envelope",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF22": {
+        "field": "channel4.polynomial_counter",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF23": {
+        "field": "channel4.counter",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF24": {
+        "field": "channel_control",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF25": {
+        "field": "output_terminal",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF26": {
+        "field": "enabled",
+        "mapping_type": "Read"
+    },
+    "0xFF30..0xFF40": {
+        "field": "channel3.wave_pattern",
+        "mapping_type": "ReadWrite"
+    }
+}

@@ -4,6 +4,7 @@ use emulator_common::disassembler::Disassembler;
 use emulator_common::Intel8080Register;
 use game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
+use game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
 
 use std::fs::File;
@@ -448,7 +449,7 @@ pub fn run(replay_file_path: &str, rom: &[u8]) {
 
     let mut buffer = vec![];
     {
-        let memory_map = build_memory_map!(e2);
+        let memory_map = game_boy_memory_map!(e2);
         let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
         dis.index = e2.cpu.read_program_counter();
         dis.disassemble_multiple().unwrap();

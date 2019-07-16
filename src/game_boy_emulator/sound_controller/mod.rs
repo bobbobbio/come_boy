@@ -1,6 +1,11 @@
 // Copyright 2018 Remi Bernotavicius
 
+use self::memory_map::{SoundControllerMemoryMap, SoundControllerMemoryMapMut};
+use game_boy_emulator::memory_controller::{MemoryAccessor, MemoryMappedHardware};
 use game_boy_emulator::{GameBoyRegister, MemoryChunk};
+
+#[macro_use]
+mod memory_map;
 
 #[derive(Default)]
 pub struct ToneAndSweep {
@@ -58,6 +63,18 @@ pub struct SoundController {
     pub channel_control: GameBoyRegister,
     pub output_terminal: GameBoyRegister,
     pub enabled: GameBoyRegister,
+}
+
+impl MemoryMappedHardware for SoundController {
+    fn read_value(&self, address: u16) -> u8 {
+        let memory_map = sound_controller_memory_map!(self);
+        memory_map.read_memory(address)
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        let mut memory_map = sound_controller_memory_map_mut!(self);
+        memory_map.set_memory(address, value);
+    }
 }
 
 impl SoundController {

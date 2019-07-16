@@ -17,7 +17,9 @@ use std::ops::Range;
 use self::game_pak::GamePak;
 use self::joypad_register::JoyPadRegister;
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
-use self::memory_controller::{FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk};
+use self::memory_controller::{
+    FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
+};
 use self::sound_controller::SoundController;
 use emulator_common::disassembler::MemoryAccessor;
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
@@ -247,13 +249,14 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn tick(&mut self) {
-        self.cpu.load_instruction(&mut build_memory_map_mut!(self));
+        self.cpu
+            .load_instruction(&mut game_boy_memory_map_mut!(self));
 
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(now);
 
         self.cpu
-            .execute_instruction(&mut build_memory_map_mut!(self));
+            .execute_instruction(&mut game_boy_memory_map_mut!(self));
 
         if let Some(game_pak) = &mut self.game_pak {
             game_pak.tick();
@@ -282,7 +285,7 @@ impl<'a> GameBoyEmulator<'a> {
     fn execute_dma(&mut self) {
         // XXX This is suppose to take about 40 cycles to complete.
         if let Some(address) = self.lcd_controller.registers.dma.take_request() {
-            let mut memory_map = build_memory_map_mut!(self);
+            let mut memory_map = game_boy_memory_map_mut!(self);
             for (dst_address, src_address) in OAM_DATA.zip(address..) {
                 let value = memory_map.read_memory(src_address);
                 memory_map.set_memory(dst_address, value);
@@ -300,7 +303,7 @@ impl<'a> GameBoyEmulator<'a> {
             if self.cpu.get_interrupts_enabled() {
                 self.registers.interrupt_flag.set_flag(flag, false);
                 self.cpu
-                    .interrupt(&mut build_memory_map_mut!(self), address);
+                    .interrupt(&mut game_boy_memory_map_mut!(self), address);
             }
         }
     }
@@ -405,7 +408,7 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn write_memory(&self, w: &mut Write) -> io::Result<()> {
-        let memory_map = build_memory_map!(self);
+        let memory_map = game_boy_memory_map!(self);
         let mut mem = [0u8; 0x10000];
         for i in 0..0x10000 {
             mem[i] = memory_map.read_memory(i as u16);
@@ -416,7 +419,7 @@ impl<'a> GameBoyEmulator<'a> {
     }
 
     fn hash(&self) -> u32 {
-        let memory_map = build_memory_map!(self);
+        let memory_map = game_boy_memory_map!(self);
         let mut mem = [0u8; 0x10000 + 15];
         for i in 0..0x10000 {
             mem[i] = memory_map.read_memory(i as u16);
@@ -487,7 +490,7 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
         pc = e.cpu.read_program_counter();
     }
 
-    let memory_map = build_memory_map!(e);
+    let memory_map = game_boy_memory_map!(e);
     assert_blargg_test_rom_success(&memory_map);
 }
 

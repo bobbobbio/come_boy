@@ -73,93 +73,10 @@
         "field": "registers.interrupt_flag",
         "mapping_type": "ReadWrite"
     },
-    "0xFF10": {
-        "field": "sound_controller.channel1.sweep",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF11": {
-        "field": "sound_controller.channel1.sound_length",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF12": {
-        "field": "sound_controller.channel1.volume_envelope",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF13": {
-        "field": "sound_controller.channel1.frequency_low",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF14": {
-        "field": "sound_controller.channel1.frequency_high",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF16": {
-        "field": "sound_controller.channel2.sound_length",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF17": {
-        "field": "sound_controller.channel2.volume_envelope",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF18": {
-        "field": "sound_controller.channel2.frequency_low",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF19": {
-        "field": "sound_controller.channel2.frequency_high",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF1A": {
-        "field": "sound_controller.channel3.enabled",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF1B": {
-        "field": "sound_controller.channel3.sound_length",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF1C": {
-        "field": "sound_controller.channel3.output_level",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF1D": {
-        "field": "sound_controller.channel3.frequency_low",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF1E": {
-        "field": "sound_controller.channel3.frequency_high",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF20": {
-        "field": "sound_controller.channel4.sound_length",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF21": {
-        "field": "sound_controller.channel4.volume_envelope",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF22": {
-        "field": "sound_controller.channel4.polynomial_counter",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF23": {
-        "field": "sound_controller.channel4.counter",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF24": {
-        "field": "sound_controller.channel_control",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF25": {
-        "field": "sound_controller.output_terminal",
-        "mapping_type": "ReadWrite"
-    },
-    "0xFF26": {
-        "field": "sound_controller.enabled",
-        "mapping_type": "Read"
-    },
-    "0xFF30..0xFF40": {
-        "field": "sound_controller.channel3.wave_pattern",
-        "mapping_type": "ReadWrite"
+    "0xFF10..0xFF40": {
+        "field": "sound_controller",
+        "mapping_type": "ReadWrite",
+        "full_address": true
     },
     "0xFF40": {
         "field": "lcd_controller.registers.lcdc",

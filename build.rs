@@ -845,6 +845,8 @@ fn filter_write<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
 }
 
 fn generate_memory_map_from_mapping(
+    camel_name: &'static str,
+    snake_name: &'static str,
     mapping: &BTreeMap<AddressRange, MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
@@ -860,15 +862,15 @@ fn generate_memory_map_from_mapping(
         .collect();
 
     let name: Ident = if mutable {
-        syn::parse_quote!(GameBoyMemoryMapMut)
+        syn::Ident::new(&format!("{}MemoryMapMut", camel_name), Span::call_site())
     } else {
-        syn::parse_quote!(GameBoyMemoryMap)
+        syn::Ident::new(&format!("{}MemoryMap", camel_name), Span::call_site())
     };
 
     let macro_name: Ident = if mutable {
-        syn::parse_quote!(build_memory_map_mut)
+        syn::Ident::new(&format!("{}_memory_map_mut", snake_name), Span::call_site())
     } else {
-        syn::parse_quote!(build_memory_map)
+        syn::Ident::new(&format!("{}_memory_map", snake_name), Span::call_site())
     };
 
     let maybe_mut_a = iter::once(if mutable {
@@ -930,21 +932,25 @@ fn generate_memory_map_from_mapping(
         syn::parse_quote!(panic!("Called set_memory on non-mutable MemoryMap"))
     };
 
+    let memory_controller: syn::Path =
+        syn::parse_quote!(crate::game_boy_emulator::memory_controller);
+    let memory_controller_iter = iter::repeat(memory_controller.clone());
+
     quote!(
         pub struct #name<'a> {
-            #(pub #field_name: &'a #maybe_mut_a dyn super::MemoryMappedHardware,)*
+            #(pub #field_name: &'a #maybe_mut_a dyn #memory_controller_iter::MemoryMappedHardware,)*
         }
 
         #[macro_export]
         macro_rules! #macro_name {
             ($f:expr) => {
-                crate::game_boy_emulator::memory_controller::memory_map::#name {
+                #name {
                     #(#field_name: & #maybe_mut_b $f.#src_path,)*
                 }
             };
         }
 
-        impl<'a> super::MemoryAccessor for #name<'a> {
+        impl<'a> #memory_controller::MemoryAccessor for #name<'a> {
             fn read_memory(&self, address: u16) -> u8 {
                 #(if #read_expr {
                     self.#read_field.read_value(address - #read_offset)
@@ -959,15 +965,15 @@ fn generate_memory_map_from_mapping(
                 #set_memory_body
             }
 
-            fn describe_address(&self, _address: u16) -> super::MemoryDescription {
-                super::MemoryDescription::Instruction
+            fn describe_address(&self, _address: u16) -> #memory_controller::MemoryDescription {
+                #memory_controller::MemoryDescription::Instruction
             }
         }
     )
     .into()
 }
 
-fn generate_memory_map(memory_map_path: &str, _name: &'static str) {
+fn generate_memory_map(memory_map_path: &str, camel_name: &'static str, snake_name: &'static str) {
     let memory_map_json = format!("src/{}/memory_map.json", memory_map_path);
     println!("cargo:rerun-if-changed={}", memory_map_json);
 
@@ -982,7 +988,7 @@ fn generate_memory_map(memory_map_path: &str, _name: &'static str) {
     let mut out = File::create(output_file).unwrap();
 
     for &mutable in &[true, false] {
-        let tokens = generate_memory_map_from_mapping(&mapping, mutable);
+        let tokens = generate_memory_map_from_mapping(camel_name, snake_name, &mapping, mutable);
         write!(out, "{}", tokens).unwrap();
     }
 
@@ -994,5 +1000,10 @@ fn generate_memory_map(memory_map_path: &str, _name: &'static str) {
 fn main() {
     generate_opcodes("intel_8080_emulator/opcodes", "Intel8080");
     generate_opcodes("lr35902_emulator/opcodes", "LR35902");
-    generate_memory_map("game_boy_emulator/memory_controller", "GameBoy");
+    generate_memory_map("game_boy_emulator/memory_controller", "GameBoy", "game_boy");
+    generate_memory_map(
+        "game_boy_emulator/sound_controller",
+        "SoundController",
+        "sound_controller",
+    );
 }
