@@ -111,14 +111,27 @@ trait AbstractEmulator {
 fn compare_emulators<A: AbstractEmulator, B: AbstractEmulator>(
     a: &mut A,
     b: &mut B,
+    pc_only: bool,
 ) -> (
     Option<AbstractEmulatorState>,
     Option<AbstractEmulatorState>,
     u64,
 ) {
+    let compare = if pc_only {
+        fn pc_compare(
+            a: &Option<AbstractEmulatorState>,
+            b: &Option<AbstractEmulatorState>,
+        ) -> bool {
+            a.map(|v| v.registers.pc) == b.map(|v| v.registers.pc)
+        }
+        pc_compare
+    } else {
+        PartialEq::eq
+    };
+
     let mut runs = 0;
     let (mut a_state, mut b_state) = (a.get_state(), b.get_state());
-    while a_state == b_state {
+    while compare(&a_state, &b_state) {
         runs += 1;
         a.run_one();
         b.run_one();
@@ -260,7 +273,7 @@ const TEST_STATE3: AbstractEmulatorState = AbstractEmulatorState {
 fn compares_states() {
     let mut te1 = TestEmulator::new(vec![TEST_STATE1, TEST_STATE2]);
     let mut te2 = TestEmulator::new(vec![TEST_STATE1, TEST_STATE3]);
-    let (a_state, b_state, _) = compare_emulators(&mut te1, &mut te2);
+    let (a_state, b_state, _) = compare_emulators(&mut te1, &mut te2, false);
     assert_ne!(a_state, b_state);
     assert_eq!(a_state, Some(TEST_STATE2));
     assert_eq!(b_state, Some(TEST_STATE3));
@@ -432,14 +445,14 @@ fn emulator_replayer() {
     );
 }
 
-pub fn run(replay_file_path: &str, rom: &[u8]) {
+pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
     let f = File::open(replay_file_path).unwrap();
     let mut e1 = EmulatorReplayer::new(&f);
 
     let mut e2 = GameBoyEmulator::new(4);
     e2.load_game_pak(GamePak::from(rom));
 
-    let (a, b, runs) = compare_emulators(&mut e1, &mut e2);
+    let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);
 
     println!("differed after {} runs", runs);
     println!("Replay from path {}:", replay_file_path);

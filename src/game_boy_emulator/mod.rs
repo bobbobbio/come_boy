@@ -519,8 +519,8 @@ pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
     e.run();
 }
 
-pub fn run_in_tandem_with(other_emulator_path: &str, rom: &[u8]) {
+pub fn run_in_tandem_with(other_emulator_path: &str, rom: &[u8], pc_only: bool) {
     println!("loading {}", other_emulator_path);
 
-    tandem::run(other_emulator_path, rom);
+    tandem::run(other_emulator_path, rom, pc_only);
 }
