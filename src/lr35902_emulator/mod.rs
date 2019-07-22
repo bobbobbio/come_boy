@@ -2366,11 +2366,8 @@ impl LR35902Emulator {
         }
 
         let pc = self.read_program_counter();
-        let instr;
-        {
-            let stream = MemoryStream::new(memory_accessor, pc);
-            instr = get_lr35902_instruction(stream);
-        }
+        let stream = MemoryStream::new(memory_accessor, pc);
+        let instr = get_lr35902_instruction(stream);
 
         if let Some(instr) = &instr {
             self.set_program_counter(pc + instr.len() as u16);

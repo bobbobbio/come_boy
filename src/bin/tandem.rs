@@ -18,23 +18,19 @@ fn main() {
     let mut pc_only = false;
 
     // Parse the arguments
-    {
-        let mut ap = ArgumentParser::new();
-        ap.set_description("Come Boy Tandem Runner");
-        ap.refer(&mut emulator_path).add_argument(
-            "emulator path",
-            argparse::Store,
-            "Path to replay file.",
-        );
-        ap.refer(&mut rom_path)
-            .add_argument("rom path", argparse::Store, "Path to rom");
-        ap.refer(&mut pc_only).add_option(
-            &["--pc-only"],
-            StoreTrue,
-            "Only compare program counters",
-        );
-        ap.parse_args_or_exit();
-    }
+    let mut ap = ArgumentParser::new();
+    ap.set_description("Come Boy Tandem Runner");
+    ap.refer(&mut emulator_path).add_argument(
+        "emulator path",
+        argparse::Store,
+        "Path to replay file.",
+    );
+    ap.refer(&mut rom_path)
+        .add_argument("rom path", argparse::Store, "Path to rom");
+    ap.refer(&mut pc_only)
+        .add_option(&["--pc-only"], StoreTrue, "Only compare program counters");
+    ap.parse_args_or_exit();
+    drop(ap);
 
     let mut file = File::open(&rom_path).unwrap();
     let mut rom: Vec<u8> = vec![];

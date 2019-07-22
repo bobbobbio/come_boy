@@ -3105,16 +3105,14 @@ fn cpu_diagnostic_8080() {
     }
 
     let mut console_buffer: Vec<u8> = vec![];
-    {
-        let mut console_print_closure =
-            |e: &mut Intel8080Emulator| console_print(e, &mut console_buffer);
+    let mut console_print_closure =
+        |e: &mut Intel8080Emulator| console_print(e, &mut console_buffer);
 
-        let mut emulator = Intel8080Emulator::new();
-        emulator.load_rom(&rom);
-        // The program write to the console via a routine at address 0x0005
-        emulator.add_routine(0x0005, &mut console_print_closure);
-        emulator.run();
-    }
+    let mut emulator = Intel8080Emulator::new();
+    emulator.load_rom(&rom);
+    // The program write to the console via a routine at address 0x0005
+    emulator.add_routine(0x0005, &mut console_print_closure);
+    emulator.run();
     let ascii_output = str::from_utf8(&console_buffer).unwrap();
 
     // When we see this string it means the program succeeded.  When it fails, we see

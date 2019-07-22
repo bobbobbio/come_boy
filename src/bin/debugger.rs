@@ -44,15 +44,14 @@ fn main() {
     let mut scale = 4;
 
     // Parse the arguments
-    {
-        let mut ap = ArgumentParser::new();
-        ap.set_description("Come Boy Debugger");
-        ap.refer(&mut files)
-            .add_argument("files", argparse::Collect, "Files");
-        ap.refer(&mut scale)
-            .add_option(&["--scale"], argparse::Store, "Scale");
-        ap.parse_args_or_exit();
-    }
+    let mut ap = ArgumentParser::new();
+    ap.set_description("Come Boy Debugger");
+    ap.refer(&mut files)
+        .add_argument("files", argparse::Collect, "Files");
+    ap.refer(&mut scale)
+        .add_option(&["--scale"], argparse::Store, "Scale");
+    ap.parse_args_or_exit();
+    drop(ap);
 
     let sig_action = signal::SigAction::new(
         signal::SigHandler::Handler(handle_sigint),

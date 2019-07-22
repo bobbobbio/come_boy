@@ -87,13 +87,11 @@ pub fn disassemble_game_boy_rom(rom: &[u8], include_opcodes: bool) -> Result<()>
 #[cfg(test)]
 fn do_disassembler_test(test_rom: &[u8], expected_str: &str) {
     let mut output = vec![];
-    {
-        let ma = ROMAccessor::new(test_rom);
-        let mut disassembler = Disassembler::new(&ma, RGBDSInstructionPrinterFactory, &mut output);
-        disassembler
-            .disassemble(0u16..test_rom.len() as u16, true)
-            .unwrap();
-    }
+    let ma = ROMAccessor::new(test_rom);
+    let mut disassembler = Disassembler::new(&ma, RGBDSInstructionPrinterFactory, &mut output);
+    disassembler
+        .disassemble(0u16..test_rom.len() as u16, true)
+        .unwrap();
     assert_eq!(str::from_utf8(&output).unwrap(), expected_str);
 }
 

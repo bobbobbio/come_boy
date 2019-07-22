@@ -48,25 +48,24 @@ fn main() {
     let mut include_opcodes = true;
 
     // Parse the arguments
-    {
-        let mut ap = ArgumentParser::new();
-        ap.set_description("GameBoy/LR35902/8080 Dissasembler");
-        ap.refer(&mut instruction_set)
-            .add_option(
-                &["-i", "--instruction-set"],
-                Store,
-                "Instruction set to use (GameBoy / LR35902 / 8080)",
-            )
-            .required();
-        ap.refer(&mut include_opcodes).add_option(
-            &["-p", "--include-opcodes"],
+    let mut ap = ArgumentParser::new();
+    ap.set_description("GameBoy/LR35902/8080 Dissasembler");
+    ap.refer(&mut instruction_set)
+        .add_option(
+            &["-i", "--instruction-set"],
             Store,
-            "Include raw opcodes along with assembly",
-        );
-        ap.refer(&mut files)
-            .add_argument("files", argparse::Collect, "Files");
-        ap.parse_args_or_exit();
-    }
+            "Instruction set to use (GameBoy / LR35902 / 8080)",
+        )
+        .required();
+    ap.refer(&mut include_opcodes).add_option(
+        &["-p", "--include-opcodes"],
+        Store,
+        "Include raw opcodes along with assembly",
+    );
+    ap.refer(&mut files)
+        .add_argument("files", argparse::Collect, "Files");
+    ap.parse_args_or_exit();
+    drop(ap);
 
     let mut return_code = 0;
     for file_path in &files {

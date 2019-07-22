@@ -229,14 +229,12 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
 
         let start = current.saturating_sub((context + 5) * 3);
 
-        {
-            let mut dis = Disassembler::new(
-                self.memory_accessor,
-                self.opcode_printer_factory,
-                &mut previous,
-            );
-            dis.disassemble(start..current, true).unwrap();
-        }
+        let mut dis = Disassembler::new(
+            self.memory_accessor,
+            self.opcode_printer_factory,
+            &mut previous,
+        );
+        dis.disassemble(start..current, true).unwrap();
 
         let lines = str::from_utf8(&previous).unwrap();
         let skip = lines.lines().count().saturating_sub(context as usize);

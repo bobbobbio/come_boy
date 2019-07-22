@@ -17,15 +17,14 @@ fn main() {
     let mut scale: u32 = 4;
 
     // Parse the arguments
-    {
-        let mut ap = ArgumentParser::new();
-        ap.set_description("Game Boy (DMG) Emulator");
-        ap.refer(&mut files)
-            .add_argument("files", argparse::Collect, "Files");
-        ap.refer(&mut scale)
-            .add_option(&["--scale"], argparse::Store, "Scale");
-        ap.parse_args_or_exit();
-    }
+    let mut ap = ArgumentParser::new();
+    ap.set_description("Game Boy (DMG) Emulator");
+    ap.refer(&mut files)
+        .add_argument("files", argparse::Collect, "Files");
+    ap.refer(&mut scale)
+        .add_option(&["--scale"], argparse::Store, "Scale");
+    ap.parse_args_or_exit();
+    drop(ap);
 
     for arg in &files {
         let mut file = File::open(&arg).unwrap();

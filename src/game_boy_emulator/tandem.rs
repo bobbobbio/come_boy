@@ -503,12 +503,10 @@ pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
     println!();
 
     let mut buffer = vec![];
-    {
-        let memory_map = game_boy_memory_map!(e2);
-        let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
-        dis.index = e2.cpu.read_program_counter();
-        dis.disassemble_multiple().unwrap();
-    }
+    let memory_map = game_boy_memory_map!(e2);
+    let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
+    dis.index = e2.cpu.read_program_counter();
+    dis.disassemble_multiple().unwrap();
     println!("{}", str::from_utf8(&buffer).unwrap());
 
     println!();

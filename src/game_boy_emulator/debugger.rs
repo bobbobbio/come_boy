@@ -54,13 +54,10 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
 
     fn disassemble(&mut self, address: u16, f: &mut io::Write) -> Result<()> {
         let mut buffer = vec![];
-        {
-            let memory_map = game_boy_memory_map!(self);
-            let mut dis =
-                Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
-            dis.index = address;
-            dis.disassemble_multiple().unwrap();
-        }
+        let memory_map = game_boy_memory_map!(self);
+        let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
+        dis.index = address;
+        dis.disassemble_multiple().unwrap();
         write!(f, "{}", str::from_utf8(&buffer).unwrap())
     }
 
