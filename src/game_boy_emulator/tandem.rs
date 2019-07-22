@@ -139,12 +139,6 @@ fn compare_emulators<A: AbstractEmulator, B: AbstractEmulator>(
         b_state = b.get_state();
     }
 
-    let mut file = File::create("/tmp/emulator_a.bin").unwrap();
-    a.write_memory(&mut file).unwrap();
-
-    let mut file = File::create("/tmp/emulator_b.bin").unwrap();
-    b.write_memory(&mut file).unwrap();
-
     return (a_state, b_state, runs);
 }
 
@@ -445,6 +439,52 @@ fn emulator_replayer() {
     );
 }
 
+fn print_memory_diff(a: &[u8], b: &[u8]) {
+    // Find the address where the differences start and end
+    let iter = a.iter().zip(b.iter()).enumerate();
+    let start = iter
+        .clone()
+        .find_map(|(i, (a, b))| if a != b { Some(i) } else { None })
+        .unwrap_or(0);
+    let end = iter
+        .clone()
+        .rev()
+        .find_map(|(i, (a, b))| if a != b { Some(i) } else { None })
+        .unwrap_or(0);
+
+    // Extend the start and end to be aligned to 16 bytes
+    let start = start - (start % 16);
+    let end = end + if end % 16 == 0 { 0 } else { 16 - end % 16 };
+
+    fn print_hex<F: FnMut(usize) -> bool>(memory: &[u8], start: usize, end: usize, mut color: F) {
+        for line in 0..((end - start) / 16) {
+            let line_start = start + line * 16;
+            let line_range = line_start..(line_start + 16);
+            print!("{:04x}:", line_start);
+            for addr in line_range.clone() {
+                if addr & 0xF == 0x8 {
+                    print!(" ");
+                }
+                print!(" ");
+                if color(addr) {
+                    print!("\u{001b}[31m");
+                }
+                print!("{:02x}", memory[addr]);
+                if color(addr) {
+                    print!("\u{001b}[0m");
+                }
+            }
+            println!();
+        }
+    }
+
+    print_hex(a, start, end, |addr| a[addr] != b[addr]);
+
+    println!("======================================================");
+
+    print_hex(b, start, end, |addr| a[addr] != b[addr]);
+}
+
 pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
     let f = File::open(replay_file_path).unwrap();
     let mut e1 = EmulatorReplayer::new(&f);
@@ -460,6 +500,8 @@ pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
     println!("Comeboy:");
     println!("{:#?}", b);
 
+    println!();
+
     let mut buffer = vec![];
     {
         let memory_map = game_boy_memory_map!(e2);
@@ -467,5 +509,15 @@ pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
         dis.index = e2.cpu.read_program_counter();
         dis.disassemble_multiple().unwrap();
     }
-    println!("{}", str::from_utf8(&buffer).unwrap())
+    println!("{}", str::from_utf8(&buffer).unwrap());
+
+    println!();
+
+    let mut memory_a = vec![];
+    e1.write_memory(&mut memory_a).unwrap();
+
+    let mut memory_b = vec![];
+    e2.write_memory(&mut memory_b).unwrap();
+
+    print_memory_diff(&memory_a[..], &memory_b[..]);
 }
