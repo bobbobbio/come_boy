@@ -636,14 +636,13 @@ impl<'a> LCDController<'a> {
             self.scheduler.schedule(time + 456, Self::advance_ly);
         }
 
-        self.registers.stat.set_flag(LCDStatusFlag::LYMatch, false);
-
         if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
             self.oam_data.borrow();
             self.unusable_memory.borrow();
         }
 
-        self.scheduler.schedule(time + 4, Self::update_ly_match);
+        self.registers.stat.set_flag(LCDStatusFlag::LYMatch, false);
+        self.scheduler.schedule(time + 1, Self::update_ly_match);
     }
 
     fn update_ly_match(&mut self, _time: u64) {
@@ -675,6 +674,7 @@ impl<'a> LCDController<'a> {
         self.enabled = true;
         self.scheduler.schedule(time + 204, Self::mode_2);
         self.scheduler.schedule(time + 904, Self::advance_ly);
+        self.update_ly_match(time);
     }
 
     fn disable(&mut self) {
