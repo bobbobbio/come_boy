@@ -72,8 +72,16 @@ impl MemoryMappedHardware for SoundController {
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        let mut memory_map = sound_controller_memory_map_mut!(self);
-        memory_map.set_memory(address, value);
+        if address == 0xFF26 {
+            if value & 0x80 == 0x80 {
+                self.enable();
+            } else {
+                self.disable();
+            }
+        } else {
+            let mut memory_map = sound_controller_memory_map_mut!(self);
+            memory_map.set_memory(address, value);
+        }
     }
 }
 
@@ -108,5 +116,19 @@ impl SoundController {
         self.channel_control.set_value(0x77);
         self.output_terminal.set_value(0xF3);
         self.enabled.set_value(0xF1);
+    }
+
+    fn enable(&mut self) {
+        self.enabled.set_value(0xF0);
+    }
+
+    fn disable(&mut self) {
+        self.enabled.set_value(0x70);
+        self.channel_control.set_value(0x00);
+        self.output_terminal.set_value(0x00);
+
+        // Why does this happen?
+        self.channel1.sound_length.set_value(0x3F);
+        self.channel1.volume_envelope.set_value(0x00);
     }
 }
