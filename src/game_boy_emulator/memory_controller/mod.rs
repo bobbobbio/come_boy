@@ -76,7 +76,7 @@ impl<T> Default for GameBoyFlags<T> {
 impl<T: FlagMask> MemoryMappedHardware for GameBoyFlags<T> {
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
-        self.chunk.read_value(address)
+        self.chunk.read_value(address) | !T::mask()
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
@@ -93,19 +93,19 @@ impl<T> GameBoyFlags<T> {
             phantom: Default::default(),
         }
     }
-
-    pub fn read_value(&self) -> u8 {
-        self.chunk.read_value(0)
-    }
 }
 
 impl<T: FlagMask> GameBoyFlags<T> {
     pub fn set_value(&mut self, value: u8) {
         self.chunk.set_value(0, (value & T::mask()) | !T::mask())
     }
+
+    pub fn read_value(&self) -> u8 {
+        self.chunk.read_value(0) | !T::mask()
+    }
 }
 
-impl<T> GameBoyFlags<T>
+impl<T: FlagMask> GameBoyFlags<T>
 where
     u8: From<T>,
 {

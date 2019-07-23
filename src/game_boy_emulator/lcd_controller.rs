@@ -105,18 +105,17 @@ impl FlagMask for LCDControlFlag {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LCDStatusFlag {
-    InterruptLYMatching = 0b10000000,
-    InterruptMode10 = 0b01000000,
-    InterruptMode01 = 0b00100000,
-    InterruptMode00 = 0b00010000,
-    LYMatch = 0b00001000,
-    Unknown = 0b00000100,
+    InterruptLYMatching = 0b01000000,
+    InterruptMode10 = 0b00100000,
+    InterruptMode01 = 0b00010000,
+    InterruptMode00 = 0b00001000,
+    LYMatch = 0b00000100,
     Mode = 0b00000011,
 }
 
 impl FlagMask for LCDStatusFlag {
     fn mask() -> u8 {
-        0xFF
+        0x7F
     }
 }
 
@@ -312,7 +311,6 @@ impl<'a> LCDController<'a> {
     pub fn schedule_initial_events(&mut self, now: u64) {
         self.scheduler.schedule(now + 56 + 4, Self::mode_2);
         self.scheduler.schedule(now + 56 + 456, Self::advance_ly);
-        self.scheduler.schedule(now + 98648, Self::unknown_event2);
     }
 
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
@@ -402,10 +400,7 @@ impl<'a> LCDController<'a> {
             .set_flag(LCDControlFlag::BGDisplayOn, true);
         self.registers.bgp.set_value(0xFC);
 
-        self.registers
-            .stat
-            .set_flag(LCDStatusFlag::InterruptLYMatching, true);
-        self.registers.stat.set_flag(LCDStatusFlag::Unknown, true);
+        self.registers.stat.set_flag(LCDStatusFlag::LYMatch, true);
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
         self.registers.dma.set_value(0xff);
         self.registers.obp0.set_value(0xff);
@@ -635,29 +630,27 @@ impl<'a> LCDController<'a> {
         // If we are drawing the last line, it only takes 8 cycles, otherwise it takes 456.
         if self.registers.ly.read_value() == 153 {
             self.scheduler.schedule(time + 8, Self::advance_ly);
-            self.scheduler.schedule(time + 12, Self::unknown_event);
         } else if self.registers.ly.read_value() == 0 {
             self.scheduler.schedule(time + 904, Self::advance_ly);
         } else {
             self.scheduler.schedule(time + 456, Self::advance_ly);
         }
 
-        self.registers.stat.set_flag(LCDStatusFlag::Unknown, false);
+        self.registers.stat.set_flag(LCDStatusFlag::LYMatch, false);
 
         if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
             self.oam_data.borrow();
             self.unusable_memory.borrow();
         }
+
+        self.scheduler.schedule(time + 4, Self::update_ly_match);
     }
 
-    pub fn unknown_event(&mut self, _time: u64) {
-        self.registers.stat.set_flag(LCDStatusFlag::Unknown, true);
-    }
-
-    pub fn unknown_event2(&mut self, _time: u64) {
-        self.registers
-            .stat
-            .set_flag(LCDStatusFlag::InterruptLYMatching, true);
+    fn update_ly_match(&mut self, _time: u64) {
+        self.registers.stat.set_flag(
+            LCDStatusFlag::LYMatch,
+            self.registers.ly.read_value() == self.registers.lyc.read_value(),
+        );
     }
 
     fn mode_1(&mut self, time: u64) {

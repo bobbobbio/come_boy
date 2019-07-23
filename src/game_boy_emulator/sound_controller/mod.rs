@@ -119,7 +119,7 @@ impl SoundController {
     }
 
     fn enable(&mut self) {
-        self.enabled.set_value(0xF0);
+        self.enabled.set_value(0xF1);
     }
 
     fn disable(&mut self) {

@@ -133,7 +133,6 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
         LCDStatusFlag::InterruptMode01,
         LCDStatusFlag::InterruptMode00,
         LCDStatusFlag::LYMatch,
-        LCDStatusFlag::Unknown,
     ];
     let mut set = vec![];
 
