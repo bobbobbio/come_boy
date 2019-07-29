@@ -61,11 +61,25 @@ pub struct LCDControllerRegisters {
     pub ly: GameBoyRegister,
     pub lyc: GameBoyRegister,
     pub dma: DmaRegister,
-    pub bgp: GameBoyRegister,
-    pub obp0: GameBoyRegister,
-    pub obp1: GameBoyRegister,
+    pub bgp: GameBoyFlags<LCDColor>,
+    pub obp0: GameBoyFlags<LCDColor>,
+    pub obp1: GameBoyFlags<LCDColor>,
     pub wy: GameBoyRegister,
     pub wx: GameBoyRegister,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LCDColor {
+    Color3 = 0b11000000,
+    Color2 = 0b00110000,
+    Color1 = 0b00001100,
+    Color0 = 0b00000011,
+}
+
+impl FlagMask for LCDColor {
+    fn mask() -> u8 {
+        0xFF
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -78,9 +92,9 @@ enum LCDShade {
 
 fn color_for_shade(shade: LCDShade) -> sdl2::pixels::Color {
     match shade {
-        LCDShade::Shade0 => sdl2::pixels::Color::RGB(0x88, 0xc0, 0x70),
-        LCDShade::Shade1 => sdl2::pixels::Color::RGB(0x34, 0x68, 0x56),
-        LCDShade::Shade2 => sdl2::pixels::Color::RGB(0xe0, 0xf8, 0xd0),
+        LCDShade::Shade0 => sdl2::pixels::Color::RGB(0xe0, 0xf8, 0xd0),
+        LCDShade::Shade1 => sdl2::pixels::Color::RGB(0x88, 0xc0, 0x70),
+        LCDShade::Shade2 => sdl2::pixels::Color::RGB(0x34, 0x68, 0x56),
         LCDShade::Shade3 => sdl2::pixels::Color::RGB(0x08, 0x18, 0x20),
     }
 }
@@ -198,11 +212,12 @@ enum LCDObjectAttributeFlag {
 }
 
 from_u8!(
-    LCDControlFlag,
-    LCDStatusFlag,
-    InterruptFlag,
     InterruptEnableFlag,
-    LCDObjectAttributeFlag
+    InterruptFlag,
+    LCDControlFlag,
+    LCDObjectAttributeFlag,
+    LCDColor,
+    LCDStatusFlag
 );
 
 impl LCDObject {
@@ -242,14 +257,14 @@ impl<'a> LCDObjectIterator<'a> {
 }
 
 struct LCDDotData {
-    data: [LCDShade; 64],
+    data: [LCDColor; 64],
     pixel_scale: u32,
 }
 
 impl LCDDotData {
     fn new(pixel_scale: u32) -> LCDDotData {
         LCDDotData {
-            data: [LCDShade::Shade0; 64],
+            data: [LCDColor::Color0; 64],
             pixel_scale,
         }
     }
@@ -263,6 +278,7 @@ impl LCDDotData {
         vertical_flip: bool,
         horizantal_flip: bool,
         enable_transparency: bool,
+        palette: &GameBoyFlags<LCDColor>,
     ) {
         assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
 
@@ -274,7 +290,7 @@ impl LCDDotData {
         let start_pixel = (target_line * CHARACTER_SIZE as i32) as usize;
         let end_pixel = start_pixel + CHARACTER_SIZE as usize;
         let iter = self.data[start_pixel..end_pixel].iter().enumerate();
-        for (mut offset_x, &shade) in iter {
+        for (mut offset_x, &color) in iter {
             if horizantal_flip {
                 offset_x = CHARACTER_SIZE as usize - offset_x;
             }
@@ -284,7 +300,14 @@ impl LCDDotData {
                 self.pixel_scale,
                 self.pixel_scale,
             );
-            if shade != LCDShade::Shade0 || !enable_transparency {
+            if color != LCDColor::Color0 || !enable_transparency {
+                let shade = match palette.read_flag_value(color) {
+                    0x0 => LCDShade::Shade0,
+                    0x1 => LCDShade::Shade1,
+                    0x2 => LCDShade::Shade2,
+                    0x3 => LCDShade::Shade3,
+                    _ => panic!(),
+                };
                 let color = color_for_shade(shade);
                 canvas.set_draw_color(color);
                 canvas.fill_rect(rect).unwrap();
@@ -383,14 +406,14 @@ impl<'a> LCDController<'a> {
             let byte1: u8 = *iter.next().unwrap();
             let byte2: u8 = *iter.next().unwrap();
             for bit in (0..8).rev() {
-                let shade_upper = ((byte1 >> bit) & 0x1) << 1;
-                let shade_lower = (byte2 >> bit) & 0x1;
+                let shade_upper = ((byte2 >> bit) & 0x1) << 1;
+                let shade_lower = (byte1 >> bit) & 0x1;
                 dot_data.data[i] = match shade_upper | shade_lower {
-                    0x0 => LCDShade::Shade0,
-                    0x1 => LCDShade::Shade1,
-                    0x2 => LCDShade::Shade2,
-                    0x3 => LCDShade::Shade3,
-                    _ => panic!(""),
+                    0x0 => LCDColor::Color0,
+                    0x1 => LCDColor::Color1,
+                    0x2 => LCDColor::Color2,
+                    0x3 => LCDColor::Color3,
+                    _ => panic!(),
                 };
                 i += 1;
             }
@@ -532,6 +555,7 @@ impl<'a> LCDController<'a> {
                 false,
                 false,
                 false,
+                &self.registers.bgp,
             );
         }
     }
@@ -593,6 +617,11 @@ impl<'a> LCDController<'a> {
                     (y, object.character_code)
                 };
 
+                let palette = match object.read_flag(LCDObjectAttributeFlag::Palette) {
+                    false => &self.registers.obp0,
+                    true => &self.registers.obp1,
+                };
+
                 let character_data = self.read_dot_data(true, character_code);
                 character_data.draw_line(
                     self.canvas.as_mut().unwrap(),
@@ -602,6 +631,7 @@ impl<'a> LCDController<'a> {
                     vertical_flip,
                     horizantal_flip,
                     true,
+                    palette,
                 );
             }
         }
