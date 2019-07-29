@@ -347,19 +347,15 @@ impl<'a> LCDController<'a> {
         self.event_pump = Some(event_pump);
     }
 
-    fn read_dot_data(&self, character_code: u8) -> LCDDotData {
+    fn read_dot_data(&self, character_data_selection: bool, character_code: u8) -> LCDDotData {
         let mut dot_data = LCDDotData::new(self.pixel_scale);
 
-        let bg_character_data_selection = self
-            .registers
-            .lcdc
-            .read_flag(LCDControlFlag::BGCharacterDataSelection);
-        let location = if bg_character_data_selection {
-            CHARACTER_DATA_1.start
+        let location = if character_data_selection {
+            CHARACTER_DATA_1.start as usize + character_code as usize * 16
         } else {
-            CHARACTER_DATA_2.start
-        } as usize
-            + character_code as usize * 16;
+            CHARACTER_DATA_2.start as usize
+                + (((character_code as i8) as isize + 128) as usize) * 16
+        };
 
         let mut iter = self.character_data.as_slice()[location..]
             .iter()
@@ -482,7 +478,7 @@ impl<'a> LCDController<'a> {
         key_events
     }
 
-    fn draw_bg_data(&mut self) {
+    fn draw_tiles(&mut self, area_selection: bool, character_data_selection: bool) {
         if self.canvas.is_none() {
             return;
         }
@@ -495,12 +491,7 @@ impl<'a> LCDController<'a> {
             return;
         }
 
-        let bg_code_area_selection = self
-            .registers
-            .lcdc
-            .read_flag(LCDControlFlag::BGCodeAreaSelection);
-
-        let iter = match bg_code_area_selection {
+        let iter = match area_selection {
             false => self.background_display_data_1.as_slice().iter(),
             true => self.background_display_data_2.as_slice().iter(),
         };
@@ -512,7 +503,7 @@ impl<'a> LCDController<'a> {
             .enumerate();
 
         for (tile_x, character_code) in iter {
-            let character_data = self.read_dot_data(*character_code);
+            let character_data = self.read_dot_data(character_data_selection, *character_code);
             character_data.draw_line(
                 self.canvas.as_mut().unwrap(),
                 scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32),
@@ -539,7 +530,7 @@ impl<'a> LCDController<'a> {
             let x = window_x + object.x_coordinate as i32 - 8;
             let y = window_y + object.y_coordinate as i32 - 16;
             if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
-                let character_data = self.read_dot_data(object.character_code);
+                let character_data = self.read_dot_data(true, object.character_code);
                 character_data.draw_line(self.canvas.as_mut().unwrap(), x, y, ly);
             }
         }
@@ -591,11 +582,37 @@ impl<'a> LCDController<'a> {
         self.scheduler.schedule(time + 77, Self::mode_3);
     }
 
+    fn draw_background(&mut self) {
+        let bg_area_selection = self
+            .registers
+            .lcdc
+            .read_flag(LCDControlFlag::BGCodeAreaSelection);
+        let bg_character_data_selection = self
+            .registers
+            .lcdc
+            .read_flag(LCDControlFlag::BGCharacterDataSelection);
+        self.draw_tiles(bg_area_selection, bg_character_data_selection);
+    }
+
+    fn draw_window(&mut self) {
+        if !self.registers.lcdc.read_flag(LCDControlFlag::WindowingOn) {
+            return;
+        }
+
+        let window_area_selection = self
+            .registers
+            .lcdc
+            .read_flag(LCDControlFlag::WindowCodeAreaSelection);
+        self.draw_tiles(window_area_selection, false);
+    }
+
     fn mode_3(&mut self, time: u64) {
         self.character_data.borrow();
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
-        self.draw_bg_data();
+
+        self.draw_background();
+        self.draw_window();
         self.draw_oam_data();
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x3);
         self.scheduler.schedule(time + 175, Self::mode_0);
