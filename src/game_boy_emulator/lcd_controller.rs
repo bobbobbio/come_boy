@@ -189,7 +189,6 @@ struct LCDObject {
     flags: u8,
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum LCDObjectAttributeFlag {
     DisplayPriority = 0b10000000,
@@ -207,7 +206,6 @@ from_u8!(
 );
 
 impl LCDObject {
-    #[allow(dead_code)]
     fn read_flag(&self, flag: LCDObjectAttributeFlag) -> bool {
         self.flags & flag as u8 == flag as u8
     }
@@ -256,14 +254,29 @@ impl LCDDotData {
         }
     }
 
-    fn draw_line(&self, canvas: &mut sdl2::render::WindowCanvas, x: i32, y: i32, ly: u8) {
+    fn draw_line(
+        &self,
+        canvas: &mut sdl2::render::WindowCanvas,
+        x: i32,
+        y: i32,
+        ly: u8,
+        vertical_flip: bool,
+        horizantal_flip: bool,
+    ) {
         assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
 
-        let target_line = ly as i32 - y;
+        let target_line = if vertical_flip {
+            y + CHARACTER_SIZE as i32 - 1 - ly as i32
+        } else {
+            ly as i32 - y
+        };
         let start_pixel = (target_line * CHARACTER_SIZE as i32) as usize;
         let end_pixel = start_pixel + CHARACTER_SIZE as usize;
         let iter = self.data[start_pixel..end_pixel].iter().enumerate();
-        for (offset_x, &shade) in iter {
+        for (mut offset_x, &shade) in iter {
+            if horizantal_flip {
+                offset_x = CHARACTER_SIZE as usize - offset_x;
+            }
             let rect = sdl2::rect::Rect::new(
                 (x + offset_x as i32) * self.pixel_scale as i32,
                 ly as i32 * self.pixel_scale as i32,
@@ -513,6 +526,8 @@ impl<'a> LCDController<'a> {
                 scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32),
                 scroll_y + (tile_y as i32 * CHARACTER_SIZE as i32),
                 ly,
+                false,
+                false,
             );
         }
     }
@@ -534,7 +549,14 @@ impl<'a> LCDController<'a> {
             let y = object.y_coordinate as i32 - 16;
             if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
                 let character_data = self.read_dot_data(true, object.character_code);
-                character_data.draw_line(self.canvas.as_mut().unwrap(), x, y, ly);
+                character_data.draw_line(
+                    self.canvas.as_mut().unwrap(),
+                    x,
+                    y,
+                    ly,
+                    object.read_flag(LCDObjectAttributeFlag::VerticalFlip),
+                    object.read_flag(LCDObjectAttributeFlag::HorizantalFlip),
+                );
             }
         }
     }
