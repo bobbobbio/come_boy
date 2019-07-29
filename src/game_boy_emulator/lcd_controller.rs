@@ -69,19 +69,19 @@ pub struct LCDControllerRegisters {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum LCDBGShade {
+enum LCDShade {
     Shade0 = 0x0,
     Shade1 = 0x1,
     Shade2 = 0x2,
     Shade3 = 0x3,
 }
 
-fn color_for_shade(shade: LCDBGShade) -> sdl2::pixels::Color {
+fn color_for_shade(shade: LCDShade) -> sdl2::pixels::Color {
     match shade {
-        LCDBGShade::Shade0 => sdl2::pixels::Color::RGB(255, 255, 255),
-        LCDBGShade::Shade1 => sdl2::pixels::Color::RGB(105, 150, 150),
-        LCDBGShade::Shade2 => sdl2::pixels::Color::RGB(50, 50, 50),
-        LCDBGShade::Shade3 => sdl2::pixels::Color::RGB(0, 0, 0),
+        LCDShade::Shade0 => sdl2::pixels::Color::RGB(255, 255, 255),
+        LCDShade::Shade1 => sdl2::pixels::Color::RGB(105, 150, 150),
+        LCDShade::Shade2 => sdl2::pixels::Color::RGB(50, 50, 50),
+        LCDShade::Shade3 => sdl2::pixels::Color::RGB(0, 0, 0),
     }
 }
 
@@ -242,14 +242,14 @@ impl<'a> LCDObjectIterator<'a> {
 }
 
 struct LCDDotData {
-    data: [LCDBGShade; 64],
+    data: [LCDShade; 64],
     pixel_scale: u32,
 }
 
 impl LCDDotData {
     fn new(pixel_scale: u32) -> LCDDotData {
         LCDDotData {
-            data: [LCDBGShade::Shade0; 64],
+            data: [LCDShade::Shade0; 64],
             pixel_scale,
         }
     }
@@ -262,6 +262,7 @@ impl LCDDotData {
         ly: u8,
         vertical_flip: bool,
         horizantal_flip: bool,
+        enable_transparency: bool,
     ) {
         assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
 
@@ -283,9 +284,11 @@ impl LCDDotData {
                 self.pixel_scale,
                 self.pixel_scale,
             );
-            let color = color_for_shade(shade);
-            canvas.set_draw_color(color);
-            canvas.fill_rect(rect).unwrap();
+            if shade != LCDShade::Shade0 || !enable_transparency {
+                let color = color_for_shade(shade);
+                canvas.set_draw_color(color);
+                canvas.fill_rect(rect).unwrap();
+            }
         }
     }
 }
@@ -383,10 +386,10 @@ impl<'a> LCDController<'a> {
                 let shade_upper = ((byte1 >> bit) & 0x1) << 1;
                 let shade_lower = (byte2 >> bit) & 0x1;
                 dot_data.data[i] = match shade_upper | shade_lower {
-                    0x0 => LCDBGShade::Shade0,
-                    0x1 => LCDBGShade::Shade1,
-                    0x2 => LCDBGShade::Shade2,
-                    0x3 => LCDBGShade::Shade3,
+                    0x0 => LCDShade::Shade0,
+                    0x1 => LCDShade::Shade1,
+                    0x2 => LCDShade::Shade2,
+                    0x3 => LCDShade::Shade3,
                     _ => panic!(""),
                 };
                 i += 1;
@@ -528,6 +531,7 @@ impl<'a> LCDController<'a> {
                 ly,
                 false,
                 false,
+                false,
             );
         }
     }
@@ -597,6 +601,7 @@ impl<'a> LCDController<'a> {
                     ly,
                     vertical_flip,
                     horizantal_flip,
+                    true,
                 );
             }
         }
