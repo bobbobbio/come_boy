@@ -351,7 +351,7 @@ impl GamePak {
         let title_end = title_slice
             .iter()
             .position(|&c| c == '\0' as u8)
-            .expect(&format!("Malformed title {:?}", title_slice));
+            .unwrap_or(title_slice.len());
         let title = str::from_utf8(&title_slice[..title_end])
             .expect(&format!("Malformed title {:?}", title_slice))
             .into();
