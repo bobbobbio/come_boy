@@ -62,6 +62,12 @@ pub trait FlagMask {
     fn mask() -> u8;
 }
 
+impl FlagMask for u8 {
+    fn mask() -> u8 {
+        0xFF
+    }
+}
+
 pub struct GameBoyFlags<T> {
     chunk: MemoryChunk,
     phantom: PhantomData<T>,
