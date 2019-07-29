@@ -437,8 +437,8 @@ impl<'a> LCDController<'a> {
     }
 
     fn get_window_origin_relative_to_lcd(&self) -> (i32, i32) {
-        let x = self.registers.wx.read_value() as i32 * -1;
-        let y = self.registers.wy.read_value() as i32 * -1;
+        let x = self.registers.wx.read_value() as i32 - 7;
+        let y = self.registers.wy.read_value() as i32;
 
         return (x, y);
     }
@@ -478,14 +478,18 @@ impl<'a> LCDController<'a> {
         key_events
     }
 
-    fn draw_tiles(&mut self, area_selection: bool, character_data_selection: bool) {
+    fn draw_tiles(
+        &mut self,
+        scroll_x: i32,
+        scroll_y: i32,
+        area_selection: bool,
+        character_data_selection: bool,
+    ) {
         if self.canvas.is_none() {
             return;
         }
 
         let ly = self.registers.ly.read_value();
-
-        let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
 
         if scroll_y > ly as i32 {
             return;
@@ -524,11 +528,10 @@ impl<'a> LCDController<'a> {
 
         let ly = self.registers.ly.read_value();
 
-        let (window_x, window_y) = self.get_window_origin_relative_to_lcd();
         let iter = LCDObjectIterator::new(&self.oam_data);
         for object in iter {
-            let x = window_x + object.x_coordinate as i32 - 8;
-            let y = window_y + object.y_coordinate as i32 - 16;
+            let x = object.x_coordinate as i32 - 8;
+            let y = object.y_coordinate as i32 - 16;
             if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
                 let character_data = self.read_dot_data(true, object.character_code);
                 character_data.draw_line(self.canvas.as_mut().unwrap(), x, y, ly);
@@ -591,7 +594,13 @@ impl<'a> LCDController<'a> {
             .registers
             .lcdc
             .read_flag(LCDControlFlag::BGCharacterDataSelection);
-        self.draw_tiles(bg_area_selection, bg_character_data_selection);
+        let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
+        self.draw_tiles(
+            scroll_x,
+            scroll_y,
+            bg_area_selection,
+            bg_character_data_selection,
+        );
     }
 
     fn draw_window(&mut self) {
@@ -603,7 +612,8 @@ impl<'a> LCDController<'a> {
             .registers
             .lcdc
             .read_flag(LCDControlFlag::WindowCodeAreaSelection);
-        self.draw_tiles(window_area_selection, false);
+        let (scroll_x, scroll_y) = self.get_window_origin_relative_to_lcd();
+        self.draw_tiles(scroll_x, scroll_y, window_area_selection, false);
     }
 
     fn mode_3(&mut self, time: u64) {
