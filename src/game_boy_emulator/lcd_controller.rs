@@ -543,19 +543,60 @@ impl<'a> LCDController<'a> {
 
         let ly = self.registers.ly.read_value();
 
+        let object_block_composition_selection = self
+            .registers
+            .lcdc
+            .read_flag(LCDControlFlag::ObjectBlockCompositionSelection);
+
+        let sprite_height = if object_block_composition_selection {
+            CHARACTER_SIZE as i32 * 2
+        } else {
+            CHARACTER_SIZE as i32
+        };
+
         let iter = LCDObjectIterator::new(&self.oam_data);
         for object in iter {
-            let x = object.x_coordinate as i32 - 8;
-            let y = object.y_coordinate as i32 - 16;
-            if ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32 {
-                let character_data = self.read_dot_data(true, object.character_code);
+            let x = object.x_coordinate as i32 - CHARACTER_SIZE as i32;
+            let y = object.y_coordinate as i32 - (CHARACTER_SIZE as i32 * 2);
+            if ly as i32 >= y && (ly as i32) < y + sprite_height {
+                let vertical_flip = object.read_flag(LCDObjectAttributeFlag::VerticalFlip);
+                let horizantal_flip = object.read_flag(LCDObjectAttributeFlag::HorizantalFlip);
+
+                let (y, character_code) = if object_block_composition_selection {
+                    let first_code = object.character_code & !1;
+                    let second_code = object.character_code | 1;
+
+                    if (ly as i32) < y + CHARACTER_SIZE as i32 {
+                        (
+                            y,
+                            if vertical_flip {
+                                second_code
+                            } else {
+                                first_code
+                            },
+                        )
+                    } else {
+                        (
+                            y + CHARACTER_SIZE as i32,
+                            if vertical_flip {
+                                first_code
+                            } else {
+                                second_code
+                            },
+                        )
+                    }
+                } else {
+                    (y, object.character_code)
+                };
+
+                let character_data = self.read_dot_data(true, character_code);
                 character_data.draw_line(
                     self.canvas.as_mut().unwrap(),
                     x,
                     y,
                     ly,
-                    object.read_flag(LCDObjectAttributeFlag::VerticalFlip),
-                    object.read_flag(LCDObjectAttributeFlag::HorizantalFlip),
+                    vertical_flip,
+                    horizantal_flip,
                 );
             }
         }
