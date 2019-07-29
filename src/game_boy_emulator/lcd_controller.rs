@@ -78,10 +78,10 @@ enum LCDShade {
 
 fn color_for_shade(shade: LCDShade) -> sdl2::pixels::Color {
     match shade {
-        LCDShade::Shade0 => sdl2::pixels::Color::RGB(255, 255, 255),
-        LCDShade::Shade1 => sdl2::pixels::Color::RGB(105, 150, 150),
-        LCDShade::Shade2 => sdl2::pixels::Color::RGB(50, 50, 50),
-        LCDShade::Shade3 => sdl2::pixels::Color::RGB(0, 0, 0),
+        LCDShade::Shade0 => sdl2::pixels::Color::RGB(0x88, 0xc0, 0x70),
+        LCDShade::Shade1 => sdl2::pixels::Color::RGB(0x34, 0x68, 0x56),
+        LCDShade::Shade2 => sdl2::pixels::Color::RGB(0xe0, 0xf8, 0xd0),
+        LCDShade::Shade3 => sdl2::pixels::Color::RGB(0x08, 0x18, 0x20),
     }
 }
 
