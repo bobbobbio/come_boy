@@ -50,7 +50,7 @@ impl SwitchableBank {
     fn new(banks: Vec<MemoryChunk>) -> Self {
         SwitchableBank {
             banks,
-            current_bank: 1,
+            current_bank: 0,
         }
     }
 
@@ -70,11 +70,17 @@ impl SwitchableBank {
 
 impl MemoryMappedHardware for SwitchableBank {
     fn read_value(&self, address: u16) -> u8 {
-        self.banks[self.current_bank].read_value(address)
+        if self.current_bank >= self.banks.len() {
+            0xFF
+        } else {
+            self.banks[self.current_bank].read_value(address)
+        }
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        self.banks[self.current_bank].set_value(address, value);
+        if self.current_bank < self.banks.len() {
+            self.banks[self.current_bank].set_value(address, value);
+        }
     }
 }
 
