@@ -523,6 +523,7 @@ impl<'a> LCDController<'a> {
         scroll_y: i32,
         area_selection: bool,
         character_data_selection: bool,
+        wrap: bool,
     ) {
         if self.canvas.is_none() {
             return;
@@ -530,7 +531,7 @@ impl<'a> LCDController<'a> {
 
         let ly = self.registers.ly.read_value();
 
-        if scroll_y > ly as i32 {
+        if !wrap && (ly as i32) < scroll_y {
             return;
         }
 
@@ -539,7 +540,21 @@ impl<'a> LCDController<'a> {
             true => self.background_display_data_2.as_slice().iter(),
         };
 
-        let tile_y = (ly as i32 - scroll_y) / CHARACTER_SIZE as i32;
+        let tile_space_line_height =
+            BACKGROUND_DISPLAY_DATA_1.len() as i32 / CHARACTER_AREA_SIZE as i32;
+        let mut otile_y = (ly as i32 - scroll_y) / CHARACTER_SIZE as i32;
+
+        if scroll_y > ly as i32 && (ly as i32 - scroll_y) % CHARACTER_SIZE as i32 != 0 {
+            otile_y -= 1;
+        }
+
+        let tile_y = if otile_y < 0 {
+            (otile_y % tile_space_line_height) + tile_space_line_height
+        } else {
+            otile_y % tile_space_line_height
+        };
+        assert!(tile_y >= 0);
+
         let iter = iter
             .skip(tile_y as usize * CHARACTER_AREA_SIZE as usize)
             .take(CHARACTER_AREA_SIZE as usize)
@@ -547,16 +562,29 @@ impl<'a> LCDController<'a> {
 
         for (tile_x, character_code) in iter {
             let character_data = self.read_dot_data(character_data_selection, *character_code);
-            character_data.draw_line(
-                self.canvas.as_mut().unwrap(),
-                scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32),
-                scroll_y + (tile_y as i32 * CHARACTER_SIZE as i32),
-                ly,
-                false,
-                false,
-                false,
-                &self.registers.bgp,
-            );
+            let x = scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32);
+            let y = scroll_y + (otile_y * CHARACTER_SIZE as i32);
+            let tile_space_width = CHARACTER_AREA_SIZE as i32 * CHARACTER_SIZE as i32;
+            let full_xes = &[x, x - tile_space_width, x + tile_space_width];
+            let xes = if wrap {
+                full_xes.iter().take(3)
+            } else {
+                full_xes.iter().take(1)
+            };
+            for &ix in xes {
+                if (ix >= 0 || ix + CHARACTER_SIZE as i32 >= 0) && ix < 160 {
+                    character_data.draw_line(
+                        self.canvas.as_mut().unwrap(),
+                        ix,
+                        y,
+                        ly,
+                        false,
+                        false,
+                        false,
+                        &self.registers.bgp,
+                    );
+                }
+            }
         }
     }
 
@@ -698,6 +726,7 @@ impl<'a> LCDController<'a> {
             scroll_y,
             bg_area_selection,
             bg_character_data_selection,
+            true,
         );
     }
 
@@ -711,7 +740,7 @@ impl<'a> LCDController<'a> {
             .lcdc
             .read_flag(LCDControlFlag::WindowCodeAreaSelection);
         let (scroll_x, scroll_y) = self.get_window_origin_relative_to_lcd();
-        self.draw_tiles(scroll_x, scroll_y, window_area_selection, false);
+        self.draw_tiles(scroll_x, scroll_y, window_area_selection, false, false);
     }
 
     fn mode_3(&mut self, time: u64) {
