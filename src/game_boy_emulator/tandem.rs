@@ -1,11 +1,11 @@
 // Copyright 2018 Remi Bernotavicius
 
-use emulator_common::disassembler::Disassembler;
-use emulator_common::Intel8080Register;
-use game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
-use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
-use game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
+use crate::emulator_common::disassembler::Disassembler;
+use crate::emulator_common::Intel8080Register;
+use crate::game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
+use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
+use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
+use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
 use std::fmt::{self, Debug};
 use std::fs::File;
 use std::io::{self, Bytes, Read, Result, Write};

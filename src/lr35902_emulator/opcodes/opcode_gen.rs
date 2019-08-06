@@ -1,7 +1,7 @@
-use emulator_common::Intel8080Register;
-use lr35902_emulator::opcodes::LR35902InstructionPrinter;
+use crate::emulator_common::Intel8080Register;
+use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
+use crate::util::{read_u16, read_u8};
 use std::io;
-use util::{read_u16, read_u8};
 pub trait LR35902InstructionSet {
     fn add_immediate_to_accumulator(&mut self, data1: u8);
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8);

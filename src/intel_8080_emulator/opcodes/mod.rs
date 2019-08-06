@@ -3,17 +3,17 @@
 use std::io::{self, Result};
 use std::mem;
 
-mod opcode_gen;
-
-use emulator_common::disassembler::{
+use crate::emulator_common::disassembler::{
     Disassembler, InstructionPrinter, InstructionPrinterFactory, SimpleMemoryAccessor,
 };
-pub use intel_8080_emulator::opcodes::opcode_gen::{
+pub use crate::intel_8080_emulator::opcodes::opcode_gen::{
     dispatch_intel8080_instruction, get_intel8080_instruction, Intel8080InstructionSet,
 };
 
 #[cfg(test)]
-use emulator_common::disassembler::do_disassembler_test;
+use crate::emulator_common::disassembler::do_disassembler_test;
+
+mod opcode_gen;
 
 pub struct Intel8080InstructionPrinter<'a> {
     stream_out: &'a mut io::Write,

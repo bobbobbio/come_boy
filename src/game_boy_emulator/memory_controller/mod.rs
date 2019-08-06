@@ -1,7 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
 pub use self::memory_map::{GameBoyMemoryMap, GameBoyMemoryMapMut};
-pub use emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
 use std::marker::PhantomData;
 use std::ops::Range;
 

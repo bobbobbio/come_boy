@@ -5,12 +5,12 @@ pub mod opcodes;
 use std::collections::HashMap;
 use std::mem;
 
-use emulator_common::Intel8080Register;
-pub use intel_8080_emulator::opcodes::{
+use crate::emulator_common::Intel8080Register;
+pub use crate::intel_8080_emulator::opcodes::{
     disassemble_8080_rom, dispatch_intel8080_instruction, get_intel8080_instruction,
     Intel8080InstructionPrinterFactory, Intel8080InstructionSet,
 };
-use util::TwosComplement;
+use crate::util::TwosComplement;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;

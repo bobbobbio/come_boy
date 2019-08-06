@@ -2,17 +2,9 @@
 
 #![recursion_limit = "128"]
 
-extern crate serde;
-extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate quote;
-extern crate proc_macro2;
-extern crate syn;
-
 use proc_macro2::{Ident, Span, TokenStream};
-use quote::ToTokens;
+use quote::{quote, ToTokens};
+use serde_derive::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::{self, Display};
@@ -555,10 +547,10 @@ impl OpcodeGenerator {
         let use_path = &self.use_path;
         let printer_name = &self.printer_name;
         tokens.extend(quote!(
-            use emulator_common::Intel8080Register;
-            use #(#use_path)::*::#printer_name;
+            use crate::emulator_common::Intel8080Register;
+            use crate::#(#use_path)::*::#printer_name;
+            use crate::util::{read_u16, read_u8};
             use std::io;
-            use util::{read_u16, read_u8};
         ));
     }
 

@@ -3,23 +3,23 @@
 use std::io::{self, Result};
 use std::mem;
 
-mod opcode_gen;
-
-use emulator_common::disassembler::{
+use crate::emulator_common::disassembler::{
     Disassembler, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
     SimpleMemoryAccessor,
 };
-pub use lr35902_emulator::opcodes::opcode_gen::{
+pub use crate::lr35902_emulator::opcodes::opcode_gen::{
     dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet,
 };
 
 #[cfg(test)]
-use emulator_common::disassembler::do_disassembler_test;
+use crate::emulator_common::disassembler::do_disassembler_test;
 
 pub struct LR35902InstructionPrinter<'a> {
     stream_out: &'a mut io::Write,
     error: Result<()>,
 }
+
+mod opcode_gen;
 
 #[derive(Copy, Clone)]
 pub struct LR35902InstructionPrinterFactory;

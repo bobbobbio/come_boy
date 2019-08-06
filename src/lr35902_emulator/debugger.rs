@@ -3,11 +3,11 @@
 use std::fmt;
 use std::io::{self, Result};
 
-use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
-use emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};
-use emulator_common::Intel8080Register;
-use lr35902_emulator::opcodes::{dispatch_lr35902_instruction, get_lr35902_instruction};
-use lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
+use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
+use crate::emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};
+use crate::emulator_common::Intel8080Register;
+use crate::lr35902_emulator::opcodes::{dispatch_lr35902_instruction, get_lr35902_instruction};
+use crate::lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
 
 struct SimulatedInstructionLR35902<'a, M: MemoryAccessor> {
     emulator: &'a LR35902Emulator,

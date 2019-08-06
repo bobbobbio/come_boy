@@ -1,12 +1,12 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::memory_controller::MemoryMappedHardware;
-use crate::sdl2::keyboard::Keycode;
+use sdl2::keyboard::Keycode;
 
 #[derive(Debug)]
 pub enum KeyEvent {
-    Down(sdl2::keyboard::Keycode),
-    Up(sdl2::keyboard::Keycode),
+    Down(Keycode),
+    Up(Keycode),
 }
 
 enum JoypadFlag {

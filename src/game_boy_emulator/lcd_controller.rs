@@ -1,17 +1,15 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::sdl2;
-use std::iter;
-
-use game_boy_emulator::joypad_register::KeyEvent;
-use game_boy_emulator::memory_controller::{
+use crate::game_boy_emulator::joypad_register::KeyEvent;
+use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
-use game_boy_emulator::{
+use crate::game_boy_emulator::{
     BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
     CHARACTER_DATA_2, OAM_DATA, UNUSABLE_MEMORY,
 };
-use util::Scheduler;
+use crate::util::Scheduler;
+use std::iter;
 
 const CHARACTER_SIZE: u8 = 8;
 const CHARACTER_AREA_SIZE: u16 = 32;

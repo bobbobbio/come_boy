@@ -1,29 +1,28 @@
 // Copyright 2017 Remi Bernotavicius
 
-extern crate sdl2;
-
-pub mod debugger;
-mod opcodes;
-
+use crate::intel_8080_emulator::{
+    Intel8080Flag, Intel8080InstructionSet, Intel8080InstructionSetOps,
+};
+use crate::util::TwosComplement;
 use std::mem;
 
-pub use emulator_common::disassembler::{
+pub use crate::emulator_common::disassembler::{
     MemoryAccessor, MemoryIterator, MemoryStream, SimpleMemoryAccessor,
 };
-pub use emulator_common::Intel8080Register;
-use intel_8080_emulator::{Intel8080Flag, Intel8080InstructionSet, Intel8080InstructionSetOps};
-pub use lr35902_emulator::debugger::run_debugger;
-pub use lr35902_emulator::opcodes::disassemble_lr35902_rom;
-pub use lr35902_emulator::opcodes::{
+pub use crate::emulator_common::Intel8080Register;
+pub use crate::lr35902_emulator::debugger::run_debugger;
+pub use crate::lr35902_emulator::opcodes::disassemble_lr35902_rom;
+pub use crate::lr35902_emulator::opcodes::{
     dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet,
 };
-use util::TwosComplement;
 
 #[cfg(test)]
 use std::fs::File;
-
 #[cfg(test)]
 use std::io::Read;
+
+pub mod debugger;
+mod opcodes;
 
 /*  _     ____  _________  ___   ___ ____  _____                 _       _
  * | |   |  _ \|___ / ___|/ _ \ / _ \___ \| ____|_ __ ___  _   _| | __ _| |_ ___  _ __

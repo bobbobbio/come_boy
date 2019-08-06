@@ -1,9 +1,5 @@
 // Copyright 2017 Remi Bernotavicius
 
-extern crate clap;
-extern crate come_boy;
-extern crate structopt;
-
 use come_boy::game_boy_emulator::disassemble_game_boy_rom;
 use come_boy::intel_8080_emulator::disassemble_8080_rom;
 use come_boy::lr35902_emulator::disassemble_lr35902_rom;

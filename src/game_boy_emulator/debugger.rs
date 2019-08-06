@@ -1,14 +1,14 @@
 use std::io::{self, Result};
 use std::{fmt, str};
 
-use emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
-use emulator_common::disassembler::{Disassembler, MemoryAccessor};
-use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
-use game_boy_emulator::game_pak::GamePak;
-use game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
-use game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use game_boy_emulator::GameBoyEmulator;
-use lr35902_emulator::debugger::LR35902Debugger;
+use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
+use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor};
+use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
+use crate::game_boy_emulator::game_pak::GamePak;
+use crate::game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
+use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
+use crate::game_boy_emulator::GameBoyEmulator;
+use crate::lr35902_emulator::debugger::LR35902Debugger;
 
 impl<'a> fmt::Debug for GameBoyEmulator<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -92,15 +92,15 @@ fn fmt_lcd_register<'a>(
     name: &str,
     f: &mut fmt::Formatter,
 ) -> fmt::Result {
-    try!(write!(f, "{} ({:02x}): ", name, address));
+    write!(f, "{} ({:02x}): ", name, address)?;
 
     match name {
-        "LCDC" => try!(fmt_lcdc(value, f)),
-        "STAT" => try!(fmt_stat(value, f)),
-        _ => try!(write!(f, "{:02x}", value)),
+        "LCDC" => fmt_lcdc(value, f)?,
+        "STAT" => fmt_stat(value, f)?,
+        _ => write!(f, "{:02x}", value)?,
     }
 
-    try!(writeln!(f));
+    writeln!(f)?;
 
     Ok(())
 }

@@ -1,20 +1,18 @@
 // Copyright 2017 Remi Bernotavicius
 
-use emulator_common::disassembler::{Disassembler, MemoryAccessor, MemoryDescription};
+use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor, MemoryDescription};
 use std::io::{self, Result};
 
-mod rgbds_assembly;
-
-pub use game_boy_emulator::disassembler::rgbds_assembly::RGBDSInstructionPrinterFactory;
+pub use crate::game_boy_emulator::disassembler::rgbds_assembly::RGBDSInstructionPrinterFactory;
 
 #[cfg(test)]
+use crate::emulator_common::disassembler::SimpleMemoryAccessor;
+#[cfg(test)]
 use std::fmt::Write;
-
 #[cfg(test)]
 use std::str;
 
-#[cfg(test)]
-use emulator_common::disassembler::SimpleMemoryAccessor;
+mod rgbds_assembly;
 
 pub fn create_disassembler<'a>(
     memory_accessor: &'a MemoryAccessor,

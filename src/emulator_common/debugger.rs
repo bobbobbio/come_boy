@@ -24,9 +24,9 @@ impl SimulatedInstruction {
 
 pub trait DebuggerOps {
     fn read_memory(&self, address: u16) -> u8;
-    fn format<'a>(&self, &mut io::Write) -> io::Result<()>;
+    fn format<'a>(&self, _: &mut io::Write) -> io::Result<()>;
     fn next(&mut self);
-    fn simulate_next(&mut self, &mut SimulatedInstruction);
+    fn simulate_next(&mut self, _: &mut SimulatedInstruction);
     fn read_program_counter(&self) -> u16;
     fn read_call_stack(&self) -> Vec<u16>;
     fn crashed(&self) -> Option<&String>;

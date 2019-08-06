@@ -1,8 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
 use self::memory_map::{SoundControllerMemoryMap, SoundControllerMemoryMapMut};
-use game_boy_emulator::memory_controller::{MemoryAccessor, MemoryMappedHardware};
-use game_boy_emulator::{GameBoyRegister, MemoryChunk};
+use crate::game_boy_emulator::memory_controller::{MemoryAccessor, MemoryMappedHardware};
+use crate::game_boy_emulator::{GameBoyRegister, MemoryChunk};
 
 #[macro_use]
 mod memory_map;

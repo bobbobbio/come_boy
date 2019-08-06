@@ -1,7 +1,7 @@
-use emulator_common::Intel8080Register;
-use intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
+use crate::emulator_common::Intel8080Register;
+use crate::intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
+use crate::util::{read_u16, read_u8};
 use std::io;
-use util::{read_u16, read_u8};
 pub trait Intel8080InstructionSet {
     fn add_immediate_to_accumulator(&mut self, data1: u8);
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8);

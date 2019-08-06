@@ -1,8 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
-use emulator_common::disassembler::{InstructionPrinter, InstructionPrinterFactory};
-use emulator_common::Intel8080Register;
-pub use lr35902_emulator::{
+use crate::emulator_common::disassembler::{InstructionPrinter, InstructionPrinterFactory};
+use crate::emulator_common::Intel8080Register;
+pub use crate::lr35902_emulator::{
     dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet,
 };
 use std::io::Result;

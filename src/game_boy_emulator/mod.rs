@@ -1,5 +1,26 @@
 // Copyright 2017 Remi Bernotavicius
 
+use self::game_pak::GamePak;
+use self::joypad_register::JoyPadRegister;
+use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
+use self::memory_controller::{
+    FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
+};
+use self::sound_controller::SoundController;
+use crate::emulator_common::disassembler::MemoryAccessor;
+use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
+use crate::util::{super_fast_hash, Scheduler};
+use std::fmt::Debug;
+use std::io::{self, Result, Write};
+use std::ops::Range;
+use std::path::Path;
+
+pub use self::debugger::run_debugger;
+pub use self::disassembler::disassemble_game_boy_rom;
+
+#[cfg(test)]
+use crate::lr35902_emulator::{assert_blargg_test_rom_success, read_blargg_test_rom};
+
 #[macro_use]
 mod memory_controller;
 
@@ -10,24 +31,6 @@ mod joypad_register;
 mod lcd_controller;
 mod sound_controller;
 mod tandem;
-
-use self::game_pak::GamePak;
-use self::joypad_register::JoyPadRegister;
-use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
-use self::memory_controller::{
-    FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
-};
-use self::sound_controller::SoundController;
-use emulator_common::disassembler::MemoryAccessor;
-use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
-use std::fmt::Debug;
-use std::io::{self, Result, Write};
-use std::ops::Range;
-use std::path::Path;
-use util::{super_fast_hash, Scheduler};
-
-pub use self::debugger::run_debugger;
-pub use self::disassembler::disassemble_game_boy_rom;
 
 /*   ____                      ____              _____                 _       _
  *  / ___| __ _ _ __ ___   ___| __ )  ___  _   _| ____|_ __ ___  _   _| | __ _| |_ ___  _ __
@@ -477,9 +480,6 @@ fn initial_state_test() {
  *                    |___/ |___/
  *
  */
-
-#[cfg(test)]
-use lr35902_emulator::{assert_blargg_test_rom_success, read_blargg_test_rom};
 
 #[cfg(test)]
 fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {

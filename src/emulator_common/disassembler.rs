@@ -133,7 +133,7 @@ pub trait InstructionPrinter<'a> {
 
 pub trait InstructionPrinterFactory<'a> {
     type Output: InstructionPrinter<'a>;
-    fn new(&self, &'a mut io::Write) -> Self::Output;
+    fn new(&self, _: &'a mut io::Write) -> Self::Output;
 }
 
 /*  ____  _                                  _     _

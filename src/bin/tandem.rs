@@ -1,8 +1,5 @@
 // Copyright 2018 Remi Bernotavicius
 
-extern crate come_boy;
-extern crate structopt;
-
 use come_boy::game_boy_emulator;
 use std::fs::File;
 use std::io::{Read, Result};

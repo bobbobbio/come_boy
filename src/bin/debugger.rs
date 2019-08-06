@@ -1,11 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
-extern crate come_boy;
-extern crate nix;
-extern crate structopt;
-
-use self::nix::sys::signal;
 use come_boy::game_boy_emulator;
+use nix::sys::signal;
 use std::fs::File;
 use std::io::{Read, Result};
 use std::path::PathBuf;
