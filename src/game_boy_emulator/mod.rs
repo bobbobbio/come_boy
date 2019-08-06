@@ -11,9 +11,6 @@ mod lcd_controller;
 mod sound_controller;
 mod tandem;
 
-use std::io::{self, Write};
-use std::ops::Range;
-
 use self::game_pak::GamePak;
 use self::joypad_register::JoyPadRegister;
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
@@ -23,6 +20,10 @@ use self::memory_controller::{
 use self::sound_controller::SoundController;
 use emulator_common::disassembler::MemoryAccessor;
 use lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
+use std::fmt::Debug;
+use std::io::{self, Result, Write};
+use std::ops::Range;
+use std::path::Path;
 use util::{super_fast_hash, Scheduler};
 
 pub use self::debugger::run_debugger;
@@ -519,8 +520,12 @@ pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
     e.run();
 }
 
-pub fn run_in_tandem_with(other_emulator_path: &str, rom: &[u8], pc_only: bool) {
-    println!("loading {}", other_emulator_path);
+pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
+    other_emulator_path: P,
+    rom: &[u8],
+    pc_only: bool,
+) -> Result<()> {
+    println!("loading {:?}", &other_emulator_path);
 
-    tandem::run(other_emulator_path, rom, pc_only);
+    tandem::run(other_emulator_path, rom, pc_only)
 }

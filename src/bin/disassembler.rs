@@ -1,89 +1,71 @@
 // Copyright 2017 Remi Bernotavicius
 
-extern crate argparse;
+extern crate clap;
 extern crate come_boy;
-
-use argparse::{ArgumentParser, Store};
-use std::fs::File;
-use std::io::{ErrorKind, Read, Result};
-use std::process::exit;
+extern crate structopt;
 
 use come_boy::game_boy_emulator::disassemble_game_boy_rom;
 use come_boy::intel_8080_emulator::disassemble_8080_rom;
 use come_boy::lr35902_emulator::disassemble_lr35902_rom;
+use std::fs::File;
+use std::io::{Read, Result};
+use std::path::PathBuf;
+use std::str::FromStr;
+use structopt::StructOpt;
 
-macro_rules! println_stderr {
-    ($($arg:tt)*) => (
-        {
-            use std::io::prelude::*;
-            if let Err(_) = writeln!(&mut ::std::io::stderr(), "{}\n", format_args!($($arg)*)) {
-                panic!("Failed to write to stderr.")
-            }
-        }
-    )
+enum InstructionSet {
+    GameBoy,
+    LR35902,
+    Intel8080,
 }
 
-fn disassemble_rom(rom: &Vec<u8>, instruction_set: &String, include_opcodes: bool) -> Result<()> {
-    if instruction_set.to_uppercase() == "GAMEBOY" {
-        return disassemble_game_boy_rom(&rom, include_opcodes);
-    } else if instruction_set == "LR35902" {
-        return disassemble_lr35902_rom(&rom, include_opcodes);
-    } else if instruction_set == "8080" {
-        return disassemble_8080_rom(&rom, include_opcodes);
-    } else {
-        panic!("Unknown instruction set {}", instruction_set);
+impl FromStr for InstructionSet {
+    type Err = clap::Error;
+    fn from_str(s: &str) -> clap::Result<Self> {
+        match s.to_uppercase().as_ref() {
+            "GAMEBOY" => Ok(InstructionSet::GameBoy),
+            "LR35902" => Ok(InstructionSet::LR35902),
+            "INTEL8080" => Ok(InstructionSet::Intel8080),
+            _ => Err(clap::Error::with_description(
+                "invalid instruction-set",
+                clap::ErrorKind::InvalidValue,
+            )),
+        }
+    }
+}
+
+fn disassemble_rom(
+    rom: &[u8],
+    instruction_set: InstructionSet,
+    include_opcodes: bool,
+) -> Result<()> {
+    match instruction_set {
+        InstructionSet::GameBoy => disassemble_game_boy_rom(rom, include_opcodes),
+        InstructionSet::LR35902 => disassemble_lr35902_rom(rom, include_opcodes),
+        InstructionSet::Intel8080 => disassemble_8080_rom(rom, include_opcodes),
     }
 }
 
-fn read_rom_from_file(file_path: &String, mut rom: &mut Vec<u8>) -> Result<()> {
-    let mut file = File::open(&file_path)?;
-    file.read_to_end(&mut rom)?;
-    Ok(())
+#[derive(StructOpt)]
+#[structopt(
+    name = "Come Boy Disassembler",
+    about = "Game Boy / LR35902 / Intel 8080 disassembler"
+)]
+struct Options {
+    #[structopt(parse(from_os_str))]
+    rom: PathBuf,
+    #[structopt(long = "instruction-set")]
+    instruction_set: InstructionSet,
+    #[structopt(long = "hide-opcodes")]
+    hide_opcodes: bool,
 }
 
-fn main() {
-    // List of files
-    let mut files: Vec<String> = Vec::new();
-    let mut instruction_set = String::new();
-    let mut include_opcodes = true;
+fn main() -> Result<()> {
+    let options = Options::from_args();
 
-    // Parse the arguments
-    let mut ap = ArgumentParser::new();
-    ap.set_description("GameBoy/LR35902/8080 Dissasembler");
-    ap.refer(&mut instruction_set)
-        .add_option(
-            &["-i", "--instruction-set"],
-            Store,
-            "Instruction set to use (GameBoy / LR35902 / 8080)",
-        )
-        .required();
-    ap.refer(&mut include_opcodes).add_option(
-        &["-p", "--include-opcodes"],
-        Store,
-        "Include raw opcodes along with assembly",
-    );
-    ap.refer(&mut files)
-        .add_argument("files", argparse::Collect, "Files");
-    ap.parse_args_or_exit();
-    drop(ap);
+    let mut rom_file = File::open(&options.rom)?;
+    let mut rom: Vec<u8> = vec![];
+    rom_file.read_to_end(&mut rom)?;
 
-    let mut return_code = 0;
-    for file_path in &files {
-        let mut rom: Vec<u8> = vec![];
-        if let Err(e) = read_rom_from_file(file_path, &mut rom) {
-            println_stderr!("Failed to read file {}: {}", file_path, e);
-            return_code = 1;
-            continue;
-        }
-        if let Err(e) = disassemble_rom(&rom, &instruction_set, include_opcodes) {
-            match e.kind() {
-                ErrorKind::BrokenPipe => {}
-                _ => {
-                    println_stderr!("Error {}", e);
-                    return_code = 1;
-                }
-            }
-        }
-    }
-    exit(return_code);
+    disassemble_rom(&rom, options.instruction_set, !options.hide_opcodes)
 }

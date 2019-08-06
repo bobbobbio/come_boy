@@ -10,7 +10,8 @@ homepage = "https://github.com/bobbobbio/come_boy"
 travis-ci = { repository = "bobbobbio/come_boy" }
 
 [dependencies]
-argparse = "0.2.1"
+clap = "*"
+structopt = "*"
 sdl2 = "0.32.*"
 nix = "*"
 

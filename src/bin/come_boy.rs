@@ -1,35 +1,31 @@
 // Copyright 2017 Remi Bernotavicius
 
-extern crate argparse;
 extern crate come_boy;
-
-use argparse::ArgumentParser;
-use std::fs::File;
-use std::io::Read;
+extern crate structopt;
 
 use come_boy::game_boy_emulator;
+use std::fs::File;
+use std::io::{Read, Result};
+use std::path::PathBuf;
+use structopt::StructOpt;
 
-fn main() {
-    // List of files
-    let mut files: Vec<String> = Vec::new();
+#[derive(StructOpt)]
+#[structopt(name = "Come Boy", about = "Game Boy (DMG) emulator")]
+struct Options {
+    #[structopt(parse(from_os_str))]
+    rom: PathBuf,
+    #[structopt(long = "scale", default_value = "4")]
+    scale: u32,
+}
 
-    // Scale
-    let mut scale: u32 = 4;
+fn main() -> Result<()> {
+    let options = Options::from_args();
 
-    // Parse the arguments
-    let mut ap = ArgumentParser::new();
-    ap.set_description("Game Boy (DMG) Emulator");
-    ap.refer(&mut files)
-        .add_argument("files", argparse::Collect, "Files");
-    ap.refer(&mut scale)
-        .add_option(&["--scale"], argparse::Store, "Scale");
-    ap.parse_args_or_exit();
-    drop(ap);
+    let mut rom_file = File::open(&options.rom)?;
+    let mut rom: Vec<u8> = vec![];
+    rom_file.read_to_end(&mut rom)?;
 
-    for arg in &files {
-        let mut file = File::open(&arg).unwrap();
-        let mut rom: Vec<u8> = vec![];
-        file.read_to_end(&mut rom).unwrap();
-        game_boy_emulator::run_emulator(&rom, scale);
-    }
+    game_boy_emulator::run_emulator(&rom, options.scale);
+
+    Ok(())
 }

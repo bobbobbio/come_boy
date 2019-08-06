@@ -6,10 +6,11 @@ use game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
 use game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
-
+use std::fmt::{self, Debug};
 use std::fs::File;
-use std::io::{self, Bytes, Read, Write};
-use std::{fmt, str};
+use std::io::{self, Bytes, Read, Result, Write};
+use std::path::Path;
+use std::str;
 
 #[derive(Clone, Copy, Default, PartialEq)]
 struct AbstractEmulatorRegisters {
@@ -54,7 +55,7 @@ pub fn fmt_flags(flags: u8, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "0x{:02x}: {:?}", flags, set)
 }
 
-impl fmt::Debug for AbstractEmulatorRegisters {
+impl Debug for AbstractEmulatorRegisters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let le = if f.alternate() { "\n" } else { "" };
         let sep = if f.alternate() { "    " } else { " " };
@@ -485,8 +486,8 @@ fn print_memory_diff(a: &[u8], b: &[u8]) {
     print_hex(b, start, end, |addr| a[addr] != b[addr]);
 }
 
-pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
-    let f = File::open(replay_file_path).unwrap();
+pub fn run<P: AsRef<Path> + Debug>(replay_file_path: P, rom: &[u8], pc_only: bool) -> Result<()> {
+    let f = File::open(&replay_file_path)?;
     let mut e1 = EmulatorReplayer::new(&f);
 
     let mut e2 = GameBoyEmulator::new(4);
@@ -495,7 +496,7 @@ pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);
 
     println!("differed after {} runs", runs);
-    println!("Replay from path {}:", replay_file_path);
+    println!("Replay from path {:?}:", &replay_file_path);
     println!("{:#?}", a);
     println!("Comeboy:");
     println!("{:#?}", b);
@@ -518,4 +519,5 @@ pub fn run(replay_file_path: &str, rom: &[u8], pc_only: bool) {
     e2.write_memory(&mut memory_b).unwrap();
 
     print_memory_diff(&memory_a[..], &memory_b[..]);
+    Ok(())
 }
