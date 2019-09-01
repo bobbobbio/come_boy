@@ -15,7 +15,7 @@ pub use crate::lr35902_emulator::opcodes::opcode_gen::{
 use crate::emulator_common::disassembler::do_disassembler_test;
 
 pub struct LR35902InstructionPrinter<'a> {
-    stream_out: &'a mut io::Write,
+    stream_out: &'a mut dyn io::Write,
     error: Result<()>,
 }
 
@@ -26,7 +26,7 @@ pub struct LR35902InstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {
     type Output = LR35902InstructionPrinter<'a>;
-    fn new(&self, stream_out: &'a mut io::Write) -> LR35902InstructionPrinter<'a> {
+    fn new(&self, stream_out: &'a mut dyn io::Write) -> LR35902InstructionPrinter<'a> {
         return LR35902InstructionPrinter {
             stream_out: stream_out,
             error: Ok(()),
@@ -45,8 +45,8 @@ impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
 }
 
 pub fn create_disassembler<'a>(
-    ma: &'a MemoryAccessor,
-    stream_out: &'a mut io::Write,
+    ma: &'a dyn MemoryAccessor,
+    stream_out: &'a mut dyn io::Write,
 ) -> Disassembler<'a, LR35902InstructionPrinterFactory> {
     Disassembler::new(ma, LR35902InstructionPrinterFactory, stream_out)
 }

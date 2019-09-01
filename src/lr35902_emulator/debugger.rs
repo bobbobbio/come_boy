@@ -141,7 +141,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
         self.memory_accessor.read_memory(address)
     }
 
-    fn format<'b>(&self, s: &'b mut io::Write) -> Result<()> {
+    fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
         writeln!(s, "{:?}", &self.emulator)
     }
 
@@ -178,7 +178,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
         self.emulator.set_program_counter(address)
     }
 
-    fn disassemble(&mut self, _address: u16, _f: &mut io::Write) -> Result<()> {
+    fn disassemble(&mut self, _address: u16, _f: &mut dyn io::Write) -> Result<()> {
         Ok(())
     }
 
@@ -187,7 +187,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
     }
 }
 
-pub fn run_debugger(rom: &[u8], is_interrupted: &Fn() -> bool) {
+pub fn run_debugger(rom: &[u8], is_interrupted: &dyn Fn() -> bool) {
     let mut ma = SimpleMemoryAccessor::new();
     ma.memory[0..rom.len()].clone_from_slice(rom);
     let mut e = LR35902Emulator::new();

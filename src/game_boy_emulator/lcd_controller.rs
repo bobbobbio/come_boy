@@ -203,6 +203,7 @@ struct LCDObject {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum LCDObjectAttributeFlag {
+    #[allow(dead_code)]
     DisplayPriority = 0b10000000,
     VerticalFlip = 0b01000000,
     HorizantalFlip = 0b00100000,

@@ -543,7 +543,7 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
 #[test]
 fn can_set_and_read_memory() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.set_memory(0x1122, 0x88);
         assert_eq!(e.read_memory(0x1122), 0x88);
     });
@@ -552,7 +552,7 @@ fn can_set_and_read_memory() {
 #[test]
 fn can_set_and_read_memory_16_bit() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.set_memory_u16(0x1122, 0x2233);
         assert_eq!(e.read_memory_u16(0x1122), 0x2233);
     });
@@ -561,7 +561,7 @@ fn can_set_and_read_memory_16_bit() {
 #[test]
 fn can_set_and_read_regiser() {
     instruction_test(|e| {
-        let e: &mut Intel8080InstructionSetOps = e;
+        let e: &mut dyn Intel8080InstructionSetOps = e;
         e.set_register(Intel8080Register::A, 0x45);
         assert_eq!(e.read_register(Intel8080Register::A), 0x45);
     });
@@ -570,7 +570,7 @@ fn can_set_and_read_regiser() {
 #[test]
 fn can_set_and_read_regiser_pair() {
     instruction_test(|e| {
-        let e: &mut Intel8080InstructionSetOps = e;
+        let e: &mut dyn Intel8080InstructionSetOps = e;
         e.set_register_pair(Intel8080Register::B, 0x4523);
         assert_eq!(e.read_register_pair(Intel8080Register::B), 0x4523);
     });
@@ -579,7 +579,7 @@ fn can_set_and_read_regiser_pair() {
 #[test]
 fn perform_addition() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         assert_eq!(
             e.perform_addition(0x33, 0x11, false /* update carry */),
             0x44
@@ -590,7 +590,7 @@ fn perform_addition() {
 #[test]
 fn perform_addition_with_overflow() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         assert_eq!(
             e.perform_addition(0xF3, 0x11, false /* update carry */),
             0x04
@@ -601,7 +601,7 @@ fn perform_addition_with_overflow() {
 #[test]
 fn perform_addition_sets_zero_flag() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_addition(0xF3, 0x0D, false /* update carry */);
         assert!(e.read_flag(LR35902Flag::Zero));
     });
@@ -610,7 +610,7 @@ fn perform_addition_sets_zero_flag() {
 #[test]
 fn perform_addition_sets_half_carry() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_addition(0x0F, 0x01, false /* update carry */);
         assert!(e.read_flag(LR35902Flag::HalfCarry));
     });
@@ -619,7 +619,7 @@ fn perform_addition_sets_half_carry() {
 #[test]
 fn perform_addition_clears_subtract_flag() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.set_flag(LR35902Flag::Subtract, true);
         e.perform_addition(0x0D, 0x01, false /* update carry */);
         assert!(!e.read_flag(LR35902Flag::Subtract));
@@ -629,7 +629,7 @@ fn perform_addition_clears_subtract_flag() {
 #[test]
 fn perform_addition_does_not_set_carry() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_addition(0xFF, 0x01, false /* update carry */);
         assert!(!e.read_flag(LR35902Flag::Carry));
     });
@@ -638,7 +638,7 @@ fn perform_addition_does_not_set_carry() {
 #[test]
 fn perform_addition_clears_carry() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.set_flag(LR35902Flag::Carry, true);
         e.perform_addition(0xF1, 0x01, true /* update carry */);
         assert!(!e.read_flag(LR35902Flag::Carry));
@@ -648,7 +648,7 @@ fn perform_addition_clears_carry() {
 #[test]
 fn perform_addition_sets_carry() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_addition(0xFF, 0x01, true /* update carry */);
         assert!(e.read_flag(LR35902Flag::Carry));
     });
@@ -657,7 +657,7 @@ fn perform_addition_sets_carry() {
 #[test]
 fn perform_subtraction() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         assert_eq!(e.perform_subtraction(0x12, 0x11), 0x01);
     });
 }
@@ -665,7 +665,7 @@ fn perform_subtraction() {
 #[test]
 fn perform_subtraction_with_underflow() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         assert_eq!(e.perform_subtraction(0x12, 0x13), 0xFF);
     });
 }
@@ -673,7 +673,7 @@ fn perform_subtraction_with_underflow() {
 #[test]
 fn perform_subtraction_sets_zero_flag() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_subtraction(0x12, 0x12);
         assert!(e.read_flag(LR35902Flag::Zero));
     });
@@ -682,7 +682,7 @@ fn perform_subtraction_sets_zero_flag() {
 #[test]
 fn perform_subtraction_sets_subtract_flag() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_subtraction(0x12, 0x04);
         assert!(e.read_flag(LR35902Flag::Subtract));
     });
@@ -691,7 +691,7 @@ fn perform_subtraction_sets_subtract_flag() {
 #[test]
 fn perform_subtraction_sets_half_carry_flag() {
     instruction_test(|e| {
-        let e: &mut LR35902InstructionSetOps = e;
+        let e: &mut dyn LR35902InstructionSetOps = e;
         e.perform_subtraction(0x03, 0x04);
         assert!(e.read_flag(LR35902Flag::HalfCarry));
     });

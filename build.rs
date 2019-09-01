@@ -152,7 +152,7 @@ impl Error for ParseOpcodeArgumentError {
     fn description(&self) -> &str {
         ""
     }
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }
@@ -210,7 +210,7 @@ impl Error for OpcodeCodeParseError {
     fn description(&self) -> &str {
         &self.message
     }
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }
@@ -758,7 +758,7 @@ impl Error for ParseAddressRangeError {
     fn description(&self) -> &str {
         &self.message
     }
-    fn cause(&self) -> Option<&Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }

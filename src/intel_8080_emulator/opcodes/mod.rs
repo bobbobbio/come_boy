@@ -16,7 +16,7 @@ use crate::emulator_common::disassembler::do_disassembler_test;
 mod opcode_gen;
 
 pub struct Intel8080InstructionPrinter<'a> {
-    stream_out: &'a mut io::Write,
+    stream_out: &'a mut dyn io::Write,
     error: Result<()>,
 }
 
@@ -25,7 +25,7 @@ pub struct Intel8080InstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for Intel8080InstructionPrinterFactory {
     type Output = Intel8080InstructionPrinter<'a>;
-    fn new(&self, stream_out: &'a mut io::Write) -> Intel8080InstructionPrinter<'a> {
+    fn new(&self, stream_out: &'a mut dyn io::Write) -> Intel8080InstructionPrinter<'a> {
         return Intel8080InstructionPrinter {
             stream_out: stream_out,
             error: Ok(()),

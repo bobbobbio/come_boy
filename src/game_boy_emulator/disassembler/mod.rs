@@ -15,8 +15,8 @@ use std::str;
 mod rgbds_assembly;
 
 pub fn create_disassembler<'a>(
-    memory_accessor: &'a MemoryAccessor,
-    stream_out: &'a mut io::Write,
+    memory_accessor: &'a dyn MemoryAccessor,
+    stream_out: &'a mut dyn io::Write,
 ) -> Disassembler<'a, RGBDSInstructionPrinterFactory> {
     Disassembler::new(memory_accessor, RGBDSInstructionPrinterFactory, stream_out)
 }

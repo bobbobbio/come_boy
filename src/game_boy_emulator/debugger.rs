@@ -26,7 +26,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
         memory_map.read_memory(address)
     }
 
-    fn format<'b>(&self, s: &'b mut io::Write) -> Result<()> {
+    fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
         write!(s, "{:?}", self)
     }
 
@@ -52,7 +52,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
         self.cpu.set_program_counter(address)
     }
 
-    fn disassemble(&mut self, address: u16, f: &mut io::Write) -> Result<()> {
+    fn disassemble(&mut self, address: u16, f: &mut dyn io::Write) -> Result<()> {
         let mut buffer = vec![];
         let memory_map = game_boy_memory_map!(self);
         let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
@@ -145,7 +145,7 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, " Mode{}", stat & 0x3)
 }
 
-pub fn run_debugger(rom: &[u8], scale: u32, is_interrupted: &Fn() -> bool) {
+pub fn run_debugger(rom: &[u8], scale: u32, is_interrupted: &dyn Fn() -> bool) {
     let mut e = GameBoyEmulator::new(scale);
     e.load_game_pak(GamePak::from(&rom));
     let stdin = &mut io::stdin();

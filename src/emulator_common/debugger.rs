@@ -24,14 +24,14 @@ impl SimulatedInstruction {
 
 pub trait DebuggerOps {
     fn read_memory(&self, address: u16) -> u8;
-    fn format<'a>(&self, _: &mut io::Write) -> io::Result<()>;
+    fn format<'a>(&self, _: &mut dyn io::Write) -> io::Result<()>;
     fn next(&mut self);
     fn simulate_next(&mut self, _: &mut SimulatedInstruction);
     fn read_program_counter(&self) -> u16;
     fn read_call_stack(&self) -> Vec<u16>;
     fn crashed(&self) -> Option<&String>;
     fn set_program_counter(&mut self, address: u16);
-    fn disassemble(&mut self, address: u16, f: &mut io::Write) -> io::Result<()>;
+    fn disassemble(&mut self, address: u16, f: &mut dyn io::Write) -> io::Result<()>;
 }
 
 #[derive(Debug)]
@@ -50,7 +50,7 @@ impl error::Error for ParseError {
         &self.message
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
@@ -72,21 +72,21 @@ impl From<num::ParseIntError> for ParseError {
 type Result<T> = result::Result<T, ParseError>;
 
 pub struct Debugger<'a> {
-    emulator: &'a mut DebuggerOps,
+    emulator: &'a mut dyn DebuggerOps,
     running: bool,
     last_command: String,
     breakpoint: Option<u16>,
     watchpoint: Option<u16>,
     logging: bool,
-    input: &'a mut io::BufRead,
-    out: &'a mut io::Write,
+    input: &'a mut dyn io::BufRead,
+    out: &'a mut dyn io::Write,
 }
 
 impl<'a> Debugger<'a> {
     pub fn new(
-        input: &'a mut io::BufRead,
-        out: &'a mut io::Write,
-        emulator: &'a mut DebuggerOps,
+        input: &'a mut dyn io::BufRead,
+        out: &'a mut dyn io::Write,
+        emulator: &'a mut dyn DebuggerOps,
     ) -> Debugger<'a> {
         Debugger {
             emulator: emulator,
@@ -124,7 +124,7 @@ impl<'a> Debugger<'a> {
         return true;
     }
 
-    fn check_for_breakpoint_crash_or_interrupt(&mut self, is_interrupted: &Fn() -> bool) -> bool {
+    fn check_for_breakpoint_crash_or_interrupt(&mut self, is_interrupted: &dyn Fn() -> bool) -> bool {
         if self.emulator.crashed().is_some() {
             writeln!(
                 self.out,
@@ -173,7 +173,7 @@ impl<'a> Debugger<'a> {
         self.watchpoint = Some(address);
     }
 
-    fn run_emulator(&mut self, is_interrupted: &Fn() -> bool) {
+    fn run_emulator(&mut self, is_interrupted: &dyn Fn() -> bool) {
         self.emulator.next();
         if self.logging {
             self.state();
@@ -193,7 +193,7 @@ impl<'a> Debugger<'a> {
 
     fn parse_string<'b>(
         &mut self,
-        iter: &mut Iterator<Item = &'b str>,
+        iter: &mut dyn Iterator<Item = &'b str>,
         message: &str,
     ) -> Result<&'b str> {
         match iter.next() {
@@ -202,7 +202,7 @@ impl<'a> Debugger<'a> {
         }
     }
 
-    fn parse_address(&mut self, iter: &mut Iterator<Item = &str>) -> Result<u16> {
+    fn parse_address(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<u16> {
         Ok(u16::from_str_radix(
             self.parse_string(iter, "provide an address")?,
             16,
@@ -248,13 +248,13 @@ impl<'a> Debugger<'a> {
         }
     }
 
-    fn parse_backtrace(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_backtrace(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         self.parse_end(iter)?;
         self.backtrace();
         Ok(())
     }
 
-    fn parse_end(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_end(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         if iter.next().is_some() {
             Err(ParseError::new("extra input".into()))
         } else {
@@ -262,13 +262,13 @@ impl<'a> Debugger<'a> {
         }
     }
 
-    fn parse_state(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_state(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         self.parse_end(iter)?;
         self.state();
         Ok(())
     }
 
-    fn parse_disassemble(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_disassemble(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let mut address = self.emulator.read_program_counter();
         if let Some(v) = iter.next() {
             address = u16::from_str_radix(v, 16)?;
@@ -278,7 +278,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn parse_next(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_next(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let mut times = 1;
         if let Some(v) = iter.next() {
             times = v.parse()?;
@@ -292,7 +292,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn parse_exit(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_exit(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         self.parse_end(iter)?;
         self.exit();
         Ok(())
@@ -300,15 +300,15 @@ impl<'a> Debugger<'a> {
 
     fn parse_run(
         &mut self,
-        iter: &mut Iterator<Item = &str>,
-        is_interrupted: &Fn() -> bool,
+        iter: &mut dyn Iterator<Item = &str>,
+        is_interrupted: &dyn Fn() -> bool,
     ) -> Result<()> {
         self.parse_end(iter)?;
         self.run_emulator(is_interrupted);
         Ok(())
     }
 
-    fn parse_break(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_break(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let address = self.parse_address(iter)?;
         self.parse_end(iter)?;
 
@@ -316,7 +316,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn parse_watch(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_watch(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let address = self.parse_address(iter)?;
         self.parse_end(iter)?;
 
@@ -324,7 +324,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn parse_logging(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_logging(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let help_msg = "Choices are 'enable' or 'disable'";
         let command = self.parse_string(iter, help_msg)?;
         self.parse_end(iter)?;
@@ -339,7 +339,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn parse_set(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_set(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let operand = self.parse_string(iter, "provide an operand")?;
         if operand != "pc" {
             return Err(ParseError::new(format!("unknown operand {}", operand)));
@@ -351,7 +351,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn parse_x(&mut self, iter: &mut Iterator<Item = &str>) -> Result<()> {
+    fn parse_x(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let address = self.parse_address(iter)?;
         self.parse_end(iter)?;
 
@@ -362,7 +362,7 @@ impl<'a> Debugger<'a> {
     fn dispatch_command_inner(
         &mut self,
         command: &str,
-        is_interrupted: &Fn() -> bool,
+        is_interrupted: &dyn Fn() -> bool,
     ) -> Result<()> {
         let mut iter = command.split_whitespace();
         let func = self.parse_string(&mut iter, "empty command")?;
@@ -385,7 +385,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn dispatch_command(&mut self, command: &str, is_interrupted: &Fn() -> bool) -> Result<()> {
+    fn dispatch_command(&mut self, command: &str, is_interrupted: &dyn Fn() -> bool) -> Result<()> {
         let mut command: String = command.into();
         if command == "" {
             command = self.last_command.clone();
@@ -400,7 +400,7 @@ impl<'a> Debugger<'a> {
         Ok(())
     }
 
-    fn process_command(&mut self, is_interrupted: &Fn() -> bool) {
+    fn process_command(&mut self, is_interrupted: &dyn Fn() -> bool) {
         write!(self.out, "(debugger) ").unwrap();
         self.out.flush().unwrap();
 
@@ -420,7 +420,7 @@ impl<'a> Debugger<'a> {
         };
     }
 
-    pub fn run(&mut self, is_interrupted: &Fn() -> bool) {
+    pub fn run(&mut self, is_interrupted: &dyn Fn() -> bool) {
         self.running = true;
         while self.running {
             self.process_command(is_interrupted);
@@ -459,7 +459,7 @@ impl DebuggerOps for TestDebuggerOps {
         }
     }
 
-    fn format<'a>(&self, s: &'a mut io::Write) -> io::Result<()> {
+    fn format<'a>(&self, s: &'a mut dyn io::Write) -> io::Result<()> {
         write!(s, "TestDebuggerOps pc={:x}", self.current_address)
     }
 
@@ -487,7 +487,7 @@ impl DebuggerOps for TestDebuggerOps {
         self.current_address = address
     }
 
-    fn disassemble(&mut self, address: u16, f: &mut io::Write) -> io::Result<()> {
+    fn disassemble(&mut self, address: u16, f: &mut dyn io::Write) -> io::Result<()> {
         write!(f, "assembly at {:02x}", address)
     }
 
@@ -497,7 +497,7 @@ impl DebuggerOps for TestDebuggerOps {
 }
 
 #[cfg(test)]
-fn run_debugger_test_with_ops(ops: &mut DebuggerOps, input: &[&str], expected_output: &str) {
+fn run_debugger_test_with_ops(ops: &mut dyn DebuggerOps, input: &[&str], expected_output: &str) {
     let mut output_bytes = vec![];
     let input_str = input.join("\n") + "\n";
     let mut input_bytes = input_str.as_bytes();

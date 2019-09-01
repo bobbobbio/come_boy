@@ -106,7 +106,7 @@ struct AbstractEmulatorState {
 trait AbstractEmulator {
     fn run_one(&mut self);
     fn get_state(&self) -> Option<AbstractEmulatorState>;
-    fn write_memory(&self, w: &mut Write) -> io::Result<()>;
+    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()>;
 }
 
 fn compare_emulators<A: AbstractEmulator, B: AbstractEmulator>(
@@ -169,7 +169,7 @@ impl AbstractEmulator for TestEmulator {
         Some(self.state)
     }
 
-    fn write_memory(&self, _w: &mut Write) -> io::Result<()> {
+    fn write_memory(&self, _w: &mut dyn Write) -> io::Result<()> {
         Ok(())
     }
 }
@@ -310,7 +310,7 @@ impl<'a> AbstractEmulator for GameBoyEmulator<'a> {
         })
     }
 
-    fn write_memory(&self, w: &mut Write) -> io::Result<()> {
+    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()> {
         self.write_memory(w)
     }
 }
@@ -405,7 +405,7 @@ impl<R: Read> AbstractEmulator for EmulatorReplayer<R> {
         self.state
     }
 
-    fn write_memory(&self, w: &mut Write) -> io::Result<()> {
+    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()> {
         w.write(&self.memory)?;
         Ok(())
     }

@@ -411,7 +411,7 @@ impl<'a> GameBoyEmulator<'a> {
         }
     }
 
-    fn write_memory(&self, w: &mut Write) -> io::Result<()> {
+    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()> {
         let memory_map = game_boy_memory_map!(self);
         let mut mem = [0u8; 0x10000];
         for i in 0..0x10000 {

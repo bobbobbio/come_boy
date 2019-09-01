@@ -9,7 +9,7 @@ use std::io::Result;
 use std::{io, mem};
 
 pub struct RGBDSInstructionPrinter<'a> {
-    stream_out: &'a mut io::Write,
+    stream_out: &'a mut dyn io::Write,
     error: Result<()>,
     address: u16,
 }
@@ -19,7 +19,7 @@ pub struct RGBDSInstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for RGBDSInstructionPrinterFactory {
     type Output = RGBDSInstructionPrinter<'a>;
-    fn new(&self, stream_out: &'a mut io::Write) -> RGBDSInstructionPrinter<'a> {
+    fn new(&self, stream_out: &'a mut dyn io::Write) -> RGBDSInstructionPrinter<'a> {
         return RGBDSInstructionPrinter {
             stream_out: stream_out,
             error: Ok(()),

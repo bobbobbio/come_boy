@@ -304,7 +304,7 @@ pub struct Intel8080Emulator<'a> {
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16,
     interrupts_enabled: bool,
-    call_table: HashMap<u16, &'a mut FnMut(&mut Intel8080Emulator)>,
+    call_table: HashMap<u16, &'a mut dyn FnMut(&mut Intel8080Emulator)>,
     call_stack: Vec<u16>,
 }
 
@@ -3074,7 +3074,7 @@ use std::io::{self, Read};
 use std::str;
 
 #[cfg(test)]
-fn console_print(e: &mut Intel8080Emulator, stream: &mut io::Write) {
+fn console_print(e: &mut Intel8080Emulator, stream: &mut dyn io::Write) {
     match e.read_register(Intel8080Register::C) {
         9 => {
             let mut msg_addr = e.read_register_pair(Intel8080Register::D) as usize;

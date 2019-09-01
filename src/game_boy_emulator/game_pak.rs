@@ -315,7 +315,7 @@ impl CartridgeRam for NonVolatileRam {
 
 pub struct GamePak {
     title: String,
-    mbc: Box<MemoryBankController>,
+    mbc: Box<dyn MemoryBankController>,
 }
 
 impl MemoryMappedHardware for GamePak {
@@ -416,7 +416,7 @@ impl GamePak {
          *  0xFF  HuC1+RAM+BATTERY
          */
 
-        let mbc: Box<MemoryBankController> = match rom[MBC_TYPE_ADDRESS] {
+        let mbc: Box<dyn MemoryBankController> = match rom[MBC_TYPE_ADDRESS] {
             0x00 => {
                 assert_eq!(number_of_banks, 2);
                 Box::new(MemoryBankController0::new(banks))

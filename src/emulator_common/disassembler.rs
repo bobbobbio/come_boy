@@ -37,12 +37,12 @@ pub trait MemoryAccessor {
 }
 
 pub struct MemoryStream<'a> {
-    memory_accessor: &'a MemoryAccessor,
+    memory_accessor: &'a dyn MemoryAccessor,
     index: u16,
 }
 
 impl<'a> MemoryStream<'a> {
-    pub fn new(memory_accessor: &'a MemoryAccessor, index: u16) -> MemoryStream<'a> {
+    pub fn new(memory_accessor: &'a dyn MemoryAccessor, index: u16) -> MemoryStream<'a> {
         return MemoryStream {
             memory_accessor: memory_accessor,
             index: index,
@@ -62,7 +62,7 @@ impl<'a> io::Read for MemoryStream<'a> {
 }
 
 pub struct MemoryIterator<'a> {
-    memory_accessor: &'a MemoryAccessor,
+    memory_accessor: &'a dyn MemoryAccessor,
     current_address: u16,
     ending_address: u16,
 }
@@ -82,7 +82,7 @@ impl<'a> Iterator for MemoryIterator<'a> {
 }
 
 impl<'a> MemoryIterator<'a> {
-    pub fn new(memory_accessor: &'a MemoryAccessor, range: Range<u16>) -> MemoryIterator {
+    pub fn new(memory_accessor: &'a dyn MemoryAccessor, range: Range<u16>) -> MemoryIterator {
         assert!(range.start < range.end);
         return MemoryIterator {
             memory_accessor: memory_accessor,
@@ -133,7 +133,7 @@ pub trait InstructionPrinter<'a> {
 
 pub trait InstructionPrinterFactory<'a> {
     type Output: InstructionPrinter<'a>;
-    fn new(&self, _: &'a mut io::Write) -> Self::Output;
+    fn new(&self, _: &'a mut dyn io::Write) -> Self::Output;
 }
 
 /*  ____  _                                  _     _
@@ -146,16 +146,16 @@ pub trait InstructionPrinterFactory<'a> {
 
 pub struct Disassembler<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> {
     pub index: u16,
-    memory_accessor: &'a MemoryAccessor,
+    memory_accessor: &'a dyn MemoryAccessor,
     opcode_printer_factory: PF,
-    stream_out: &'a mut io::Write,
+    stream_out: &'a mut dyn io::Write,
 }
 
 impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> {
     pub fn new(
-        memory_accessor: &'a MemoryAccessor,
+        memory_accessor: &'a dyn MemoryAccessor,
         opcode_printer_factory: PF,
-        stream_out: &'a mut io::Write,
+        stream_out: &'a mut dyn io::Write,
     ) -> Disassembler<'a, PF> {
         return Disassembler {
             index: 0,
@@ -314,7 +314,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
 
 #[cfg(test)]
 struct TestInstructionPrinter<'a> {
-    stream_out: &'a mut io::Write,
+    stream_out: &'a mut dyn io::Write,
 }
 
 #[cfg(test)]
@@ -350,7 +350,7 @@ struct TestInstructionPrinterFactory;
 #[cfg(test)]
 impl<'a> InstructionPrinterFactory<'a> for TestInstructionPrinterFactory {
     type Output = TestInstructionPrinter<'a>;
-    fn new(&self, stream_out: &'a mut io::Write) -> TestInstructionPrinter<'a> {
+    fn new(&self, stream_out: &'a mut dyn io::Write) -> TestInstructionPrinter<'a> {
         return TestInstructionPrinter {
             stream_out: stream_out,
         };
