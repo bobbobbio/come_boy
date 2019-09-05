@@ -38,3 +38,24 @@ pub trait Renderer {
     fn fill_rect(&mut self, x: i32, y: i32, w: u32, h: u32);
     fn present(&mut self);
 }
+
+pub struct NullRenderer;
+
+impl Renderer for NullRenderer {
+    type Color = ();
+
+    fn start(&mut self, _: u32) {}
+    fn poll_events(&mut self) -> Vec<Event> {
+        vec![]
+    }
+    fn save_buffer<P: AsRef<Path>>(&self, _: P, _: u32) -> Result<()> {
+        Ok(())
+    }
+    fn set_draw_color(&mut self, _: Self::Color) {}
+    fn fill_rect(&mut self, _: i32, _: i32, _: u32, _: u32) {}
+    fn present(&mut self) {}
+}
+
+impl Color for () {
+    fn new(_: u8, _: u8, _: u8) {}
+}

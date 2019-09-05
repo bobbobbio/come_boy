@@ -6,7 +6,7 @@ use crate::game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
-use crate::rendering::{sdl2::Sdl2WindowRenderer, Renderer};
+use crate::rendering::{NullRenderer, Renderer};
 use std::fmt::{self, Debug};
 use std::fs::File;
 use std::io::{self, Bytes, Read, Result, Write};
@@ -491,7 +491,7 @@ pub fn run<P: AsRef<Path> + Debug>(replay_file_path: P, rom: &[u8], pc_only: boo
     let f = File::open(&replay_file_path)?;
     let mut e1 = EmulatorReplayer::new(&f);
 
-    let mut e2 = GameBoyEmulator::new(4, Sdl2WindowRenderer::new());
+    let mut e2 = GameBoyEmulator::new(4, NullRenderer);
     e2.load_game_pak(GamePak::from(rom));
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);

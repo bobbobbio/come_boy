@@ -22,6 +22,9 @@ pub use self::disassembler::disassemble_game_boy_rom;
 #[cfg(test)]
 use crate::lr35902_emulator::{assert_blargg_test_rom_success, read_blargg_test_rom};
 
+#[cfg(test)]
+use crate::rendering::NullRenderer;
+
 #[macro_use]
 mod memory_controller;
 
@@ -467,7 +470,7 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
 
 #[test]
 fn initial_state_test() {
-    let e = GameBoyEmulator::new(4, Sdl2WindowRenderer::new());
+    let e = GameBoyEmulator::new(4, NullRenderer);
 
     // Lock down the initial state.
     assert_eq!(e.hash(), 1497694477);
@@ -483,7 +486,7 @@ fn initial_state_test() {
  */
 
 #[cfg(test)]
-fn run_blargg_test_rom(e: &mut GameBoyEmulator<Sdl2WindowRenderer>, stop_address: u16) {
+fn run_blargg_test_rom(e: &mut GameBoyEmulator<NullRenderer>, stop_address: u16) {
     let mut pc = e.cpu.read_program_counter();
     // This address is where the rom ends.  At this address is an infinite loop where normally the
     // rom will sit at forever.
@@ -498,7 +501,7 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator<Sdl2WindowRenderer>, stop_address
 
 #[test]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
-    let mut e = GameBoyEmulator::new(4, Sdl2WindowRenderer::new());
+    let mut e = GameBoyEmulator::new(4, NullRenderer);
     e.load_game_pak(GamePak::from(&read_blargg_test_rom(
         "cpu_instrs/individual/02-interrupts.gb",
     )));
@@ -508,7 +511,7 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
 #[test]
 #[ignore]
 fn blargg_test_rom_instr_timing() {
-    let mut e = GameBoyEmulator::new(4, Sdl2WindowRenderer::new());
+    let mut e = GameBoyEmulator::new(4, NullRenderer);
     e.load_game_pak(GamePak::from(&read_blargg_test_rom(
         "instr_timing/instr_timing.gb",
     )));
