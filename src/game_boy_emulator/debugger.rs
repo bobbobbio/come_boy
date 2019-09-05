@@ -9,8 +9,9 @@ use crate::game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LC
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::GameBoyEmulator;
 use crate::lr35902_emulator::debugger::LR35902Debugger;
+use crate::rendering::{sdl2::Sdl2WindowRenderer, Renderer};
 
-impl<'a> fmt::Debug for GameBoyEmulator<'a> {
+impl<'a, R> fmt::Debug for GameBoyEmulator<'a, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self.cpu)?;
         writeln!(f)?;
@@ -20,7 +21,7 @@ impl<'a> fmt::Debug for GameBoyEmulator<'a> {
     }
 }
 
-impl<'a> DebuggerOps for GameBoyEmulator<'a> {
+impl<'a, R: Renderer> DebuggerOps for GameBoyEmulator<'a, R> {
     fn read_memory(&self, address: u16) -> u8 {
         let memory_map = game_boy_memory_map!(self);
         memory_map.read_memory(address)
@@ -66,7 +67,7 @@ impl<'a> DebuggerOps for GameBoyEmulator<'a> {
     }
 }
 
-impl<'a> fmt::Debug for LCDController<'a> {
+impl<'a, R> fmt::Debug for LCDController<'a, R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // XXX: I don't like how this mapping information is repeated here.
         fmt_lcd_register(0xFF40, self.registers.lcdc.read_value(), "LCDC", f)?;
@@ -146,7 +147,7 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 pub fn run_debugger(rom: &[u8], scale: u32, is_interrupted: &dyn Fn() -> bool) {
-    let mut e = GameBoyEmulator::new(scale);
+    let mut e = GameBoyEmulator::new(scale, Sdl2WindowRenderer::new());
     e.load_game_pak(GamePak::from(&rom));
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();

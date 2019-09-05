@@ -6,6 +6,7 @@ use crate::game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
+use crate::rendering::{sdl2::Sdl2WindowRenderer, Renderer};
 use std::fmt::{self, Debug};
 use std::fs::File;
 use std::io::{self, Bytes, Read, Result, Write};
@@ -274,7 +275,7 @@ fn compares_states() {
     assert_eq!(b_state, Some(TEST_STATE3));
 }
 
-impl<'a> AbstractEmulator for GameBoyEmulator<'a> {
+impl<'a, R: Renderer> AbstractEmulator for GameBoyEmulator<'a, R> {
     fn run_one(&mut self) {
         self.tick();
     }
@@ -490,7 +491,7 @@ pub fn run<P: AsRef<Path> + Debug>(replay_file_path: P, rom: &[u8], pc_only: boo
     let f = File::open(&replay_file_path)?;
     let mut e1 = EmulatorReplayer::new(&f);
 
-    let mut e2 = GameBoyEmulator::new(4);
+    let mut e2 = GameBoyEmulator::new(4, Sdl2WindowRenderer::new());
     e2.load_game_pak(GamePak::from(rom));
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);

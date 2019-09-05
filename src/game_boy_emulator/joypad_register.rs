@@ -1,7 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::memory_controller::MemoryMappedHardware;
-use sdl2::keyboard::Keycode;
+use crate::rendering::Keycode;
 
 #[derive(Debug)]
 pub enum KeyEvent {

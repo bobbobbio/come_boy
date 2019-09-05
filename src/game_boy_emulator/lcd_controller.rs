@@ -8,6 +8,7 @@ use crate::game_boy_emulator::{
     BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
     CHARACTER_DATA_2, OAM_DATA, UNUSABLE_MEMORY,
 };
+use crate::rendering::{Color, Event, Renderer};
 use crate::util::Scheduler;
 use std::iter;
 
@@ -88,12 +89,12 @@ enum LCDShade {
     Shade3 = 0x3,
 }
 
-fn color_for_shade(shade: LCDShade) -> sdl2::pixels::Color {
+fn color_for_shade<R: Renderer>(shade: LCDShade) -> R::Color {
     match shade {
-        LCDShade::Shade0 => sdl2::pixels::Color::RGB(0xe0, 0xf8, 0xd0),
-        LCDShade::Shade1 => sdl2::pixels::Color::RGB(0x88, 0xc0, 0x70),
-        LCDShade::Shade2 => sdl2::pixels::Color::RGB(0x34, 0x68, 0x56),
-        LCDShade::Shade3 => sdl2::pixels::Color::RGB(0x08, 0x18, 0x20),
+        LCDShade::Shade0 => R::Color::new(0xe0, 0xf8, 0xd0),
+        LCDShade::Shade1 => R::Color::new(0x88, 0xc0, 0x70),
+        LCDShade::Shade2 => R::Color::new(0x34, 0x68, 0x56),
+        LCDShade::Shade3 => R::Color::new(0x08, 0x18, 0x20),
     }
 }
 
@@ -268,9 +269,9 @@ impl LCDDotData {
         }
     }
 
-    fn draw_line(
+    fn draw_line<R: Renderer>(
         &self,
-        canvas: &mut sdl2::render::WindowCanvas,
+        renderer: &mut R,
         x: i32,
         y: i32,
         ly: u8,
@@ -293,12 +294,6 @@ impl LCDDotData {
             if horizantal_flip {
                 offset_x = CHARACTER_SIZE as usize - offset_x;
             }
-            let rect = sdl2::rect::Rect::new(
-                (x + offset_x as i32) * self.pixel_scale as i32,
-                ly as i32 * self.pixel_scale as i32,
-                self.pixel_scale,
-                self.pixel_scale,
-            );
             if color != LCDColor::Color0 || !enable_transparency {
                 let shade = match palette.read_flag_value(color) {
                     0x0 => LCDShade::Shade0,
@@ -307,18 +302,21 @@ impl LCDDotData {
                     0x3 => LCDShade::Shade3,
                     _ => panic!(),
                 };
-                let color = color_for_shade(shade);
-                canvas.set_draw_color(color);
-                canvas.fill_rect(rect).unwrap();
+                let color = color_for_shade::<R>(shade);
+                renderer.set_draw_color(color);
+                renderer.fill_rect(
+                    (x + offset_x as i32) * self.pixel_scale as i32,
+                    ly as i32 * self.pixel_scale as i32,
+                    self.pixel_scale,
+                    self.pixel_scale,
+                );
             }
         }
     }
 }
 
-#[derive(Default)]
-pub struct LCDController<'a> {
-    canvas: Option<sdl2::render::WindowCanvas>,
-    event_pump: Option<sdl2::EventPump>,
+pub struct LCDController<'a, R> {
+    renderer: R,
     pub crash_message: Option<String>,
     pub character_data: MemoryChunk,
     pub background_display_data_1: MemoryChunk,
@@ -326,14 +324,14 @@ pub struct LCDController<'a> {
     pub oam_data: MemoryChunk,
     pub unusable_memory: MemoryChunk,
     pub registers: LCDControllerRegisters,
-    scheduler: Scheduler<LCDController<'a>>,
+    scheduler: Scheduler<LCDController<'a, R>>,
     enabled: bool,
     interrupt_requested: bool,
     pixel_scale: u32,
 }
 
-impl<'a> LCDController<'a> {
-    pub fn new(pixel_scale: u32) -> Self {
+impl<'a, R: Renderer> LCDController<'a, R> {
+    pub fn new(pixel_scale: u32, renderer: R) -> Self {
         LCDController {
             character_data: MemoryChunk::from_range(CHARACTER_DATA),
             background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
@@ -342,7 +340,11 @@ impl<'a> LCDController<'a> {
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
             pixel_scale,
-            ..Default::default()
+            renderer,
+            scheduler: Scheduler::new(),
+            crash_message: None,
+            interrupt_requested: false,
+            registers: Default::default(),
         }
     }
 
@@ -365,24 +367,7 @@ impl<'a> LCDController<'a> {
     }
 
     pub fn start_rendering(&mut self) {
-        let sdl_context = sdl2::init().unwrap();
-        let video_subsystem = sdl_context.video().unwrap();
-        let event_pump = sdl_context.event_pump().unwrap();
-
-        let window = video_subsystem
-            .window("come boy", 160 * self.pixel_scale, 144 * self.pixel_scale)
-            .position_centered()
-            .allow_highdpi()
-            .build()
-            .unwrap();
-
-        let mut canvas = window.into_canvas().build().unwrap();
-        canvas.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
-        canvas.clear();
-        self.update_screen();
-
-        self.canvas = Some(canvas);
-        self.event_pump = Some(event_pump);
+        self.renderer.start(self.pixel_scale);
     }
 
     fn read_dot_data(&self, character_data_selection: bool, character_code: u8) -> LCDDotData {
@@ -486,30 +471,13 @@ impl<'a> LCDController<'a> {
     }
 
     pub fn poll_renderer(&mut self) -> Vec<KeyEvent> {
-        if self.canvas.is_none() {
-            return vec![];
-        }
-
         let mut key_events = vec![];
 
-        for event in self.event_pump.as_mut().unwrap().poll_iter() {
+        for event in self.renderer.poll_events() {
             match event {
-                sdl2::event::Event::Quit { .. } => {
-                    self.crash_message = Some(String::from("Screen Closed"));
-                }
-                sdl2::event::Event::KeyDown {
-                    keycode: Some(code),
-                    ..
-                } => {
-                    key_events.push(KeyEvent::Down(code));
-                }
-                sdl2::event::Event::KeyUp {
-                    keycode: Some(code),
-                    ..
-                } => {
-                    key_events.push(KeyEvent::Up(code));
-                }
-                _ => {}
+                Event::Quit { .. } => self.crash_message = Some(String::from("Screen Closed")),
+                Event::KeyDown(code) => key_events.push(KeyEvent::Down(code)),
+                Event::KeyUp(code) => key_events.push(KeyEvent::Up(code)),
             }
         }
 
@@ -524,10 +492,6 @@ impl<'a> LCDController<'a> {
         character_data_selection: bool,
         wrap: bool,
     ) {
-        if self.canvas.is_none() {
-            return;
-        }
-
         let ly = self.registers.ly.read_value();
 
         if !wrap && (ly as i32) < scroll_y {
@@ -573,7 +537,7 @@ impl<'a> LCDController<'a> {
             for &ix in xes {
                 if (ix >= 0 || ix + CHARACTER_SIZE as i32 >= 0) && ix < 160 {
                     character_data.draw_line(
-                        self.canvas.as_mut().unwrap(),
+                        &mut self.renderer,
                         ix,
                         y,
                         ly,
@@ -588,10 +552,6 @@ impl<'a> LCDController<'a> {
     }
 
     fn draw_oam_data(&mut self) {
-        if self.canvas.is_none() {
-            return;
-        }
-
         if !self.registers.lcdc.read_flag(LCDControlFlag::ObjectOn) {
             return;
         }
@@ -651,7 +611,7 @@ impl<'a> LCDController<'a> {
 
                 let character_data = self.read_dot_data(true, character_code);
                 character_data.draw_line(
-                    self.canvas.as_mut().unwrap(),
+                    &mut self.renderer,
                     x,
                     y,
                     ly,
@@ -665,32 +625,7 @@ impl<'a> LCDController<'a> {
     }
 
     fn update_screen(&mut self) {
-        match self.canvas.as_mut() {
-            Some(r) => r.present(),
-            None => {}
-        }
-    }
-
-    // XXX remi: This should return a Result, also leaving this here because it might be useful.
-    #[allow(dead_code)]
-    fn save_screenshot<P: AsRef<std::path::Path>>(&mut self, path: P) {
-        match self.canvas.as_mut() {
-            Some(r) => {
-                let mut pixels = r
-                    .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)
-                    .unwrap();
-                let s = sdl2::surface::Surface::from_data(
-                    &mut pixels,
-                    160 * self.pixel_scale,
-                    140 * self.pixel_scale,
-                    160 * self.pixel_scale * 4,
-                    sdl2::pixels::PixelFormatEnum::ABGR8888,
-                )
-                .unwrap();
-                s.save_bmp(path).unwrap();
-            }
-            None => {}
-        }
+        self.renderer.present()
     }
 
     // The LCD modes happen like this:
