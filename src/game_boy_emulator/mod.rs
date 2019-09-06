@@ -203,10 +203,10 @@ struct GameBoyEmulator<'a, R> {
 }
 
 impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
-    fn new(pixel_scale: u32, renderer: R) -> GameBoyEmulator<'a, R> {
+    fn new(renderer: R) -> GameBoyEmulator<'a, R> {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
-            lcd_controller: LCDController::new(pixel_scale, renderer),
+            lcd_controller: LCDController::new(renderer),
             sound_controller: Default::default(),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
             internal_ram_a: MemoryChunk::from_range(INTERNAL_RAM_A),
@@ -468,7 +468,7 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
 
 #[test]
 fn initial_state_test() {
-    let e = GameBoyEmulator::new(4, NullRenderer);
+    let e = GameBoyEmulator::new(NullRenderer);
 
     // Lock down the initial state.
     assert_eq!(e.hash(), 1497694477);
@@ -499,7 +499,7 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator<NullRenderer>, stop_address: u16)
 
 #[test]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
-    let mut e = GameBoyEmulator::new(4, NullRenderer);
+    let mut e = GameBoyEmulator::new(NullRenderer);
     e.load_game_pak(GamePak::from(&read_blargg_test_rom(
         "cpu_instrs/individual/02-interrupts.gb",
     )));
@@ -509,7 +509,7 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
 #[test]
 #[ignore]
 fn blargg_test_rom_instr_timing() {
-    let mut e = GameBoyEmulator::new(4, NullRenderer);
+    let mut e = GameBoyEmulator::new(NullRenderer);
     e.load_game_pak(GamePak::from(&read_blargg_test_rom(
         "instr_timing/instr_timing.gb",
     )));
@@ -517,7 +517,7 @@ fn blargg_test_rom_instr_timing() {
 }
 
 pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
-    let mut e = GameBoyEmulator::new(pixel_scale, Sdl2WindowRenderer::new(pixel_scale));
+    let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale));
     e.load_game_pak(GamePak::from(rom));
     e.run();
 }

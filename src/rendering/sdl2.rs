@@ -95,14 +95,15 @@ impl Renderer for Sdl2WindowRenderer {
         Ok(())
     }
 
-    fn set_draw_color(&mut self, color: Self::Color) {
-        self.canvas.set_draw_color(color)
-    }
-
-    fn fill_rect(&mut self, x: i32, y: i32, w: u32, h: u32) {
-        self.canvas
-            .fill_rect(sdl2::rect::Rect::new(x, y, w, h))
-            .unwrap();
+    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+        self.canvas.set_draw_color(color);
+        let rect = sdl2::rect::Rect::new(
+            x * self.pixel_scale as i32,
+            y * self.pixel_scale as i32,
+            self.pixel_scale,
+            self.pixel_scale,
+        );
+        self.canvas.fill_rect(rect).unwrap();
     }
 
     fn present(&mut self) {

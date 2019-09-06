@@ -147,7 +147,7 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 pub fn run_debugger(rom: &[u8], pixel_scale: u32, is_interrupted: &dyn Fn() -> bool) {
-    let mut e = GameBoyEmulator::new(pixel_scale, Sdl2WindowRenderer::new(pixel_scale));
+    let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale));
     e.load_game_pak(GamePak::from(&rom));
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();

@@ -258,14 +258,12 @@ impl<'a> LCDObjectIterator<'a> {
 
 struct LCDDotData {
     data: [LCDColor; 64],
-    pixel_scale: u32,
 }
 
 impl LCDDotData {
-    fn new(pixel_scale: u32) -> LCDDotData {
+    fn new() -> LCDDotData {
         LCDDotData {
             data: [LCDColor::Color0; 64],
-            pixel_scale,
         }
     }
 
@@ -303,13 +301,7 @@ impl LCDDotData {
                     _ => panic!(),
                 };
                 let color = color_for_shade::<R>(shade);
-                renderer.set_draw_color(color);
-                renderer.fill_rect(
-                    (x + offset_x as i32) * self.pixel_scale as i32,
-                    ly as i32 * self.pixel_scale as i32,
-                    self.pixel_scale,
-                    self.pixel_scale,
-                );
+                renderer.color_pixel(x + offset_x as i32, ly as i32, color);
             }
         }
     }
@@ -327,11 +319,10 @@ pub struct LCDController<'a, R> {
     scheduler: Scheduler<LCDController<'a, R>>,
     enabled: bool,
     interrupt_requested: bool,
-    pixel_scale: u32,
 }
 
 impl<'a, R: Renderer> LCDController<'a, R> {
-    pub fn new(pixel_scale: u32, renderer: R) -> Self {
+    pub fn new(renderer: R) -> Self {
         LCDController {
             character_data: MemoryChunk::from_range(CHARACTER_DATA),
             background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
@@ -339,7 +330,6 @@ impl<'a, R: Renderer> LCDController<'a, R> {
             oam_data: MemoryChunk::from_range(OAM_DATA),
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
-            pixel_scale,
             renderer,
             scheduler: Scheduler::new(),
             crash_message: None,
@@ -367,7 +357,7 @@ impl<'a, R: Renderer> LCDController<'a, R> {
     }
 
     fn read_dot_data(&self, character_data_selection: bool, character_code: u8) -> LCDDotData {
-        let mut dot_data = LCDDotData::new(self.pixel_scale);
+        let mut dot_data = LCDDotData::new();
 
         let location = if character_data_selection {
             CHARACTER_DATA_1.start as usize + character_code as usize * 16
