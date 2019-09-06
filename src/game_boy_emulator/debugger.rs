@@ -146,14 +146,12 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, " Mode{}", stat & 0x3)
 }
 
-pub fn run_debugger(rom: &[u8], scale: u32, is_interrupted: &dyn Fn() -> bool) {
-    let mut e = GameBoyEmulator::new(scale, Sdl2WindowRenderer::new());
+pub fn run_debugger(rom: &[u8], pixel_scale: u32, is_interrupted: &dyn Fn() -> bool) {
+    let mut e = GameBoyEmulator::new(pixel_scale, Sdl2WindowRenderer::new(pixel_scale));
     e.load_game_pak(GamePak::from(&rom));
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();
     let stdout = &mut io::stdout();
-
-    e.lcd_controller.start_rendering();
 
     let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
     debugger.run(is_interrupted);

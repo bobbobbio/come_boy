@@ -21,18 +21,31 @@ impl From<sdl2::keyboard::Keycode> for Keycode {
 }
 
 pub struct Sdl2WindowRenderer {
-    video_subsystem: sdl2::VideoSubsystem,
     event_pump: sdl2::EventPump,
     canvas: Option<sdl2::render::Canvas<sdl2::video::Window>>,
+    pixel_scale: u32,
 }
 
 impl Sdl2WindowRenderer {
-    pub fn new() -> Self {
+    pub fn new(pixel_scale: u32) -> Self {
         let sdl_context = sdl2::init().unwrap();
+
+        let video_subsystem = sdl_context.video().unwrap();
+        let window = video_subsystem
+            .window("come boy", 160 * pixel_scale, 144 * pixel_scale)
+            .position_centered()
+            .allow_highdpi()
+            .build()
+            .unwrap();
+
+        let mut canvas = window.into_canvas().build().unwrap();
+        canvas.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
+        canvas.clear();
+
         Self {
-            video_subsystem: sdl_context.video().unwrap(),
             event_pump: sdl_context.event_pump().unwrap(),
-            canvas: None,
+            canvas: Some(canvas),
+            pixel_scale,
         }
     }
 }
@@ -45,22 +58,6 @@ impl Color for sdl2::pixels::Color {
 
 impl Renderer for Sdl2WindowRenderer {
     type Color = sdl2::pixels::Color;
-
-    fn start(&mut self, pixel_scale: u32) {
-        let window = self
-            .video_subsystem
-            .window("come boy", 160 * pixel_scale, 144 * pixel_scale)
-            .position_centered()
-            .allow_highdpi()
-            .build()
-            .unwrap();
-
-        let mut canvas = window.into_canvas().build().unwrap();
-        canvas.set_draw_color(sdl2::pixels::Color::RGB(255, 255, 255));
-        canvas.clear();
-
-        self.canvas = Some(canvas);
-    }
 
     fn poll_events(&mut self) -> Vec<Event> {
         let mut events = vec![];
@@ -83,7 +80,7 @@ impl Renderer for Sdl2WindowRenderer {
         events
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, path: P, pixel_scale: u32) -> Result<()> {
+    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut pixels = self
             .canvas
             .as_ref()
@@ -91,9 +88,9 @@ impl Renderer for Sdl2WindowRenderer {
             .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)?;
         let s = sdl2::surface::Surface::from_data(
             &mut pixels,
-            160 * pixel_scale,
-            140 * pixel_scale,
-            160 * pixel_scale * 4,
+            160 * self.pixel_scale,
+            140 * self.pixel_scale,
+            160 * self.pixel_scale * 4,
             sdl2::pixels::PixelFormatEnum::ABGR8888,
         )?;
         s.save_bmp(path)?;

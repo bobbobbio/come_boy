@@ -31,9 +31,8 @@ pub trait Color {
 
 pub trait Renderer {
     type Color: Color;
-    fn start(&mut self, pixel_scale: u32);
     fn poll_events(&mut self) -> Vec<Event>;
-    fn save_buffer<P: AsRef<Path>>(&self, path: P, pixel_scale: u32) -> Result<()>;
+    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()>;
     fn set_draw_color(&mut self, color: Self::Color);
     fn fill_rect(&mut self, x: i32, y: i32, w: u32, h: u32);
     fn present(&mut self);
@@ -44,11 +43,10 @@ pub struct NullRenderer;
 impl Renderer for NullRenderer {
     type Color = ();
 
-    fn start(&mut self, _: u32) {}
     fn poll_events(&mut self) -> Vec<Event> {
         vec![]
     }
-    fn save_buffer<P: AsRef<Path>>(&self, _: P, _: u32) -> Result<()> {
+    fn save_buffer<P: AsRef<Path>>(&self, _: P) -> Result<()> {
         Ok(())
     }
     fn set_draw_color(&mut self, _: Self::Color) {}

@@ -366,10 +366,6 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         }
     }
 
-    pub fn start_rendering(&mut self) {
-        self.renderer.start(self.pixel_scale);
-    }
-
     fn read_dot_data(&self, character_data_selection: bool, character_code: u8) -> LCDDotData {
         let mut dot_data = LCDDotData::new(self.pixel_scale);
 

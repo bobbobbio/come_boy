@@ -382,8 +382,6 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
     }
 
     fn run(&mut self) {
-        self.lcd_controller.start_rendering();
-
         let mut last_cycles = self.cpu.elapsed_cycles;
         let mut last_instant = std::time::Instant::now();
 
@@ -519,7 +517,7 @@ fn blargg_test_rom_instr_timing() {
 }
 
 pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
-    let mut e = GameBoyEmulator::new(pixel_scale, Sdl2WindowRenderer::new());
+    let mut e = GameBoyEmulator::new(pixel_scale, Sdl2WindowRenderer::new(pixel_scale));
     e.load_game_pak(GamePak::from(rom));
     e.run();
 }
