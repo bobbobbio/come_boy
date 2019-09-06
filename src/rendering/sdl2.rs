@@ -22,7 +22,7 @@ impl From<sdl2::keyboard::Keycode> for Keycode {
 
 pub struct Sdl2WindowRenderer {
     event_pump: sdl2::EventPump,
-    canvas: Option<sdl2::render::Canvas<sdl2::video::Window>>,
+    canvas: sdl2::render::Canvas<sdl2::video::Window>,
     pixel_scale: u32,
 }
 
@@ -44,7 +44,7 @@ impl Sdl2WindowRenderer {
 
         Self {
             event_pump: sdl_context.event_pump().unwrap(),
-            canvas: Some(canvas),
+            canvas,
             pixel_scale,
         }
     }
@@ -83,8 +83,6 @@ impl Renderer for Sdl2WindowRenderer {
     fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()> {
         let mut pixels = self
             .canvas
-            .as_ref()
-            .unwrap()
             .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)?;
         let s = sdl2::surface::Surface::from_data(
             &mut pixels,
@@ -98,20 +96,16 @@ impl Renderer for Sdl2WindowRenderer {
     }
 
     fn set_draw_color(&mut self, color: Self::Color) {
-        if let Some(ref mut c) = self.canvas {
-            c.set_draw_color(color)
-        }
+        self.canvas.set_draw_color(color)
     }
 
     fn fill_rect(&mut self, x: i32, y: i32, w: u32, h: u32) {
-        if let Some(ref mut c) = self.canvas {
-            c.fill_rect(sdl2::rect::Rect::new(x, y, w, h)).unwrap();
-        }
+        self.canvas
+            .fill_rect(sdl2::rect::Rect::new(x, y, w, h))
+            .unwrap();
     }
 
     fn present(&mut self) {
-        if let Some(ref mut c) = self.canvas {
-            c.present()
-        }
+        self.canvas.present()
     }
 }
