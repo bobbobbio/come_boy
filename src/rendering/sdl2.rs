@@ -27,12 +27,12 @@ pub struct Sdl2WindowRenderer {
 }
 
 impl Sdl2WindowRenderer {
-    pub fn new(pixel_scale: u32) -> Self {
+    pub fn new(pixel_scale: u32, title: &str, width: u32, height: u32) -> Self {
         let sdl_context = sdl2::init().unwrap();
 
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem
-            .window("come boy", 160 * pixel_scale, 144 * pixel_scale)
+            .window(title, width * pixel_scale, height * pixel_scale)
             .position_centered()
             .allow_highdpi()
             .build()

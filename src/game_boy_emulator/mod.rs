@@ -517,7 +517,7 @@ fn blargg_test_rom_instr_timing() {
 }
 
 pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
-    let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale));
+    let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144));
     e.load_game_pak(GamePak::from(rom));
     e.run();
 }
