@@ -778,6 +778,10 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         }
     }
 
+    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), String> {
+        self.renderer.save_buffer(path)
+    }
+
     pub fn tick(&mut self, time: u64) {
         self.check_enabled_state(time);
     }

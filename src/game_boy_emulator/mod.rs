@@ -9,10 +9,13 @@ use self::memory_controller::{
 use self::sound_controller::SoundController;
 use crate::emulator_common::disassembler::MemoryAccessor;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
-use crate::rendering::{sdl2::Sdl2WindowRenderer, Renderer};
+use crate::rendering::{
+    sdl2::{Sdl2SurfaceRenderer, Sdl2WindowRenderer},
+    Renderer,
+};
 use crate::util::{super_fast_hash, Scheduler};
 use std::fmt::Debug;
-use std::io::{self, Result, Write};
+use std::io::{self, Write};
 use std::ops::Range;
 use std::path::Path;
 
@@ -381,6 +384,10 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
         self.timer.schedule_initial_events(now);
     }
 
+    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), String> {
+        self.lcd_controller.save_screenshot(path)
+    }
+
     fn run(&mut self) {
         let mut last_cycles = self.cpu.elapsed_cycles;
         let mut last_instant = std::time::Instant::now();
@@ -526,8 +533,30 @@ pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     other_emulator_path: P,
     rom: &[u8],
     pc_only: bool,
-) -> Result<()> {
+) -> io::Result<()> {
     println!("loading {:?}", &other_emulator_path);
 
     tandem::run(other_emulator_path, rom, pc_only)
+}
+
+pub fn run_until_and_take_screenshot<P: AsRef<std::path::Path>>(
+    rom: &[u8],
+    ticks: u64,
+    output_path: P,
+) {
+    let mut e = GameBoyEmulator::new(Sdl2SurfaceRenderer::new(1, 160, 144));
+    e.load_game_pak(GamePak::from(rom));
+
+    let target_tick = e.cpu.elapsed_cycles + ticks;
+
+    while e.cpu.elapsed_cycles < target_tick {
+        if let Some(c) = e.crashed() {
+            println!("Emulator crashed: {}", c);
+            return;
+        }
+
+        e.tick();
+    }
+
+    e.save_screenshot(output_path).unwrap();
 }
