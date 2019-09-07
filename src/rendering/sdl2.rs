@@ -110,3 +110,53 @@ impl Renderer for Sdl2WindowRenderer {
         self.canvas.present()
     }
 }
+
+pub struct Sdl2SurfaceRenderer<'a> {
+    pixel_scale: u32,
+    canvas: sdl2::render::Canvas<sdl2::surface::Surface<'a>>,
+}
+
+impl<'a> Sdl2SurfaceRenderer<'a> {
+    pub fn new(pixel_scale: u32, width: u32, height: u32) -> Self {
+        let canvas = sdl2::surface::Surface::new(
+            width * pixel_scale,
+            height * pixel_scale,
+            sdl2::pixels::PixelFormatEnum::ABGR8888,
+        )
+        .unwrap()
+        .into_canvas()
+        .unwrap();
+        Self {
+            pixel_scale,
+            canvas,
+        }
+    }
+}
+
+impl<'a> Renderer for Sdl2SurfaceRenderer<'a> {
+    type Color = sdl2::pixels::Color;
+
+    fn poll_events(&mut self) -> Vec<Event> {
+        vec![]
+    }
+
+    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+        self.canvas.surface().save_bmp(path)?;
+        Ok(())
+    }
+
+    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+        self.canvas.set_draw_color(color);
+        let rect = sdl2::rect::Rect::new(
+            x * self.pixel_scale as i32,
+            y * self.pixel_scale as i32,
+            self.pixel_scale,
+            self.pixel_scale,
+        );
+        self.canvas.fill_rect(rect).unwrap();
+    }
+
+    fn present(&mut self) {
+        self.canvas.present()
+    }
+}
