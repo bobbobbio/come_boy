@@ -4,7 +4,9 @@ Come boy is a gameboy emulator (DMG only) written in rust.
 
 Written by Remi Bernotavicius (remi@abort.cc)
 
-Currently in a pre-release state.  Doesn't yet run any games.
+Currently in a pre-release state.  Runs some games, but many others do not work.
+
+![tetris](/test/expectations/tetris/10000000.bmp?raw=true "Tetris")
 
 # Building
 Build like as follows.
@@ -28,10 +30,12 @@ Run tests as follow. You only need to run `./download_test_roms` once.
 ## Emulator
 `come_boy [PATH-TO-ROM]`
 
+Limited joypad support available. Use arrow keys + z, x, tab, enter.
+
 # License
 MIT License
 
-Copyright (c) 2017 Remi Bernotavicius
+Copyright (c) 2016-2019 Remi Bernotavicius
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
