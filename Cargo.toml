@@ -16,6 +16,9 @@ structopt = "*"
 sdl2 = "0.32.*"
 nix = "*"
 
+[dev-dependencies]
+tempfile = "*"
+
 [build-dependencies]
 quote = "*"
 serde = "*"

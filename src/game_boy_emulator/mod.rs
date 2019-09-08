@@ -560,3 +560,96 @@ pub fn run_until_and_take_screenshot<P: AsRef<std::path::Path>>(
 
     e.save_screenshot(output_path).unwrap();
 }
+
+#[cfg(test)]
+use io::Read;
+
+#[cfg(test)]
+fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
+    path1: P1,
+    path2: P2,
+) -> io::Result<bool> {
+    let file1 = std::fs::File::open(path1)?;
+    let file2 = std::fs::File::open(path2)?;
+
+    let file1_len = file1.metadata()?.len();
+    let file2_len = file2.metadata()?.len();
+    if file1_len != file2_len {
+        return Ok(true);
+    }
+
+    for (b1, b2) in file1.bytes().zip(file2.bytes()) {
+        let b1 = b1?;
+        let b2 = b2?;
+        if b1 != b2 {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+#[test]
+fn rom_tests() -> io::Result<()> {
+    let rom_path = "test/roms/";
+    println!("Looking in {} for ROMs", rom_path);
+    for rom_entry in std::fs::read_dir(rom_path)? {
+        let rom_entry = rom_entry?;
+        let rom_path = rom_entry.path();
+        println!("Found ROM {}", rom_path.to_string_lossy());
+        let mut rom_file = std::fs::File::open(&rom_path)?;
+        let mut rom: Vec<u8> = vec![];
+        rom_file.read_to_end(&mut rom)?;
+
+        let game_pak = GamePak::from(&rom);
+        println!("Identifier ROM as \"{}\"", game_pak.title());
+
+        let game_title = game_pak.title().to_lowercase().replace(" ", "_");
+        let expectations_path: std::path::PathBuf =
+            format!("test/expectations/{}/", game_title).into();
+        println!(
+            "Looking for expectations in {}",
+            expectations_path.to_string_lossy()
+        );
+        if !expectations_path.exists() {
+            println!("Found no expectations");
+            continue;
+        }
+
+        for expectation_entry in std::fs::read_dir(expectations_path)? {
+            let expectation_entry = expectation_entry?;
+            let expectation_path = expectation_entry.path();
+            println!("Found expectation {}", expectation_path.to_string_lossy());
+
+            let ticks: u64 = expectation_path
+                .file_stem()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .parse()
+                .unwrap();
+            println!("Expectation for clock offset {}", ticks);
+            let tmp_output = tempfile::NamedTempFile::new()?;
+            println!(
+                "Running emulator on {} until clock offset {}",
+                rom_path.to_string_lossy(),
+                ticks
+            );
+            run_until_and_take_screenshot(&rom, ticks, tmp_output.path());
+            println!("Comparing screen output with expectation");
+            let difference = diff_bmp(tmp_output.path(), &expectation_path)?;
+            if difference {
+                let failure_image: std::path::PathBuf = std::env::var("OUT_DIR").unwrap().into();
+                let failure_image = failure_image.join("failure.bmp");
+                std::fs::rename(tmp_output.path(), &failure_image)?;
+                panic!(
+                    "Failure. Image {} does not match expectation {}",
+                    failure_image.to_string_lossy(),
+                    expectation_path.to_string_lossy()
+                );
+            } else {
+                println!("Success, images match");
+            }
+        }
+    }
+    Ok(())
+}

@@ -4,3 +4,4 @@ blargg_test_roms
 *.pyc
 Cargo.lock
 rusty-tags.*
+test/roms/*

@@ -434,6 +434,11 @@ impl GamePak {
     pub fn tick(&mut self) {
         self.mbc.tick();
     }
+
+    #[cfg(test)]
+    pub fn title(&self) -> &str {
+        &self.title
+    }
 }
 
 impl fmt::Debug for GamePak {
