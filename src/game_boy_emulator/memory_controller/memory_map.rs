@@ -5,8 +5,7 @@ pub struct GameBoyMemoryMapMut<'a> {
         &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub internal_ram_b:
         &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
-    pub joypad_register:
-        &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
+    pub joypad: &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub lcd_controller_background_display_data_1:
         &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub lcd_controller_background_display_data_2:
@@ -67,7 +66,7 @@ macro_rules! game_boy_memory_map_mut {
             high_ram: &mut $f.high_ram,
             internal_ram_a: &mut $f.internal_ram_a,
             internal_ram_b: &mut $f.internal_ram_b,
-            joypad_register: &mut $f.joypad_register,
+            joypad: &mut $f.joypad,
             lcd_controller_background_display_data_1: &mut $f
                 .lcd_controller
                 .background_display_data_1,
@@ -104,7 +103,7 @@ macro_rules! game_boy_memory_map_mut {
 impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor for GameBoyMemoryMapMut<'a> {
     fn read_memory(&self, address: u16) -> u8 {
         if address == 65280u16 {
-            self.joypad_register.read_value(address - 65280u16)
+            self.joypad.read_value(address - 65280u16)
         } else if address == 65281u16 {
             self.registers_serial_transfer_data
                 .read_value(address - 65281u16)
@@ -195,7 +194,7 @@ impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor for GameBoy
     #[allow(unused_variables)]
     fn set_memory(&mut self, address: u16, value: u8) {
         if address == 65280u16 {
-            self.joypad_register.set_value(address - 65280u16, value)
+            self.joypad.set_value(address - 65280u16, value)
         } else if address == 65281u16 {
             self.registers_serial_transfer_data
                 .set_value(address - 65281u16, value)
@@ -289,7 +288,7 @@ pub struct GameBoyMemoryMap<'a> {
     pub high_ram: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub internal_ram_a: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub internal_ram_b: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
-    pub joypad_register: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
+    pub joypad: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub lcd_controller_background_display_data_1:
         &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub lcd_controller_background_display_data_2:
@@ -347,7 +346,7 @@ macro_rules! game_boy_memory_map {
             high_ram: &$f.high_ram,
             internal_ram_a: &$f.internal_ram_a,
             internal_ram_b: &$f.internal_ram_b,
-            joypad_register: &$f.joypad_register,
+            joypad: &$f.joypad,
             lcd_controller_background_display_data_1: &$f.lcd_controller.background_display_data_1,
             lcd_controller_background_display_data_2: &$f.lcd_controller.background_display_data_2,
             lcd_controller_character_data: &$f.lcd_controller.character_data,
@@ -380,7 +379,7 @@ macro_rules! game_boy_memory_map {
 impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor for GameBoyMemoryMap<'a> {
     fn read_memory(&self, address: u16) -> u8 {
         if address == 65280u16 {
-            self.joypad_register.read_value(address - 65280u16)
+            self.joypad.read_value(address - 65280u16)
         } else if address == 65281u16 {
             self.registers_serial_transfer_data
                 .read_value(address - 65281u16)

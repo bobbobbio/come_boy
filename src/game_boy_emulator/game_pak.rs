@@ -1,6 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
+use crate::util::super_fast_hash;
 use std::fmt;
 use std::io::{self, Read};
 use std::ops::Range;
@@ -345,6 +346,7 @@ impl CartridgeRam for NonVolatileRam {
 #[derive(Clone)]
 pub struct GamePak {
     title: String,
+    hash: u32,
     mbc: Box<dyn MemoryBankController>,
 }
 
@@ -377,6 +379,7 @@ impl GamePak {
 
     pub fn new(rom: &[u8]) -> Self {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
+        let hash = super_fast_hash(rom);
         let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
             n if n <= 0x08 => 2usize.pow(n as u32 + 1),
             0x52 => 72,
@@ -465,16 +468,19 @@ impl GamePak {
             v => panic!("Unknown Memory Bank Controller #{:x}", v),
         };
 
-        GamePak { title, mbc }
+        GamePak { title, hash, mbc }
     }
 
     pub fn tick(&mut self) {
         self.mbc.tick();
     }
 
-    #[cfg(test)]
     pub fn title(&self) -> &str {
         &self.title
+    }
+
+    pub fn hash(&self) -> u32 {
+        self.hash
     }
 }
 

@@ -11,20 +11,23 @@ homepage = "https://github.com/bobbobbio/come_boy"
 travis-ci = { repository = "bobbobbio/come_boy" }
 
 [dependencies]
+bincode = "*"
 clap = "*"
-structopt = "*"
-sdl2 = "0.32.*"
 nix = "*"
+sdl2 = "0.32.*"
+serde = "*"
+serde_derive = "*"
+structopt = "*"
 
 [dev-dependencies]
 tempfile = "*"
 
 [build-dependencies]
+proc-macro2 = "*"
 quote = "*"
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
-proc-macro2 = "*"
 
 [build-dependencies.syn]
 version = "*"

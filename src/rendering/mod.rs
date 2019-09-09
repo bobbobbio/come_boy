@@ -6,7 +6,7 @@ pub mod sdl2;
 
 type Result<T> = std::result::Result<T, String>;
 
-#[derive(Debug)]
+#[derive(Clone, Copy)]
 pub enum Keycode {
     Down,
     Left,

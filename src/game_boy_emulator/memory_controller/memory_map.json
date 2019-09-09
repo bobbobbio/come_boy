@@ -42,7 +42,7 @@
         "mapping_type": "ReadWrite"
     },
     "0xFF00": {
-        "field": "joypad_register",
+        "field": "joypad",
         "mapping_type": "ReadWrite"
     },
     "0xFF01": {

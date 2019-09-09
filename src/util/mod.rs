@@ -73,9 +73,9 @@ fn get_16_bits(data: &[u8], index: usize) -> u16 {
 // This was taken from http://www.azillionmonkeys.com/qed/hash.html. The code
 // for this function (and only this function) below is LGPL 2.1. I have ported it to rust, but
 // kept the same behavior.
-fn super_fast_hash_iter<T: Sized>(data_in: &T, mut hash: u32) -> u32 {
-    let mut len = mem::size_of_val(data_in);
-    let data: &[u8] = unsafe { mem::transmute(slice::from_raw_parts(data_in, len)) };
+fn super_fast_hash_iter<T: Sized>(data_in: &[T], mut hash: u32) -> u32 {
+    let mut len = data_in.len();
+    let data: &[u8] = unsafe { mem::transmute(slice::from_raw_parts(data_in.as_ptr(), len)) };
 
     let mut tmp: u32;
     let mut i = 0;
@@ -127,8 +127,8 @@ fn super_fast_hash_iter<T: Sized>(data_in: &T, mut hash: u32) -> u32 {
     return hash;
 }
 
-pub fn super_fast_hash<T: Sized>(data_in: &T) -> u32 {
-    let len = mem::size_of_val(data_in);
+pub fn super_fast_hash<T: Sized>(data_in: &[T]) -> u32 {
+    let len = data_in.len();
     super_fast_hash_iter(data_in, len as u32)
 }
 
@@ -136,31 +136,31 @@ pub fn super_fast_hash<T: Sized>(data_in: &T) -> u32 {
 #[test]
 fn super_fast_hash_example_1() {
     let v = [0x88u8, 0x99u8, 0x10u8, 0x11u8, 0x09u8];
-    assert_eq!(super_fast_hash(&v), 284656667);
+    assert_eq!(super_fast_hash(&v[..]), 284656667);
 }
 
 #[test]
 fn super_fast_hash_example_2() {
     let v = [0x77u8, 0x01u8, 0x12u8, 0x24u8];
-    assert_eq!(super_fast_hash(&v), 700799581);
+    assert_eq!(super_fast_hash(&v[..]), 700799581);
 }
 
 #[test]
 fn super_fast_hash_example_3() {
     let v = [0x91u8, 0x00u8, 0x84u8];
-    assert_eq!(super_fast_hash(&v), 505819445);
+    assert_eq!(super_fast_hash(&v[..]), 505819445);
 }
 
 #[test]
 fn super_fast_hash_example_4() {
     let v = [0x11u8, 0x05u8];
-    assert_eq!(super_fast_hash(&v), 3238191665);
+    assert_eq!(super_fast_hash(&v[..]), 3238191665);
 }
 
 #[test]
 fn super_fast_hash_example_5() {
     let v = [0x45u8];
-    assert_eq!(super_fast_hash(&v), 3114100952);
+    assert_eq!(super_fast_hash(&v[..]), 3114100952);
 }
 
 /*  ____       _              _       _

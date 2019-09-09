@@ -1,6 +1,6 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::game_boy_emulator::joypad_register::KeyEvent;
+use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };

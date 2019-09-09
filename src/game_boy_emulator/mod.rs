@@ -1,7 +1,8 @@
 // Copyright 2017 Remi Bernotavicius
 
 pub use self::game_pak::GamePak;
-use self::joypad_register::JoyPadRegister;
+pub use self::joypad::ReplayError;
+use self::joypad::{JoyPad, PlainJoyPad, PlaybackJoyPad, RecordingJoyPad};
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
@@ -34,7 +35,7 @@ mod memory_controller;
 mod debugger;
 mod disassembler;
 mod game_pak;
-mod joypad_register;
+mod joypad;
 mod lcd_controller;
 mod sound_controller;
 mod tandem;
@@ -190,7 +191,7 @@ impl GameBoyTimer {
     }
 }
 
-struct GameBoyEmulator<'a, R> {
+struct GameBoyEmulator<'a, R, J = PlainJoyPad> {
     cpu: LR35902Emulator,
     sound_controller: SoundController,
     lcd_controller: LCDController<'a, R>,
@@ -199,14 +200,20 @@ struct GameBoyEmulator<'a, R> {
     internal_ram_b: MemoryChunk,
 
     registers: GameBoyRegisters,
-    scheduler: Scheduler<GameBoyEmulator<'a, R>>,
+    scheduler: Scheduler<GameBoyEmulator<'a, R, J>>,
     timer: GameBoyTimer,
     game_pak: Option<GamePak>,
-    joypad_register: JoyPadRegister,
+    joypad: J,
 }
 
-impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
-    fn new(renderer: R) -> GameBoyEmulator<'a, R> {
+impl<'a, R: Renderer> GameBoyEmulator<'a, R, PlainJoyPad> {
+    fn new(renderer: R) -> GameBoyEmulator<'a, R, PlainJoyPad> {
+        Self::new_with_joypad(renderer, PlainJoyPad::new())
+    }
+}
+
+impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
+    fn new_with_joypad(renderer: R, joypad: J) -> GameBoyEmulator<'a, R, J> {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             lcd_controller: LCDController::new(renderer),
@@ -218,13 +225,15 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
             scheduler: Scheduler::new(),
             timer: Default::default(),
             game_pak: None,
-            joypad_register: JoyPadRegister::new(),
+            joypad: joypad,
         };
         e.set_state_post_bios();
         e.schedule_initial_events();
         e
     }
+}
 
+impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
     fn unknown_event(&mut self, _time: u64) {
         let value = self.registers.interrupt_flag.read_value();
         self.registers.interrupt_flag.set_value(value | 0xE0);
@@ -289,7 +298,7 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
 
     fn drive_joypad(&mut self, time: u64) {
         let key_events = self.lcd_controller.poll_renderer();
-        self.joypad_register.tick(key_events);
+        self.joypad.tick(time, key_events);
         self.scheduler.schedule(time + 456, Self::drive_joypad);
     }
 
@@ -469,7 +478,7 @@ impl<'a, R: Renderer> GameBoyEmulator<'a, R> {
         } else {
             0
         };
-        return super_fast_hash(&mem);
+        return super_fast_hash(&mem[..]);
     }
 }
 
@@ -559,6 +568,36 @@ pub fn run_until_and_take_screenshot<P: AsRef<std::path::Path>>(
     }
 
     e.save_screenshot(output_path).unwrap();
+}
+
+pub fn run_and_record_replay(
+    game_pak: GamePak,
+    pixel_scale: u32,
+    output: &Path,
+) -> Result<(), ReplayError> {
+    let renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+    let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
+    let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
+    e.load_game_pak(game_pak);
+    e.run();
+    Ok(())
+}
+
+pub fn playback_replay(
+    game_pak: GamePak,
+    pixel_scale: u32,
+    input: &Path,
+) -> Result<(), ReplayError> {
+    let renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+    let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
+    let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
+    e.load_game_pak(game_pak);
+    e.run();
+    Ok(())
+}
+
+pub fn print_replay(input: &Path) -> Result<(), ReplayError> {
+    joypad::print_replay(input)
 }
 
 #[cfg(test)]
