@@ -174,7 +174,7 @@ impl<T: MemoryMappedHardware> MemoryMappedHardware for Option<T> {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct MemoryChunk {
     value: Vec<u8>,
     borrowed: bool,

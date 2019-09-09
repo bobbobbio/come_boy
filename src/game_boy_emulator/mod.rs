@@ -1,6 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
-use self::game_pak::GamePak;
+pub use self::game_pak::GamePak;
 use self::joypad_register::JoyPadRegister;
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
 use self::memory_controller::{
@@ -507,7 +507,7 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator<NullRenderer>, stop_address: u16)
 #[test]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
     let mut e = GameBoyEmulator::new(NullRenderer);
-    e.load_game_pak(GamePak::from(&read_blargg_test_rom(
+    e.load_game_pak(GamePak::new(&read_blargg_test_rom(
         "cpu_instrs/individual/02-interrupts.gb",
     )));
     run_blargg_test_rom(&mut e, 0xc7f4);
@@ -517,35 +517,35 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
 #[ignore]
 fn blargg_test_rom_instr_timing() {
     let mut e = GameBoyEmulator::new(NullRenderer);
-    e.load_game_pak(GamePak::from(&read_blargg_test_rom(
+    e.load_game_pak(GamePak::new(&read_blargg_test_rom(
         "instr_timing/instr_timing.gb",
     )));
     run_blargg_test_rom(&mut e, 0xc8b0);
 }
 
-pub fn run_emulator(rom: &[u8], pixel_scale: u32) {
+pub fn run_emulator(game_pak: GamePak, pixel_scale: u32) {
     let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144));
-    e.load_game_pak(GamePak::from(rom));
+    e.load_game_pak(game_pak);
     e.run();
 }
 
 pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     other_emulator_path: P,
-    rom: &[u8],
+    game_pak: GamePak,
     pc_only: bool,
 ) -> io::Result<()> {
     println!("loading {:?}", &other_emulator_path);
 
-    tandem::run(other_emulator_path, rom, pc_only)
+    tandem::run(other_emulator_path, game_pak, pc_only)
 }
 
 pub fn run_until_and_take_screenshot<P: AsRef<std::path::Path>>(
-    rom: &[u8],
+    game_pak: GamePak,
     ticks: u64,
     output_path: P,
 ) {
     let mut e = GameBoyEmulator::new(Sdl2SurfaceRenderer::new(1, 160, 144));
-    e.load_game_pak(GamePak::from(rom));
+    e.load_game_pak(game_pak);
 
     let target_tick = e.cpu.elapsed_cycles + ticks;
 
@@ -596,11 +596,8 @@ fn rom_tests() -> io::Result<()> {
         let rom_entry = rom_entry?;
         let rom_path = rom_entry.path();
         println!("Found ROM {}", rom_path.to_string_lossy());
-        let mut rom_file = std::fs::File::open(&rom_path)?;
-        let mut rom: Vec<u8> = vec![];
-        rom_file.read_to_end(&mut rom)?;
 
-        let game_pak = GamePak::from(&rom);
+        let game_pak = GamePak::from_path(&rom_path)?;
         println!("Identifier ROM as \"{}\"", game_pak.title());
 
         let game_title = game_pak.title().to_lowercase().replace(" ", "_");
@@ -634,7 +631,7 @@ fn rom_tests() -> io::Result<()> {
                 rom_path.to_string_lossy(),
                 ticks
             );
-            run_until_and_take_screenshot(&rom, ticks, tmp_output.path());
+            run_until_and_take_screenshot(game_pak.clone(), ticks, tmp_output.path());
             println!("Comparing screen output with expectation");
             let difference = diff_bmp(tmp_output.path(), &expectation_path)?;
             if difference {

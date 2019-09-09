@@ -1,8 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
-use come_boy::game_boy_emulator;
-use std::fs::File;
-use std::io::{Read, Result};
+use come_boy::game_boy_emulator::{self, GamePak};
+use std::io;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -15,14 +14,11 @@ struct Options {
     scale: u32,
 }
 
-fn main() -> Result<()> {
+fn main() -> io::Result<()> {
     let options = Options::from_args();
 
-    let mut rom_file = File::open(&options.rom)?;
-    let mut rom: Vec<u8> = vec![];
-    rom_file.read_to_end(&mut rom)?;
-
-    game_boy_emulator::run_emulator(&rom, options.scale);
+    let game_pak = GamePak::from_path(options.rom)?;
+    game_boy_emulator::run_emulator(game_pak, options.scale);
 
     Ok(())
 }

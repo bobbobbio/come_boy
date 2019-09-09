@@ -487,12 +487,16 @@ fn print_memory_diff(a: &[u8], b: &[u8]) {
     print_hex(b, start, end, |addr| a[addr] != b[addr]);
 }
 
-pub fn run<P: AsRef<Path> + Debug>(replay_file_path: P, rom: &[u8], pc_only: bool) -> Result<()> {
+pub fn run<P: AsRef<Path> + Debug>(
+    replay_file_path: P,
+    game_pak: GamePak,
+    pc_only: bool,
+) -> Result<()> {
     let f = File::open(&replay_file_path)?;
     let mut e1 = EmulatorReplayer::new(&f);
 
     let mut e2 = GameBoyEmulator::new(NullRenderer);
-    e2.load_game_pak(GamePak::from(rom));
+    e2.load_game_pak(game_pak);
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);
 

@@ -1,9 +1,8 @@
 // Copyright 2017 Remi Bernotavicius
 
-use come_boy::game_boy_emulator;
+use come_boy::game_boy_emulator::{self, GamePak};
 use nix::sys::signal;
-use std::fs::File;
-use std::io::{Read, Result};
+use std::io;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
@@ -23,7 +22,7 @@ struct Options {
     scale: u32,
 }
 
-fn main() -> Result<()> {
+fn main() -> io::Result<()> {
     let sig_action = signal::SigAction::new(
         signal::SigHandler::Handler(handle_sigint),
         signal::SaFlags::empty(),
@@ -33,11 +32,8 @@ fn main() -> Result<()> {
 
     let options = Options::from_args();
 
-    let mut rom_file = File::open(&options.rom)?;
-    let mut rom: Vec<u8> = vec![];
-    rom_file.read_to_end(&mut rom)?;
-
-    game_boy_emulator::run_debugger(&rom, options.scale, &|| {
+    let game_pak = GamePak::from_path(&options.rom)?;
+    game_boy_emulator::run_debugger(game_pak, options.scale, &|| {
         INTERRUPTED.swap(false, Ordering::Relaxed)
     });
     Ok(())

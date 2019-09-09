@@ -2,13 +2,24 @@
 
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use std::fmt;
+use std::io::{self, Read};
 use std::ops::Range;
 use std::str;
 
 trait MemoryBankController: fmt::Debug + MemoryMappedHardware {
     fn tick(&mut self) {}
+
+    // XXX Weird workaround to implement Clone for Box<dyn MemoryBankController>
+    fn box_clone(&self) -> Box<dyn MemoryBankController>;
 }
 
+impl Clone for Box<dyn MemoryBankController> {
+    fn clone(&self) -> Self {
+        self.box_clone()
+    }
+}
+
+#[derive(Clone)]
 struct MemoryBankController0 {
     banks: Vec<MemoryChunk>,
 }
@@ -25,7 +36,11 @@ impl fmt::Debug for MemoryBankController0 {
     }
 }
 
-impl MemoryBankController for MemoryBankController0 {}
+impl MemoryBankController for MemoryBankController0 {
+    fn box_clone(&self) -> Box<dyn MemoryBankController> {
+        Box::new((*self).clone())
+    }
+}
 
 impl MemoryMappedHardware for MemoryBankController0 {
     fn read_value(&self, address: u16) -> u8 {
@@ -41,6 +56,7 @@ impl MemoryMappedHardware for MemoryBankController0 {
     fn set_value(&mut self, _address: u16, _value: u8) {}
 }
 
+#[derive(Clone)]
 struct SwitchableBank {
     banks: Vec<MemoryChunk>,
     current_bank: usize,
@@ -110,6 +126,7 @@ impl MemoryMappedHardware for RangeRegister {
     }
 }
 
+#[derive(Clone)]
 struct MemoryBankController1<R: CartridgeRam> {
     rom_bank_number: RangeRegister,
     ram_bank_number: RangeRegister,
@@ -168,7 +185,7 @@ impl<R: CartridgeRam> MemoryBankController1<R> {
     }
 }
 
-impl<R: CartridgeRam> MemoryBankController for MemoryBankController1<R> {
+impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController1<R> {
     fn tick(&mut self) {
         let mut rom_bank_value = (self.rom_bank_number.value() & 0x0F) as usize;
 
@@ -190,8 +207,13 @@ impl<R: CartridgeRam> MemoryBankController for MemoryBankController1<R> {
             self.ram.switch_bank(self.ram_bank_number.value() as usize);
         }
     }
+
+    fn box_clone(&self) -> Box<dyn MemoryBankController> {
+        Box::new((*self).clone())
+    }
 }
 
+#[derive(Clone)]
 struct MemoryBankController5<R: CartridgeRam> {
     inner: MemoryBankController1<R>,
 }
@@ -220,16 +242,21 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController5<R> {
     }
 }
 
-impl<R: CartridgeRam> MemoryBankController for MemoryBankController5<R> {
+impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController5<R> {
     fn tick(&mut self) {
         self.inner.tick();
     }
+
+    fn box_clone(&self) -> Box<dyn MemoryBankController> {
+        Box::new((*self).clone())
+    }
 }
 
-trait CartridgeRam: fmt::Debug + MemoryMappedHardware {
+trait CartridgeRam: fmt::Debug + MemoryMappedHardware + Clone {
     fn switch_bank(&mut self, bank: usize);
 }
 
+#[derive(Clone)]
 struct NoRam;
 
 impl fmt::Debug for NoRam {
@@ -249,6 +276,7 @@ impl CartridgeRam for NoRam {
     fn switch_bank(&mut self, _bank: usize) {}
 }
 
+#[derive(Clone)]
 struct VolatileRam {
     switchable_bank: SwitchableBank,
 }
@@ -282,6 +310,7 @@ impl CartridgeRam for VolatileRam {
     }
 }
 
+#[derive(Clone)]
 struct NonVolatileRam {
     inner: VolatileRam,
 }
@@ -313,6 +342,7 @@ impl CartridgeRam for NonVolatileRam {
     fn switch_bank(&mut self, _bank: usize) {}
 }
 
+#[derive(Clone)]
 pub struct GamePak {
     title: String,
     mbc: Box<dyn MemoryBankController>,
@@ -338,7 +368,14 @@ const TITLE: Range<usize> = Range {
 };
 
 impl GamePak {
-    pub fn from(rom: &[u8]) -> Self {
+    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> io::Result<Self> {
+        let mut rom_file = std::fs::File::open(path)?;
+        let mut rom: Vec<u8> = vec![];
+        rom_file.read_to_end(&mut rom)?;
+        Ok(GamePak::new(&rom))
+    }
+
+    pub fn new(rom: &[u8]) -> Self {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
         let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
             n if n <= 0x08 => 2usize.pow(n as u32 + 1),

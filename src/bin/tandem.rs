@@ -1,8 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
-use come_boy::game_boy_emulator;
-use std::fs::File;
-use std::io::{Read, Result};
+use come_boy::game_boy_emulator::{self, GamePak};
+use std::io;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -20,12 +19,9 @@ struct Options {
     pc_only: bool,
 }
 
-fn main() -> Result<()> {
+fn main() -> io::Result<()> {
     let options = Options::from_args();
 
-    let mut rom_file = File::open(&options.rom)?;
-    let mut rom: Vec<u8> = vec![];
-    rom_file.read_to_end(&mut rom)?;
-
-    game_boy_emulator::run_in_tandem_with(&options.emulator_path, &rom, options.pc_only)
+    let game_pak = GamePak::from_path(&options.rom)?;
+    game_boy_emulator::run_in_tandem_with(&options.emulator_path, game_pak, options.pc_only)
 }
