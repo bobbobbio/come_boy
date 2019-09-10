@@ -590,9 +590,13 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
 
 #[test]
 fn rom_tests() -> io::Result<()> {
-    let rom_path = "test/roms/";
-    println!("Looking in {} for ROMs", rom_path);
-    for rom_entry in std::fs::read_dir(rom_path)? {
+    let roms_path: std::path::PathBuf = "test/roms/".into();
+    println!("Looking in {} for ROMs", roms_path.to_string_lossy());
+    if !roms_path.exists() {
+        println!("Found no ROMs");
+        return Ok(());
+    }
+    for rom_entry in std::fs::read_dir(roms_path)? {
         let rom_entry = rom_entry?;
         let rom_path = rom_entry.path();
         println!("Found ROM {}", rom_path.to_string_lossy());
