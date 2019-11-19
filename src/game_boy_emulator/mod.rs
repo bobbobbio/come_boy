@@ -548,26 +548,42 @@ pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     tandem::run(other_emulator_path, game_pak, pc_only)
 }
 
-pub fn run_until_and_take_screenshot<P: AsRef<std::path::Path>>(
-    game_pak: GamePak,
+fn run_emulator_until_and_take_screenshot<P: AsRef<Path>, R: Renderer, J: JoyPad>(
+    mut e: GameBoyEmulator<R, J>,
     ticks: u64,
     output_path: P,
 ) {
-    let mut e = GameBoyEmulator::new(Sdl2SurfaceRenderer::new(1, 160, 144));
-    e.load_game_pak(game_pak);
-
     let target_tick = e.cpu.elapsed_cycles + ticks;
 
     while e.cpu.elapsed_cycles < target_tick {
         if let Some(c) = e.crashed() {
-            println!("Emulator crashed: {}", c);
-            return;
+            panic!("Emulator crashed: {}", c);
         }
 
         e.tick();
     }
 
     e.save_screenshot(output_path).unwrap();
+}
+
+pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
+    game_pak: GamePak,
+    ticks: u64,
+    replay_path: Option<P1>,
+    output_path: P2,
+) -> Result<(), ReplayError> {
+    let renderer = Sdl2SurfaceRenderer::new(1, 160, 144);
+    if let Some(replay_path) = replay_path {
+        let joypad = PlaybackJoyPad::new(game_pak.hash(), replay_path)?;
+        let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
+        e.load_game_pak(game_pak);
+        run_emulator_until_and_take_screenshot(e, ticks, output_path);
+    } else {
+        let mut e = GameBoyEmulator::new(renderer);
+        e.load_game_pak(game_pak);
+        run_emulator_until_and_take_screenshot(e, ticks, output_path);
+    }
+    Ok(())
 }
 
 pub fn run_and_record_replay(
@@ -674,7 +690,9 @@ fn rom_tests() -> io::Result<()> {
                 rom_path.to_string_lossy(),
                 ticks
             );
-            run_until_and_take_screenshot(game_pak.clone(), ticks, tmp_output.path());
+            let replay: Option<&Path> = None;
+            run_until_and_take_screenshot(game_pak.clone(), ticks, replay, tmp_output.path())
+                .unwrap();
             println!("Comparing screen output with expectation");
             let difference = diff_bmp(tmp_output.path(), &expectation_path)?;
             if difference {

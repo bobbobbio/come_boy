@@ -1,7 +1,6 @@
 // Copyright 2018 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::{self, GamePak};
-use std::io;
+use come_boy::game_boy_emulator::{self, GamePak, ReplayError};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -15,15 +14,22 @@ struct Options {
     rom: PathBuf,
     #[structopt(long = "ticks")]
     ticks: u64,
+    #[structopt(long = "replay")]
+    replay: Option<PathBuf>,
     #[structopt(long = "output", parse(from_os_str))]
     output: PathBuf,
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<(), ReplayError> {
     let options = Options::from_args();
 
     let game_pak = GamePak::from_path(&options.rom)?;
-    game_boy_emulator::run_until_and_take_screenshot(game_pak, options.ticks, options.output);
+    game_boy_emulator::run_until_and_take_screenshot(
+        game_pak,
+        options.ticks,
+        options.replay,
+        options.output,
+    )?;
 
     Ok(())
 }
