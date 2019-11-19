@@ -1,6 +1,6 @@
 // Copyright 2018 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::{self, GamePak, ReplayError};
+use come_boy::game_boy_emulator::{self, GamePak, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -20,7 +20,7 @@ struct Options {
     output: PathBuf,
 }
 
-fn main() -> Result<(), ReplayError> {
+fn main() -> Result<()> {
     let options = Options::from_args();
 
     let game_pak = GamePak::from_path(&options.rom)?;

@@ -5,11 +5,11 @@ use crate::emulator_common::Intel8080Register;
 use crate::game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag};
+use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag, Result};
 use crate::rendering::{NullRenderer, Renderer};
 use std::fmt::{self, Debug};
 use std::fs::File;
-use std::io::{self, Bytes, Read, Result, Write};
+use std::io::{Bytes, Read, Write};
 use std::path::Path;
 use std::str;
 
@@ -107,7 +107,7 @@ struct AbstractEmulatorState {
 trait AbstractEmulator {
     fn run_one(&mut self);
     fn get_state(&self) -> Option<AbstractEmulatorState>;
-    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()>;
+    fn write_memory(&self, w: &mut dyn Write) -> Result<()>;
 }
 
 fn compare_emulators<A: AbstractEmulator, B: AbstractEmulator>(
@@ -170,7 +170,7 @@ impl AbstractEmulator for TestEmulator {
         Some(self.state)
     }
 
-    fn write_memory(&self, _w: &mut dyn Write) -> io::Result<()> {
+    fn write_memory(&self, _w: &mut dyn Write) -> Result<()> {
         Ok(())
     }
 }
@@ -311,8 +311,9 @@ impl<'a, R: Renderer> AbstractEmulator for GameBoyEmulator<'a, R> {
         })
     }
 
-    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()> {
-        self.write_memory(w)
+    fn write_memory(&self, w: &mut dyn Write) -> Result<()> {
+        self.write_memory(w)?;
+        Ok(())
     }
 }
 
@@ -406,7 +407,7 @@ impl<R: Read> AbstractEmulator for EmulatorReplayer<R> {
         self.state
     }
 
-    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()> {
+    fn write_memory(&self, w: &mut dyn Write) -> Result<()> {
         w.write(&self.memory)?;
         Ok(())
     }

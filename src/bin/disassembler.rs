@@ -1,10 +1,10 @@
 // Copyright 2017 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::disassemble_game_boy_rom;
+use come_boy::game_boy_emulator::{disassemble_game_boy_rom, Result};
 use come_boy::intel_8080_emulator::disassemble_8080_rom;
 use come_boy::lr35902_emulator::disassemble_lr35902_rom;
 use std::fs::File;
-use std::io::{Read, Result};
+use std::io::Read;
 use std::path::PathBuf;
 use std::str::FromStr;
 use structopt::StructOpt;
@@ -39,7 +39,8 @@ fn disassemble_rom(
         InstructionSet::GameBoy => disassemble_game_boy_rom(rom, include_opcodes),
         InstructionSet::LR35902 => disassemble_lr35902_rom(rom, include_opcodes),
         InstructionSet::Intel8080 => disassemble_8080_rom(rom, include_opcodes),
-    }
+    }?;
+    Ok(())
 }
 
 #[derive(StructOpt)]

@@ -4,7 +4,16 @@ use std::path::Path;
 
 pub mod sdl2;
 
-type Result<T> = std::result::Result<T, String>;
+#[derive(Debug)]
+pub struct Error(String);
+
+impl From<String> for Error {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
+type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Clone, Copy)]
 pub enum Keycode {

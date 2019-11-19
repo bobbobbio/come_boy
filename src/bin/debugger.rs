@@ -1,8 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::{self, GamePak};
+use come_boy::game_boy_emulator::{self, GamePak, Result};
 use nix::sys::signal;
-use std::io;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
@@ -22,7 +21,7 @@ struct Options {
     scale: u32,
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     let sig_action = signal::SigAction::new(
         signal::SigHandler::Handler(handle_sigint),
         signal::SaFlags::empty(),

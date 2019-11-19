@@ -5,7 +5,7 @@ use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
 use crate::game_boy_emulator::{
-    BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
+    Result, BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
     CHARACTER_DATA_2, OAM_DATA, UNUSABLE_MEMORY,
 };
 use crate::rendering::{Color, Event, Renderer};
@@ -778,8 +778,9 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         }
     }
 
-    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), String> {
-        self.renderer.save_buffer(path)
+    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        self.renderer.save_buffer(path)?;
+        Ok(())
     }
 
     pub fn tick(&mut self, time: u64) {

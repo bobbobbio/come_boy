@@ -1,6 +1,6 @@
 // Copyright 2019 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::{self, GamePak, ReplayError};
+use come_boy::game_boy_emulator::{self, GamePak, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -33,7 +33,7 @@ enum Options {
     },
 }
 
-fn main() -> Result<(), ReplayError> {
+fn main() -> Result<()> {
     let options = Options::from_args();
     match options {
         Options::Record { rom, output, scale } => {

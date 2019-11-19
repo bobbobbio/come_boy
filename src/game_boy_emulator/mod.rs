@@ -1,7 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
 pub use self::game_pak::GamePak;
-pub use self::joypad::ReplayError;
 use self::joypad::{JoyPad, PlainJoyPad, PlaybackJoyPad, RecordingJoyPad};
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
 use self::memory_controller::{
@@ -16,7 +15,7 @@ use crate::rendering::{
 };
 use crate::util::{super_fast_hash, Scheduler};
 use std::fmt::Debug;
-use std::io::{self, Write};
+use std::io::Write;
 use std::ops::Range;
 use std::path::Path;
 
@@ -39,6 +38,33 @@ mod joypad;
 mod lcd_controller;
 mod sound_controller;
 mod tandem;
+
+#[derive(Debug)]
+pub enum Error {
+    Io(std::io::Error),
+    Replay(joypad::ReplayError),
+    Rendering(crate::rendering::Error),
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+impl From<std::io::Error> for Error {
+    fn from(e: std::io::Error) -> Self {
+        Self::Io(e)
+    }
+}
+
+impl From<joypad::ReplayError> for Error {
+    fn from(e: joypad::ReplayError) -> Self {
+        Self::Replay(e)
+    }
+}
+
+impl From<crate::rendering::Error> for Error {
+    fn from(e: crate::rendering::Error) -> Self {
+        Self::Rendering(e)
+    }
+}
 
 /*   ____                      ____              _____                 _       _
  *  / ___| __ _ _ __ ___   ___| __ )  ___  _   _| ____|_ __ ___  _   _| | __ _| |_ ___  _ __
@@ -393,8 +419,9 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
         self.timer.schedule_initial_events(now);
     }
 
-    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<(), String> {
-        self.lcd_controller.save_screenshot(path)
+    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
+        self.lcd_controller.save_screenshot(path)?;
+        Ok(())
     }
 
     fn run(&mut self) {
@@ -429,7 +456,7 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
         }
     }
 
-    fn write_memory(&self, w: &mut dyn Write) -> io::Result<()> {
+    fn write_memory(&self, w: &mut dyn Write) -> Result<()> {
         let memory_map = game_boy_memory_map!(self);
         let mut mem = [0u8; 0x10000];
         for i in 0..0x10000 {
@@ -542,7 +569,7 @@ pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     other_emulator_path: P,
     game_pak: GamePak,
     pc_only: bool,
-) -> io::Result<()> {
+) -> Result<()> {
     println!("loading {:?}", &other_emulator_path);
 
     tandem::run(other_emulator_path, game_pak, pc_only)
@@ -571,7 +598,7 @@ pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
     ticks: u64,
     replay_path: Option<P1>,
     output_path: P2,
-) -> Result<(), ReplayError> {
+) -> Result<()> {
     let renderer = Sdl2SurfaceRenderer::new(1, 160, 144);
     if let Some(replay_path) = replay_path {
         let joypad = PlaybackJoyPad::new(game_pak.hash(), replay_path)?;
@@ -586,11 +613,7 @@ pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
     Ok(())
 }
 
-pub fn run_and_record_replay(
-    game_pak: GamePak,
-    pixel_scale: u32,
-    output: &Path,
-) -> Result<(), ReplayError> {
+pub fn run_and_record_replay(game_pak: GamePak, pixel_scale: u32, output: &Path) -> Result<()> {
     let renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
     let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
     let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
@@ -599,11 +622,7 @@ pub fn run_and_record_replay(
     Ok(())
 }
 
-pub fn playback_replay(
-    game_pak: GamePak,
-    pixel_scale: u32,
-    input: &Path,
-) -> Result<(), ReplayError> {
+pub fn playback_replay(game_pak: GamePak, pixel_scale: u32, input: &Path) -> Result<()> {
     let renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
     let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
     let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
@@ -612,18 +631,19 @@ pub fn playback_replay(
     Ok(())
 }
 
-pub fn print_replay(input: &Path) -> Result<(), ReplayError> {
-    joypad::print_replay(input)
+pub fn print_replay(input: &Path) -> Result<()> {
+    joypad::print_replay(input)?;
+    Ok(())
 }
 
 #[cfg(test)]
-use io::Read;
+use std::io::Read;
 
 #[cfg(test)]
 fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
     path1: P1,
     path2: P2,
-) -> io::Result<bool> {
+) -> Result<bool> {
     let file1 = std::fs::File::open(path1)?;
     let file2 = std::fs::File::open(path2)?;
 
@@ -644,7 +664,7 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
 }
 
 #[test]
-fn rom_tests() -> io::Result<()> {
+fn rom_tests() -> Result<()> {
     let roms_path: std::path::PathBuf = "test/roms/".into();
     println!("Looking in {} for ROMs", roms_path.to_string_lossy());
     if !roms_path.exists() {

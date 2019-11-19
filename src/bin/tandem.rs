@@ -1,7 +1,6 @@
 // Copyright 2018 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::{self, GamePak};
-use std::io;
+use come_boy::game_boy_emulator::{self, GamePak, Result};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -19,7 +18,7 @@ struct Options {
     pc_only: bool,
 }
 
-fn main() -> io::Result<()> {
+fn main() -> Result<()> {
     let options = Options::from_args();
 
     let game_pak = GamePak::from_path(&options.rom)?;
