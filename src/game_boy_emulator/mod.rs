@@ -2,7 +2,7 @@
 
 pub use self::game_pak::GamePak;
 use self::joypad::{JoyPad, PlainJoyPad, PlaybackJoyPad, RecordingJoyPad};
-use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController};
+use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
 };
@@ -75,57 +75,25 @@ impl From<crate::rendering::Error> for Error {
  */
 
 const LCDCSTATUS_INTERRUPT_ADDRESS: u16 = 0x0048;
+
 const TIMER_INTERRUPT_ADDRESS: u16 = 0x0050;
+
 const VERTICAL_BLANKING_INTERRUPT_ADDRESS: u16 = 0x0040;
 
-const CHARACTER_DATA: Range<u16> = Range {
-    start: 0x8000,
-    end: 0x9800,
-};
-const CHARACTER_DATA_1: Range<u16> = Range {
-    start: 0x0,
-    end: 0x1000,
-};
-const CHARACTER_DATA_2: Range<u16> = Range {
-    start: 0x800,
-    end: 0x1800,
-};
-const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range {
-    start: 0x9800,
-    end: 0x9C00,
-};
-const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range {
-    start: 0x9C00,
-    end: 0xA000,
-};
-const OAM_DATA: Range<u16> = Range {
-    start: 0xFE00,
-    end: 0xFEA0,
-};
-
-// const CARTRIDGE_RAM: Range<u16> = Range { start: 0xA000, end: 0xC000 };
-const UNUSABLE_MEMORY: Range<u16> = Range {
-    start: 0xFEA0,
-    end: 0xFF00,
-};
 const HIGH_RAM: Range<u16> = Range {
     start: 0xFF80,
     end: 0xFFFF,
 };
+
 const INTERNAL_RAM_A: Range<u16> = Range {
     start: 0xC000,
     end: 0xDE00,
 };
+
 const INTERNAL_RAM_B: Range<u16> = Range {
     start: 0xDE00,
     end: 0xE000,
 };
-/*
-const ECHO_RAM: Range<u16> = Range {
-    start: 0xE000,
-    end: 0xFE00,
-};
-*/
 
 #[derive(Default)]
 struct GameBoyRegisters {

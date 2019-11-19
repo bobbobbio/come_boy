@@ -4,16 +4,50 @@ use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
-use crate::game_boy_emulator::{
-    Result, BACKGROUND_DISPLAY_DATA_1, BACKGROUND_DISPLAY_DATA_2, CHARACTER_DATA, CHARACTER_DATA_1,
-    CHARACTER_DATA_2, OAM_DATA, UNUSABLE_MEMORY,
-};
+use crate::game_boy_emulator::Result;
 use crate::rendering::{Color, Event, Renderer};
 use crate::util::Scheduler;
 use std::iter;
+use std::ops::Range;
 
 const CHARACTER_SIZE: u8 = 8;
+
 const CHARACTER_AREA_SIZE: u16 = 32;
+
+const CHARACTER_DATA: Range<u16> = Range {
+    start: 0x8000,
+    end: 0x9800,
+};
+
+const CHARACTER_DATA_1: Range<u16> = Range {
+    start: 0x0,
+    end: 0x1000,
+};
+
+const CHARACTER_DATA_2: Range<u16> = Range {
+    start: 0x800,
+    end: 0x1800,
+};
+
+const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range {
+    start: 0x9800,
+    end: 0x9C00,
+};
+
+const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range {
+    start: 0x9C00,
+    end: 0xA000,
+};
+
+pub const OAM_DATA: Range<u16> = Range {
+    start: 0xFE00,
+    end: 0xFEA0,
+};
+
+const UNUSABLE_MEMORY: Range<u16> = Range {
+    start: 0xFEA0,
+    end: 0xFF00,
+};
 
 #[derive(Default)]
 pub struct DmaRegister {
