@@ -7,8 +7,8 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 #[structopt(
-    name = "Come Boy Emulator Screen Shot Taker",
-    about = "Runs emulator for specified amount of time and takes screen shot"
+    name = "Come Boy Emulator Screenshot Taker",
+    about = "Runs emulator for specified amount of time and takes screenshot"
 )]
 struct Options {
     #[structopt(parse(from_os_str))]
