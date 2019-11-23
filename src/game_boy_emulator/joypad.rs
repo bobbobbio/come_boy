@@ -187,25 +187,35 @@ impl PlainJoyPad {
         })
     }
 
+    fn get_state(&mut self, code: ButtonCode) -> &mut ButtonState {
+        match code {
+            ButtonCode::A => &mut self.a,
+            ButtonCode::B => &mut self.b,
+            ButtonCode::Start => &mut self.start,
+            ButtonCode::Select => &mut self.select,
+            ButtonCode::Up => &mut self.up,
+            ButtonCode::Down => &mut self.down,
+            ButtonCode::Left => &mut self.left,
+            ButtonCode::Right => &mut self.right,
+        }
+    }
+
+    fn filter_events(&mut self, button_events: Vec<ButtonEvent>) -> Vec<ButtonEvent> {
+        button_events
+            .into_iter()
+            .filter_map(|e| match e {
+                ButtonEvent::Up(c) if *self.get_state(c) == ButtonState::Pressed => Some(e),
+                ButtonEvent::Down(c) if *self.get_state(c) == ButtonState::NotPressed => Some(e),
+                _ => None,
+            })
+            .collect()
+    }
+
     fn respond_to_events(&mut self, button_events: Vec<ButtonEvent>) {
         for event in button_events {
             match event {
-                ButtonEvent::Up(ButtonCode::A) => self.a = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::A) => self.a = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::B) => self.b = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::B) => self.b = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::Start) => self.start = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::Start) => self.start = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::Select) => self.select = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::Select) => self.select = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::Up) => self.up = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::Up) => self.up = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::Down) => self.down = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::Down) => self.down = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::Left) => self.left = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::Left) => self.left = ButtonState::Pressed,
-                ButtonEvent::Up(ButtonCode::Right) => self.right = ButtonState::NotPressed,
-                ButtonEvent::Down(ButtonCode::Right) => self.right = ButtonState::Pressed,
+                ButtonEvent::Up(c) => *self.get_state(c) = ButtonState::NotPressed,
+                ButtonEvent::Down(c) => *self.get_state(c) = ButtonState::Pressed,
             }
         }
     }
@@ -214,6 +224,7 @@ impl PlainJoyPad {
 impl JoyPad for PlainJoyPad {
     fn tick(&mut self, _now: u64, key_events: Vec<KeyEvent>) {
         let button_events = button_events_from_key_events(key_events);
+        let button_events = self.filter_events(button_events);
         self.respond_to_events(button_events);
     }
 }
@@ -285,6 +296,7 @@ struct ReplayFileEntry {
 impl JoyPad for RecordingJoyPad {
     fn tick(&mut self, now: u64, key_events: Vec<KeyEvent>) {
         let button_events = button_events_from_key_events(key_events);
+        let button_events = self.inner.filter_events(button_events);
         let entry = ReplayFileEntry {
             time: now,
             button_events,
