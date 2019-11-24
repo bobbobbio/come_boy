@@ -102,37 +102,11 @@ impl MemoryMappedHardware for SwitchableBank {
 }
 
 #[derive(Clone)]
-struct RangeRegister {
-    value: u8,
-    size: u16,
-}
-
-impl RangeRegister {
-    fn new(size: u16) -> Self {
-        RangeRegister { value: 0, size }
-    }
-
-    fn value(&self) -> u8 {
-        self.value
-    }
-}
-
-impl MemoryMappedHardware for RangeRegister {
-    fn read_value(&self, _address: u16) -> u8 {
-        panic!();
-    }
-
-    fn set_value(&mut self, _address: u16, value: u8) {
-        self.value = value;
-    }
-}
-
-#[derive(Clone)]
 struct MemoryBankController1<R: CartridgeRam> {
-    rom_bank_number: RangeRegister,
-    ram_bank_number: RangeRegister,
-    rom_ram_select: RangeRegister,
-    ram_enable: RangeRegister,
+    rom_bank_number: usize,
+    ram_bank_number: usize,
+    rom_ram_select: bool,
+    ram_enable: bool,
     switchable_bank: SwitchableBank,
     ram: R,
 }
@@ -143,20 +117,28 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
             self.switchable_bank.banks[0].read_value(address)
         } else if address < 0xA000 {
             self.switchable_bank.read_value(address - 0x4000)
-        } else {
+        } else if self.ram_enable {
             self.ram.read_value(address - 0xA000)
+        } else {
+            0xFF
         }
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
         if address < 0x2000 {
-            self.ram_bank_number.set_value(address, value);
+            self.ram_enable = (value & 0x0F) == 0x0A;
         } else if address < 0x4000 {
-            self.rom_bank_number.set_value(address - 0x2000, value);
+            self.rom_bank_number = (value as usize) & 0x1F;
         } else if address < 0x6000 {
-            self.ram_bank_number.set_value(address - 0x4000, value);
+            if self.rom_ram_select {
+                self.ram_bank_number = value as usize;
+            } else {
+                self.rom_bank_number |= ((value as usize) & 0x03) << 5;
+            }
+        } else if address < 0x8000 {
+            self.rom_ram_select = value > 0;
         } else if address < 0xA000 {
-            self.rom_bank_number.set_value(address - 0x6000, value);
+            // nothing?
         } else {
             self.ram.set_value(address - 0xA000, value);
         }
@@ -171,15 +153,11 @@ impl<R: CartridgeRam> fmt::Debug for MemoryBankController1<R> {
 
 impl<R: CartridgeRam> MemoryBankController1<R> {
     fn new(banks: Vec<MemoryChunk>, ram: R) -> Self {
-        let rom_bank_number = RangeRegister::new(0x2000);
-        let ram_bank_number = RangeRegister::new(0x2000);
-        let rom_ram_select = RangeRegister::new(0x2000);
-        let ram_enable = RangeRegister::new(0x2000);
         MemoryBankController1 {
-            rom_bank_number,
-            ram_bank_number,
-            rom_ram_select,
-            ram_enable,
+            rom_bank_number: 0,
+            ram_bank_number: 0,
+            rom_ram_select: false,
+            ram_enable: false,
             switchable_bank: SwitchableBank::new(banks),
             ram,
         }
@@ -188,24 +166,13 @@ impl<R: CartridgeRam> MemoryBankController1<R> {
 
 impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController1<R> {
     fn tick(&mut self) {
-        let mut rom_bank_value = (self.rom_bank_number.value() & 0x0F) as usize;
-
-        // ROM bank zero cannot be selected, and this extends to higher numbered banks that can be
-        // selected below using the ram_bank_number (0x20, 0x40, 0x60) => (0x21, 0x41, 0x61).
-        if rom_bank_value == 0 {
-            rom_bank_value += 1;
-        }
-
-        if self.rom_ram_select.value() == 0 {
-            rom_bank_value |= ((self.ram_bank_number.value() & 0b00000011) as usize) << 4;
-        }
-
-        // XXX remi: I'm not sure whats suppose to happen if a non-existent ROM bank is requested.
+        let mut rom_bank_value = (self.rom_bank_number as u8 & 0x0F) as usize;
         rom_bank_value %= self.switchable_bank.len();
+
         self.switchable_bank.switch_bank(rom_bank_value);
 
-        if self.rom_ram_select.value() != 0 && self.ram_enable.value() & 0x0F == 0x0A {
-            self.ram.switch_bank(self.ram_bank_number.value() as usize);
+        if self.ram_enable {
+            self.ram.switch_bank(self.ram_bank_number);
         }
     }
 
@@ -239,7 +206,11 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController5<R> {
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        self.inner.set_value(address, value);
+        if address >= 0x3000 && address < 0x4000 {
+            self.inner.rom_bank_number |= ((value & 0x01) as usize) << 8;
+        } else {
+            self.inner.set_value(address, value);
+        }
     }
 }
 
