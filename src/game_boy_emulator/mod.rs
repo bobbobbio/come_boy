@@ -645,7 +645,7 @@ fn rom_tests() -> Result<()> {
         println!("Found ROM {}", rom_path.to_string_lossy());
 
         let game_pak = GamePak::from_path(&rom_path)?;
-        println!("Identifier ROM as \"{}\"", game_pak.title());
+        println!("Identified ROM as \"{}\"", game_pak.title());
 
         let game_title = game_pak.title().to_lowercase().replace(" ", "_");
         let expectations_path: std::path::PathBuf =
@@ -662,23 +662,29 @@ fn rom_tests() -> Result<()> {
         for expectation_entry in std::fs::read_dir(expectations_path)? {
             let expectation_entry = expectation_entry?;
             let expectation_path = expectation_entry.path();
+
+            if expectation_path.extension().unwrap_or_default() != "bmp" {
+                continue;
+            }
+
             println!("Found expectation {}", expectation_path.to_string_lossy());
 
-            let ticks: u64 = expectation_path
-                .file_stem()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .parse()
-                .unwrap();
+            let stem = expectation_path.file_stem().unwrap().to_str().unwrap();
+
+            let mut stem_parts = stem.split("_");
+            let ticks: u64 = stem_parts.next().unwrap().parse().unwrap();
+            let replay = stem_parts
+                .next()
+                .map(|p| expectation_path.with_file_name(p.to_owned() + ".replay"));
+
             println!("Expectation for clock offset {}", ticks);
-            let tmp_output = tempfile::NamedTempFile::new()?;
             println!(
-                "Running emulator on {} until clock offset {}",
+                "Running emulator on {} until clock offset {}, with replay {:?}",
                 rom_path.to_string_lossy(),
-                ticks
+                ticks,
+                replay
             );
-            let replay: Option<&Path> = None;
+            let tmp_output = tempfile::NamedTempFile::new()?;
             run_until_and_take_screenshot(game_pak.clone(), ticks, replay, tmp_output.path())
                 .unwrap();
             println!("Comparing screen output with expectation");
