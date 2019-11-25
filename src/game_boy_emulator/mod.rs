@@ -633,77 +633,40 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
     Ok(false)
 }
 
-#[test]
-fn rom_tests() -> Result<()> {
-    let roms_path: std::path::PathBuf = "test/roms/".into();
-    println!("Looking in {} for ROMs", roms_path.to_string_lossy());
-    if !roms_path.exists() {
-        println!("Found no ROMs");
-        return Ok(());
-    }
-    for rom_entry in std::fs::read_dir(roms_path)? {
-        let rom_entry = rom_entry?;
-        let rom_path = rom_entry.path();
-        println!("Found ROM {}", rom_path.to_string_lossy());
-
-        let game_pak = || GamePak::from_path(&rom_path);
-        let game_pak_title: String = game_pak()?.title().into();
-        println!("Identified ROM as \"{}\"", game_pak_title);
-
-        let game_title = game_pak_title.to_lowercase().replace(" ", "_");
-        let expectations_path: std::path::PathBuf =
-            format!("test/expectations/{}/", game_title).into();
-        println!(
-            "Looking for expectations in {}",
-            expectations_path.to_string_lossy()
+#[cfg(test)]
+pub fn do_rom_test(
+    rom_path: &str,
+    ticks: u64,
+    expectation_path: &str,
+    replay: Option<&str>,
+) -> Result<()> {
+    println!(
+        "Running emulator on {} until clock offset {}, with replay {:?}",
+        rom_path, ticks, replay
+    );
+    let tmp_output = tempfile::NamedTempFile::new()?;
+    run_until_and_take_screenshot(
+        GamePak::from_path(rom_path)?,
+        ticks,
+        replay,
+        tmp_output.path(),
+    )
+    .unwrap();
+    println!("Comparing screen output with expectation");
+    let difference = diff_bmp(tmp_output.path(), expectation_path)?;
+    if difference {
+        let failure_image: std::path::PathBuf = std::env::var("OUT_DIR").unwrap().into();
+        let failure_image = failure_image.join("failure.bmp");
+        std::fs::rename(tmp_output.path(), &failure_image)?;
+        panic!(
+            "Failure. Image {} does not match expectation {}",
+            failure_image.to_string_lossy(),
+            expectation_path
         );
-        if !expectations_path.exists() {
-            println!("Found no expectations");
-            continue;
-        }
-
-        for expectation_entry in std::fs::read_dir(expectations_path)? {
-            let expectation_entry = expectation_entry?;
-            let expectation_path = expectation_entry.path();
-
-            if expectation_path.extension().unwrap_or_default() != "bmp" {
-                continue;
-            }
-
-            println!("Found expectation {}", expectation_path.to_string_lossy());
-
-            let stem = expectation_path.file_stem().unwrap().to_str().unwrap();
-
-            let mut stem_parts = stem.split("_");
-            let ticks: u64 = stem_parts.next().unwrap().parse().unwrap();
-            let replay = stem_parts
-                .next()
-                .map(|p| expectation_path.with_file_name(p.to_owned() + ".replay"));
-
-            println!("Expectation for clock offset {}", ticks);
-            println!(
-                "Running emulator on {} until clock offset {}, with replay {:?}",
-                rom_path.to_string_lossy(),
-                ticks,
-                replay
-            );
-            let tmp_output = tempfile::NamedTempFile::new()?;
-            run_until_and_take_screenshot(game_pak()?, ticks, replay, tmp_output.path()).unwrap();
-            println!("Comparing screen output with expectation");
-            let difference = diff_bmp(tmp_output.path(), &expectation_path)?;
-            if difference {
-                let failure_image: std::path::PathBuf = std::env::var("OUT_DIR").unwrap().into();
-                let failure_image = failure_image.join("failure.bmp");
-                std::fs::rename(tmp_output.path(), &failure_image)?;
-                panic!(
-                    "Failure. Image {} does not match expectation {}",
-                    failure_image.to_string_lossy(),
-                    expectation_path.to_string_lossy()
-                );
-            } else {
-                println!("Success, images match");
-            }
-        }
+    } else {
+        println!("Success, images match");
     }
     Ok(())
 }
+
+mod rom_tests;

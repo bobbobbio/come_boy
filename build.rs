@@ -9,11 +9,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::{self, Display};
 use std::fs::File;
+use std::io::Read;
 use std::io::Write;
 use std::iter;
 use std::num::ParseIntError;
+use std::ops::Range;
+use std::path::Path;
 use std::process::Command;
-use std::str::FromStr;
+use std::str::{self, FromStr};
 
 #[derive(Deserialize)]
 struct OpcodeOnDisk {
@@ -989,6 +992,126 @@ fn generate_memory_map(memory_map_path: &str, camel_name: &'static str, snake_na
     Command::new("rustfmt").arg(output_file).status().ok();
 }
 
+fn game_pak_title(path: &Path) -> String {
+    let mut rom_file = File::open(path).unwrap();
+    let mut rom: Vec<u8> = vec![];
+    rom_file.read_to_end(&mut rom).unwrap();
+
+    const TITLE: Range<usize> = Range {
+        start: 0x0134,
+        end: 0x0144,
+    };
+
+    let title_slice = &rom[TITLE];
+    let title_end = title_slice
+        .iter()
+        .position(|&c| c == '\0' as u8)
+        .unwrap_or(title_slice.len());
+    let title: &str = str::from_utf8(&title_slice[..title_end])
+        .expect(&format!("Malformed title {:?}", title_slice))
+        .into();
+    title.into()
+}
+
+fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: &mut TokenStream) {
+    let roms_path: std::path::PathBuf = rom_path.into();
+    println!("Looking in {} for ROMs", roms_path.to_string_lossy());
+    println!("cargo:rerun-if-changed={}", roms_path.to_string_lossy());
+
+    if !roms_path.exists() {
+        println!("Found no ROMs");
+        return;
+    }
+
+    for rom_entry in std::fs::read_dir(roms_path).unwrap() {
+        let rom_entry = rom_entry.unwrap();
+        let rom_path = rom_entry.path();
+        println!("Found ROM {}", rom_path.to_string_lossy());
+        println!("cargo:rerun-if-changed={}", rom_path.to_string_lossy());
+
+        let game_pak_title = game_pak_title(&rom_path);
+        println!("Identified ROM as \"{}\"", game_pak_title);
+
+        let game_pak_title = game_pak_title.to_lowercase().replace(" ", "_");
+        let expectations_path: std::path::PathBuf =
+            format!("{}/{}/", expectations_path, game_pak_title).into();
+        println!(
+            "Looking for expectations in {}",
+            expectations_path.to_string_lossy()
+        );
+        println!(
+            "cargo:rerun-if-changed={}",
+            expectations_path.to_string_lossy()
+        );
+
+        if !expectations_path.exists() {
+            println!("Found no expectations");
+            continue;
+        }
+
+        for expectation_entry in std::fs::read_dir(expectations_path).unwrap() {
+            let expectation_entry = expectation_entry.unwrap();
+            let expectation_path = expectation_entry.path();
+
+            if expectation_path.extension().unwrap_or_default() != "bmp" {
+                continue;
+            }
+
+            println!("Found expectation {}", expectation_path.to_string_lossy());
+
+            let stem = expectation_path.file_stem().unwrap().to_str().unwrap();
+
+            let mut stem_parts = stem.split("_");
+            let ticks: u64 = stem_parts.next().unwrap().parse().unwrap();
+            let replay = stem_parts
+                .next()
+                .map(|p| expectation_path.with_file_name(p.to_owned() + ".replay"));
+
+            println!("Expectation for clock offset {}", ticks);
+
+            let mut test_name = format!("{}_{}", game_pak_title, ticks);
+            if let Some(replay) = &replay {
+                test_name += "_";
+                test_name += replay.file_stem().unwrap().to_str().unwrap();
+            }
+            let test_name = Ident::new(&test_name, Span::call_site());
+
+            let rom_path = rom_path.to_str().unwrap();
+            let expectation_path = expectation_path.to_str().unwrap();
+            let replay = if let Some(replay) = replay {
+                let replay = replay.to_str().unwrap();
+                quote!(Some(#replay))
+            } else {
+                quote!(None)
+            };
+            tokens.extend(quote! {
+                #[test]
+                fn #test_name() -> Result<()> {
+                    do_rom_test(#rom_path, #ticks, #expectation_path, #replay)
+                }
+            });
+        }
+    }
+}
+
+fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
+    let output_file = format!("src/{}/rom_tests.rs", module);
+    let mut out = File::create(&output_file).unwrap();
+    let mut tokens = TokenStream::new();
+    tokens.extend(quote! {
+        #[cfg(test)]
+        #[allow(unused_imports)]
+        use crate::game_boy_emulator::{Result, do_rom_test};
+    });
+    generate_rom_test_functions(rom_dir, expectations_dir, &mut tokens);
+
+    write!(out, "{}", tokens).unwrap();
+    out.flush().unwrap();
+
+    // Try to run rustfmt on it, but don't fail if we are unable.
+    Command::new("rustfmt").arg(output_file).status().ok();
+}
+
 fn main() {
     generate_opcodes("intel_8080_emulator/opcodes", "Intel8080");
     generate_opcodes("lr35902_emulator/opcodes", "LR35902");
@@ -998,4 +1121,5 @@ fn main() {
         "SoundController",
         "sound_controller",
     );
+    generate_rom_tests("test/roms", "test/expectations", "game_boy_emulator");
 }
