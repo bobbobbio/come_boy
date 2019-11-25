@@ -181,6 +181,88 @@ impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController1<R
     }
 }
 
+#[derive(PartialEq, Copy, Clone)]
+enum ClockOrRam {
+    Clock,
+    Ram,
+}
+
+struct MemoryBankController3<R: CartridgeRam> {
+    inner: MemoryBankController1<R>,
+    clock_ram_select: ClockOrRam,
+}
+
+impl<R: CartridgeRam> fmt::Debug for MemoryBankController3<R> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "MBC3{:?}", self.inner.ram)
+    }
+}
+
+impl<R: CartridgeRam> MemoryBankController3<R> {
+    fn new(banks: Vec<MemoryChunk>, ram: R) -> Self {
+        MemoryBankController3 {
+            inner: MemoryBankController1::new(banks, ram),
+            clock_ram_select: ClockOrRam::Ram,
+        }
+    }
+}
+
+impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController3<R> {
+    fn read_value(&self, address: u16) -> u8 {
+        if address < 0xA000 {
+            self.inner.read_value(address)
+        } else if address < 0xC000 {
+            if self.clock_ram_select == ClockOrRam::Clock {
+                // Read current RTC register
+                0xFF
+            } else {
+                self.inner.ram.read_value(address - 0xA000)
+            }
+        } else {
+            self.inner.read_value(address)
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        if address < 0x2000 {
+            self.inner.set_value(address, value);
+        } else if address < 0x4000 {
+            // Select ROM bank (lower 7 bits)
+            self.inner.rom_bank_number &= !0x7F;
+            self.inner.rom_bank_number |= (value as usize) & 0x7F;
+            if self.inner.rom_bank_number == 0 {
+                self.inner.rom_bank_number = 1;
+            }
+        } else if address < 0x6000 {
+            if value < 0x08 {
+                self.clock_ram_select = ClockOrRam::Ram;
+                self.inner.ram_bank_number = value as usize;
+            } else {
+                self.clock_ram_select = ClockOrRam::Clock;
+                // Select RTC register
+            }
+        } else if address < 0x8000 {
+            // Latch clock data
+        } else if address < 0xA000 {
+            self.inner.set_value(address, value);
+        } else if address < 0xC000 {
+            if self.clock_ram_select == ClockOrRam::Clock {
+                // Write to RTC register
+            } else {
+                self.inner.ram.set_value(address - 0xA000, value);
+            }
+        } else {
+            self.inner.set_value(address, value);
+        }
+    }
+}
+
+impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController3<R> {
+    fn tick(&mut self) {
+        self.inner.tick();
+    }
+}
+
 struct MemoryBankController5<R: CartridgeRam> {
     inner: MemoryBankController1<R>,
 }
@@ -503,11 +585,20 @@ impl GamePak {
                 banks,
                 NonVolatileRam::new(ram_size, sram_path),
             )),
+            0x11 => Box::new(MemoryBankController3::new(banks, NoRam)),
+            0x12 => Box::new(MemoryBankController3::new(
+                banks,
+                VolatileRam::new(ram_size),
+            )),
+            0x13 => Box::new(MemoryBankController3::new(
+                banks,
+                NonVolatileRam::new(ram_size, sram_path),
+            )),
             0x1b => Box::new(MemoryBankController5::new(
                 banks,
                 NonVolatileRam::new(ram_size, sram_path),
             )),
-            v => panic!("Unknown Memory Bank Controller #{:x}", v),
+            v => panic!("Unknown Memory Bank Controller {:#x}", v),
         };
 
         GamePak { title, hash, mbc }
