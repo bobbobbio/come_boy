@@ -69,12 +69,20 @@ impl SwitchableBank {
         self.current_bank = new_bank;
     }
 
-    fn current_bank_offset(&self) -> u16 {
+    fn current_bank_offset(&self) -> usize {
         let mut offset = 0;
         for b in &self.banks[..self.current_bank] {
-            offset += b.len();
+            offset += b.len() as usize;
         }
         offset
+    }
+
+    fn total_len(&self) -> usize {
+        let mut len = 0;
+        for b in &self.banks {
+            len += b.len() as usize;
+        }
+        len
     }
 
     fn len(&self) -> usize {
@@ -338,6 +346,10 @@ impl MemoryMappedHardware for NonVolatileInternalRam {
         self.memory.read_value(address) | 0xF0
     }
     fn set_value(&mut self, address: u16, value: u8) {
+        if address >= self.memory.len() {
+            return;
+        }
+
         self.memory.set_value(address, value | 0xF0);
         if let Some(file) = &mut self.file {
             file.seek(SeekFrom::Start(address as u64)).ok();
@@ -609,10 +621,14 @@ impl MemoryMappedHardware for NonVolatileRam {
         self.switchable_bank.read_value(address)
     }
     fn set_value(&mut self, address: u16, value: u8) {
+        if address as usize >= self.switchable_bank.total_len() {
+            return;
+        }
+
         self.switchable_bank.set_value(address, value);
         if let Some(file) = &mut self.file {
             file.seek(SeekFrom::Start(
-                (self.switchable_bank.current_bank_offset() + address) as u64,
+                (self.switchable_bank.current_bank_offset() + address as usize) as u64,
             ))
             .ok();
             file.write(&[value]).ok();
