@@ -128,11 +128,16 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
         if address < 0x2000 {
             self.ram_enable = (value & 0x0F) == 0x0A;
         } else if address < 0x4000 {
-            self.rom_bank_number = (value as usize) & 0x1F;
+            self.rom_bank_number &= !0x1F;
+            self.rom_bank_number |= (value as usize) & 0x1F;
+            if self.rom_bank_number == 0 {
+                self.rom_bank_number = 1;
+            }
         } else if address < 0x6000 {
             if self.rom_ram_select {
                 self.ram_bank_number = value as usize;
             } else {
+                self.rom_bank_number &= !(0x03 << 5);
                 self.rom_bank_number |= ((value as usize) & 0x03) << 5;
             }
         } else if address < 0x8000 {
@@ -166,8 +171,7 @@ impl<R: CartridgeRam> MemoryBankController1<R> {
 
 impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController1<R> {
     fn tick(&mut self) {
-        let mut rom_bank_value = (self.rom_bank_number as u8 & 0x0F) as usize;
-        rom_bank_value %= self.switchable_bank.len();
+        let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
 
         self.switchable_bank.switch_bank(rom_bank_value);
 
@@ -206,9 +210,24 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController5<R> {
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        if address >= 0x3000 && address < 0x4000 {
+        if address < 0x2000 {
+            // RAM Enable
+            self.inner.set_value(address, value);
+        } else if address < 0x3000 {
+            // Select ROM bank (lower 8 bits)
+            self.inner.rom_bank_number &= !0xFF;
+            self.inner.rom_bank_number |= value as usize;
+        } else if address < 0x4000 {
+            // Select ROM bank (9th bit)
+            self.inner.rom_bank_number &= !(0x01 << 8);
             self.inner.rom_bank_number |= ((value & 0x01) as usize) << 8;
+        } else if address < 0x6000 {
+            // Select RAM bank
+            self.inner.ram_bank_number = value as usize;
+        } else if address < 0xA000 {
+            // nothing
         } else {
+            // Write to RAM
             self.inner.set_value(address, value);
         }
     }
