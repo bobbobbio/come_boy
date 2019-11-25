@@ -98,10 +98,16 @@ impl MemoryMappedHardware for SwitchableBank {
     }
 }
 
+#[derive(PartialEq, Copy, Clone)]
+enum RomOrRam {
+    Rom,
+    Ram,
+}
+
 struct MemoryBankController1<R: CartridgeRam> {
     rom_bank_number: usize,
     ram_bank_number: usize,
-    rom_ram_select: bool,
+    rom_ram_select: RomOrRam,
     ram_enable: bool,
     switchable_bank: SwitchableBank,
     ram: R,
@@ -133,7 +139,7 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
             }
         } else if address < 0x6000 {
             // Either select RAM bank or select ROM bank (6th and 7th bit)
-            if self.rom_ram_select {
+            if self.rom_ram_select == RomOrRam::Ram {
                 self.ram_bank_number = value as usize;
             } else {
                 self.rom_bank_number &= !(0x03 << 5);
@@ -141,7 +147,11 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
             }
         } else if address < 0x8000 {
             // Either select RAM bank or upper bits of ROM bank
-            self.rom_ram_select = value > 0;
+            if value > 0 {
+                self.rom_ram_select = RomOrRam::Ram;
+            } else {
+                self.rom_ram_select = RomOrRam::Rom;
+            }
         } else if address < 0xA000 {
             // nothing
         } else {
@@ -161,7 +171,7 @@ impl<R: CartridgeRam> MemoryBankController1<R> {
         MemoryBankController1 {
             rom_bank_number: 0,
             ram_bank_number: 0,
-            rom_ram_select: false,
+            rom_ram_select: RomOrRam::Rom,
             ram_enable: false,
             switchable_bank: SwitchableBank::new(banks),
             ram,
