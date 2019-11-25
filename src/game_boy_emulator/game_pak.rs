@@ -126,14 +126,17 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
 
     fn set_value(&mut self, address: u16, value: u8) {
         if address < 0x2000 {
+            // Enable RAM
             self.ram_enable = (value & 0x0F) == 0x0A;
         } else if address < 0x4000 {
+            // Select ROM bank (lower 5 bits)
             self.rom_bank_number &= !0x1F;
             self.rom_bank_number |= (value as usize) & 0x1F;
             if self.rom_bank_number == 0 {
                 self.rom_bank_number = 1;
             }
         } else if address < 0x6000 {
+            // Either select RAM bank or select ROM bank (6th and 7th bit)
             if self.rom_ram_select {
                 self.ram_bank_number = value as usize;
             } else {
@@ -141,9 +144,10 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
                 self.rom_bank_number |= ((value as usize) & 0x03) << 5;
             }
         } else if address < 0x8000 {
+            // Either select RAM bank or upper bits of ROM bank
             self.rom_ram_select = value > 0;
         } else if address < 0xA000 {
-            // nothing?
+            // nothing
         } else {
             self.ram.set_value(address - 0xA000, value);
         }
