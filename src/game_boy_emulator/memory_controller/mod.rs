@@ -2,6 +2,7 @@
 
 pub use self::memory_map::{GameBoyMemoryMap, GameBoyMemoryMapMut};
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+use std::io;
 use std::marker::PhantomData;
 use std::ops::Range;
 
@@ -211,6 +212,13 @@ impl MemoryChunk {
         MemoryChunk::new(v)
     }
 
+    pub fn from_reader<R: io::Read>(mut r: R, len: usize) -> io::Result<Self> {
+        let mut v = Vec::<u8>::new();
+        v.resize(len, 0);
+        r.read_exact(&mut v)?;
+        Ok(MemoryChunk::new(v))
+    }
+
     pub fn clone_from_slice(&mut self, slice: &[u8]) {
         self.value.clone_from_slice(slice);
     }
@@ -227,7 +235,6 @@ impl MemoryChunk {
         self.borrowed = false;
     }
 
-    #[cfg(test)]
     pub fn len(&self) -> u16 {
         self.value.len() as u16
     }

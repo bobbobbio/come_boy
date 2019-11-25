@@ -511,9 +511,10 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator<NullRenderer>, stop_address: u16)
 #[test]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
     let mut e = GameBoyEmulator::new(NullRenderer);
-    e.load_game_pak(GamePak::new(&read_blargg_test_rom(
-        "cpu_instrs/individual/02-interrupts.gb",
-    )));
+    e.load_game_pak(GamePak::new(
+        &read_blargg_test_rom("cpu_instrs/individual/02-interrupts.gb"),
+        None,
+    ));
     run_blargg_test_rom(&mut e, 0xc7f4);
 }
 
@@ -521,9 +522,10 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
 #[ignore]
 fn blargg_test_rom_instr_timing() {
     let mut e = GameBoyEmulator::new(NullRenderer);
-    e.load_game_pak(GamePak::new(&read_blargg_test_rom(
-        "instr_timing/instr_timing.gb",
-    )));
+    e.load_game_pak(GamePak::new(
+        &read_blargg_test_rom("instr_timing/instr_timing.gb"),
+        None,
+    ));
     run_blargg_test_rom(&mut e, 0xc8b0);
 }
 
@@ -644,10 +646,11 @@ fn rom_tests() -> Result<()> {
         let rom_path = rom_entry.path();
         println!("Found ROM {}", rom_path.to_string_lossy());
 
-        let game_pak = GamePak::from_path(&rom_path)?;
-        println!("Identified ROM as \"{}\"", game_pak.title());
+        let game_pak = || GamePak::from_path(&rom_path);
+        let game_pak_title: String = game_pak()?.title().into();
+        println!("Identified ROM as \"{}\"", game_pak_title);
 
-        let game_title = game_pak.title().to_lowercase().replace(" ", "_");
+        let game_title = game_pak_title.to_lowercase().replace(" ", "_");
         let expectations_path: std::path::PathBuf =
             format!("test/expectations/{}/", game_title).into();
         println!(
@@ -685,8 +688,7 @@ fn rom_tests() -> Result<()> {
                 replay
             );
             let tmp_output = tempfile::NamedTempFile::new()?;
-            run_until_and_take_screenshot(game_pak.clone(), ticks, replay, tmp_output.path())
-                .unwrap();
+            run_until_and_take_screenshot(game_pak()?, ticks, replay, tmp_output.path()).unwrap();
             println!("Comparing screen output with expectation");
             let difference = diff_bmp(tmp_output.path(), &expectation_path)?;
             if difference {

@@ -3,21 +3,14 @@
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::util::super_fast_hash;
 use std::fmt;
-use std::io::{self, Read};
+use std::fs::{File, OpenOptions};
+use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::ops::Range;
+use std::path::{Path, PathBuf};
 use std::str;
 
 trait MemoryBankController: fmt::Debug + MemoryMappedHardware {
     fn tick(&mut self) {}
-
-    // XXX Weird workaround to implement Clone for Box<dyn MemoryBankController>
-    fn box_clone(&self) -> Box<dyn MemoryBankController>;
-}
-
-impl Clone for Box<dyn MemoryBankController> {
-    fn clone(&self) -> Self {
-        self.box_clone()
-    }
 }
 
 #[derive(Clone)]
@@ -37,11 +30,7 @@ impl fmt::Debug for MemoryBankController0 {
     }
 }
 
-impl MemoryBankController for MemoryBankController0 {
-    fn box_clone(&self) -> Box<dyn MemoryBankController> {
-        Box::new((*self).clone())
-    }
-}
+impl MemoryBankController for MemoryBankController0 {}
 
 impl MemoryMappedHardware for MemoryBankController0 {
     fn read_value(&self, address: u16) -> u8 {
@@ -80,6 +69,14 @@ impl SwitchableBank {
         self.current_bank = new_bank;
     }
 
+    fn current_bank_offset(&self) -> u16 {
+        let mut offset = 0;
+        for b in &self.banks[..self.current_bank] {
+            offset += b.len();
+        }
+        offset
+    }
+
     fn len(&self) -> usize {
         self.banks.len()
     }
@@ -101,7 +98,6 @@ impl MemoryMappedHardware for SwitchableBank {
     }
 }
 
-#[derive(Clone)]
 struct MemoryBankController1<R: CartridgeRam> {
     rom_bank_number: usize,
     ram_bank_number: usize,
@@ -183,13 +179,8 @@ impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController1<R
             self.ram.switch_bank(self.ram_bank_number);
         }
     }
-
-    fn box_clone(&self) -> Box<dyn MemoryBankController> {
-        Box::new((*self).clone())
-    }
 }
 
-#[derive(Clone)]
 struct MemoryBankController5<R: CartridgeRam> {
     inner: MemoryBankController1<R>,
 }
@@ -241,13 +232,9 @@ impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController5<R
     fn tick(&mut self) {
         self.inner.tick();
     }
-
-    fn box_clone(&self) -> Box<dyn MemoryBankController> {
-        Box::new((*self).clone())
-    }
 }
 
-trait CartridgeRam: fmt::Debug + MemoryMappedHardware + Clone {
+trait CartridgeRam: fmt::Debug + MemoryMappedHardware {
     fn switch_bank(&mut self, bank: usize);
 }
 
@@ -283,9 +270,24 @@ impl fmt::Debug for VolatileRam {
 }
 
 impl VolatileRam {
-    fn new(banks: Vec<MemoryChunk>) -> Self {
+    fn new(ram_size: u8) -> Self {
+        let ram = match ram_size {
+            0 => Vec::new(),
+            // 2kB 1 Bank
+            1 => vec![MemoryChunk::from_range(0..0x800)],
+            // 8kB 1 Bank
+            2 => vec![MemoryChunk::from_range(0..0x2000)],
+            // 8kB 4 Banks = 32kB
+            3 => vec![
+                MemoryChunk::from_range(0..0x2000),
+                MemoryChunk::from_range(0..0x2000),
+                MemoryChunk::from_range(0..0x2000),
+                MemoryChunk::from_range(0..0x2000),
+            ],
+            v => panic!("Unknown RAM size {}", v),
+        };
         VolatileRam {
-            switchable_bank: SwitchableBank::new(banks),
+            switchable_bank: SwitchableBank::new(ram),
         }
     }
 }
@@ -305,9 +307,9 @@ impl CartridgeRam for VolatileRam {
     }
 }
 
-#[derive(Clone)]
 struct NonVolatileRam {
-    inner: VolatileRam,
+    switchable_bank: SwitchableBank,
+    file: Option<File>,
 }
 
 impl fmt::Debug for NonVolatileRam {
@@ -317,19 +319,70 @@ impl fmt::Debug for NonVolatileRam {
 }
 
 impl NonVolatileRam {
-    fn new(banks: Vec<MemoryChunk>) -> Self {
+    fn new(ram_size: u8, path: Option<PathBuf>) -> Self {
+        let mut file = if let Some(path) = path {
+            OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .open(path)
+                .ok()
+        } else {
+            None
+        };
+
+        let mut file_size = 0;
+
+        let mut chunk_factory = |size: u16| {
+            if let Some(file) = &mut file {
+                file_size += size;
+                MemoryChunk::from_reader(file, size as usize)
+                    .unwrap_or(MemoryChunk::from_range(0..size))
+            } else {
+                MemoryChunk::from_range(0..size)
+            }
+        };
+
+        let ram = match ram_size {
+            0 => Vec::new(),
+            // 2kB 1 Bank
+            1 => vec![chunk_factory(0x800)],
+            // 8kB 1 Bank
+            2 => vec![chunk_factory(0x2000)],
+            // 8kB 4 Banks = 32kB
+            3 => vec![
+                chunk_factory(0x2000),
+                chunk_factory(0x2000),
+                chunk_factory(0x2000),
+                chunk_factory(0x2000),
+            ],
+            v => panic!("Unknown RAM size {}", v),
+        };
+
+        if let Some(file) = &mut file {
+            file.set_len(file_size as u64).ok();
+        }
+
         NonVolatileRam {
-            inner: VolatileRam::new(banks),
+            switchable_bank: SwitchableBank::new(ram),
+            file,
         }
     }
 }
 
 impl MemoryMappedHardware for NonVolatileRam {
     fn read_value(&self, address: u16) -> u8 {
-        self.inner.read_value(address)
+        self.switchable_bank.read_value(address)
     }
     fn set_value(&mut self, address: u16, value: u8) {
-        self.inner.set_value(address, value);
+        self.switchable_bank.set_value(address, value);
+        if let Some(file) = &mut self.file {
+            file.seek(SeekFrom::Start(
+                (self.switchable_bank.current_bank_offset() + address) as u64,
+            ))
+            .ok();
+            file.write(&[value]).ok();
+        }
     }
 }
 
@@ -337,7 +390,6 @@ impl CartridgeRam for NonVolatileRam {
     fn switch_bank(&mut self, _bank: usize) {}
 }
 
-#[derive(Clone)]
 pub struct GamePak {
     title: String,
     hash: u32,
@@ -364,14 +416,15 @@ const TITLE: Range<usize> = Range {
 };
 
 impl GamePak {
-    pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> io::Result<Self> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path: &Path = path.as_ref();
         let mut rom_file = std::fs::File::open(path)?;
         let mut rom: Vec<u8> = vec![];
         rom_file.read_to_end(&mut rom)?;
-        Ok(GamePak::new(&rom))
+        Ok(GamePak::new(&rom, Some(path.with_extension("sav"))))
     }
 
-    pub fn new(rom: &[u8]) -> Self {
+    pub fn new(rom: &[u8], sram_path: Option<PathBuf>) -> Self {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
         let hash = super_fast_hash(rom);
         let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
@@ -403,21 +456,7 @@ impl GamePak {
             banks.push(MemoryChunk::new(rom[start..end].to_vec()));
         }
 
-        let ram = match rom[RAM_SIZE_ADDRESS] {
-            0 => Vec::new(),
-            // 2kB 1 Bank
-            1 => vec![MemoryChunk::from_range(0..0x800)],
-            // 8kB 1 Bank
-            2 => vec![MemoryChunk::from_range(0..0x2000)],
-            // 8kB 4 Banks = 32kB
-            3 => vec![
-                MemoryChunk::from_range(0..0x2000),
-                MemoryChunk::from_range(0..0x2000),
-                MemoryChunk::from_range(0..0x2000),
-                MemoryChunk::from_range(0..0x2000),
-            ],
-            v => panic!("Unknown RAM size {}", v),
-        };
+        let ram_size = rom[RAM_SIZE_ADDRESS];
 
         /*
          *  0x00  ROM ONLY
@@ -456,9 +495,18 @@ impl GamePak {
                 Box::new(MemoryBankController0::new(banks))
             }
             0x01 => Box::new(MemoryBankController1::new(banks, NoRam)),
-            0x02 => Box::new(MemoryBankController1::new(banks, VolatileRam::new(ram))),
-            0x03 => Box::new(MemoryBankController1::new(banks, NonVolatileRam::new(ram))),
-            0x1b => Box::new(MemoryBankController5::new(banks, NonVolatileRam::new(ram))),
+            0x02 => Box::new(MemoryBankController1::new(
+                banks,
+                VolatileRam::new(ram_size),
+            )),
+            0x03 => Box::new(MemoryBankController1::new(
+                banks,
+                NonVolatileRam::new(ram_size, sram_path),
+            )),
+            0x1b => Box::new(MemoryBankController5::new(
+                banks,
+                NonVolatileRam::new(ram_size, sram_path),
+            )),
             v => panic!("Unknown Memory Bank Controller #{:x}", v),
         };
 
