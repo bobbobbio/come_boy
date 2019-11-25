@@ -335,13 +335,13 @@ impl NonVolatileInternalRam {
 
 impl MemoryMappedHardware for NonVolatileInternalRam {
     fn read_value(&self, address: u16) -> u8 {
-        self.memory.read_value(address)
+        self.memory.read_value(address) | 0xF0
     }
     fn set_value(&mut self, address: u16, value: u8) {
-        self.memory.set_value(address, value);
+        self.memory.set_value(address, value | 0xF0);
         if let Some(file) = &mut self.file {
             file.seek(SeekFrom::Start(address as u64)).ok();
-            file.write(&[value & 0x0F]).ok();
+            file.write(&[value | 0xF0]).ok();
         }
     }
 }
