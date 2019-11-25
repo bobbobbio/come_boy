@@ -656,7 +656,8 @@ pub fn do_rom_test(
     let difference = diff_bmp(tmp_output.path(), expectation_path)?;
     if difference {
         let failure_image: std::path::PathBuf = std::env::var("OUT_DIR").unwrap().into();
-        let failure_image = failure_image.join("failure.bmp");
+        let failure_image = failure_image.join(expectation_path);
+        std::fs::create_dir_all(failure_image.parent().unwrap())?;
         std::fs::rename(tmp_output.path(), &failure_image)?;
         panic!(
             "Failure. Image {} does not match expectation {}",
