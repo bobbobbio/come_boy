@@ -324,7 +324,7 @@ impl LCDDotData {
         let iter = self.data[start_pixel..end_pixel].iter().enumerate();
         for (mut offset_x, &color) in iter {
             if horizantal_flip {
-                offset_x = CHARACTER_SIZE as usize - offset_x;
+                offset_x = CHARACTER_SIZE as usize - offset_x - 1;
             }
             if color != LCDColor::Color0 || !enable_transparency {
                 let shade = match palette.read_flag_value(color) {
