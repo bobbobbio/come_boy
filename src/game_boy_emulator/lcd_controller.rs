@@ -238,7 +238,6 @@ struct LCDObject {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum LCDObjectAttributeFlag {
-    #[allow(dead_code)]
     DisplayPriority = 0b10000000,
     VerticalFlip = 0b01000000,
     HorizantalFlip = 0b00100000,
@@ -339,6 +338,12 @@ impl LCDDotData {
             }
         }
     }
+}
+
+#[derive(PartialEq)]
+enum ObjectPriority {
+    Background,
+    Foreground,
 }
 
 pub struct LCDController<'a, R> {
@@ -511,6 +516,7 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         area_selection: bool,
         character_data_selection: bool,
         wrap: bool,
+        transparent: bool,
     ) {
         let ly = self.registers.ly.read_value();
 
@@ -563,7 +569,7 @@ impl<'a, R: Renderer> LCDController<'a, R> {
                         ly,
                         false,
                         false,
-                        false,
+                        transparent,
                         &self.registers.bgp,
                     );
                 }
@@ -571,7 +577,7 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         }
     }
 
-    fn draw_oam_data(&mut self) {
+    fn draw_oam_data(&mut self, priority: ObjectPriority) {
         if !self.registers.lcdc.read_flag(LCDControlFlag::ObjectOn) {
             return;
         }
@@ -590,10 +596,17 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         };
 
         let iter = LCDObjectIterator::new(&self.oam_data);
-        for object in iter {
+        let mut sorted_objects: Vec<_> = iter.collect();
+        sorted_objects.sort_by(|a, b| b.x_coordinate.partial_cmp(&a.x_coordinate).unwrap());
+
+        for object in sorted_objects {
             let x = object.x_coordinate as i32 - CHARACTER_SIZE as i32;
             let y = object.y_coordinate as i32 - (CHARACTER_SIZE as i32 * 2);
             if ly as i32 >= y && (ly as i32) < y + sprite_height {
+                let low_priority = object.read_flag(LCDObjectAttributeFlag::DisplayPriority);
+                if (priority == ObjectPriority::Background) != low_priority {
+                    continue;
+                }
                 let vertical_flip = object.read_flag(LCDObjectAttributeFlag::VerticalFlip);
                 let horizantal_flip = object.read_flag(LCDObjectAttributeFlag::HorizantalFlip);
 
@@ -665,6 +678,15 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.scheduler.schedule(time + 77, Self::mode_3);
     }
 
+    fn clear_line(&mut self) {
+        let ly = self.registers.ly.read_value();
+
+        for x in 0..160 {
+            self.renderer
+                .color_pixel(x, ly as i32, color_for_shade::<R>(LCDShade::Shade0));
+        }
+    }
+
     fn draw_background(&mut self) {
         let bg_area_selection = self
             .registers
@@ -681,6 +703,7 @@ impl<'a, R: Renderer> LCDController<'a, R> {
             bg_area_selection,
             bg_character_data_selection,
             true,
+            true,
         );
     }
 
@@ -694,7 +717,14 @@ impl<'a, R: Renderer> LCDController<'a, R> {
             .lcdc
             .read_flag(LCDControlFlag::WindowCodeAreaSelection);
         let (scroll_x, scroll_y) = self.get_window_origin_relative_to_lcd();
-        self.draw_tiles(scroll_x, scroll_y, window_area_selection, false, false);
+        self.draw_tiles(
+            scroll_x,
+            scroll_y,
+            window_area_selection,
+            false,
+            false,
+            false,
+        );
     }
 
     fn mode_3(&mut self, time: u64) {
@@ -702,9 +732,11 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
 
+        self.clear_line();
+        self.draw_oam_data(ObjectPriority::Background);
         self.draw_background();
         self.draw_window();
-        self.draw_oam_data();
+        self.draw_oam_data(ObjectPriority::Foreground);
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x3);
         self.scheduler.schedule(time + 175, Self::mode_0);
     }
