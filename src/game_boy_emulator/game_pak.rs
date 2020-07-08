@@ -9,8 +9,58 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::str;
 
-trait MemoryBankController: fmt::Debug + MemoryMappedHardware {
-    fn tick(&mut self) {}
+enum MemoryBankController {
+    Zero(MemoryBankController0),
+    One(MemoryBankController1),
+    Two(MemoryBankController2),
+    Three(MemoryBankController3),
+    Five(MemoryBankController5),
+}
+
+impl fmt::Debug for MemoryBankController {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Zero(r) => write!(f, "{:?}", r),
+            Self::One(r) => write!(f, "{:?}", r),
+            Self::Two(r) => write!(f, "{:?}", r),
+            Self::Three(r) => write!(f, "{:?}", r),
+            Self::Five(r) => write!(f, "{:?}", r),
+        }
+    }
+}
+
+impl MemoryMappedHardware for MemoryBankController {
+    fn read_value(&self, address: u16) -> u8 {
+        match self {
+            Self::Zero(r) => r.read_value(address),
+            Self::One(r) => r.read_value(address),
+            Self::Two(r) => r.read_value(address),
+            Self::Three(r) => r.read_value(address),
+            Self::Five(r) => r.read_value(address),
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        match self {
+            Self::Zero(r) => r.set_value(address, value),
+            Self::One(r) => r.set_value(address, value),
+            Self::Two(r) => r.set_value(address, value),
+            Self::Three(r) => r.set_value(address, value),
+            Self::Five(r) => r.set_value(address, value),
+        }
+    }
+}
+
+impl MemoryBankController {
+    fn tick(&mut self) {
+        match self {
+            Self::Zero(r) => r.tick(),
+            Self::One(r) => r.tick(),
+            Self::Two(r) => r.tick(),
+            Self::Three(r) => r.tick(),
+            Self::Five(r) => r.tick(),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -18,10 +68,18 @@ struct MemoryBankController0 {
     banks: Vec<MemoryChunk>,
 }
 
+impl Into<MemoryBankController> for MemoryBankController0 {
+    fn into(self) -> MemoryBankController {
+        MemoryBankController::Zero(self)
+    }
+}
+
 impl MemoryBankController0 {
     fn new(banks: Vec<MemoryChunk>) -> Self {
         MemoryBankController0 { banks }
     }
+
+    fn tick(&mut self) {}
 }
 
 impl fmt::Debug for MemoryBankController0 {
@@ -29,8 +87,6 @@ impl fmt::Debug for MemoryBankController0 {
         write!(f, "MBC0")
     }
 }
-
-impl MemoryBankController for MemoryBankController0 {}
 
 impl MemoryMappedHardware for MemoryBankController0 {
     fn read_value(&self, address: u16) -> u8 {
@@ -112,16 +168,22 @@ enum RomOrRam {
     Ram,
 }
 
-struct MemoryBankController1<R: CartridgeRam> {
+struct MemoryBankController1 {
     rom_bank_number: usize,
     ram_bank_number: usize,
     rom_ram_select: RomOrRam,
     ram_enable: bool,
     switchable_bank: SwitchableBank,
-    ram: R,
+    ram: CartridgeRam,
 }
 
-impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
+impl Into<MemoryBankController> for MemoryBankController1 {
+    fn into(self) -> MemoryBankController {
+        MemoryBankController::One(self)
+    }
+}
+
+impl MemoryMappedHardware for MemoryBankController1 {
     fn read_value(&self, address: u16) -> u8 {
         if address < 0x4000 {
             self.switchable_bank.banks[0].read_value(address)
@@ -168,26 +230,24 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController1<R> {
     }
 }
 
-impl<R: CartridgeRam> fmt::Debug for MemoryBankController1<R> {
+impl fmt::Debug for MemoryBankController1 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MBC1{:?}", self.ram)
     }
 }
 
-impl<R: CartridgeRam> MemoryBankController1<R> {
-    fn new(banks: Vec<MemoryChunk>, ram: R) -> Self {
+impl MemoryBankController1 {
+    fn new<R: Into<CartridgeRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
         MemoryBankController1 {
             rom_bank_number: 0,
             ram_bank_number: 0,
             rom_ram_select: RomOrRam::Rom,
             ram_enable: false,
             switchable_bank: SwitchableBank::new(banks),
-            ram,
+            ram: ram.into(),
         }
     }
-}
 
-impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController1<R> {
     fn tick(&mut self) {
         let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
 
@@ -205,27 +265,37 @@ enum ClockOrRam {
     Ram,
 }
 
-struct MemoryBankController3<R: CartridgeRam> {
-    inner: MemoryBankController1<R>,
+struct MemoryBankController3 {
+    inner: MemoryBankController1,
     clock_ram_select: ClockOrRam,
 }
 
-impl<R: CartridgeRam> fmt::Debug for MemoryBankController3<R> {
+impl Into<MemoryBankController> for MemoryBankController3 {
+    fn into(self) -> MemoryBankController {
+        MemoryBankController::Three(self)
+    }
+}
+
+impl fmt::Debug for MemoryBankController3 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MBC3{:?}", self.inner.ram)
     }
 }
 
-impl<R: CartridgeRam> MemoryBankController3<R> {
-    fn new(banks: Vec<MemoryChunk>, ram: R) -> Self {
+impl MemoryBankController3 {
+    fn new<R: Into<CartridgeRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
         MemoryBankController3 {
             inner: MemoryBankController1::new(banks, ram),
             clock_ram_select: ClockOrRam::Ram,
         }
     }
+
+    fn tick(&mut self) {
+        self.inner.tick();
+    }
 }
 
-impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController3<R> {
+impl MemoryMappedHardware for MemoryBankController3 {
     fn read_value(&self, address: u16) -> u8 {
         if address < 0xA000 {
             self.inner.read_value(address)
@@ -275,17 +345,43 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController3<R> {
     }
 }
 
-impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController3<R> {
-    fn tick(&mut self) {
-        self.inner.tick();
+enum InternalRam {
+    Volatile(VolatileInternalRam),
+    NonVolatile(NonVolatileInternalRam),
+}
+
+impl MemoryMappedHardware for InternalRam {
+    fn read_value(&self, address: u16) -> u8 {
+        match self {
+            Self::Volatile(r) => r.read_value(address),
+            Self::NonVolatile(r) => r.read_value(address),
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        match self {
+            Self::Volatile(r) => r.set_value(address, value),
+            Self::NonVolatile(r) => r.set_value(address, value),
+        }
     }
 }
 
-trait InternalRam: fmt::Debug + MemoryMappedHardware {}
+impl fmt::Debug for InternalRam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Volatile(r) => write!(f, "{:?}", r),
+            Self::NonVolatile(r) => write!(f, "{:?}", r),
+        }
+    }
+}
 
 struct VolatileInternalRam(MemoryChunk);
 
-impl InternalRam for VolatileInternalRam {}
+impl Into<InternalRam> for VolatileInternalRam {
+    fn into(self) -> InternalRam {
+        InternalRam::Volatile(self)
+    }
+}
 
 impl VolatileInternalRam {
     fn new() -> Self {
@@ -312,6 +408,12 @@ impl fmt::Debug for VolatileInternalRam {
 struct NonVolatileInternalRam {
     memory: MemoryChunk,
     file: Option<File>,
+}
+
+impl Into<InternalRam> for NonVolatileInternalRam {
+    fn into(self) -> InternalRam {
+        InternalRam::NonVolatile(self)
+    }
 }
 
 impl NonVolatileInternalRam {
@@ -364,33 +466,42 @@ impl fmt::Debug for NonVolatileInternalRam {
     }
 }
 
-impl InternalRam for NonVolatileInternalRam {}
-
-struct MemoryBankController2<R: InternalRam> {
-    internal_ram: R,
+struct MemoryBankController2 {
+    internal_ram: InternalRam,
     rom_bank_number: usize,
     ram_enable: bool,
     switchable_bank: SwitchableBank,
 }
 
-impl<R: InternalRam> fmt::Debug for MemoryBankController2<R> {
+impl Into<MemoryBankController> for MemoryBankController2 {
+    fn into(self) -> MemoryBankController {
+        MemoryBankController::Two(self)
+    }
+}
+
+impl fmt::Debug for MemoryBankController2 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MBC2{:?}", self.internal_ram)
     }
 }
 
-impl<R: InternalRam> MemoryBankController2<R> {
-    fn new(banks: Vec<MemoryChunk>, ram: R) -> Self {
+impl MemoryBankController2 {
+    fn new<R: Into<InternalRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
         MemoryBankController2 {
-            internal_ram: ram,
+            internal_ram: ram.into(),
             rom_bank_number: 0,
             ram_enable: false,
             switchable_bank: SwitchableBank::new(banks),
         }
     }
+
+    fn tick(&mut self) {
+        let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
+        self.switchable_bank.switch_bank(rom_bank_value);
+    }
 }
 
-impl<R: InternalRam> MemoryMappedHardware for MemoryBankController2<R> {
+impl MemoryMappedHardware for MemoryBankController2 {
     fn read_value(&self, address: u16) -> u8 {
         if address < 0x4000 {
             self.switchable_bank.banks[0].read_value(address)
@@ -420,32 +531,35 @@ impl<R: InternalRam> MemoryMappedHardware for MemoryBankController2<R> {
     }
 }
 
-impl<R: InternalRam + 'static> MemoryBankController for MemoryBankController2<R> {
-    fn tick(&mut self) {
-        let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
-        self.switchable_bank.switch_bank(rom_bank_value);
+struct MemoryBankController5 {
+    inner: MemoryBankController1,
+}
+
+impl Into<MemoryBankController> for MemoryBankController5 {
+    fn into(self) -> MemoryBankController {
+        MemoryBankController::Five(self)
     }
 }
 
-struct MemoryBankController5<R: CartridgeRam> {
-    inner: MemoryBankController1<R>,
-}
-
-impl<R: CartridgeRam> fmt::Debug for MemoryBankController5<R> {
+impl fmt::Debug for MemoryBankController5 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "MBC5{:?}", self.inner.ram)
     }
 }
 
-impl<R: CartridgeRam> MemoryBankController5<R> {
-    fn new(banks: Vec<MemoryChunk>, ram: R) -> Self {
+impl MemoryBankController5 {
+    fn new<R: Into<CartridgeRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
         MemoryBankController5 {
             inner: MemoryBankController1::new(banks, ram),
         }
     }
+
+    fn tick(&mut self) {
+        self.inner.tick();
+    }
 }
 
-impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController5<R> {
+impl MemoryMappedHardware for MemoryBankController5 {
     fn read_value(&self, address: u16) -> u8 {
         self.inner.read_value(address)
     }
@@ -474,18 +588,57 @@ impl<R: CartridgeRam> MemoryMappedHardware for MemoryBankController5<R> {
     }
 }
 
-impl<R: CartridgeRam + 'static> MemoryBankController for MemoryBankController5<R> {
-    fn tick(&mut self) {
-        self.inner.tick();
+enum CartridgeRam {
+    No(NoRam),
+    Volatile(VolatileRam),
+    NonVolatile(NonVolatileRam),
+}
+
+impl fmt::Debug for CartridgeRam {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::No(r) => write!(f, "{:?}", r),
+            Self::Volatile(r) => write!(f, "{:?}", r),
+            Self::NonVolatile(r) => write!(f, "{:?}", r),
+        }
     }
 }
 
-trait CartridgeRam: fmt::Debug + MemoryMappedHardware {
-    fn switch_bank(&mut self, bank: usize);
+impl MemoryMappedHardware for CartridgeRam {
+    fn read_value(&self, address: u16) -> u8 {
+        match self {
+            Self::No(r) => r.read_value(address),
+            Self::Volatile(r) => r.read_value(address),
+            Self::NonVolatile(r) => r.read_value(address),
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        match self {
+            Self::No(r) => r.set_value(address, value),
+            Self::Volatile(r) => r.set_value(address, value),
+            Self::NonVolatile(r) => r.set_value(address, value),
+        }
+    }
+}
+
+impl CartridgeRam {
+    fn switch_bank(&mut self, bank: usize) {
+        match self {
+            Self::Volatile(r) => r.switch_bank(bank),
+            _ => (),
+        }
+    }
 }
 
 #[derive(Clone)]
 struct NoRam;
+
+impl Into<CartridgeRam> for NoRam {
+    fn into(self) -> CartridgeRam {
+        CartridgeRam::No(self)
+    }
+}
 
 impl fmt::Debug for NoRam {
     fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
@@ -500,13 +653,15 @@ impl MemoryMappedHardware for NoRam {
     fn set_value(&mut self, _address: u16, _value: u8) {}
 }
 
-impl CartridgeRam for NoRam {
-    fn switch_bank(&mut self, _bank: usize) {}
-}
-
 #[derive(Clone)]
 struct VolatileRam {
     switchable_bank: SwitchableBank,
+}
+
+impl Into<CartridgeRam> for VolatileRam {
+    fn into(self) -> CartridgeRam {
+        CartridgeRam::Volatile(self)
+    }
 }
 
 impl fmt::Debug for VolatileRam {
@@ -536,6 +691,10 @@ impl VolatileRam {
             switchable_bank: SwitchableBank::new(ram),
         }
     }
+
+    fn switch_bank(&mut self, bank: usize) {
+        self.switchable_bank.switch_bank(bank)
+    }
 }
 
 impl MemoryMappedHardware for VolatileRam {
@@ -547,15 +706,15 @@ impl MemoryMappedHardware for VolatileRam {
     }
 }
 
-impl CartridgeRam for VolatileRam {
-    fn switch_bank(&mut self, bank: usize) {
-        self.switchable_bank.switch_bank(bank)
-    }
-}
-
 struct NonVolatileRam {
     switchable_bank: SwitchableBank,
     file: Option<File>,
+}
+
+impl Into<CartridgeRam> for NonVolatileRam {
+    fn into(self) -> CartridgeRam {
+        CartridgeRam::NonVolatile(self)
+    }
 }
 
 impl fmt::Debug for NonVolatileRam {
@@ -636,14 +795,10 @@ impl MemoryMappedHardware for NonVolatileRam {
     }
 }
 
-impl CartridgeRam for NonVolatileRam {
-    fn switch_bank(&mut self, _bank: usize) {}
-}
-
 pub struct GamePak {
     title: String,
     hash: u32,
-    mbc: Box<dyn MemoryBankController>,
+    mbc: MemoryBankController,
 }
 
 impl MemoryMappedHardware for GamePak {
@@ -739,43 +894,28 @@ impl GamePak {
          *  0xFF  HuC1+RAM+BATTERY
          */
 
-        let mbc: Box<dyn MemoryBankController> = match rom[MBC_TYPE_ADDRESS] {
-            0x00 => {
-                assert_eq!(number_of_banks, 2);
-                Box::new(MemoryBankController0::new(banks))
-            }
-            0x01 => Box::new(MemoryBankController1::new(banks, NoRam)),
-            0x02 => Box::new(MemoryBankController1::new(
-                banks,
-                VolatileRam::new(ram_size),
-            )),
-            0x03 => Box::new(MemoryBankController1::new(
-                banks,
-                NonVolatileRam::new(ram_size, sram_path),
-            )),
-            0x05 => Box::new(MemoryBankController2::new(
-                banks,
-                VolatileInternalRam::new(),
-            )),
-            0x06 => Box::new(MemoryBankController2::new(
-                banks,
-                NonVolatileInternalRam::new(sram_path),
-            )),
-            0x11 => Box::new(MemoryBankController3::new(banks, NoRam)),
-            0x12 => Box::new(MemoryBankController3::new(
-                banks,
-                VolatileRam::new(ram_size),
-            )),
-            0x13 => Box::new(MemoryBankController3::new(
-                banks,
-                NonVolatileRam::new(ram_size, sram_path),
-            )),
-            0x1b => Box::new(MemoryBankController5::new(
-                banks,
-                NonVolatileRam::new(ram_size, sram_path),
-            )),
-            v => panic!("Unknown Memory Bank Controller {:#x}", v),
-        };
+        let mbc: MemoryBankController =
+            match rom[MBC_TYPE_ADDRESS] {
+                0x00 => {
+                    assert_eq!(number_of_banks, 2);
+                    MemoryBankController0::new(banks).into()
+                }
+                0x01 => MemoryBankController1::new(banks, NoRam).into(),
+                0x02 => MemoryBankController1::new(banks, VolatileRam::new(ram_size)).into(),
+                0x03 => MemoryBankController1::new(banks, NonVolatileRam::new(ram_size, sram_path))
+                    .into(),
+                0x05 => MemoryBankController2::new(banks, VolatileInternalRam::new()).into(),
+                0x06 => {
+                    MemoryBankController2::new(banks, NonVolatileInternalRam::new(sram_path)).into()
+                }
+                0x11 => MemoryBankController3::new(banks, NoRam).into(),
+                0x12 => MemoryBankController3::new(banks, VolatileRam::new(ram_size)).into(),
+                0x13 => MemoryBankController3::new(banks, NonVolatileRam::new(ram_size, sram_path))
+                    .into(),
+                0x1b => MemoryBankController5::new(banks, NonVolatileRam::new(ram_size, sram_path))
+                    .into(),
+                v => panic!("Unknown Memory Bank Controller {:#x}", v),
+            };
 
         GamePak { title, hash, mbc }
     }
