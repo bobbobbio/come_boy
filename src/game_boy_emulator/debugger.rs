@@ -11,7 +11,7 @@ use crate::game_boy_emulator::GameBoyEmulator;
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::{sdl2::Sdl2WindowRenderer, Renderer};
 
-impl<'a, R> fmt::Debug for GameBoyEmulator<'a, R> {
+impl<R> fmt::Debug for GameBoyEmulator<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self.cpu)?;
         writeln!(f)?;
@@ -21,7 +21,7 @@ impl<'a, R> fmt::Debug for GameBoyEmulator<'a, R> {
     }
 }
 
-impl<'a, R: Renderer> DebuggerOps for GameBoyEmulator<'a, R> {
+impl<R: Renderer> DebuggerOps for GameBoyEmulator<R> {
     fn read_memory(&self, address: u16) -> u8 {
         let memory_map = game_boy_memory_map!(self);
         memory_map.read_memory(address)
@@ -67,7 +67,7 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyEmulator<'a, R> {
     }
 }
 
-impl<'a, R> fmt::Debug for LCDController<'a, R> {
+impl<R> fmt::Debug for LCDController<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // XXX: I don't like how this mapping information is repeated here.
         fmt_lcd_register(0xFF40, self.registers.lcdc.read_value(), "LCDC", f)?;

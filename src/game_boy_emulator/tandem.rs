@@ -275,7 +275,7 @@ fn compares_states() {
     assert_eq!(b_state, Some(TEST_STATE3));
 }
 
-impl<'a, R: Renderer> AbstractEmulator for GameBoyEmulator<'a, R> {
+impl<R: Renderer> AbstractEmulator for GameBoyEmulator<R> {
     fn run_one(&mut self) {
         self.tick();
     }

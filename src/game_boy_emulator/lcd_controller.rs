@@ -346,7 +346,31 @@ enum ObjectPriority {
     Foreground,
 }
 
-pub struct LCDController<'a, R> {
+enum LCDControllerEvent {
+    AdvanceLy,
+    AfterMode1,
+    Mode0,
+    Mode1,
+    Mode2,
+    Mode3,
+    UpdateLyMatch,
+}
+
+impl LCDControllerEvent {
+    fn deliver<R: Renderer>(self, controller: &mut LCDController<R>, time: u64) {
+        match self {
+            Self::AdvanceLy => controller.advance_ly(time),
+            Self::AfterMode1 => controller.after_mode_1(time),
+            Self::Mode0 => controller.mode_0(time),
+            Self::Mode1 => controller.mode_1(time),
+            Self::Mode2 => controller.mode_2(time),
+            Self::Mode3 => controller.mode_3(time),
+            Self::UpdateLyMatch => controller.update_ly_match(time),
+        }
+    }
+}
+
+pub struct LCDController<R> {
     renderer: R,
     pub crash_message: Option<String>,
     pub character_data: MemoryChunk,
@@ -355,12 +379,12 @@ pub struct LCDController<'a, R> {
     pub oam_data: MemoryChunk,
     pub unusable_memory: MemoryChunk,
     pub registers: LCDControllerRegisters,
-    scheduler: Scheduler<LCDController<'a, R>>,
+    scheduler: Scheduler<LCDControllerEvent>,
     enabled: bool,
     interrupt_requested: bool,
 }
 
-impl<'a, R: Renderer> LCDController<'a, R> {
+impl<R: Renderer> LCDController<R> {
     pub fn new(renderer: R) -> Self {
         LCDController {
             character_data: MemoryChunk::from_range(CHARACTER_DATA),
@@ -378,8 +402,10 @@ impl<'a, R: Renderer> LCDController<'a, R> {
     }
 
     pub fn schedule_initial_events(&mut self, now: u64) {
-        self.scheduler.schedule(now + 56 + 4, Self::mode_2);
-        self.scheduler.schedule(now + 56 + 456, Self::advance_ly);
+        self.scheduler
+            .schedule(now + 56 + 4, LCDControllerEvent::Mode2);
+        self.scheduler
+            .schedule(now + 56 + 456, LCDControllerEvent::AdvanceLy);
     }
 
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
@@ -391,7 +417,7 @@ impl<'a, R: Renderer> LCDController<'a, R> {
 
     pub fn deliver_events(&mut self, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event(self, time);
+            event.deliver(self, time);
         }
     }
 
@@ -675,7 +701,8 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x2);
-        self.scheduler.schedule(time + 77, Self::mode_3);
+        self.scheduler
+            .schedule(time + 77, LCDControllerEvent::Mode3);
     }
 
     fn clear_line(&mut self) {
@@ -738,7 +765,8 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.draw_window();
         self.draw_oam_data(ObjectPriority::Foreground);
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x3);
-        self.scheduler.schedule(time + 175, Self::mode_0);
+        self.scheduler
+            .schedule(time + 175, LCDControllerEvent::Mode0);
     }
 
     fn mode_0(&mut self, time: u64) {
@@ -751,9 +779,11 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
 
         if self.registers.ly.read_value() < 143 {
-            self.scheduler.schedule(time + 204, Self::mode_2);
+            self.scheduler
+                .schedule(time + 204, LCDControllerEvent::Mode2);
         } else {
-            self.scheduler.schedule(time + 204, Self::mode_1);
+            self.scheduler
+                .schedule(time + 204, LCDControllerEvent::Mode1);
         }
     }
 
@@ -769,11 +799,14 @@ impl<'a, R: Renderer> LCDController<'a, R> {
 
         // If we are drawing the last line, it only takes 8 cycles, otherwise it takes 456.
         if self.registers.ly.read_value() == 153 {
-            self.scheduler.schedule(time + 8, Self::advance_ly);
+            self.scheduler
+                .schedule(time + 8, LCDControllerEvent::AdvanceLy);
         } else if self.registers.ly.read_value() == 0 {
-            self.scheduler.schedule(time + 904, Self::advance_ly);
+            self.scheduler
+                .schedule(time + 904, LCDControllerEvent::AdvanceLy);
         } else {
-            self.scheduler.schedule(time + 456, Self::advance_ly);
+            self.scheduler
+                .schedule(time + 456, LCDControllerEvent::AdvanceLy);
         }
 
         if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
@@ -782,7 +815,8 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         }
 
         self.registers.stat.set_flag(LCDStatusFlag::LYMatch, false);
-        self.scheduler.schedule(time + 1, Self::update_ly_match);
+        self.scheduler
+            .schedule(time + 1, LCDControllerEvent::UpdateLyMatch);
     }
 
     fn update_ly_match(&mut self, _time: u64) {
@@ -797,7 +831,8 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.update_screen();
         self.interrupt_requested = true;
 
-        self.scheduler.schedule(time + 4552, Self::after_mode_1);
+        self.scheduler
+            .schedule(time + 4552, LCDControllerEvent::AfterMode1);
     }
 
     fn after_mode_1(&mut self, time: u64) {
@@ -805,15 +840,17 @@ impl<'a, R: Renderer> LCDController<'a, R> {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
 
-        self.scheduler.schedule(time + 8, Self::mode_2);
+        self.scheduler.schedule(time + 8, LCDControllerEvent::Mode2);
     }
 
     fn enable(&mut self, time: u64) {
         assert!(!self.enabled);
 
         self.enabled = true;
-        self.scheduler.schedule(time + 204, Self::mode_2);
-        self.scheduler.schedule(time + 904, Self::advance_ly);
+        self.scheduler
+            .schedule(time + 204, LCDControllerEvent::Mode2);
+        self.scheduler
+            .schedule(time + 904, LCDControllerEvent::AdvanceLy);
         self.update_ly_match(time);
     }
 

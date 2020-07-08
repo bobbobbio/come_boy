@@ -110,7 +110,7 @@ struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
     control: GameBoyFlags<TimerFlags>,
-    scheduler: Scheduler<GameBoyTimer>,
+    scheduler: Scheduler<()>,
     interrupt_requested: bool,
 }
 
@@ -153,7 +153,7 @@ impl GameBoyTimer {
 
     fn schedule_initial_events(&mut self, now: u64) {
         let speed = self.timer_speed();
-        self.scheduler.schedule(now + speed, Self::tick);
+        self.scheduler.schedule(now + speed, ());
     }
 
     fn tick(&mut self, now: u64) {
@@ -168,7 +168,7 @@ impl GameBoyTimer {
             }
         }
         let speed = self.timer_speed();
-        self.scheduler.schedule(now + speed, Self::tick);
+        self.scheduler.schedule(now + speed, ());
     }
 
     fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
@@ -179,35 +179,51 @@ impl GameBoyTimer {
     }
 
     fn deliver_events(&mut self, now: u64) {
-        while let Some((time, event)) = self.scheduler.poll(now) {
-            event(self, time);
+        while let Some((time, ())) = self.scheduler.poll(now) {
+            self.tick(time);
         }
     }
 }
 
-struct GameBoyEmulator<'a, R, J = PlainJoyPad> {
+enum GameBoyEmulatorEvent {
+    DividerTick,
+    DriveJoypad,
+    UnknownEvent,
+}
+
+impl GameBoyEmulatorEvent {
+    fn deliver<R: Renderer, J: JoyPad>(self, emulator: &mut GameBoyEmulator<R, J>, time: u64) {
+        match self {
+            Self::DividerTick => emulator.divider_tick(time),
+            Self::DriveJoypad => emulator.drive_joypad(time),
+            Self::UnknownEvent => emulator.unknown_event(time),
+        }
+    }
+}
+
+struct GameBoyEmulator<R, J = PlainJoyPad> {
     cpu: LR35902Emulator,
     sound_controller: SoundController,
-    lcd_controller: LCDController<'a, R>,
+    lcd_controller: LCDController<R>,
     high_ram: MemoryChunk,
     internal_ram_a: MemoryChunk,
     internal_ram_b: MemoryChunk,
 
     registers: GameBoyRegisters,
-    scheduler: Scheduler<GameBoyEmulator<'a, R, J>>,
+    scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
     game_pak: Option<GamePak>,
     joypad: J,
 }
 
-impl<'a, R: Renderer> GameBoyEmulator<'a, R, PlainJoyPad> {
-    fn new(renderer: R) -> GameBoyEmulator<'a, R, PlainJoyPad> {
+impl<R: Renderer> GameBoyEmulator<R, PlainJoyPad> {
+    fn new(renderer: R) -> GameBoyEmulator<R, PlainJoyPad> {
         Self::new_with_joypad(renderer, PlainJoyPad::new())
     }
 }
 
-impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
-    fn new_with_joypad(renderer: R, joypad: J) -> GameBoyEmulator<'a, R, J> {
+impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
+    fn new_with_joypad(renderer: R, joypad: J) -> GameBoyEmulator<R, J> {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             lcd_controller: LCDController::new(renderer),
@@ -227,7 +243,7 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
     }
 }
 
-impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
+impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
     fn unknown_event(&mut self, _time: u64) {
         let value = self.registers.interrupt_flag.read_value();
         self.registers.interrupt_flag.set_value(value | 0xE0);
@@ -250,12 +266,13 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
 
     fn divider_tick(&mut self, time: u64) {
         self.registers.divider.add(1);
-        self.scheduler.schedule(time + 256, Self::divider_tick);
+        self.scheduler
+            .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
 
     fn deliver_events(&mut self, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event(self, time);
+            event.deliver(self, time);
         }
 
         self.lcd_controller.deliver_events(now);
@@ -293,7 +310,8 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
     fn drive_joypad(&mut self, time: u64) {
         let key_events = self.lcd_controller.poll_renderer();
         self.joypad.tick(time, key_events);
-        self.scheduler.schedule(time + 456, Self::drive_joypad);
+        self.scheduler
+            .schedule(time + 456, GameBoyEmulatorEvent::DriveJoypad);
     }
 
     fn execute_dma(&mut self) {
@@ -379,9 +397,12 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<'a, R, J> {
 
     fn schedule_initial_events(&mut self) {
         let now = self.cpu.elapsed_cycles;
-        self.scheduler.schedule(now + 52, Self::divider_tick);
-        self.scheduler.schedule(now + 98584, Self::unknown_event);
-        self.scheduler.schedule(now + 456, Self::drive_joypad);
+        self.scheduler
+            .schedule(now + 52, GameBoyEmulatorEvent::DividerTick);
+        self.scheduler
+            .schedule(now + 98584, GameBoyEmulatorEvent::UnknownEvent);
+        self.scheduler
+            .schedule(now + 456, GameBoyEmulatorEvent::DriveJoypad);
 
         self.lcd_controller.schedule_initial_events(now);
         self.timer.schedule_initial_events(now);

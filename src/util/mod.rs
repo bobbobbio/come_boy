@@ -172,7 +172,7 @@ fn super_fast_hash_example_5() {
 
 #[derive(Default)]
 pub struct Scheduler<T> {
-    timeline: BTreeMap<u64, Vec<for<'r> fn(&'r mut T, u64)>>,
+    timeline: BTreeMap<u64, Vec<T>>,
 }
 
 impl<T> Scheduler<T> {
@@ -182,14 +182,14 @@ impl<T> Scheduler<T> {
         }
     }
 
-    pub fn schedule(&mut self, time: u64, event: for<'r> fn(&'r mut T, u64)) {
+    pub fn schedule(&mut self, time: u64, event: T) {
         if !self.timeline.contains_key(&time) {
             self.timeline.insert(time, Vec::new());
         }
         self.timeline.get_mut(&time).unwrap().push(event);
     }
 
-    pub fn poll(&mut self, current_time: u64) -> Option<(u64, for<'r> fn(&'r mut T, u64))> {
+    pub fn poll(&mut self, current_time: u64) -> Option<(u64, T)> {
         let entry = self.timeline.range_mut(..=current_time).next();
         if let Some((k, v)) = entry {
             let key = *k;
@@ -206,4 +206,30 @@ impl<T> Scheduler<T> {
     pub fn drop_events(&mut self) {
         self.timeline = BTreeMap::new();
     }
+}
+
+#[test]
+fn scheduler_on_time() {
+    let mut scheduler = Scheduler::new();
+    scheduler.schedule(1, 1);
+    scheduler.schedule(2, 2);
+    scheduler.schedule(3, 3);
+
+    assert_eq!(scheduler.poll(1), Some((1, 1)));
+    assert_eq!(scheduler.poll(2), Some((2, 2)));
+    assert_eq!(scheduler.poll(3), Some((3, 3)));
+    assert_eq!(scheduler.poll(4), None);
+}
+
+#[test]
+fn scheduler_late() {
+    let mut scheduler = Scheduler::new();
+    scheduler.schedule(1, 1);
+    scheduler.schedule(2, 2);
+    scheduler.schedule(3, 3);
+
+    assert_eq!(scheduler.poll(4), Some((1, 1)));
+    assert_eq!(scheduler.poll(4), Some((2, 2)));
+    assert_eq!(scheduler.poll(4), Some((3, 3)));
+    assert_eq!(scheduler.poll(4), None);
 }
