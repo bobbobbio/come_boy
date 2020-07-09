@@ -9,9 +9,9 @@ use crate::game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LC
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::GameBoyEmulator;
 use crate::lr35902_emulator::debugger::LR35902Debugger;
-use crate::rendering::{sdl2::Sdl2WindowRenderer, Renderer};
+use crate::rendering::sdl2::Sdl2WindowRenderer;
 
-impl<R> fmt::Debug for GameBoyEmulator<R> {
+impl fmt::Debug for GameBoyEmulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:?}", self.cpu)?;
         writeln!(f)?;
@@ -21,41 +21,57 @@ impl<R> fmt::Debug for GameBoyEmulator<R> {
     }
 }
 
-impl<R: Renderer> DebuggerOps for GameBoyEmulator<R> {
+struct GameBoyDebugger {
+    emulator: GameBoyEmulator,
+    renderer: Sdl2WindowRenderer,
+}
+
+impl GameBoyDebugger {
+    fn new(pixel_scale: u32) -> Self {
+        let window_title = "come boy (in debugger)";
+        let renderer = Sdl2WindowRenderer::new(pixel_scale, window_title, 160, 144);
+        Self {
+            emulator: GameBoyEmulator::new(),
+            renderer,
+        }
+    }
+}
+
+impl DebuggerOps for GameBoyDebugger {
     fn read_memory(&self, address: u16) -> u8 {
-        let memory_map = game_boy_memory_map!(self);
+        let memory_map = game_boy_memory_map!(&self.emulator);
         memory_map.read_memory(address)
     }
 
     fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
-        write!(s, "{:?}", self)
+        write!(s, "{:?}", &self.emulator)
     }
 
     fn next(&mut self) {
-        self.tick();
+        self.emulator.tick(&mut self.renderer);
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
-        let mut memory_map = game_boy_memory_map!(self);
-        let mut d = LR35902Debugger::new(&mut self.cpu, &mut memory_map);
+        let mut memory_map = game_boy_memory_map!(self.emulator);
+        let mut d = LR35902Debugger::new(&mut self.emulator.cpu, &mut memory_map);
         d.simulate_next(instruction);
     }
 
     fn read_program_counter(&self) -> u16 {
-        self.cpu.read_program_counter()
+        self.emulator.cpu.read_program_counter()
     }
 
     fn crashed(&self) -> Option<&String> {
-        self.crashed()
+        self.emulator.crashed()
     }
 
     fn set_program_counter(&mut self, address: u16) {
-        self.cpu.set_program_counter(address)
+        self.emulator.cpu.set_program_counter(address)
     }
 
     fn disassemble(&mut self, address: u16, f: &mut dyn io::Write) -> Result<()> {
         let mut buffer = vec![];
-        let memory_map = game_boy_memory_map!(self);
+        let memory_map = game_boy_memory_map!(&self.emulator);
         let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
         dis.index = address;
         dis.disassemble_multiple().unwrap();
@@ -63,11 +79,11 @@ impl<R: Renderer> DebuggerOps for GameBoyEmulator<R> {
     }
 
     fn read_call_stack(&self) -> Vec<u16> {
-        self.cpu.call_stack.clone()
+        self.emulator.cpu.call_stack.clone()
     }
 }
 
-impl<R> fmt::Debug for LCDController<R> {
+impl fmt::Debug for LCDController {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // XXX: I don't like how this mapping information is repeated here.
         fmt_lcd_register(0xFF40, self.registers.lcdc.read_value(), "LCDC", f)?;
@@ -147,13 +163,13 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 pub fn run_debugger(game_pak: GamePak, pixel_scale: u32, is_interrupted: &dyn Fn() -> bool) {
-    let window_title = "come boy (in debugger)";
-    let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale, window_title, 160, 144));
-    e.load_game_pak(game_pak);
+    let mut gameboy_debugger = GameBoyDebugger::new(pixel_scale);
+    gameboy_debugger.emulator.load_game_pak(game_pak);
+
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();
     let stdout = &mut io::stdout();
 
-    let mut debugger = Debugger::new(stdin_locked, stdout, &mut e);
+    let mut debugger = Debugger::new(stdin_locked, stdout, &mut gameboy_debugger);
     debugger.run(is_interrupted);
 }

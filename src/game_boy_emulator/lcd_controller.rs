@@ -1,11 +1,10 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
 use crate::game_boy_emulator::Result;
-use crate::rendering::{Color, Event, Renderer};
+use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
 use std::iter;
 use std::ops::Range;
@@ -357,21 +356,20 @@ enum LCDControllerEvent {
 }
 
 impl LCDControllerEvent {
-    fn deliver<R: Renderer>(self, controller: &mut LCDController<R>, time: u64) {
+    fn deliver<R: Renderer>(self, controller: &mut LCDController, renderer: &mut R, time: u64) {
         match self {
             Self::AdvanceLy => controller.advance_ly(time),
             Self::AfterMode1 => controller.after_mode_1(time),
             Self::Mode0 => controller.mode_0(time),
-            Self::Mode1 => controller.mode_1(time),
+            Self::Mode1 => controller.mode_1(renderer, time),
             Self::Mode2 => controller.mode_2(time),
-            Self::Mode3 => controller.mode_3(time),
+            Self::Mode3 => controller.mode_3(renderer, time),
             Self::UpdateLyMatch => controller.update_ly_match(time),
         }
     }
 }
 
-pub struct LCDController<R> {
-    renderer: R,
+pub struct LCDController {
     pub crash_message: Option<String>,
     pub character_data: MemoryChunk,
     pub background_display_data_1: MemoryChunk,
@@ -384,8 +382,8 @@ pub struct LCDController<R> {
     interrupt_requested: bool,
 }
 
-impl<R: Renderer> LCDController<R> {
-    pub fn new(renderer: R) -> Self {
+impl LCDController {
+    pub fn new() -> Self {
         LCDController {
             character_data: MemoryChunk::from_range(CHARACTER_DATA),
             background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
@@ -393,7 +391,6 @@ impl<R: Renderer> LCDController<R> {
             oam_data: MemoryChunk::from_range(OAM_DATA),
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
-            renderer,
             scheduler: Scheduler::new(),
             crash_message: None,
             interrupt_requested: false,
@@ -415,9 +412,9 @@ impl<R: Renderer> LCDController<R> {
         }
     }
 
-    pub fn deliver_events(&mut self, now: u64) {
+    pub fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event.deliver(self, time);
+            event.deliver(self, renderer, time);
         }
     }
 
@@ -521,22 +518,9 @@ impl<R: Renderer> LCDController<R> {
         self.crash_message.is_some()
     }
 
-    pub fn poll_renderer(&mut self) -> Vec<KeyEvent> {
-        let mut key_events = vec![];
-
-        for event in self.renderer.poll_events() {
-            match event {
-                Event::Quit { .. } => self.crash_message = Some(String::from("Screen Closed")),
-                Event::KeyDown(code) => key_events.push(KeyEvent::Down(code)),
-                Event::KeyUp(code) => key_events.push(KeyEvent::Up(code)),
-            }
-        }
-
-        key_events
-    }
-
-    fn draw_tiles(
+    fn draw_tiles<R: Renderer>(
         &mut self,
+        renderer: &mut R,
         scroll_x: i32,
         scroll_y: i32,
         area_selection: bool,
@@ -589,7 +573,7 @@ impl<R: Renderer> LCDController<R> {
             for &ix in xes {
                 if (ix >= 0 || ix + CHARACTER_SIZE as i32 >= 0) && ix < 160 {
                     character_data.draw_line(
-                        &mut self.renderer,
+                        renderer,
                         ix,
                         y,
                         ly,
@@ -603,7 +587,7 @@ impl<R: Renderer> LCDController<R> {
         }
     }
 
-    fn draw_oam_data(&mut self, priority: ObjectPriority) {
+    fn draw_oam_data<R: Renderer>(&mut self, renderer: &mut R, priority: ObjectPriority) {
         if !self.registers.lcdc.read_flag(LCDControlFlag::ObjectOn) {
             return;
         }
@@ -670,7 +654,7 @@ impl<R: Renderer> LCDController<R> {
 
                 let character_data = self.read_dot_data(true, character_code);
                 character_data.draw_line(
-                    &mut self.renderer,
+                    renderer,
                     x,
                     y,
                     ly,
@@ -681,10 +665,6 @@ impl<R: Renderer> LCDController<R> {
                 );
             }
         }
-    }
-
-    fn update_screen(&mut self) {
-        self.renderer.present()
     }
 
     // The LCD modes happen like this:
@@ -705,16 +685,15 @@ impl<R: Renderer> LCDController<R> {
             .schedule(time + 77, LCDControllerEvent::Mode3);
     }
 
-    fn clear_line(&mut self) {
+    fn clear_line<R: Renderer>(&mut self, renderer: &mut R) {
         let ly = self.registers.ly.read_value();
 
         for x in 0..160 {
-            self.renderer
-                .color_pixel(x, ly as i32, color_for_shade::<R>(LCDShade::Shade0));
+            renderer.color_pixel(x, ly as i32, color_for_shade::<R>(LCDShade::Shade0));
         }
     }
 
-    fn draw_background(&mut self) {
+    fn draw_background<R: Renderer>(&mut self, renderer: &mut R) {
         let bg_area_selection = self
             .registers
             .lcdc
@@ -725,6 +704,7 @@ impl<R: Renderer> LCDController<R> {
             .read_flag(LCDControlFlag::BGCharacterDataSelection);
         let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
         self.draw_tiles(
+            renderer,
             scroll_x,
             scroll_y,
             bg_area_selection,
@@ -734,7 +714,7 @@ impl<R: Renderer> LCDController<R> {
         );
     }
 
-    fn draw_window(&mut self) {
+    fn draw_window<R: Renderer>(&mut self, renderer: &mut R) {
         if !self.registers.lcdc.read_flag(LCDControlFlag::WindowingOn) {
             return;
         }
@@ -745,6 +725,7 @@ impl<R: Renderer> LCDController<R> {
             .read_flag(LCDControlFlag::WindowCodeAreaSelection);
         let (scroll_x, scroll_y) = self.get_window_origin_relative_to_lcd();
         self.draw_tiles(
+            renderer,
             scroll_x,
             scroll_y,
             window_area_selection,
@@ -754,16 +735,16 @@ impl<R: Renderer> LCDController<R> {
         );
     }
 
-    fn mode_3(&mut self, time: u64) {
+    fn mode_3<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         self.character_data.borrow();
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
 
-        self.clear_line();
-        self.draw_oam_data(ObjectPriority::Background);
-        self.draw_background();
-        self.draw_window();
-        self.draw_oam_data(ObjectPriority::Foreground);
+        self.clear_line(renderer);
+        self.draw_oam_data(renderer, ObjectPriority::Background);
+        self.draw_background(renderer);
+        self.draw_window(renderer);
+        self.draw_oam_data(renderer, ObjectPriority::Foreground);
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x3);
         self.scheduler
             .schedule(time + 175, LCDControllerEvent::Mode0);
@@ -826,9 +807,9 @@ impl<R: Renderer> LCDController<R> {
         );
     }
 
-    fn mode_1(&mut self, time: u64) {
+    fn mode_1<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
-        self.update_screen();
+        renderer.present();
         self.interrupt_requested = true;
 
         self.scheduler
@@ -881,8 +862,12 @@ impl<R: Renderer> LCDController<R> {
         }
     }
 
-    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
-        self.renderer.save_buffer(path)?;
+    pub fn save_screenshot<R: Renderer, P: AsRef<std::path::Path>>(
+        &self,
+        renderer: &mut R,
+        path: P,
+    ) -> Result<()> {
+        renderer.save_buffer(path)?;
         Ok(())
     }
 

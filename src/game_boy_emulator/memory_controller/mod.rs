@@ -175,6 +175,16 @@ impl<T: MemoryMappedHardware> MemoryMappedHardware for Option<T> {
     }
 }
 
+impl<T: MemoryMappedHardware + ?Sized> MemoryMappedHardware for Box<T> {
+    fn read_value(&self, address: u16) -> u8 {
+        MemoryMappedHardware::read_value(&**self, address)
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        MemoryMappedHardware::set_value(&mut **self, address, value)
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct MemoryChunk {
     value: Vec<u8>,

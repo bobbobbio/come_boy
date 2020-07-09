@@ -192,19 +192,19 @@ enum GameBoyEmulatorEvent {
 }
 
 impl GameBoyEmulatorEvent {
-    fn deliver<R: Renderer, J: JoyPad>(self, emulator: &mut GameBoyEmulator<R, J>, time: u64) {
+    fn deliver<R: Renderer>(self, emulator: &mut GameBoyEmulator, renderer: &mut R, time: u64) {
         match self {
             Self::DividerTick => emulator.divider_tick(time),
-            Self::DriveJoypad => emulator.drive_joypad(time),
+            Self::DriveJoypad => emulator.drive_joypad(renderer, time),
             Self::UnknownEvent => emulator.unknown_event(time),
         }
     }
 }
 
-struct GameBoyEmulator<R, J = PlainJoyPad> {
+struct GameBoyEmulator {
     cpu: LR35902Emulator,
     sound_controller: SoundController,
-    lcd_controller: LCDController<R>,
+    lcd_controller: LCDController,
     high_ram: MemoryChunk,
     internal_ram_a: MemoryChunk,
     internal_ram_b: MemoryChunk,
@@ -213,20 +213,14 @@ struct GameBoyEmulator<R, J = PlainJoyPad> {
     scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
     game_pak: Option<GamePak>,
-    joypad: J,
+    joypad: Option<Box<dyn JoyPad>>,
 }
 
-impl<R: Renderer> GameBoyEmulator<R, PlainJoyPad> {
-    fn new(renderer: R) -> GameBoyEmulator<R, PlainJoyPad> {
-        Self::new_with_joypad(renderer, PlainJoyPad::new())
-    }
-}
-
-impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
-    fn new_with_joypad(renderer: R, joypad: J) -> GameBoyEmulator<R, J> {
+impl GameBoyEmulator {
+    fn new() -> Self {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
-            lcd_controller: LCDController::new(renderer),
+            lcd_controller: LCDController::new(),
             sound_controller: Default::default(),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
             internal_ram_a: MemoryChunk::from_range(INTERNAL_RAM_A),
@@ -235,7 +229,7 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
             scheduler: Scheduler::new(),
             timer: Default::default(),
             game_pak: None,
-            joypad: joypad,
+            joypad: None,
         };
         e.set_state_post_bios();
         e.schedule_initial_events();
@@ -243,10 +237,14 @@ impl<'a, R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
     }
 }
 
-impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
+impl GameBoyEmulator {
     fn unknown_event(&mut self, _time: u64) {
         let value = self.registers.interrupt_flag.read_value();
         self.registers.interrupt_flag.set_value(value | 0xE0);
+    }
+
+    fn plug_in_joy_pad<J: JoyPad + 'static>(&mut self, joypad: J) {
+        self.joypad = Some(Box::new(joypad) as Box<dyn JoyPad>)
     }
 
     fn load_game_pak(&mut self, game_pak: GamePak) {
@@ -270,21 +268,21 @@ impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
             .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
 
-    fn deliver_events(&mut self, now: u64) {
+    fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event.deliver(self, time);
+            event.deliver(self, renderer, time);
         }
 
-        self.lcd_controller.deliver_events(now);
+        self.lcd_controller.deliver_events(renderer, now);
         self.timer.deliver_events(now);
     }
 
-    fn tick(&mut self) {
+    fn tick<R: Renderer>(&mut self, renderer: &mut R) {
         self.cpu
             .load_instruction(&mut game_boy_memory_map_mut!(self));
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(now);
+        self.deliver_events(renderer, now);
 
         self.cpu
             .execute_instruction(&mut game_boy_memory_map_mut!(self));
@@ -297,7 +295,7 @@ impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
         self.execute_dma();
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(now);
+        self.deliver_events(renderer, now);
 
         self.lcd_controller
             .schedule_interrupts(&mut self.registers.interrupt_flag);
@@ -307,9 +305,25 @@ impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
         self.handle_interrupts();
     }
 
-    fn drive_joypad(&mut self, time: u64) {
-        let key_events = self.lcd_controller.poll_renderer();
-        self.joypad.tick(time, key_events);
+    fn drive_joypad<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
+        use crate::game_boy_emulator::joypad::KeyEvent;
+        use crate::rendering::Event;
+
+        if let Some(joypad) = &mut self.joypad {
+            let mut key_events = vec![];
+
+            for event in renderer.poll_events() {
+                match event {
+                    Event::Quit { .. } => {
+                        self.lcd_controller.crash_message = Some(String::from("Screen Closed"))
+                    }
+                    Event::KeyDown(code) => key_events.push(KeyEvent::Down(code)),
+                    Event::KeyUp(code) => key_events.push(KeyEvent::Up(code)),
+                }
+            }
+
+            joypad.tick(time, key_events);
+        }
         self.scheduler
             .schedule(time + 456, GameBoyEmulatorEvent::DriveJoypad);
     }
@@ -408,17 +422,23 @@ impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
         self.timer.schedule_initial_events(now);
     }
 
-    pub fn save_screenshot<P: AsRef<std::path::Path>>(&self, path: P) -> Result<()> {
-        self.lcd_controller.save_screenshot(path)?;
+    pub fn save_screenshot<R: Renderer, P: AsRef<std::path::Path>>(
+        &self,
+        renderer: &mut R,
+        path: P,
+    ) -> Result<()> {
+        self.lcd_controller.save_screenshot(renderer, path)?;
         Ok(())
     }
 
-    fn run(&mut self) {
+    fn run<R: Renderer, J: JoyPad + 'static>(&mut self, renderer: &mut R, joypad: J) {
+        self.plug_in_joy_pad(joypad);
+
         let mut last_cycles = self.cpu.elapsed_cycles;
         let mut last_instant = std::time::Instant::now();
 
         while self.crashed().is_none() {
-            self.tick();
+            self.tick(renderer);
 
             let elapsed_cycles = self.cpu.elapsed_cycles - last_cycles;
 
@@ -500,7 +520,8 @@ impl<R: Renderer, J: JoyPad> GameBoyEmulator<R, J> {
 
 #[test]
 fn initial_state_test() {
-    let e = GameBoyEmulator::new(NullRenderer);
+    let mut e = GameBoyEmulator::new();
+    e.plug_in_joy_pad(PlainJoyPad::new());
 
     // Lock down the initial state.
     assert_eq!(e.hash(), 1497694477);
@@ -516,12 +537,12 @@ fn initial_state_test() {
  */
 
 #[cfg(test)]
-fn run_blargg_test_rom(e: &mut GameBoyEmulator<NullRenderer>, stop_address: u16) {
+fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
     let mut pc = e.cpu.read_program_counter();
     // This address is where the rom ends.  At this address is an infinite loop where normally the
     // rom will sit at forever.
     while pc != stop_address {
-        e.tick();
+        e.tick(&mut NullRenderer);
         pc = e.cpu.read_program_counter();
     }
 
@@ -531,7 +552,7 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator<NullRenderer>, stop_address: u16)
 
 #[test]
 fn blargg_test_rom_cpu_instrs_2_interrupts() {
-    let mut e = GameBoyEmulator::new(NullRenderer);
+    let mut e = GameBoyEmulator::new();
     e.load_game_pak(GamePak::new(
         &read_blargg_test_rom("cpu_instrs/individual/02-interrupts.gb"),
         None,
@@ -542,7 +563,7 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
 #[test]
 #[ignore]
 fn blargg_test_rom_instr_timing() {
-    let mut e = GameBoyEmulator::new(NullRenderer);
+    let mut e = GameBoyEmulator::new();
     e.load_game_pak(GamePak::new(
         &read_blargg_test_rom("instr_timing/instr_timing.gb"),
         None,
@@ -551,9 +572,10 @@ fn blargg_test_rom_instr_timing() {
 }
 
 pub fn run_emulator(game_pak: GamePak, pixel_scale: u32) {
-    let mut e = GameBoyEmulator::new(Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144));
+    let mut renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+    let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run();
+    e.run(&mut renderer, PlainJoyPad::new());
 }
 
 pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
@@ -566,11 +588,17 @@ pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     tandem::run(other_emulator_path, game_pak, pc_only)
 }
 
-fn run_emulator_until_and_take_screenshot<P: AsRef<Path>, R: Renderer, J: JoyPad>(
-    mut e: GameBoyEmulator<R, J>,
+fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: AsRef<Path>>(
+    mut e: GameBoyEmulator,
+    mut renderer: R,
+    joypad: Option<J>,
     ticks: u64,
     output_path: P,
 ) {
+    if let Some(joypad) = joypad {
+        e.plug_in_joy_pad(joypad);
+    }
+
     let target_tick = e.cpu.elapsed_cycles + ticks;
 
     while e.cpu.elapsed_cycles < target_tick {
@@ -578,10 +606,10 @@ fn run_emulator_until_and_take_screenshot<P: AsRef<Path>, R: Renderer, J: JoyPad
             panic!("Emulator crashed: {}", c);
         }
 
-        e.tick();
+        e.tick(&mut renderer);
     }
 
-    e.save_screenshot(output_path).unwrap();
+    e.save_screenshot(&mut renderer, output_path).unwrap();
 }
 
 pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
@@ -591,34 +619,33 @@ pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
     output_path: P2,
 ) -> Result<()> {
     let renderer = Sdl2SurfaceRenderer::new(1, 160, 144);
-    if let Some(replay_path) = replay_path {
-        let joypad = PlaybackJoyPad::new(game_pak.hash(), replay_path)?;
-        let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
-        e.load_game_pak(game_pak);
-        run_emulator_until_and_take_screenshot(e, ticks, output_path);
+    let joypad = if let Some(replay_path) = replay_path {
+        Some(PlaybackJoyPad::new(game_pak.hash(), replay_path)?)
     } else {
-        let mut e = GameBoyEmulator::new(renderer);
-        e.load_game_pak(game_pak);
-        run_emulator_until_and_take_screenshot(e, ticks, output_path);
-    }
+        None
+    };
+
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(game_pak);
+    run_emulator_until_and_take_screenshot(e, renderer, joypad, ticks, output_path);
     Ok(())
 }
 
 pub fn run_and_record_replay(game_pak: GamePak, pixel_scale: u32, output: &Path) -> Result<()> {
-    let renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+    let mut renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
     let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
-    let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
+    let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run();
+    e.run(&mut renderer, joypad);
     Ok(())
 }
 
 pub fn playback_replay(game_pak: GamePak, pixel_scale: u32, input: &Path) -> Result<()> {
-    let renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+    let mut renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
     let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
-    let mut e = GameBoyEmulator::new_with_joypad(renderer, joypad);
+    let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run();
+    e.run(&mut renderer, joypad);
     Ok(())
 }
 
