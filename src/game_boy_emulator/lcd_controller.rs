@@ -6,6 +6,7 @@ use crate::game_boy_emulator::memory_controller::{
 use crate::game_boy_emulator::Result;
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
+use serde_derive::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
 
@@ -48,7 +49,7 @@ const UNUSABLE_MEMORY: Range<u16> = Range {
     end: 0xFF00,
 };
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct DmaRegister {
     value: u8,
     requested: bool,
@@ -84,7 +85,7 @@ impl DmaRegister {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct LCDControllerRegisters {
     pub lcdc: GameBoyFlags<LCDControlFlag>,
     pub stat: GameBoyFlags<LCDStatusFlag>,
@@ -100,7 +101,7 @@ pub struct LCDControllerRegisters {
     pub wx: GameBoyRegister,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LCDColor {
     Color3 = 0b11000000,
     Color2 = 0b00110000,
@@ -345,6 +346,7 @@ enum ObjectPriority {
     Foreground,
 }
 
+#[derive(Serialize, Deserialize)]
 enum LCDControllerEvent {
     AdvanceLy,
     AfterMode1,
@@ -369,6 +371,7 @@ impl LCDControllerEvent {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct LCDController {
     pub crash_message: Option<String>,
     pub character_data: MemoryChunk,

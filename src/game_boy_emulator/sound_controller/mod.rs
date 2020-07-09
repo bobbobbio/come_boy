@@ -3,11 +3,12 @@
 use self::memory_map::{SoundControllerMemoryMap, SoundControllerMemoryMapMut};
 use crate::game_boy_emulator::memory_controller::{MemoryAccessor, MemoryMappedHardware};
 use crate::game_boy_emulator::{GameBoyRegister, MemoryChunk};
+use serde_derive::{Deserialize, Serialize};
 
 #[macro_use]
 mod memory_map;
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct ToneAndSweep {
     pub sweep: GameBoyRegister,
     pub sound_length: GameBoyRegister,
@@ -16,7 +17,7 @@ pub struct ToneAndSweep {
     pub frequency_high: GameBoyRegister,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Tone {
     pub sound_length: GameBoyRegister,
     pub volume_envelope: GameBoyRegister,
@@ -24,6 +25,7 @@ pub struct Tone {
     pub frequency_high: GameBoyRegister,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct WaveOutput {
     pub enabled: GameBoyRegister,
     pub sound_length: GameBoyRegister,
@@ -46,7 +48,7 @@ impl Default for WaveOutput {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Noise {
     pub sound_length: GameBoyRegister,
     pub volume_envelope: GameBoyRegister,
@@ -54,7 +56,7 @@ pub struct Noise {
     pub counter: GameBoyRegister,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct SoundController {
     pub channel1: ToneAndSweep,
     pub channel2: Tone,

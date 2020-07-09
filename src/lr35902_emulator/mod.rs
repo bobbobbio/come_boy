@@ -4,6 +4,7 @@ use crate::intel_8080_emulator::{
     Intel8080Flag, Intel8080InstructionSet, Intel8080InstructionSetOps,
 };
 use crate::util::TwosComplement;
+use serde_derive::{Deserialize, Serialize};
 use std::mem;
 
 pub use crate::emulator_common::disassembler::{
@@ -44,6 +45,7 @@ pub enum LR35902Flag {
     ValidityMask = 0b11110000,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct LR35902Emulator {
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16,

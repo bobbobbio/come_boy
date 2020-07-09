@@ -1,5 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
+use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::{self, Result};
 use std::{mem, slice};
@@ -170,7 +171,7 @@ fn super_fast_hash_example_5() {
  * |____/ \___|_| |_|\___|\__,_|\__,_|_|\___|_|
  */
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct Scheduler<T> {
     timeline: BTreeMap<u64, Vec<T>>,
 }

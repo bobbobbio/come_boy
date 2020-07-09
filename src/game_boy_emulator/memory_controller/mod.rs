@@ -2,6 +2,7 @@
 
 pub use self::memory_map::{GameBoyMemoryMap, GameBoyMemoryMapMut};
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+use serde_derive::{Deserialize, Serialize};
 use std::io;
 use std::marker::PhantomData;
 use std::ops::Range;
@@ -9,6 +10,7 @@ use std::ops::Range;
 #[macro_use]
 pub mod memory_map;
 
+#[derive(Serialize, Deserialize)]
 pub struct GameBoyRegister {
     pub chunk: MemoryChunk,
 }
@@ -69,6 +71,7 @@ impl FlagMask for u8 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct GameBoyFlags<T> {
     chunk: MemoryChunk,
     phantom: PhantomData<T>,
@@ -185,7 +188,7 @@ impl<T: MemoryMappedHardware + ?Sized> MemoryMappedHardware for Box<T> {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct MemoryChunk {
     value: Vec<u8>,
     borrowed: bool,

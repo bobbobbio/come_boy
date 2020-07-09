@@ -14,6 +14,7 @@ use crate::rendering::{
     Renderer,
 };
 use crate::util::{super_fast_hash, Scheduler};
+use serde_derive::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::io::Write;
 use std::ops::Range;
@@ -95,7 +96,7 @@ const INTERNAL_RAM_B: Range<u16> = Range {
     end: 0xE000,
 };
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 struct GameBoyRegisters {
     interrupt_flag: GameBoyFlags<InterruptFlag>,
     interrupt_enable: GameBoyFlags<InterruptEnableFlag>,
@@ -105,7 +106,7 @@ struct GameBoyRegisters {
     divider: GameBoyRegister,
 }
 
-#[derive(Default)]
+#[derive(Default, Serialize, Deserialize)]
 struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
@@ -185,6 +186,7 @@ impl GameBoyTimer {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 enum GameBoyEmulatorEvent {
     DividerTick,
     DriveJoypad,
@@ -201,6 +203,7 @@ impl GameBoyEmulatorEvent {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct GameBoyEmulator {
     cpu: LR35902Emulator,
     sound_controller: SoundController,
@@ -212,7 +215,11 @@ struct GameBoyEmulator {
     registers: GameBoyRegisters,
     scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
+
+    #[serde(skip)]
     game_pak: Option<GamePak>,
+
+    #[serde(skip)]
     joypad: Option<Box<dyn JoyPad>>,
 }
 
