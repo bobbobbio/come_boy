@@ -3,6 +3,7 @@
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::util::super_fast_hash;
 use serde_derive::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -123,7 +124,7 @@ impl MemoryMappedHardware for MemoryBankController0 {
     fn set_value(&mut self, _address: u16, _value: u8) {}
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 struct SwitchableBank<T> {
     banks: Vec<T>,
     current_bank: usize,
@@ -435,8 +436,7 @@ impl fmt::Debug for VolatileInternalRam {
 #[derive(Serialize, Deserialize)]
 struct NonVolatileInternalRam {
     memory: MemoryChunk,
-    #[serde(skip)]
-    file: Option<File>,
+    file: Option<RamFile>,
 }
 
 impl Into<InternalRam> for NonVolatileInternalRam {
@@ -447,25 +447,16 @@ impl Into<InternalRam> for NonVolatileInternalRam {
 
 impl NonVolatileInternalRam {
     fn new(path: Option<PathBuf>) -> Self {
-        let mut file = if let Some(path) = path {
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(path)
-                .ok()
-        } else {
-            None
-        };
+        let mut file = path.map(|p| RamFile::new(p));
 
         let memory = if let Some(file) = &mut file {
-            MemoryChunk::from_reader(file, 512).unwrap_or(MemoryChunk::from_range(0..512))
+            file.read_chunk(0..512)
         } else {
             MemoryChunk::from_range(0..512)
         };
 
         if let Some(file) = &mut file {
-            file.set_len(512).ok();
+            file.set_len(512);
         }
 
         Self { memory, file }
@@ -483,8 +474,7 @@ impl MemoryMappedHardware for NonVolatileInternalRam {
 
         self.memory.set_value(address, value | 0xF0);
         if let Some(file) = &mut self.file {
-            file.seek(SeekFrom::Start(address as u64)).ok();
-            file.write(&[value | 0xF0]).ok();
+            file.write(address as u64, value | 0xF0);
         }
     }
 }
@@ -739,10 +729,73 @@ impl MemoryMappedHardware for VolatileRam {
 }
 
 #[derive(Serialize, Deserialize)]
-struct NonVolatileRam {
-    switchable_bank: SwitchableBank<MemoryChunk>,
+struct RamFile {
+    path: PathBuf,
+    size: u64,
+
     #[serde(skip)]
     file: Option<File>,
+}
+
+impl RamFile {
+    fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            size: 0,
+            file: None,
+        }
+    }
+
+    fn set_len(&mut self, len: u64) {
+        self.size = len;
+    }
+
+    fn maybe_open_file(&mut self) {
+        if self.file.is_some() {
+            return;
+        }
+
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(&self.path)
+            .ok();
+
+        if let Some(file) = file {
+            self.size = file.metadata().unwrap().len();
+            self.file = Some(file);
+        }
+    }
+
+    fn write(&mut self, offset: u64, value: u8) {
+        self.maybe_open_file();
+
+        if let Some(file) = &mut self.file {
+            file.set_len(self.size).unwrap();
+            file.seek(SeekFrom::Start(offset)).unwrap();
+            file.write(&[value]).unwrap();
+        }
+    }
+
+    fn read_chunk(&mut self, range: Range<u64>) -> MemoryChunk {
+        self.maybe_open_file();
+
+        let len: u16 = (range.end - range.start).try_into().unwrap();
+
+        if let Some(file) = &mut self.file {
+            file.seek(SeekFrom::Start(range.start)).unwrap();
+            MemoryChunk::from_reader(file, len as usize).unwrap_or(MemoryChunk::from_range(0..len))
+        } else {
+            MemoryChunk::from_range(0..len)
+        }
+    }
+}
+
+#[derive(Default, Serialize, Deserialize)]
+struct NonVolatileRam {
+    switchable_bank: SwitchableBank<MemoryChunk>,
+    file: Option<RamFile>,
 }
 
 impl Into<CartridgeRam> for NonVolatileRam {
@@ -759,24 +812,14 @@ impl fmt::Debug for NonVolatileRam {
 
 impl NonVolatileRam {
     fn new(ram_size: u8, path: Option<PathBuf>) -> Self {
-        let mut file = if let Some(path) = path {
-            OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .open(path)
-                .ok()
-        } else {
-            None
-        };
+        let mut file = path.map(|p| RamFile::new(p));
 
         let mut file_size = 0;
-
         let mut chunk_factory = |size: u16| {
             if let Some(file) = &mut file {
-                file_size += size;
-                MemoryChunk::from_reader(file, size as usize)
-                    .unwrap_or(MemoryChunk::from_range(0..size))
+                let chunk = file.read_chunk(file_size..(file_size + size as u64));
+                file_size += size as u64;
+                chunk
             } else {
                 MemoryChunk::from_range(0..size)
             }
@@ -799,10 +842,10 @@ impl NonVolatileRam {
         };
 
         if let Some(file) = &mut file {
-            file.set_len(file_size as u64).ok();
+            file.set_len(file_size);
         }
 
-        NonVolatileRam {
+        Self {
             switchable_bank: SwitchableBank::new(ram),
             file,
         }
@@ -819,12 +862,10 @@ impl MemoryMappedHardware for NonVolatileRam {
         }
 
         self.switchable_bank.set_value(address, value);
+
         if let Some(file) = &mut self.file {
-            file.seek(SeekFrom::Start(
-                (self.switchable_bank.current_bank_offset() + address as usize) as u64,
-            ))
-            .ok();
-            file.write(&[value]).ok();
+            let offset = (self.switchable_bank.current_bank_offset() + address as usize) as u64;
+            file.write(offset, value);
         }
     }
 }
