@@ -83,6 +83,16 @@ impl MemoryBankController {
             Self::Five(r) => r.tick(),
         }
     }
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        match self {
+            Self::Zero(r) => r.reattach_banks(banks),
+            Self::One(r) => r.reattach_banks(banks),
+            Self::Two(r) => r.reattach_banks(banks),
+            Self::Three(r) => r.reattach_banks(banks),
+            Self::Five(r) => r.reattach_banks(banks),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -102,6 +112,10 @@ impl MemoryBankController0 {
     }
 
     fn tick(&mut self) {}
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.banks = banks
+    }
 }
 
 impl fmt::Debug for MemoryBankController0 {
@@ -149,6 +163,12 @@ impl<T> SwitchableBank<T> {
 
     fn len(&self) -> usize {
         self.banks.len()
+    }
+}
+
+impl SwitchableBank<RomBank> {
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.banks = banks
     }
 }
 
@@ -282,6 +302,10 @@ impl MemoryBankController1 {
             self.ram.switch_bank(self.ram_bank_number);
         }
     }
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.switchable_bank.reattach_banks(banks)
+    }
 }
 
 #[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -318,6 +342,10 @@ impl MemoryBankController3 {
 
     fn tick(&mut self) {
         self.inner.tick();
+    }
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.inner.reattach_banks(banks)
     }
 }
 
@@ -519,6 +547,10 @@ impl MemoryBankController2 {
         let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
         self.switchable_bank.switch_bank(rom_bank_value);
     }
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.switchable_bank.reattach_banks(banks)
+    }
 }
 
 impl MemoryMappedHardware for MemoryBankController2 {
@@ -577,6 +609,10 @@ impl MemoryBankController5 {
 
     fn tick(&mut self) {
         self.inner.tick();
+    }
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.inner.reattach_banks(banks)
     }
 }
 
@@ -896,6 +932,30 @@ const TITLE: Range<usize> = Range {
     end: 0x0144,
 };
 
+fn banks_from_rom(rom: &[u8]) -> Vec<RomBank> {
+    let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
+        n if n <= 0x08 => 2usize.pow(n as u32 + 1),
+        0x52 => 72,
+        0x53 => 80,
+        0x54 => 96,
+        v => panic!("Unknown ROM size {}", v),
+    };
+    assert_eq!(
+        number_of_banks,
+        rom.len() / (BANK_SIZE as usize),
+        "ROM wrong size"
+    );
+
+    let mut banks = Vec::new();
+    for b in 0..number_of_banks {
+        let start = b * (BANK_SIZE as usize);
+        let end = start + (BANK_SIZE as usize);
+        banks.push(RomBank::new(rom[start..end].to_vec()));
+    }
+
+    banks
+}
+
 impl GamePak {
     pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         let path: &Path = path.as_ref();
@@ -908,18 +968,7 @@ impl GamePak {
     pub fn new(rom: &[u8], sram_path: Option<PathBuf>) -> Self {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
         let hash = super_fast_hash(rom);
-        let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
-            n if n <= 0x08 => 2usize.pow(n as u32 + 1),
-            0x52 => 72,
-            0x53 => 80,
-            0x54 => 96,
-            v => panic!("Unknown ROM size {}", v),
-        };
-        assert_eq!(
-            number_of_banks,
-            rom.len() / (BANK_SIZE as usize),
-            "ROM wrong size"
-        );
+        let banks = banks_from_rom(rom);
 
         let title_slice = &rom[TITLE];
         let title_end = title_slice
@@ -929,13 +978,6 @@ impl GamePak {
         let title = str::from_utf8(&title_slice[..title_end])
             .expect(&format!("Malformed title {:?}", title_slice))
             .into();
-
-        let mut banks = Vec::new();
-        for b in 0..number_of_banks {
-            let start = b * (BANK_SIZE as usize);
-            let end = start + (BANK_SIZE as usize);
-            banks.push(RomBank::new(rom[start..end].to_vec()));
-        }
 
         let ram_size = rom[RAM_SIZE_ADDRESS];
 
@@ -973,7 +1015,7 @@ impl GamePak {
         let mbc: MemoryBankController =
             match rom[MBC_TYPE_ADDRESS] {
                 0x00 => {
-                    assert_eq!(number_of_banks, 2);
+                    assert_eq!(banks.len(), 2);
                     MemoryBankController0::new(banks).into()
                 }
                 0x01 => MemoryBankController1::new(banks, NoRam).into(),
@@ -1006,6 +1048,14 @@ impl GamePak {
 
     pub fn hash(&self) -> u32 {
         self.hash
+    }
+
+    pub fn reattach_rom(&mut self, rom: &[u8]) {
+        assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
+        let hash = super_fast_hash(rom);
+        assert_eq!(hash, self.hash);
+
+        self.mbc.reattach_banks(banks_from_rom(rom));
     }
 }
 
