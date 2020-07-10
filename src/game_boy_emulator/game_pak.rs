@@ -2,6 +2,7 @@
 
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::util::super_fast_hash;
+use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -9,6 +10,26 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::str;
 
+#[derive(Clone, Serialize, Deserialize)]
+struct RomBank(#[serde(skip)] MemoryChunk);
+
+impl RomBank {
+    fn new(value: Vec<u8>) -> Self {
+        Self(MemoryChunk::new(value))
+    }
+}
+
+impl MemoryMappedHardware for RomBank {
+    fn read_value(&self, address: u16) -> u8 {
+        self.0.read_value(address)
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.0.set_value(address, value)
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 enum MemoryBankController {
     Zero(MemoryBankController0),
     One(MemoryBankController1),
@@ -63,9 +84,9 @@ impl MemoryBankController {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct MemoryBankController0 {
-    banks: Vec<MemoryChunk>,
+    banks: Vec<RomBank>,
 }
 
 impl Into<MemoryBankController> for MemoryBankController0 {
@@ -75,7 +96,7 @@ impl Into<MemoryBankController> for MemoryBankController0 {
 }
 
 impl MemoryBankController0 {
-    fn new(banks: Vec<MemoryChunk>) -> Self {
+    fn new(banks: Vec<RomBank>) -> Self {
         MemoryBankController0 { banks }
     }
 
@@ -102,14 +123,14 @@ impl MemoryMappedHardware for MemoryBankController0 {
     fn set_value(&mut self, _address: u16, _value: u8) {}
 }
 
-#[derive(Clone)]
-struct SwitchableBank {
-    banks: Vec<MemoryChunk>,
+#[derive(Clone, Serialize, Deserialize)]
+struct SwitchableBank<T> {
+    banks: Vec<T>,
     current_bank: usize,
 }
 
-impl SwitchableBank {
-    fn new(banks: Vec<MemoryChunk>) -> Self {
+impl<T> SwitchableBank<T> {
+    fn new(banks: Vec<T>) -> Self {
         SwitchableBank {
             banks,
             current_bank: 0,
@@ -125,14 +146,12 @@ impl SwitchableBank {
         self.current_bank = new_bank;
     }
 
-    fn current_bank_offset(&self) -> usize {
-        let mut offset = 0;
-        for b in &self.banks[..self.current_bank] {
-            offset += b.len() as usize;
-        }
-        offset
+    fn len(&self) -> usize {
+        self.banks.len()
     }
+}
 
+impl SwitchableBank<MemoryChunk> {
     fn total_len(&self) -> usize {
         let mut len = 0;
         for b in &self.banks {
@@ -141,12 +160,16 @@ impl SwitchableBank {
         len
     }
 
-    fn len(&self) -> usize {
-        self.banks.len()
+    fn current_bank_offset(&self) -> usize {
+        let mut offset = 0;
+        for b in &self.banks[..self.current_bank] {
+            offset += b.len() as usize;
+        }
+        offset
     }
 }
 
-impl MemoryMappedHardware for SwitchableBank {
+impl<T: MemoryMappedHardware> MemoryMappedHardware for SwitchableBank<T> {
     fn read_value(&self, address: u16) -> u8 {
         if self.current_bank >= self.banks.len() {
             0xFF
@@ -162,18 +185,19 @@ impl MemoryMappedHardware for SwitchableBank {
     }
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
 enum RomOrRam {
     Rom,
     Ram,
 }
 
+#[derive(Serialize, Deserialize)]
 struct MemoryBankController1 {
     rom_bank_number: usize,
     ram_bank_number: usize,
     rom_ram_select: RomOrRam,
     ram_enable: bool,
-    switchable_bank: SwitchableBank,
+    switchable_bank: SwitchableBank<RomBank>,
     ram: CartridgeRam,
 }
 
@@ -237,7 +261,7 @@ impl fmt::Debug for MemoryBankController1 {
 }
 
 impl MemoryBankController1 {
-    fn new<R: Into<CartridgeRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
+    fn new<R: Into<CartridgeRam>>(banks: Vec<RomBank>, ram: R) -> Self {
         MemoryBankController1 {
             rom_bank_number: 0,
             ram_bank_number: 0,
@@ -259,12 +283,13 @@ impl MemoryBankController1 {
     }
 }
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
 enum ClockOrRam {
     Clock,
     Ram,
 }
 
+#[derive(Serialize, Deserialize)]
 struct MemoryBankController3 {
     inner: MemoryBankController1,
     clock_ram_select: ClockOrRam,
@@ -283,7 +308,7 @@ impl fmt::Debug for MemoryBankController3 {
 }
 
 impl MemoryBankController3 {
-    fn new<R: Into<CartridgeRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
+    fn new<R: Into<CartridgeRam>>(banks: Vec<RomBank>, ram: R) -> Self {
         MemoryBankController3 {
             inner: MemoryBankController1::new(banks, ram),
             clock_ram_select: ClockOrRam::Ram,
@@ -345,6 +370,7 @@ impl MemoryMappedHardware for MemoryBankController3 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 enum InternalRam {
     Volatile(VolatileInternalRam),
     NonVolatile(NonVolatileInternalRam),
@@ -375,6 +401,7 @@ impl fmt::Debug for InternalRam {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct VolatileInternalRam(MemoryChunk);
 
 impl Into<InternalRam> for VolatileInternalRam {
@@ -405,8 +432,10 @@ impl fmt::Debug for VolatileInternalRam {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct NonVolatileInternalRam {
     memory: MemoryChunk,
+    #[serde(skip)]
     file: Option<File>,
 }
 
@@ -466,11 +495,12 @@ impl fmt::Debug for NonVolatileInternalRam {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct MemoryBankController2 {
     internal_ram: InternalRam,
     rom_bank_number: usize,
     ram_enable: bool,
-    switchable_bank: SwitchableBank,
+    switchable_bank: SwitchableBank<RomBank>,
 }
 
 impl Into<MemoryBankController> for MemoryBankController2 {
@@ -486,7 +516,7 @@ impl fmt::Debug for MemoryBankController2 {
 }
 
 impl MemoryBankController2 {
-    fn new<R: Into<InternalRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
+    fn new<R: Into<InternalRam>>(banks: Vec<RomBank>, ram: R) -> Self {
         MemoryBankController2 {
             internal_ram: ram.into(),
             rom_bank_number: 0,
@@ -531,6 +561,7 @@ impl MemoryMappedHardware for MemoryBankController2 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct MemoryBankController5 {
     inner: MemoryBankController1,
 }
@@ -548,7 +579,7 @@ impl fmt::Debug for MemoryBankController5 {
 }
 
 impl MemoryBankController5 {
-    fn new<R: Into<CartridgeRam>>(banks: Vec<MemoryChunk>, ram: R) -> Self {
+    fn new<R: Into<CartridgeRam>>(banks: Vec<RomBank>, ram: R) -> Self {
         MemoryBankController5 {
             inner: MemoryBankController1::new(banks, ram),
         }
@@ -588,6 +619,7 @@ impl MemoryMappedHardware for MemoryBankController5 {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 enum CartridgeRam {
     No(NoRam),
     Volatile(VolatileRam),
@@ -631,7 +663,7 @@ impl CartridgeRam {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct NoRam;
 
 impl Into<CartridgeRam> for NoRam {
@@ -653,9 +685,9 @@ impl MemoryMappedHardware for NoRam {
     fn set_value(&mut self, _address: u16, _value: u8) {}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct VolatileRam {
-    switchable_bank: SwitchableBank,
+    switchable_bank: SwitchableBank<MemoryChunk>,
 }
 
 impl Into<CartridgeRam> for VolatileRam {
@@ -706,8 +738,10 @@ impl MemoryMappedHardware for VolatileRam {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 struct NonVolatileRam {
-    switchable_bank: SwitchableBank,
+    switchable_bank: SwitchableBank<MemoryChunk>,
+    #[serde(skip)]
     file: Option<File>,
 }
 
@@ -795,6 +829,7 @@ impl MemoryMappedHardware for NonVolatileRam {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct GamePak {
     title: String,
     hash: u32,
@@ -858,7 +893,7 @@ impl GamePak {
         for b in 0..number_of_banks {
             let start = b * (BANK_SIZE as usize);
             let end = start + (BANK_SIZE as usize);
-            banks.push(MemoryChunk::new(rom[start..end].to_vec()));
+            banks.push(RomBank::new(rom[start..end].to_vec()));
         }
 
         let ram_size = rom[RAM_SIZE_ADDRESS];
