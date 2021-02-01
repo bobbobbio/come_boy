@@ -62,6 +62,8 @@ fn keycode_translate(keycode: VirtualKeyCode) -> Keycode {
         VirtualKeyCode::Up => Keycode::Up,
         VirtualKeyCode::X => Keycode::X,
         VirtualKeyCode::Z => Keycode::Z,
+        VirtualKeyCode::F2 => Keycode::F2,
+        VirtualKeyCode::F3 => Keycode::F3,
         _ => Keycode::Unknown,
     }
 }
@@ -103,7 +105,7 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
     width: u32,
     height: u32,
     body: F,
-) {
+) -> ! {
     let window = Window::new_centered(title, (width * pixel_scale, height * pixel_scale)).unwrap();
 
     let base_buffer = vec![SpeedyColor::WHITE; width as usize * height as usize];
@@ -131,9 +133,9 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
 
     crossbeam::scope(|scope| {
         scope.spawn(|_| body(&mut renderer));
-        window.run_loop(handler);
+        window.run_loop(handler)
     })
-    .unwrap();
+    .unwrap()
 }
 
 impl Color for SpeedyColor {

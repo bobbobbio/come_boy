@@ -1,5 +1,6 @@
 // Copyright 2019 Remi Bernotavicius
 
+use serde_derive::{Deserialize, Serialize};
 use std::path::Path;
 
 #[cfg(feature = "sdl2")]
@@ -19,17 +20,19 @@ impl From<String> for Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-#[derive(Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum Keycode {
     Down,
+    F2,
+    F3,
     Left,
     Return,
     Right,
     Tab,
+    Unknown,
     Up,
     X,
     Z,
-    Unknown,
 }
 
 pub enum Event {

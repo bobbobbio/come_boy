@@ -93,6 +93,16 @@ impl MemoryBankController {
             Self::Five(r) => r.reattach_banks(banks),
         }
     }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        match self {
+            Self::Zero(r) => r.into_banks(),
+            Self::One(r) => r.into_banks(),
+            Self::Two(r) => r.into_banks(),
+            Self::Three(r) => r.into_banks(),
+            Self::Five(r) => r.into_banks(),
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -115,6 +125,10 @@ impl MemoryBankController0 {
 
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.banks = banks
+    }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.banks
     }
 }
 
@@ -169,6 +183,10 @@ impl<T> SwitchableBank<T> {
 impl SwitchableBank<RomBank> {
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.banks = banks
+    }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.banks
     }
 }
 
@@ -306,6 +324,10 @@ impl MemoryBankController1 {
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.switchable_bank.reattach_banks(banks)
     }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.switchable_bank.into_banks()
+    }
 }
 
 #[derive(PartialEq, Copy, Clone, Serialize, Deserialize)]
@@ -346,6 +368,10 @@ impl MemoryBankController3 {
 
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.inner.reattach_banks(banks)
+    }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.inner.into_banks()
     }
 }
 
@@ -551,6 +577,10 @@ impl MemoryBankController2 {
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.switchable_bank.reattach_banks(banks)
     }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.switchable_bank.into_banks()
+    }
 }
 
 impl MemoryMappedHardware for MemoryBankController2 {
@@ -613,6 +643,10 @@ impl MemoryBankController5 {
 
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.inner.reattach_banks(banks)
+    }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.inner.into_banks()
     }
 }
 
@@ -1050,12 +1084,25 @@ impl GamePak {
         self.hash
     }
 
-    pub fn reattach_rom(&mut self, rom: &[u8]) {
-        assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
-        let hash = super_fast_hash(rom);
-        assert_eq!(hash, self.hash);
+    pub fn save_state<W: std::io::Write>(&self, writer: W) -> super::Result<()> {
+        bincode::serialize_into(writer, self)?;
+        Ok(())
+    }
 
-        self.mbc.reattach_banks(banks_from_rom(rom));
+    pub fn load_state<R: std::io::Read>(&mut self, reader: R) -> super::Result<()> {
+        let new: Self = bincode::deserialize_from(reader)?;
+        assert_eq!(self.hash, new.hash);
+        let old = std::mem::replace(self, new);
+        self.reattach_banks(old.into_banks());
+        Ok(())
+    }
+
+    fn into_banks(self) -> Vec<RomBank> {
+        self.mbc.into_banks()
+    }
+
+    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
+        self.mbc.reattach_banks(banks)
     }
 }
 

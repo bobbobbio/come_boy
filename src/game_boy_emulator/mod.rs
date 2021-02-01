@@ -9,12 +9,15 @@ use self::memory_controller::{
 };
 use self::sound_controller::SoundController;
 use crate::emulator_common::disassembler::MemoryAccessor;
+use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
-use crate::rendering::Renderer;
+use crate::rendering::{Keycode, Renderer};
 use crate::util::{super_fast_hash, Scheduler};
 use serde_derive::{Deserialize, Serialize};
 use std::fmt::Debug;
-use std::io::Write;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::mem;
 use std::ops::Range;
 use std::path::Path;
 
@@ -39,11 +42,14 @@ mod lcd_controller;
 mod sound_controller;
 mod tandem;
 
+struct SaveStateLoaded;
+
 #[derive(Debug)]
 pub enum Error {
     Io(std::io::Error),
     Replay(joypad::ReplayError),
     Rendering(crate::rendering::Error),
+    Serde(bincode::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -63,6 +69,12 @@ impl From<joypad::ReplayError> for Error {
 impl From<crate::rendering::Error> for Error {
     fn from(e: crate::rendering::Error) -> Self {
         Self::Rendering(e)
+    }
+}
+
+impl From<bincode::Error> for Error {
+    fn from(e: bincode::Error) -> Self {
+        Self::Serde(e)
     }
 }
 
@@ -193,10 +205,10 @@ enum GameBoyEmulatorEvent {
 }
 
 impl GameBoyEmulatorEvent {
-    fn deliver<R: Renderer>(self, emulator: &mut GameBoyEmulator, renderer: &mut R, time: u64) {
+    fn deliver(self, emulator: &mut GameBoyEmulator, time: u64) {
         match self {
             Self::DividerTick => emulator.divider_tick(time),
-            Self::DriveJoypad => emulator.drive_joypad(renderer, time),
+            Self::DriveJoypad => emulator.drive_joypad(time),
             Self::UnknownEvent => emulator.unknown_event(time),
         }
     }
@@ -218,6 +230,8 @@ struct GameBoyEmulator {
     #[serde(skip)]
     game_pak: Option<GamePak>,
 
+    joypad_key_events: Vec<KeyEvent>,
+
     #[serde(skip)]
     joypad: Option<Box<dyn JoyPad>>,
 }
@@ -235,15 +249,14 @@ impl GameBoyEmulator {
             scheduler: Scheduler::new(),
             timer: Default::default(),
             game_pak: None,
+            joypad_key_events: vec![],
             joypad: None,
         };
         e.set_state_post_bios();
         e.schedule_initial_events();
         e
     }
-}
 
-impl GameBoyEmulator {
     fn unknown_event(&mut self, _time: u64) {
         let value = self.registers.interrupt_flag.read_value();
         self.registers.interrupt_flag.set_value(value | 0xE0);
@@ -276,7 +289,7 @@ impl GameBoyEmulator {
 
     fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event.deliver(self, renderer, time);
+            event.deliver(self, time);
         }
 
         self.lcd_controller.deliver_events(renderer, now);
@@ -311,25 +324,37 @@ impl GameBoyEmulator {
         self.handle_interrupts();
     }
 
-    fn drive_joypad<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
-        use crate::game_boy_emulator::joypad::KeyEvent;
+    fn read_key_events<R: Renderer>(
+        &mut self,
+        renderer: &mut R,
+    ) -> std::result::Result<(), SaveStateLoaded> {
         use crate::rendering::Event;
 
-        if let Some(joypad) = &mut self.joypad {
-            let mut key_events = vec![];
-
-            for event in renderer.poll_events() {
-                match event {
-                    Event::Quit { .. } => {
-                        self.lcd_controller.crash_message = Some(String::from("Screen Closed"))
-                    }
-                    Event::KeyDown(code) => key_events.push(KeyEvent::Down(code)),
-                    Event::KeyUp(code) => key_events.push(KeyEvent::Up(code)),
+        for event in renderer.poll_events() {
+            match event {
+                Event::Quit { .. } => {
+                    self.lcd_controller.crash_message = Some(String::from("Screen Closed"))
                 }
+                Event::KeyDown(Keycode::F2) => {
+                    if let Err(e) = self.save_state_to_file() {
+                        println!("Failed to create save state {:?}", e);
+                    }
+                }
+                Event::KeyDown(Keycode::F3) => {
+                    return Err(SaveStateLoaded);
+                }
+                Event::KeyDown(code) => self.joypad_key_events.push(KeyEvent::Down(code)),
+                Event::KeyUp(code) => self.joypad_key_events.push(KeyEvent::Up(code)),
             }
-
-            joypad.tick(time, key_events);
         }
+        Ok(())
+    }
+
+    fn drive_joypad(&mut self, time: u64) {
+        if let Some(joypad) = &mut self.joypad {
+            joypad.tick(time, mem::take(&mut self.joypad_key_events));
+        }
+
         self.scheduler
             .schedule(time + 456, GameBoyEmulatorEvent::DriveJoypad);
     }
@@ -437,9 +462,10 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn run<R: Renderer, J: JoyPad + 'static>(&mut self, renderer: &mut R, joypad: J) {
-        self.plug_in_joy_pad(joypad);
-
+    fn run_inner<R: Renderer>(
+        &mut self,
+        renderer: &mut R,
+    ) -> std::result::Result<(), SaveStateLoaded> {
         let mut last_cycles = self.cpu.elapsed_cycles;
         let mut last_instant = std::time::Instant::now();
 
@@ -448,7 +474,7 @@ impl GameBoyEmulator {
 
             let elapsed_cycles = self.cpu.elapsed_cycles - last_cycles;
 
-            // We can't sleep every tick, so just do it every so often.
+            // We can't sleep and poll events every tick, so just do it every so often.
             if elapsed_cycles > 100_000 {
                 // 4.19 Mhz means each cycles takes roughly 238 nanoseconds;
                 let expected_time = std::time::Duration::from_nanos(elapsed_cycles * 238);
@@ -460,6 +486,9 @@ impl GameBoyEmulator {
 
                 last_cycles = self.cpu.elapsed_cycles;
                 last_instant = std::time::Instant::now();
+
+                // Read events from renderer
+                self.read_key_events(renderer)?;
             }
         }
 
@@ -468,6 +497,16 @@ impl GameBoyEmulator {
                 "Emulator crashed: {}",
                 self.cpu.crash_message.as_ref().unwrap()
             );
+        }
+        Ok(())
+    }
+
+    fn run<R: Renderer, J: JoyPad + 'static>(&mut self, renderer: &mut R, joypad: J) {
+        self.plug_in_joy_pad(joypad);
+        while std::matches!(self.run_inner(renderer), Err(SaveStateLoaded)) {
+            if let Err(e) = self.load_state_from_file() {
+                println!("Failed to load state {:?}", e);
+            }
         }
     }
 
@@ -521,6 +560,36 @@ impl GameBoyEmulator {
             0
         };
         return super_fast_hash(&mem[..]);
+    }
+
+    fn save_state_to_file(&self) -> Result<()> {
+        let mut file = File::create("save_state.bin")?;
+        self.save_state(&mut file)?;
+        Ok(())
+    }
+
+    fn load_state_from_file(&mut self) -> Result<()> {
+        let mut file = File::open("save_state.bin")?;
+        self.load_state(&mut file)?;
+        Ok(())
+    }
+
+    fn load_state<R: Read>(&mut self, mut input: R) -> Result<()> {
+        println!("Loading save state");
+        let emulator: Self = bincode::deserialize_from(&mut input)?;
+        let old_emulator = std::mem::replace(self, emulator);
+        let mut game_pak = old_emulator.game_pak.unwrap();
+        game_pak.load_state(&mut input)?;
+        self.game_pak = Some(game_pak);
+        self.joypad = old_emulator.joypad;
+        Ok(())
+    }
+
+    fn save_state<W: Write>(&self, mut writer: W) -> Result<()> {
+        println!("Saving state");
+        bincode::serialize_into(&mut writer, self)?;
+        self.game_pak.as_ref().unwrap().save_state(writer)?;
+        Ok(())
     }
 }
 
@@ -577,10 +646,20 @@ fn blargg_test_rom_instr_timing() {
     run_blargg_test_rom(&mut e, 0xc8b0);
 }
 
-pub fn run_emulator<R: Renderer>(renderer: &mut R, game_pak: GamePak) {
+pub fn run_emulator<R: Renderer>(
+    renderer: &mut R,
+    game_pak: GamePak,
+    save_state: Option<Vec<u8>>,
+) -> Result<()> {
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
+
+    if let Some(save_state) = save_state {
+        e.load_state(&save_state[..])?;
+    }
+
     e.run(renderer, PlainJoyPad::new());
+    Ok(())
 }
 
 pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
@@ -664,9 +743,6 @@ pub fn print_replay(input: &Path) -> Result<()> {
     joypad::print_replay(input)?;
     Ok(())
 }
-
-#[cfg(test)]
-use std::io::Read;
 
 #[cfg(test)]
 fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(

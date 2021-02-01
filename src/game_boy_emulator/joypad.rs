@@ -10,6 +10,7 @@ pub trait JoyPad: MemoryMappedHardware {
     fn tick(&mut self, now: u64, key_events: Vec<KeyEvent>);
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum KeyEvent {
     Down(Keycode),
     Up(Keycode),
