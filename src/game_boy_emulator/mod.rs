@@ -704,7 +704,9 @@ pub fn do_rom_test(
         rom_path, ticks, replay
     );
     let tmp_output = tempfile::NamedTempFile::new()?;
+    let mut renderer = crate::rendering::sdl2::Sdl2SurfaceRenderer::new(1, 160, 144);
     run_until_and_take_screenshot(
+        &mut renderer,
         GamePak::from_path(rom_path)?,
         ticks,
         replay,
