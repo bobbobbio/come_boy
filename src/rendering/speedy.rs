@@ -117,6 +117,7 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
         screen_buffer: screen_buffer.clone(),
         back_buffer: base_buffer,
         width: width as usize,
+        height: height as usize,
         events: receiver,
     };
 
@@ -145,6 +146,7 @@ pub struct SpeedyRenderer {
     screen_buffer: ScreenBuffer,
     back_buffer: Vec<SpeedyColor>,
     width: usize,
+    height: usize,
     events: Receiver<Event>,
 }
 
@@ -164,6 +166,9 @@ impl Renderer for SpeedyRenderer {
     }
 
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+        assert!(x < self.width as i32, "x = {} > {}", x, self.width);
+        assert!(y < self.height as i32, "y = {} > {}", x, self.height);
+
         if x < 0 || y < 0 {
             return;
         }

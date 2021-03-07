@@ -24,6 +24,8 @@ pub struct Sdl2WindowRenderer {
     event_pump: sdl2::EventPump,
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
     pixel_scale: u32,
+    width: u32,
+    height: u32,
 }
 
 impl Sdl2WindowRenderer {
@@ -46,6 +48,8 @@ impl Sdl2WindowRenderer {
             event_pump: sdl_context.event_pump().unwrap(),
             canvas,
             pixel_scale,
+            width,
+            height,
         }
     }
 }
@@ -96,6 +100,9 @@ impl Renderer for Sdl2WindowRenderer {
     }
 
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+        assert!(x < self.width as i32, "x = {} > {}", x, self.width);
+        assert!(y < self.height as i32, "y = {} > {}", x, self.height);
+
         self.canvas.set_draw_color(color);
         let rect = sdl2::rect::Rect::new(
             x * self.pixel_scale as i32,
@@ -114,6 +121,8 @@ impl Renderer for Sdl2WindowRenderer {
 pub struct Sdl2SurfaceRenderer<'a> {
     pixel_scale: u32,
     canvas: sdl2::render::Canvas<sdl2::surface::Surface<'a>>,
+    width: u32,
+    height: u32,
 }
 
 impl<'a> Sdl2SurfaceRenderer<'a> {
@@ -129,6 +138,8 @@ impl<'a> Sdl2SurfaceRenderer<'a> {
         Self {
             pixel_scale,
             canvas,
+            width,
+            height,
         }
     }
 }
@@ -146,6 +157,9 @@ impl<'a> Renderer for Sdl2SurfaceRenderer<'a> {
     }
 
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+        assert!(x < self.width as i32, "x = {} > {}", x, self.width);
+        assert!(y < self.height as i32, "y = {} > {}", x, self.height);
+
         self.canvas.set_draw_color(color);
         let rect = sdl2::rect::Rect::new(
             x * self.pixel_scale as i32,

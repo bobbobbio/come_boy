@@ -312,6 +312,7 @@ impl LCDDotData {
         palette: &GameBoyFlags<LCDColor>,
     ) {
         assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
+        assert!(ly < 144, "drawing ly = {}", ly);
 
         let target_line = if vertical_flip {
             y + CHARACTER_SIZE as i32 - 1 - ly as i32
@@ -324,6 +325,9 @@ impl LCDDotData {
         for (mut offset_x, &color) in iter {
             if horizantal_flip {
                 offset_x = CHARACTER_SIZE as usize - offset_x - 1;
+            }
+            if x + offset_x as i32 >= 160 {
+                break;
             }
             if color != LCDColor::Color0 || !enable_transparency {
                 let shade = match palette.read_flag_value(color) {
@@ -402,8 +406,7 @@ impl LCDController {
     }
 
     pub fn schedule_initial_events(&mut self, now: u64) {
-        self.scheduler
-            .schedule(now + 56 + 4, LCDControllerEvent::Mode2);
+        self.scheduler.schedule(now + 56, LCDControllerEvent::Mode2);
         self.scheduler
             .schedule(now + 56 + 456, LCDControllerEvent::AdvanceLy);
     }
@@ -670,16 +673,6 @@ impl LCDController {
         }
     }
 
-    // The LCD modes happen like this:
-    // ---------> time ----->
-    // 2 33 000 2 33 000 111111111111... 2 33 000
-    // .--456--.         .---4560------.
-    //
-    // 2 .--84--. 3 .--176--. 0 .--196--. 2 ...
-    //
-    // The first pattern 2 33 000 repeats every 456 cycles
-    // Mode 1 lasts for 4560 cycles.
-
     pub fn mode_2(&mut self, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
@@ -739,6 +732,10 @@ impl LCDController {
     }
 
     fn mode_3<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
+        let ly = self.registers.ly.read_value();
+        assert!(ly < 144, "drawing ly = {}", ly);
+        assert!(self.enabled);
+
         self.character_data.borrow();
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
@@ -781,17 +778,8 @@ impl LCDController {
             self.registers.ly.set_value(0);
         }
 
-        // If we are drawing the last line, it only takes 8 cycles, otherwise it takes 456.
-        if self.registers.ly.read_value() == 153 {
-            self.scheduler
-                .schedule(time + 8, LCDControllerEvent::AdvanceLy);
-        } else if self.registers.ly.read_value() == 0 {
-            self.scheduler
-                .schedule(time + 904, LCDControllerEvent::AdvanceLy);
-        } else {
-            self.scheduler
-                .schedule(time + 456, LCDControllerEvent::AdvanceLy);
-        }
+        self.scheduler
+            .schedule(time + 456, LCDControllerEvent::AdvanceLy);
 
         if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
             self.oam_data.borrow();
@@ -831,10 +819,7 @@ impl LCDController {
         assert!(!self.enabled);
 
         self.enabled = true;
-        self.scheduler
-            .schedule(time + 204, LCDControllerEvent::Mode2);
-        self.scheduler
-            .schedule(time + 904, LCDControllerEvent::AdvanceLy);
+        self.schedule_initial_events(time);
         self.update_ly_match(time);
     }
 
