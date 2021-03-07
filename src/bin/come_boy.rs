@@ -10,6 +10,12 @@ use come_boy::rendering::sdl2::Sdl2WindowRenderer;
 #[cfg(feature = "speedy2d")]
 use come_boy::rendering::speedy;
 
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+const DEFAULT_RENDERER: &'static str = "sdl2";
+
+#[cfg(target_os = "windows")]
+const DEFAULT_RENDERER: &'static str = "speedy2d";
+
 #[derive(StructOpt)]
 #[structopt(name = "Come Boy", about = "Game Boy (DMG) emulator")]
 struct Options {
@@ -17,7 +23,7 @@ struct Options {
     rom: PathBuf,
     #[structopt(long = "scale", default_value = "4")]
     scale: u32,
-    #[structopt(long = "renderer", default_value = "sdl2")]
+    #[structopt(long = "renderer", default_value = "default")]
     renderer: String,
 }
 
@@ -26,7 +32,12 @@ fn main() -> Result<()> {
 
     let game_pak = GamePak::from_path(options.rom)?;
 
-    match &options.renderer[..] {
+    let mut renderer = options.renderer;
+    if renderer == "default" {
+        renderer = DEFAULT_RENDERER.to_owned();
+    }
+
+    match &renderer[..] {
         #[cfg(feature = "speedy2d")]
         "speedy2d" => {
             speedy::run_loop(options.scale, "come boy", 160, 144, move |renderer| {
