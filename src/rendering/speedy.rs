@@ -1,15 +1,15 @@
 // Copyright 2021 Remi Bernotavicius
 
-use super::{Color, Event, Renderer, Result};
+use super::{Color, Event, Keycode, Renderer, Result};
 use speedy2d::{
     color::Color as SpeedyColor,
     shape::Rectangle,
-    window::{WindowHandler, WindowHelper},
+    window::{KeyScancode, VirtualKeyCode, WindowHandler, WindowHelper},
     Graphics2D, Window,
 };
-use std::path::Path;
-// use std::sync::mpsc::{channel, Receiver, Sender};
 use std::ops::Deref;
+use std::path::Path;
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
@@ -33,6 +33,7 @@ struct SpeedyWindowHandler {
     width: usize,
     height: usize,
     pixel_scale: usize,
+    events: Sender<Event>,
 }
 
 impl SpeedyWindowHandler {
@@ -51,10 +52,48 @@ impl SpeedyWindowHandler {
     }
 }
 
+fn keycode_translate(keycode: VirtualKeyCode) -> Keycode {
+    match keycode {
+        VirtualKeyCode::Down => Keycode::Down,
+        VirtualKeyCode::Left => Keycode::Left,
+        VirtualKeyCode::Return => Keycode::Return,
+        VirtualKeyCode::Right => Keycode::Right,
+        VirtualKeyCode::Tab => Keycode::Tab,
+        VirtualKeyCode::Up => Keycode::Up,
+        VirtualKeyCode::X => Keycode::X,
+        VirtualKeyCode::Z => Keycode::Z,
+        _ => Keycode::Unknown,
+    }
+}
+
 impl WindowHandler for SpeedyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
         self.update_screen(&*self.buffer.buffer(), graphics);
         helper.request_redraw();
+    }
+
+    fn on_key_down(
+        &mut self,
+        _helper: &mut WindowHelper,
+        virtual_key_code: Option<VirtualKeyCode>,
+        _scancode: KeyScancode,
+    ) {
+        if let Some(keycode) = virtual_key_code {
+            let keycode = keycode_translate(keycode);
+            self.events.send(Event::KeyDown(keycode)).unwrap();
+        }
+    }
+
+    fn on_key_up(
+        &mut self,
+        _helper: &mut WindowHelper,
+        virtual_key_code: Option<VirtualKeyCode>,
+        _scancode: KeyScancode,
+    ) {
+        if let Some(keycode) = virtual_key_code {
+            let keycode = keycode_translate(keycode);
+            self.events.send(Event::KeyUp(keycode)).unwrap();
+        }
     }
 }
 
@@ -72,10 +111,13 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
         buffer: Arc::new(Mutex::new(base_buffer.clone())),
     };
 
+    let (sender, receiver) = channel();
+
     let mut renderer = SpeedyRenderer {
         screen_buffer: screen_buffer.clone(),
         back_buffer: base_buffer,
         width: width as usize,
+        events: receiver,
     };
 
     let handler = SpeedyWindowHandler {
@@ -83,6 +125,7 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
         width: width as usize,
         height: height as usize,
         pixel_scale: pixel_scale as usize,
+        events: sender,
     };
 
     crossbeam::scope(|scope| {
@@ -102,20 +145,18 @@ pub struct SpeedyRenderer {
     screen_buffer: ScreenBuffer,
     back_buffer: Vec<SpeedyColor>,
     width: usize,
+    events: Receiver<Event>,
 }
 
 impl Renderer for SpeedyRenderer {
     type Color = SpeedyColor;
 
     fn poll_events(&mut self) -> Vec<Event> {
-        /*
         let mut events = vec![];
         while let Ok(event) = self.events.try_recv() {
             events.push(event);
         }
         events
-        */
-        vec![]
     }
 
     fn save_buffer<P: AsRef<Path>>(&self, _path: P) -> Result<()> {

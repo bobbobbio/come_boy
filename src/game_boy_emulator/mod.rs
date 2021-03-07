@@ -618,6 +618,7 @@ pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     tandem::run(other_emulator_path, game_pak, pc_only)
 }
 
+#[cfg(feature = "sdl2")]
 fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: AsRef<Path>>(
     mut e: GameBoyEmulator,
     mut renderer: R,

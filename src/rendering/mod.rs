@@ -33,6 +33,7 @@ pub enum Keycode {
 }
 
 pub enum Event {
+    #[allow(unused)]
     Quit,
     KeyDown(Keycode),
     KeyUp(Keycode),
