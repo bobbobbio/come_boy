@@ -1,6 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
 use come_boy::game_boy_emulator::{self, GamePak, Result};
+use come_boy::rendering::sdl2::Sdl2WindowRenderer;
 use nix::sys::signal;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -31,8 +32,10 @@ fn main() -> Result<()> {
 
     let options = Options::from_args();
 
+    let window_title = "come boy (in debugger)";
+    let renderer = Sdl2WindowRenderer::new(options.scale, window_title, 160, 144);
     let game_pak = GamePak::from_path(&options.rom)?;
-    game_boy_emulator::run_debugger(game_pak, options.scale, &|| {
+    game_boy_emulator::run_debugger(renderer, game_pak, &|| {
         INTERRUPTED.swap(false, Ordering::Relaxed)
     });
     Ok(())

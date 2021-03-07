@@ -9,7 +9,7 @@ use crate::game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LC
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::GameBoyEmulator;
 use crate::lr35902_emulator::debugger::LR35902Debugger;
-use crate::rendering::sdl2::Sdl2WindowRenderer;
+use crate::rendering::Renderer;
 
 impl fmt::Debug for GameBoyEmulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -21,15 +21,13 @@ impl fmt::Debug for GameBoyEmulator {
     }
 }
 
-struct GameBoyDebugger {
+struct GameBoyDebugger<R> {
     emulator: GameBoyEmulator,
-    renderer: Sdl2WindowRenderer,
+    renderer: R,
 }
 
-impl GameBoyDebugger {
-    fn new(pixel_scale: u32) -> Self {
-        let window_title = "come boy (in debugger)";
-        let renderer = Sdl2WindowRenderer::new(pixel_scale, window_title, 160, 144);
+impl<R: Renderer> GameBoyDebugger<R> {
+    fn new(renderer: R) -> Self {
         Self {
             emulator: GameBoyEmulator::new(),
             renderer,
@@ -37,7 +35,7 @@ impl GameBoyDebugger {
     }
 }
 
-impl DebuggerOps for GameBoyDebugger {
+impl<R: Renderer> DebuggerOps for GameBoyDebugger<R> {
     fn read_memory(&self, address: u16) -> u8 {
         let memory_map = game_boy_memory_map!(&self.emulator);
         memory_map.read_memory(address)
@@ -162,8 +160,12 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, " Mode{}", stat & 0x3)
 }
 
-pub fn run_debugger(game_pak: GamePak, pixel_scale: u32, is_interrupted: &dyn Fn() -> bool) {
-    let mut gameboy_debugger = GameBoyDebugger::new(pixel_scale);
+pub fn run_debugger<R: Renderer>(
+    renderer: R,
+    game_pak: GamePak,
+    is_interrupted: &dyn Fn() -> bool,
+) {
+    let mut gameboy_debugger = GameBoyDebugger::new(renderer);
     gameboy_debugger.emulator.load_game_pak(game_pak);
 
     let stdin = &mut io::stdin();

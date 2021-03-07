@@ -1,6 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
 use come_boy::game_boy_emulator::{self, GamePak, Result};
+use come_boy::rendering::sdl2::Sdl2SurfaceRenderer;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -23,8 +24,10 @@ struct Options {
 fn main() -> Result<()> {
     let options = Options::from_args();
 
+    let mut renderer = Sdl2SurfaceRenderer::new(1, 160, 144);
     let game_pak = GamePak::from_path(&options.rom)?;
     game_boy_emulator::run_until_and_take_screenshot(
+        &mut renderer,
         game_pak,
         options.ticks,
         options.replay,

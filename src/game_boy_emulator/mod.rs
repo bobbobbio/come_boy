@@ -2,6 +2,7 @@
 
 pub use self::game_pak::GamePak;
 use self::joypad::{JoyPad, PlainJoyPad};
+use self::joypad::{PlaybackJoyPad, RecordingJoyPad};
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
@@ -17,18 +18,7 @@ use std::io::Write;
 use std::ops::Range;
 use std::path::Path;
 
-#[cfg(feature = "sdl2")]
-use self::joypad::{PlaybackJoyPad, RecordingJoyPad};
-
-#[cfg(feature = "sdl2")]
-use crate::rendering::sdl2::{Sdl2SurfaceRenderer, Sdl2WindowRenderer};
-
-#[cfg(feature = "speedy2d")]
-use crate::rendering::speedy;
-
-#[cfg(feature = "sdl2")]
 pub use self::debugger::run_debugger;
-
 pub use self::disassembler::disassemble_game_boy_rom;
 
 #[cfg(test)]
@@ -40,7 +30,6 @@ use crate::rendering::NullRenderer;
 #[macro_use]
 mod memory_controller;
 
-#[cfg(feature = "sdl2")]
 mod debugger;
 
 mod disassembler;
@@ -48,8 +37,6 @@ mod game_pak;
 mod joypad;
 mod lcd_controller;
 mod sound_controller;
-
-#[cfg(feature = "sdl2")]
 mod tandem;
 
 #[derive(Debug)]
@@ -590,24 +577,12 @@ fn blargg_test_rom_instr_timing() {
     run_blargg_test_rom(&mut e, 0xc8b0);
 }
 
-#[cfg(feature = "sdl2")]
-pub fn run_emulator(game_pak: GamePak, pixel_scale: u32) {
-    let mut renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+pub fn run_emulator<R: Renderer>(renderer: &mut R, game_pak: GamePak) {
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run(&mut renderer, PlainJoyPad::new());
+    e.run(renderer, PlainJoyPad::new());
 }
 
-#[cfg(feature = "speedy2d")]
-pub fn run_emulator_with_speedy(game_pak: GamePak, pixel_scale: u32) {
-    speedy::run_loop(pixel_scale, "come boy", 160, 144, |renderer| {
-        let mut e = GameBoyEmulator::new();
-        e.load_game_pak(game_pak);
-        e.run(renderer, PlainJoyPad::new());
-    });
-}
-
-#[cfg(feature = "sdl2")]
 pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     other_emulator_path: P,
     game_pak: GamePak,
@@ -618,10 +593,9 @@ pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
     tandem::run(other_emulator_path, game_pak, pc_only)
 }
 
-#[cfg(feature = "sdl2")]
 fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: AsRef<Path>>(
     mut e: GameBoyEmulator,
-    mut renderer: R,
+    renderer: &mut R,
     joypad: Option<J>,
     ticks: u64,
     output_path: P,
@@ -637,20 +611,19 @@ fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: A
             panic!("Emulator crashed: {}", c);
         }
 
-        e.tick(&mut renderer);
+        e.tick(renderer);
     }
 
-    e.save_screenshot(&mut renderer, output_path).unwrap();
+    e.save_screenshot(renderer, output_path).unwrap();
 }
 
-#[cfg(feature = "sdl2")]
-pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
+pub fn run_until_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P2: AsRef<Path>>(
+    renderer: &mut R,
     game_pak: GamePak,
     ticks: u64,
     replay_path: Option<P1>,
     output_path: P2,
 ) -> Result<()> {
-    let renderer = Sdl2SurfaceRenderer::new(1, 160, 144);
     let joypad = if let Some(replay_path) = replay_path {
         Some(PlaybackJoyPad::new(game_pak.hash(), replay_path)?)
     } else {
@@ -663,23 +636,27 @@ pub fn run_until_and_take_screenshot<P1: AsRef<Path>, P2: AsRef<Path>>(
     Ok(())
 }
 
-#[cfg(feature = "sdl2")]
-pub fn run_and_record_replay(game_pak: GamePak, pixel_scale: u32, output: &Path) -> Result<()> {
-    let mut renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+pub fn run_and_record_replay<R: Renderer>(
+    renderer: &mut R,
+    game_pak: GamePak,
+    output: &Path,
+) -> Result<()> {
     let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run(&mut renderer, joypad);
+    e.run(renderer, joypad);
     Ok(())
 }
 
-#[cfg(feature = "sdl2")]
-pub fn playback_replay(game_pak: GamePak, pixel_scale: u32, input: &Path) -> Result<()> {
-    let mut renderer = Sdl2WindowRenderer::new(pixel_scale, "come boy", 160, 144);
+pub fn playback_replay<R: Renderer>(
+    renderer: &mut R,
+    game_pak: GamePak,
+    input: &Path,
+) -> Result<()> {
     let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run(&mut renderer, joypad);
+    e.run(renderer, joypad);
     Ok(())
 }
 
