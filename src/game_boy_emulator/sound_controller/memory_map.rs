@@ -45,7 +45,7 @@ pub struct SoundControllerMemoryMapMut<'a> {
 }
 #[macro_export]
 macro_rules! sound_controller_memory_map_mut {
-    ( $ f : expr ) => {
+    ($ f : expr) => {
         SoundControllerMemoryMapMut {
             channel1_frequency_high: &mut $f.channel1.frequency_high,
             channel1_frequency_low: &mut $f.channel1.frequency_low,
@@ -236,7 +236,7 @@ pub struct SoundControllerMemoryMap<'a> {
 }
 #[macro_export]
 macro_rules! sound_controller_memory_map {
-    ( $ f : expr ) => {
+    ($ f : expr) => {
         SoundControllerMemoryMap {
             channel1_frequency_high: &$f.channel1.frequency_high,
             channel1_frequency_low: &$f.channel1.frequency_low,

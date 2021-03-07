@@ -7,6 +7,9 @@ edition = "2018"
 repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 
+[features]
+default = ["sdl2"]
+
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }
 
@@ -14,10 +17,12 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 bincode = "*"
 clap = "*"
 nix = "*"
-sdl2 = "0.32.*"
+sdl2 = { version = "0.32.*", optional = true }
 serde = "*"
 serde_derive = "*"
+speedy2d = { version = "*", optional = true }
 structopt = "*"
+crossbeam = "*"
 
 [dev-dependencies]
 tempfile = "*"

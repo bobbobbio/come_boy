@@ -60,7 +60,7 @@ pub struct GameBoyMemoryMapMut<'a> {
 }
 #[macro_export]
 macro_rules! game_boy_memory_map_mut {
-    ( $ f : expr ) => {
+    ($ f : expr) => {
         GameBoyMemoryMapMut {
             game_pak: &mut $f.game_pak,
             high_ram: &mut $f.high_ram,
@@ -340,7 +340,7 @@ pub struct GameBoyMemoryMap<'a> {
 }
 #[macro_export]
 macro_rules! game_boy_memory_map {
-    ( $ f : expr ) => {
+    ($ f : expr) => {
         GameBoyMemoryMap {
             game_pak: &$f.game_pak,
             high_ram: &$f.high_ram,

@@ -2,7 +2,11 @@
 
 use std::path::Path;
 
+#[cfg(feature = "sdl2")]
 pub mod sdl2;
+
+#[cfg(feature = "speedy2d")]
+pub mod speedy;
 
 #[derive(Debug)]
 pub struct Error(String);
