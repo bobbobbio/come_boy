@@ -10,7 +10,7 @@ use speedy2d::{
 use std::path::Path;
 // use std::sync::mpsc::{channel, Receiver, Sender};
 use std::ops::Deref;
-use std::sync::{Arc, Barrier, Mutex};
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 struct ScreenBuffer {
@@ -29,7 +29,6 @@ impl ScreenBuffer {
 }
 
 struct SpeedyWindowHandler {
-    barrier: Arc<Barrier>,
     buffer: ScreenBuffer,
     width: usize,
     height: usize,
@@ -54,10 +53,7 @@ impl SpeedyWindowHandler {
 
 impl WindowHandler for SpeedyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
-        self.barrier.wait();
         self.update_screen(&*self.buffer.buffer(), graphics);
-        self.barrier.wait();
-
         helper.request_redraw();
     }
 }
@@ -76,17 +72,13 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
         buffer: Arc::new(Mutex::new(base_buffer.clone())),
     };
 
-    let barrier = Arc::new(Barrier::new(2));
-
     let mut renderer = SpeedyRenderer {
-        barrier: barrier.clone(),
         screen_buffer: screen_buffer.clone(),
         back_buffer: base_buffer,
         width: width as usize,
     };
 
     let handler = SpeedyWindowHandler {
-        barrier,
         buffer: screen_buffer,
         width: width as usize,
         height: height as usize,
@@ -107,7 +99,6 @@ impl Color for SpeedyColor {
 }
 
 pub struct SpeedyRenderer {
-    barrier: Arc<Barrier>,
     screen_buffer: ScreenBuffer,
     back_buffer: Vec<SpeedyColor>,
     width: usize,
@@ -140,8 +131,6 @@ impl Renderer for SpeedyRenderer {
 
     fn present(&mut self) {
         self.screen_buffer.swap(&mut self.back_buffer);
-        self.barrier.wait();
-        self.barrier.wait();
         self.back_buffer.fill(SpeedyColor::WHITE);
     }
 }

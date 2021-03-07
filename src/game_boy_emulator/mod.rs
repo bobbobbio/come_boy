@@ -461,8 +461,8 @@ impl GameBoyEmulator {
 
             let elapsed_cycles = self.cpu.elapsed_cycles - last_cycles;
 
-            // We can't sleep every tick, so just so it every so often.
-            if elapsed_cycles > 3648 {
+            // We can't sleep every tick, so just do it every so often.
+            if elapsed_cycles > 100_000 {
                 // 4.19 Mhz means each cycles takes roughly 238 nanoseconds;
                 let expected_time = std::time::Duration::from_nanos(elapsed_cycles * 238);
 
