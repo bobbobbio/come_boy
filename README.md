@@ -60,6 +60,9 @@ Limited joypad support available. Use arrow keys + z, x, tab, enter.
 Limited save-state functionality. F2 to save a state, and F3 to load a state.
 Save states are stored in the current-working-directory as `save_state.bin`
 
+SRAM (GamePak save-data) is stored in a file with a `.sav` extension in the same
+directory as the passed ROM file.
+
 There is little UI right now. If you are running it on Windows, you can
 drag-and-drop a ROM file onto the emulator `.exe`. For Linux or OS X you have to
 pass the path to the ROM via the command-line
