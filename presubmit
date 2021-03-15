@@ -11,5 +11,5 @@ if [ "$CHANGES" != "" ]; then
     exit 1;
 fi;
 
-cargo build --release
+cargo build --all-features --release
 cargo test --release
