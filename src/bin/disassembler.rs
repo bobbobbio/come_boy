@@ -51,7 +51,7 @@ fn disassemble_rom(
 struct Options {
     #[structopt(parse(from_os_str))]
     rom: PathBuf,
-    #[structopt(long = "instruction-set")]
+    #[structopt(long = "instruction-set", default_value = "GameBoy")]
     instruction_set: InstructionSet,
     #[structopt(long = "hide-opcodes")]
     hide_opcodes: bool,
