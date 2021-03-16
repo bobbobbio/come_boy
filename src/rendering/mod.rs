@@ -17,6 +17,7 @@ pub enum Keycode {
     Down,
     F2,
     F3,
+    F4,
     Left,
     Return,
     Right,

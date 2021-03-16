@@ -18,6 +18,7 @@ impl From<sdl2::keyboard::Keycode> for Keycode {
             Z => Self::Z,
             F2 => Self::F2,
             F3 => Self::F3,
+            F4 => Self::F4,
             _ => Self::Unknown,
         }
     }

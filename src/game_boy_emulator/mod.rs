@@ -207,6 +207,9 @@ impl GameBoyEmulatorEvent {
     }
 }
 
+// GameBoy clock speed is 4.19Mhz
+const DEFAULT_CLOCK_SPEED_HZ: u32 = 4_190_000;
+
 #[derive(Serialize, Deserialize)]
 struct GameBoyEmulator {
     cpu: LR35902Emulator,
@@ -219,6 +222,9 @@ struct GameBoyEmulator {
     registers: GameBoyRegisters,
     scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
+
+    #[serde(skip)]
+    clock_speed_hz: u32,
 
     #[serde(skip)]
     game_pak: Option<GamePak>,
@@ -241,6 +247,7 @@ impl GameBoyEmulator {
             registers: Default::default(),
             scheduler: Scheduler::new(),
             timer: Default::default(),
+            clock_speed_hz: DEFAULT_CLOCK_SPEED_HZ,
             game_pak: None,
             joypad_key_events: vec![],
             joypad: None,
@@ -335,6 +342,13 @@ impl GameBoyEmulator {
                 }
                 Event::KeyDown(Keycode::F3) => {
                     return Err(SaveStateLoaded);
+                }
+                Event::KeyDown(Keycode::F4) => {
+                    if self.clock_speed_hz == DEFAULT_CLOCK_SPEED_HZ {
+                        self.clock_speed_hz = u32::MAX;
+                    } else {
+                        self.clock_speed_hz = DEFAULT_CLOCK_SPEED_HZ;
+                    }
                 }
                 Event::KeyDown(code) => self.joypad_key_events.push(KeyEvent::Down(code)),
                 Event::KeyUp(code) => self.joypad_key_events.push(KeyEvent::Up(code)),
@@ -469,8 +483,8 @@ impl GameBoyEmulator {
 
             // We can't sleep and poll events every tick, so just do it every so often.
             if elapsed_cycles > 100_000 {
-                // 4.19 Mhz means each cycles takes roughly 238 nanoseconds;
-                let expected_time = std::time::Duration::from_nanos(elapsed_cycles * 238);
+                let delay = std::time::Duration::from_secs(1) / self.clock_speed_hz;
+                let expected_time = (elapsed_cycles as u32) * delay;
 
                 // If we didn't take long enough, sleep the difference.
                 if let Some(sleep_time) = expected_time.checked_sub(last_instant.elapsed()) {

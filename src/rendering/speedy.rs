@@ -71,6 +71,7 @@ fn keycode_translate(keycode: VirtualKeyCode) -> Keycode {
         VirtualKeyCode::Z => Keycode::Z,
         VirtualKeyCode::F2 => Keycode::F2,
         VirtualKeyCode::F3 => Keycode::F3,
+        VirtualKeyCode::F4 => Keycode::F4,
         _ => Keycode::Unknown,
     }
 }
