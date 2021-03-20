@@ -25,7 +25,7 @@ and it is required to build the tests.
 On Windows only the `speedy2d` backend is supported, so you need to build like
 this (the tests won't build since they need SDL2):
 
-`cargo build --bin come_boy --release --no-default-features --feature speedy2d`
+`cargo build --bin come_boy --release --no-default-features --features speedy2d`
 
 # Running Tests
 Run tests as follow. You only need to run `./download_test_roms` once.
