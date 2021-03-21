@@ -1,40 +1,36 @@
 // Copyright 2017 Remi Bernotavicius
 
-use backend::BackendMap;
+use bin_common::backend::BackendMap;
+use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
+use come_boy::rendering::Renderer;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-mod backend;
+#[path = "../bin_common/mod.rs"]
+mod bin_common;
 
-#[derive(Debug)]
-enum Error {
-    Emulator(game_boy_emulator::Error),
-    Backend(backend::Error),
-    Io(std::io::Error),
+struct Frontend {
+    game_pak: GamePak,
+    save_state: Option<Vec<u8>>,
 }
 
-impl From<game_boy_emulator::Error> for Error {
-    fn from(error: game_boy_emulator::Error) -> Self {
-        Self::Emulator(error)
+impl Frontend {
+    fn new(game_pak: GamePak, save_state: Option<Vec<u8>>) -> Self {
+        Self {
+            game_pak,
+            save_state,
+        }
     }
 }
 
-impl From<backend::Error> for Error {
-    fn from(error: backend::Error) -> Self {
-        Self::Backend(error)
+impl bin_common::frontend::Frontend for Frontend {
+    fn run<R: Renderer>(self, renderer: &mut R) {
+        game_boy_emulator::run_emulator(renderer, self.game_pak, self.save_state).unwrap();
     }
 }
-
-impl From<std::io::Error> for Error {
-    fn from(error: std::io::Error) -> Self {
-        Self::Io(error)
-    }
-}
-
-type Result<T> = std::result::Result<T, Error>;
 
 #[derive(StructOpt)]
 #[structopt(name = "Come Boy", about = "Game Boy (DMG) emulator")]
@@ -65,7 +61,7 @@ fn main() -> Result<()> {
     let game_pak = GamePak::from_path(options.rom)?;
     let save_state = options.save_state.map(read_save_state).transpose()?;
 
-    let backend_map = BackendMap::new();
-    let backend = backend_map.get(&options.renderer)?;
-    backend.run(game_pak, save_state, options.scale)
+    let backend_map = BackendMap::new(options.scale, Frontend::new(game_pak, save_state));
+    backend_map.run(&options.renderer)?;
+    Ok(())
 }

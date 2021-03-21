@@ -1,9 +1,13 @@
 // Copyright 2019 Remi Bernotavicius
 
-use come_boy::game_boy_emulator::{self, GamePak, Result};
-use come_boy::rendering::sdl2::Sdl2WindowRenderer;
+use bin_common::{backend::BackendMap, Result};
+use come_boy::game_boy_emulator::{self, GamePak};
+use come_boy::rendering::Renderer;
 use std::path::PathBuf;
 use structopt::StructOpt;
+
+#[path = "../bin_common/mod.rs"]
+mod bin_common;
 
 #[derive(StructOpt)]
 #[structopt(
@@ -19,6 +23,8 @@ enum Options {
         output: PathBuf,
         #[structopt(long = "scale", default_value = "4")]
         scale: u32,
+        #[structopt(long = "renderer", default_value = "default")]
+        renderer: String,
     },
     Playback {
         #[structopt(parse(from_os_str))]
@@ -27,6 +33,8 @@ enum Options {
         input: PathBuf,
         #[structopt(long = "scale", default_value = "4")]
         scale: u32,
+        #[structopt(long = "renderer", default_value = "default")]
+        renderer: String,
     },
     Print {
         #[structopt(long = "input", parse(from_os_str))]
@@ -34,19 +42,68 @@ enum Options {
     },
 }
 
+struct RecordFrontend {
+    game_pak: GamePak,
+    output: PathBuf,
+}
+
+impl RecordFrontend {
+    fn new(game_pak: GamePak, output: PathBuf) -> Self {
+        Self { game_pak, output }
+    }
+}
+
+impl bin_common::frontend::Frontend for RecordFrontend {
+    fn run<R: Renderer>(self, renderer: &mut R) {
+        game_boy_emulator::run_and_record_replay(renderer, self.game_pak, &self.output).unwrap()
+    }
+}
+
+struct PlaybackFrontend {
+    game_pak: GamePak,
+    input: PathBuf,
+}
+
+impl PlaybackFrontend {
+    fn new(game_pak: GamePak, input: PathBuf) -> Self {
+        Self { game_pak, input }
+    }
+}
+
+impl bin_common::frontend::Frontend for PlaybackFrontend {
+    fn run<R: Renderer>(self, renderer: &mut R) {
+        game_boy_emulator::playback_replay(renderer, self.game_pak, &self.input).unwrap()
+    }
+}
+
 fn main() -> Result<()> {
     let options = Options::from_args();
     match options {
-        Options::Record { rom, output, scale } => {
-            let mut renderer = Sdl2WindowRenderer::new(scale, "come boy", 160, 144);
+        Options::Record {
+            rom,
+            output,
+            scale,
+            renderer,
+        } => {
             let game_pak = GamePak::from_path(rom)?;
-            game_boy_emulator::run_and_record_replay(&mut renderer, game_pak, &output)
+            let backend_map = BackendMap::new(scale, RecordFrontend::new(game_pak, output));
+            backend_map.run(&renderer)?;
+            Ok(())
         }
-        Options::Playback { rom, input, scale } => {
-            let mut renderer = Sdl2WindowRenderer::new(scale, "come boy", 160, 144);
+        Options::Playback {
+            rom,
+            input,
+            scale,
+            renderer,
+        } => {
             let game_pak = GamePak::from_path(rom)?;
-            game_boy_emulator::playback_replay(&mut renderer, game_pak, &input)
+            let backend_map = BackendMap::new(scale, PlaybackFrontend::new(game_pak, input));
+            backend_map.run(&renderer)?;
+            Ok(())
         }
-        Options::Print { input } => game_boy_emulator::print_replay(&input),
+        Options::Print { input } => {
+            game_boy_emulator::print_replay(&input)?;
+            Ok(())
+        }
     }
 }
