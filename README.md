@@ -19,13 +19,8 @@ If you want a usable emulator, pass the `--release` flag, as the debug build is
 too slow.
 
 The project has two rendering back-ends. `sdl2` and `speedy2d`. You can select
-which ones you want via `--feature`. The `sdl2` back-end is included by default
-and it is required to build the tests.
-
-On Windows only the `speedy2d` backend is supported, so you need to build like
-this (the tests won't build since they need SDL2):
-
-`cargo build --bin come_boy --release --no-default-features --features speedy2d`
+which ones you want via `--feature`. The `speedy2d` back-end is included by
+default.
 
 # Running Tests
 Run tests as follow. You only need to run `./download_test_roms` once.
