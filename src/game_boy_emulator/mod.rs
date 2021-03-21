@@ -742,23 +742,12 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
     path1: P1,
     path2: P2,
 ) -> Result<bool> {
-    let file1 = std::fs::File::open(path1)?;
-    let file2 = std::fs::File::open(path2)?;
+    use std::io;
 
-    let file1_len = file1.metadata()?.len();
-    let file2_len = file2.metadata()?.len();
-    if file1_len != file2_len {
-        return Ok(true);
-    }
+    let image1 = bmp::open(path1).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let image2 = bmp::open(path2).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
 
-    for (b1, b2) in file1.bytes().zip(file2.bytes()) {
-        let b1 = b1?;
-        let b2 = b2?;
-        if b1 != b2 {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+    Ok(image1 != image2)
 }
 
 #[cfg(test)]
