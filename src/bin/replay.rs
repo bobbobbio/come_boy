@@ -2,7 +2,7 @@
 
 use bin_common::{backend::BackendMap, Result};
 use come_boy::game_boy_emulator::{self, GamePak};
-use come_boy::rendering::Renderer;
+use come_boy::rendering::{Renderer, RenderingOptions};
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -86,7 +86,12 @@ fn main() -> Result<()> {
             renderer,
         } => {
             let game_pak = GamePak::from_path(rom)?;
-            let backend_map = BackendMap::new(scale, RecordFrontend::new(game_pak, output));
+            let rendering_options = RenderingOptions {
+                scale,
+                ..Default::default()
+            };
+            let backend_map =
+                BackendMap::new(rendering_options, RecordFrontend::new(game_pak, output));
             backend_map.run(&renderer)?;
             Ok(())
         }
@@ -97,7 +102,12 @@ fn main() -> Result<()> {
             renderer,
         } => {
             let game_pak = GamePak::from_path(rom)?;
-            let backend_map = BackendMap::new(scale, PlaybackFrontend::new(game_pak, input));
+            let rendering_options = RenderingOptions {
+                scale,
+                ..Default::default()
+            };
+            let backend_map =
+                BackendMap::new(rendering_options, PlaybackFrontend::new(game_pak, input));
             backend_map.run(&renderer)?;
             Ok(())
         }

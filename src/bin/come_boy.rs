@@ -3,7 +3,7 @@
 use bin_common::backend::BackendMap;
 use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
-use come_boy::rendering::Renderer;
+use come_boy::rendering::{Renderer, RenderingOptions};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -61,7 +61,12 @@ fn main() -> Result<()> {
     let game_pak = GamePak::from_path(options.rom)?;
     let save_state = options.save_state.map(read_save_state).transpose()?;
 
-    let backend_map = BackendMap::new(options.scale, Frontend::new(game_pak, save_state));
+    let rendering_options = RenderingOptions {
+        scale: options.scale,
+        ..Default::default()
+    };
+
+    let backend_map = BackendMap::new(rendering_options, Frontend::new(game_pak, save_state));
     backend_map.run(&options.renderer)?;
     Ok(())
 }

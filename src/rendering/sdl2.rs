@@ -1,6 +1,6 @@
 // Copyright 2019 Remi Bernotavicius
 
-use super::{Color, Event, Keycode, Renderer, Result};
+use super::{Color, Event, Keycode, Renderer, RenderingOptions, Result};
 use std::path::Path;
 
 impl From<sdl2::keyboard::Keycode> for Keycode {
@@ -25,18 +25,25 @@ impl From<sdl2::keyboard::Keycode> for Keycode {
 pub struct Sdl2WindowRenderer {
     event_pump: sdl2::EventPump,
     canvas: sdl2::render::Canvas<sdl2::video::Window>,
-    pixel_scale: u32,
+    scale: u32,
     width: u32,
     height: u32,
 }
 
 impl Sdl2WindowRenderer {
-    pub fn new(pixel_scale: u32, title: &str, width: u32, height: u32) -> Self {
+    pub fn new(options: RenderingOptions) -> Self {
+        let RenderingOptions {
+            window_title,
+            scale,
+            width,
+            height,
+            ..
+        } = options;
         let sdl_context = sdl2::init().unwrap();
 
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem
-            .window(title, width * pixel_scale, height * pixel_scale)
+            .window(&window_title, width * scale, height * scale)
             .position_centered()
             .allow_highdpi()
             .build()
@@ -49,7 +56,7 @@ impl Sdl2WindowRenderer {
         Self {
             event_pump: sdl_context.event_pump().unwrap(),
             canvas,
-            pixel_scale,
+            scale,
             width,
             height,
         }
@@ -92,9 +99,9 @@ impl Renderer for Sdl2WindowRenderer {
             .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)?;
         let s = sdl2::surface::Surface::from_data(
             &mut pixels,
-            160 * self.pixel_scale,
-            140 * self.pixel_scale,
-            160 * self.pixel_scale * 4,
+            160 * self.scale,
+            140 * self.scale,
+            160 * self.scale * 4,
             sdl2::pixels::PixelFormatEnum::ABGR8888,
         )?;
         s.save_bmp(path)?;
@@ -107,10 +114,10 @@ impl Renderer for Sdl2WindowRenderer {
 
         self.canvas.set_draw_color(color);
         let rect = sdl2::rect::Rect::new(
-            x * self.pixel_scale as i32,
-            y * self.pixel_scale as i32,
-            self.pixel_scale,
-            self.pixel_scale,
+            x * self.scale as i32,
+            y * self.scale as i32,
+            self.scale,
+            self.scale,
         );
         self.canvas.fill_rect(rect).unwrap();
     }
@@ -121,24 +128,31 @@ impl Renderer for Sdl2WindowRenderer {
 }
 
 pub struct Sdl2SurfaceRenderer<'a> {
-    pixel_scale: u32,
+    scale: u32,
     canvas: sdl2::render::Canvas<sdl2::surface::Surface<'a>>,
     width: u32,
     height: u32,
 }
 
 impl<'a> Sdl2SurfaceRenderer<'a> {
-    pub fn new(pixel_scale: u32, width: u32, height: u32) -> Self {
+    pub fn new(options: RenderingOptions) -> Self {
+        let RenderingOptions {
+            scale,
+            width,
+            height,
+            ..
+        } = options;
+
         let canvas = sdl2::surface::Surface::new(
-            width * pixel_scale,
-            height * pixel_scale,
+            width * scale,
+            height * scale,
             sdl2::pixels::PixelFormatEnum::ABGR8888,
         )
         .unwrap()
         .into_canvas()
         .unwrap();
         Self {
-            pixel_scale,
+            scale,
             canvas,
             width,
             height,
@@ -164,10 +178,10 @@ impl<'a> Renderer for Sdl2SurfaceRenderer<'a> {
 
         self.canvas.set_draw_color(color);
         let rect = sdl2::rect::Rect::new(
-            x * self.pixel_scale as i32,
-            y * self.pixel_scale as i32,
-            self.pixel_scale,
-            self.pixel_scale,
+            x * self.scale as i32,
+            y * self.scale as i32,
+            self.scale,
+            self.scale,
         );
         self.canvas.fill_rect(rect).unwrap();
     }

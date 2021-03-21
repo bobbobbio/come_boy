@@ -21,13 +21,13 @@ impl fmt::Debug for GameBoyEmulator {
     }
 }
 
-struct GameBoyDebugger<R> {
+struct GameBoyDebugger<'a, R> {
     emulator: GameBoyEmulator,
-    renderer: R,
+    renderer: &'a mut R,
 }
 
-impl<R: Renderer> GameBoyDebugger<R> {
-    fn new(renderer: R) -> Self {
+impl<'a, R: Renderer> GameBoyDebugger<'a, R> {
+    fn new(renderer: &'a mut R) -> Self {
         Self {
             emulator: GameBoyEmulator::new(),
             renderer,
@@ -35,7 +35,7 @@ impl<R: Renderer> GameBoyDebugger<R> {
     }
 }
 
-impl<R: Renderer> DebuggerOps for GameBoyDebugger<R> {
+impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
     fn read_memory(&self, address: u16) -> u8 {
         let memory_map = game_boy_memory_map!(&self.emulator);
         memory_map.read_memory(address)
@@ -46,7 +46,7 @@ impl<R: Renderer> DebuggerOps for GameBoyDebugger<R> {
     }
 
     fn next(&mut self) {
-        self.emulator.tick(&mut self.renderer);
+        self.emulator.tick(self.renderer);
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
@@ -161,7 +161,7 @@ pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
 }
 
 pub fn run_debugger<R: Renderer>(
-    renderer: R,
+    renderer: &mut R,
     game_pak: GamePak,
     is_interrupted: &dyn Fn() -> bool,
 ) {

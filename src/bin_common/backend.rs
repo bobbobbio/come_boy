@@ -1,6 +1,7 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::frontend::Frontend;
+use come_boy::rendering::RenderingOptions;
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -22,21 +23,21 @@ impl fmt::Display for Error {
 type Result<T> = std::result::Result<T, Error>;
 
 pub trait Backend {
-    fn run<F: Frontend>(&self, scale: u32, frontend: F) -> !;
+    fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> !;
 }
 
 pub struct BackendMap<F> {
     map: BTreeMap<String, Box<dyn FnOnce(Self)>>,
     frontend: F,
-    scale: u32,
+    rendering_options: RenderingOptions,
 }
 
 impl<F: Frontend> BackendMap<F> {
-    pub fn new(scale: u32, frontend: F) -> Self {
+    pub fn new(rendering_options: RenderingOptions, frontend: F) -> Self {
         let mut map = Self {
             map: BTreeMap::new(),
             frontend,
-            scale,
+            rendering_options,
         };
 
         #[cfg(feature = "speedy2d")]
@@ -59,7 +60,7 @@ impl<F: Frontend> BackendMap<F> {
     }
 
     fn run_backend<B: Backend>(self, backend: B) {
-        backend.run(self.scale, self.frontend)
+        backend.run(self.rendering_options, self.frontend)
     }
 
     pub fn run(mut self, renderer_name: &str) -> Result<()> {
@@ -86,14 +87,14 @@ impl<F: Frontend> BackendMap<F> {
 #[cfg(feature = "speedy2d")]
 mod speedy2d {
     use super::{Backend, Frontend};
-    use come_boy::rendering::speedy;
+    use come_boy::rendering::{speedy, RenderingOptions};
 
     pub(super) struct Speedy2dBackend;
 
     impl Backend for Speedy2dBackend {
-        fn run<F: Frontend>(&self, scale: u32, frontend: F) -> ! {
+        fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
             println!("Using speed2d renderer");
-            speedy::run_loop(scale, "come boy", 160, 144, move |renderer| {
+            speedy::run_loop(rendering_options, move |renderer| {
                 frontend.run(renderer);
             })
         }
@@ -103,14 +104,14 @@ mod speedy2d {
 #[cfg(feature = "sdl2")]
 mod sdl2 {
     use super::{Backend, Frontend};
-    use come_boy::rendering::sdl2::Sdl2WindowRenderer;
+    use come_boy::rendering::{sdl2::Sdl2WindowRenderer, RenderingOptions};
 
     pub(super) struct Sdl2Backend;
 
     impl Backend for Sdl2Backend {
-        fn run<F: Frontend>(&self, scale: u32, frontend: F) -> ! {
+        fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
             println!("Using sdl2 renderer");
-            let mut renderer = Sdl2WindowRenderer::new(scale, "come boy", 160, 144);
+            let mut renderer = Sdl2WindowRenderer::new(rendering_options);
             frontend.run(&mut renderer);
             std::process::exit(0)
         }

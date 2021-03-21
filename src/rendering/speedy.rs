@@ -1,6 +1,6 @@
 // Copyright 2021 Remi Bernotavicius
 
-use super::{Color, Event, Keycode, Renderer, Result};
+use super::{Color, Event, Keycode, Renderer, RenderingOptions, Result};
 use speedy2d::{
     color::Color as SpeedyColor,
     shape::Rectangle,
@@ -32,7 +32,7 @@ struct SpeedyWindowHandler {
     buffer: ScreenBuffer,
     width: usize,
     height: usize,
-    pixel_scale: usize,
+    scale: usize,
     events: Sender<Event>,
 }
 
@@ -41,8 +41,8 @@ impl SpeedyWindowHandler {
         for y in 0..self.height {
             for x in 0..self.width {
                 let color = buffer[y * self.width + x];
-                let width = self.pixel_scale as f32;
-                let height = self.pixel_scale as f32;
+                let width = self.scale as f32;
+                let height = self.scale as f32;
                 let x = x as f32 * width;
                 let y = y as f32 * height;
                 let rect = Rectangle::from_tuples((x, y), (x + width, y + height));
@@ -99,14 +99,16 @@ impl WindowHandler for SpeedyWindowHandler {
     }
 }
 
-pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
-    pixel_scale: u32,
-    title: &str,
-    width: u32,
-    height: u32,
-    body: F,
-) -> ! {
-    let window = Window::new_centered(title, (width * pixel_scale, height * pixel_scale)).unwrap();
+pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions, body: F) -> ! {
+    let RenderingOptions {
+        window_title,
+        scale,
+        width,
+        height,
+        ..
+    } = options;
+
+    let window = Window::new_centered(&window_title, (width * scale, height * scale)).unwrap();
 
     let base_buffer = vec![SpeedyColor::WHITE; width as usize * height as usize];
     let screen_buffer = ScreenBuffer {
@@ -127,7 +129,7 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(
         buffer: screen_buffer,
         width: width as usize,
         height: height as usize,
-        pixel_scale: pixel_scale as usize,
+        scale: scale as usize,
         events: sender,
     };
 

@@ -72,3 +72,21 @@ impl Renderer for NullRenderer {
 impl Color for () {
     fn new(_: u8, _: u8, _: u8) {}
 }
+
+pub struct RenderingOptions {
+    pub window_title: String,
+    pub scale: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl Default for RenderingOptions {
+    fn default() -> Self {
+        Self {
+            window_title: "come boy".into(),
+            scale: 1,
+            width: 160,
+            height: 144,
+        }
+    }
+}
