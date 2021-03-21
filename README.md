@@ -19,7 +19,7 @@ If you want a usable emulator, pass the `--release` flag, as the debug build is
 too slow.
 
 The project has two rendering back-ends. `sdl2` and `speedy2d`. You can select
-which ones you want via `--feature`. The `speedy2d` back-end is included by
+which ones you want via `--features`. The `speedy2d` back-end is included by
 default.
 
 # Running Tests
