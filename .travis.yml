@@ -1,10 +1,12 @@
 before_install:
-  - sudo apt-get update -qq
-  - sudo apt-get install -y libegl1-mesa-dev libgles2-mesa-dev
-  - sudo aptitude install -y libsdl2-dev
   - ./download_test_roms
 language: rust
 rust:
   - stable
   - beta
   - nightly
+
+os:
+  - linux
+  - osx
+  - windows

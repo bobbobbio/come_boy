@@ -8,7 +8,7 @@ repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 
 [features]
-default = ["sdl2"]
+default = ["speedy2d"]
 
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }
