@@ -1,6 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use serde_derive::{Deserialize, Serialize};
+use std::io;
 use std::path::Path;
 
 #[cfg(feature = "sdl2")]
@@ -9,16 +10,7 @@ pub mod sdl2;
 #[cfg(feature = "speedy2d")]
 pub mod speedy;
 
-#[derive(Debug)]
-pub struct Error(String);
-
-impl From<String> for Error {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
-
-type Result<T> = std::result::Result<T, Error>;
+pub mod bitmap;
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum Keycode {
@@ -49,7 +41,7 @@ pub trait Color {
 pub trait Renderer {
     type Color: Color;
     fn poll_events(&mut self) -> Vec<Event>;
-    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()>;
+    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> io::Result<()>;
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color);
     fn present(&mut self);
 }
@@ -62,7 +54,7 @@ impl Renderer for NullRenderer {
     fn poll_events(&mut self) -> Vec<Event> {
         vec![]
     }
-    fn save_buffer<P: AsRef<Path>>(&self, _: P) -> Result<()> {
+    fn save_buffer<P: AsRef<Path>>(&self, _: P) -> io::Result<()> {
         Ok(())
     }
     fn color_pixel(&mut self, _: i32, _: i32, _: Self::Color) {}

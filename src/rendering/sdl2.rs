@@ -1,6 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
-use super::{Color, Event, Keycode, Renderer, RenderingOptions, Result};
+use super::{Color, Event, Keycode, Renderer, RenderingOptions};
+use std::io;
 use std::path::Path;
 
 impl From<sdl2::keyboard::Keycode> for Keycode {
@@ -93,82 +94,21 @@ impl Renderer for Sdl2WindowRenderer {
         events
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         let mut pixels = self
             .canvas
-            .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)?;
+            .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)
+            .unwrap();
         let s = sdl2::surface::Surface::from_data(
             &mut pixels,
             160 * self.scale,
             140 * self.scale,
             160 * self.scale * 4,
             sdl2::pixels::PixelFormatEnum::ABGR8888,
-        )?;
-        s.save_bmp(path)?;
-        Ok(())
-    }
-
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
-        assert!(x < self.width as i32, "x = {} > {}", x, self.width);
-        assert!(y < self.height as i32, "y = {} > {}", x, self.height);
-
-        self.canvas.set_draw_color(color);
-        let rect = sdl2::rect::Rect::new(
-            x * self.scale as i32,
-            y * self.scale as i32,
-            self.scale,
-            self.scale,
-        );
-        self.canvas.fill_rect(rect).unwrap();
-    }
-
-    fn present(&mut self) {
-        self.canvas.present()
-    }
-}
-
-pub struct Sdl2SurfaceRenderer<'a> {
-    scale: u32,
-    canvas: sdl2::render::Canvas<sdl2::surface::Surface<'a>>,
-    width: u32,
-    height: u32,
-}
-
-impl<'a> Sdl2SurfaceRenderer<'a> {
-    pub fn new(options: RenderingOptions) -> Self {
-        let RenderingOptions {
-            scale,
-            width,
-            height,
-            ..
-        } = options;
-
-        let canvas = sdl2::surface::Surface::new(
-            width * scale,
-            height * scale,
-            sdl2::pixels::PixelFormatEnum::ABGR8888,
         )
-        .unwrap()
-        .into_canvas()
         .unwrap();
-        Self {
-            scale,
-            canvas,
-            width,
-            height,
-        }
-    }
-}
-
-impl<'a> Renderer for Sdl2SurfaceRenderer<'a> {
-    type Color = sdl2::pixels::Color;
-
-    fn poll_events(&mut self) -> Vec<Event> {
-        vec![]
-    }
-
-    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-        self.canvas.surface().save_bmp(path)?;
+        s.save_bmp(path)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         Ok(())
     }
 

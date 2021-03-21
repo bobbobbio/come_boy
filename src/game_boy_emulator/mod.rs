@@ -48,7 +48,6 @@ struct SaveStateLoaded;
 pub enum Error {
     Io(std::io::Error),
     Replay(joypad::ReplayError),
-    Rendering(crate::rendering::Error),
     Serde(bincode::Error),
 }
 
@@ -63,12 +62,6 @@ impl From<std::io::Error> for Error {
 impl From<joypad::ReplayError> for Error {
     fn from(e: joypad::ReplayError) -> Self {
         Self::Replay(e)
-    }
-}
-
-impl From<crate::rendering::Error> for Error {
-    fn from(e: crate::rendering::Error) -> Self {
-        Self::Rendering(e)
     }
 }
 
@@ -780,7 +773,7 @@ pub fn do_rom_test(
         rom_path, ticks, replay
     );
     let tmp_output = tempfile::NamedTempFile::new()?;
-    let mut renderer = crate::rendering::sdl2::Sdl2SurfaceRenderer::new(Default::default());
+    let mut renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
     run_until_and_take_screenshot(
         &mut renderer,
         GamePak::from_path(rom_path)?,
@@ -790,7 +783,12 @@ pub fn do_rom_test(
     )
     .unwrap();
     println!("Comparing screen output with expectation");
-    let difference = diff_bmp(tmp_output.path(), expectation_path)?;
+    let difference = if std::env::var("ROM_TEST_UPDATE_EXPECTATION").is_ok() {
+        std::fs::copy(tmp_output.path(), expectation_path)?;
+        false
+    } else {
+        diff_bmp(tmp_output.path(), expectation_path)?
+    };
     if difference {
         let failure_image: std::path::PathBuf = std::env::var("OUT_DIR").unwrap().into();
         let failure_image = failure_image.join(expectation_path);

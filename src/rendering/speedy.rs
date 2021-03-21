@@ -1,12 +1,13 @@
 // Copyright 2021 Remi Bernotavicius
 
-use super::{Color, Event, Keycode, Renderer, RenderingOptions, Result};
+use super::{Color, Event, Keycode, Renderer, RenderingOptions};
 use speedy2d::{
     color::Color as SpeedyColor,
     shape::Rectangle,
     window::{KeyScancode, VirtualKeyCode, WindowHandler, WindowHelper},
     Graphics2D, Window,
 };
+use std::io;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -165,7 +166,7 @@ impl Renderer for SpeedyRenderer {
         events
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, _path: P) -> Result<()> {
+    fn save_buffer<P: AsRef<Path>>(&self, _path: P) -> io::Result<()> {
         unimplemented!()
     }
 

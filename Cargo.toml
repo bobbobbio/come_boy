@@ -23,6 +23,7 @@ serde_derive = "*"
 speedy2d = { version = "*", optional = true }
 structopt = "*"
 crossbeam = "*"
+bmp = "*"
 
 [dev-dependencies]
 tempfile = "*"
