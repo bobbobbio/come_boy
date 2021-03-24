@@ -2,7 +2,7 @@
 
 use super::{Color, Event, Keycode, Renderer, RenderingOptions};
 use speedy2d::{
-    color::Color as SpeedyColor,
+    image::{ImageDataType, ImageSmoothingMode},
     shape::Rectangle,
     window::{KeyScancode, VirtualKeyCode, WindowHandler, WindowHelper},
     Graphics2D, Window,
@@ -13,17 +13,23 @@ use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
+pub struct SpeedyColor {
+    r: u8,
+    g: u8,
+    b: u8,
+}
+
 #[derive(Clone)]
 struct ScreenBuffer {
-    buffer: Arc<Mutex<Vec<SpeedyColor>>>,
+    buffer: Arc<Mutex<Vec<u8>>>,
 }
 
 impl ScreenBuffer {
-    fn buffer<'a>(&'a self) -> impl Deref<Target = Vec<SpeedyColor>> + 'a {
+    fn buffer<'a>(&'a self) -> impl Deref<Target = Vec<u8>> + 'a {
         self.buffer.lock().unwrap()
     }
 
-    fn swap(&mut self, other: &mut Vec<SpeedyColor>) {
+    fn swap(&mut self, other: &mut Vec<u8>) {
         let mut buffer = self.buffer.lock().unwrap();
         std::mem::swap(&mut *buffer, other);
     }
@@ -38,18 +44,18 @@ struct SpeedyWindowHandler {
 }
 
 impl SpeedyWindowHandler {
-    fn update_screen(&self, buffer: &[SpeedyColor], graphics: &mut Graphics2D) {
-        for y in 0..self.height {
-            for x in 0..self.width {
-                let color = buffer[y * self.width + x];
-                let width = self.scale as f32;
-                let height = self.scale as f32;
-                let x = x as f32 * width;
-                let y = y as f32 * height;
-                let rect = Rectangle::from_tuples((x, y), (x + width, y + height));
-                graphics.draw_rectangle(rect, color);
-            }
-        }
+    fn update_screen(&self, buffer: &[u8], graphics: &mut Graphics2D) {
+        let image = graphics
+            .create_image_from_raw_pixels(
+                ImageDataType::RGB,
+                ImageSmoothingMode::NearestNeighbor,
+                (self.width as u32, self.height as u32),
+                buffer,
+            )
+            .unwrap();
+        let width = (self.width * self.scale) as f32;
+        let height = (self.height * self.scale) as f32;
+        graphics.draw_rectangle_image(Rectangle::from_tuples((0.0, 0.0), (width, height)), &image);
     }
 }
 
@@ -111,7 +117,7 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
 
     let window = Window::new_centered(&window_title, (width * scale, height * scale)).unwrap();
 
-    let base_buffer = vec![SpeedyColor::WHITE; width as usize * height as usize];
+    let base_buffer = vec![u8::MAX; width as usize * height as usize * 3];
     let screen_buffer = ScreenBuffer {
         buffer: Arc::new(Mutex::new(base_buffer.clone())),
     };
@@ -143,13 +149,13 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
 
 impl Color for SpeedyColor {
     fn new(r: u8, g: u8, b: u8) -> Self {
-        SpeedyColor::from_int_rgb(r, g, b)
+        SpeedyColor { r, g, b }
     }
 }
 
 pub struct SpeedyRenderer {
     screen_buffer: ScreenBuffer,
-    back_buffer: Vec<SpeedyColor>,
+    back_buffer: Vec<u8>,
     width: usize,
     height: usize,
     events: Receiver<Event>,
@@ -177,11 +183,14 @@ impl Renderer for SpeedyRenderer {
         if x < 0 || y < 0 {
             return;
         }
-        self.back_buffer[y as usize * self.width + x as usize] = color;
+        let i = (y as usize * self.width + x as usize) * 3;
+        self.back_buffer[i] = color.r;
+        self.back_buffer[i + 1] = color.g;
+        self.back_buffer[i + 2] = color.b;
     }
 
     fn present(&mut self) {
         self.screen_buffer.swap(&mut self.back_buffer);
-        self.back_buffer.fill(SpeedyColor::WHITE);
+        self.back_buffer.fill(u8::MAX);
     }
 }
