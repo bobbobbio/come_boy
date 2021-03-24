@@ -93,7 +93,7 @@ mod speedy2d {
 
     impl Backend for Speedy2dBackend {
         fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
-            println!("Using speed2d renderer");
+            println!("Using speedy2d renderer");
             speedy::run_loop(rendering_options, move |renderer| {
                 frontend.run(renderer);
             })
