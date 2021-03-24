@@ -289,14 +289,26 @@ impl<'a> LCDObjectIterator<'a> {
     }
 }
 
-struct LCDDotData {
-    data: [LCDColor; 64],
+struct LCDDotData<'a> {
+    data: &'a [u8],
 }
 
-impl LCDDotData {
-    fn new() -> LCDDotData {
-        LCDDotData {
-            data: [LCDColor::Color0; 64],
+impl<'a> LCDDotData<'a> {
+    fn read_pixel(&self, offset: usize) -> LCDColor {
+        let byte_offset = (offset / 8) * 2;
+        let bit_offset = 7 - (offset % 8);
+
+        let byte1 = self.data[byte_offset];
+        let byte2 = self.data[byte_offset + 1];
+
+        let shade_upper = ((byte2 >> bit_offset) & 0x1) << 1;
+        let shade_lower = (byte1 >> bit_offset) & 0x1;
+        match shade_upper | shade_lower {
+            0x0 => LCDColor::Color0,
+            0x1 => LCDColor::Color1,
+            0x2 => LCDColor::Color2,
+            0x3 => LCDColor::Color3,
+            _ => panic!(),
         }
     }
 
@@ -321,8 +333,10 @@ impl LCDDotData {
         };
         let start_pixel = (target_line * CHARACTER_SIZE as i32) as usize;
         let end_pixel = start_pixel + CHARACTER_SIZE as usize;
-        let iter = self.data[start_pixel..end_pixel].iter().enumerate();
-        for (mut offset_x, &color) in iter {
+        let iter = (start_pixel..end_pixel)
+            .map(|i| self.read_pixel(i))
+            .enumerate();
+        for (mut offset_x, color) in iter {
             if horizantal_flip {
                 offset_x = CHARACTER_SIZE as usize - offset_x - 1;
             }
@@ -424,9 +438,11 @@ impl LCDController {
         }
     }
 
-    fn read_dot_data(&self, character_data_selection: bool, character_code: u8) -> LCDDotData {
-        let mut dot_data = LCDDotData::new();
-
+    fn read_dot_data(
+        data: &MemoryChunk,
+        character_data_selection: bool,
+        character_code: u8,
+    ) -> LCDDotData {
         let location = if character_data_selection {
             CHARACTER_DATA_1.start as usize + character_code as usize * 16
         } else {
@@ -434,31 +450,9 @@ impl LCDController {
                 + (((character_code as i8) as isize + 128) as usize) * 16
         };
 
-        let mut iter = self.character_data.as_slice()[location..]
-            .iter()
-            .take(16)
-            .peekable();
-
-        let mut i = 0;
-        while iter.peek() != None {
-            let byte1: u8 = *iter.next().unwrap();
-            let byte2: u8 = *iter.next().unwrap();
-            for bit in (0..8).rev() {
-                let shade_upper = ((byte2 >> bit) & 0x1) << 1;
-                let shade_lower = (byte1 >> bit) & 0x1;
-                dot_data.data[i] = match shade_upper | shade_lower {
-                    0x0 => LCDColor::Color0,
-                    0x1 => LCDColor::Color1,
-                    0x2 => LCDColor::Color2,
-                    0x3 => LCDColor::Color3,
-                    _ => panic!(),
-                };
-                i += 1;
-            }
+        LCDDotData {
+            data: &data.as_slice()[location..(location + 16)],
         }
-        assert_eq!(i, 64);
-
-        return dot_data;
     }
 
     pub fn set_state_post_bios(&mut self) {
@@ -566,7 +560,11 @@ impl LCDController {
             .enumerate();
 
         for (tile_x, character_code) in iter {
-            let character_data = self.read_dot_data(character_data_selection, *character_code);
+            let character_data = Self::read_dot_data(
+                &self.character_data,
+                character_data_selection,
+                *character_code,
+            );
             let x = scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32);
             let y = scroll_y + (otile_y * CHARACTER_SIZE as i32);
             let tile_space_width = CHARACTER_AREA_SIZE as i32 * CHARACTER_SIZE as i32;
@@ -658,7 +656,8 @@ impl LCDController {
                     true => &self.registers.obp1,
                 };
 
-                let character_data = self.read_dot_data(true, character_code);
+                let character_data =
+                    Self::read_dot_data(&self.character_data, true, character_code);
                 character_data.draw_line(
                     renderer,
                     x,
