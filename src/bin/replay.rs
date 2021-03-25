@@ -85,7 +85,7 @@ fn main() -> Result<()> {
             scale,
             renderer,
         } => {
-            let game_pak = GamePak::from_path(rom)?;
+            let game_pak = GamePak::from_path_without_sav(rom)?;
             let rendering_options = RenderingOptions {
                 scale,
                 ..Default::default()
@@ -101,7 +101,7 @@ fn main() -> Result<()> {
             scale,
             renderer,
         } => {
-            let game_pak = GamePak::from_path(rom)?;
+            let game_pak = GamePak::from_path_without_sav(rom)?;
             let rendering_options = RenderingOptions {
                 scale,
                 ..Default::default()

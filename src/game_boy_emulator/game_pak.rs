@@ -999,6 +999,14 @@ impl GamePak {
         Ok(GamePak::new(&rom, Some(path.with_extension("sav"))))
     }
 
+    pub fn from_path_without_sav<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+        let path: &Path = path.as_ref();
+        let mut rom_file = std::fs::File::open(path)?;
+        let mut rom: Vec<u8> = vec![];
+        rom_file.read_to_end(&mut rom)?;
+        Ok(GamePak::new(&rom, None))
+    }
+
     pub fn new(rom: &[u8], sram_path: Option<PathBuf>) -> Self {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
         let hash = super_fast_hash(rom);

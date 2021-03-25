@@ -2,6 +2,15 @@
 #[allow(unused_imports)]
 use crate::game_boy_emulator::{do_rom_test, Result};
 #[test]
+fn zelda_200000000_replay1() -> Result<()> {
+    do_rom_test(
+        "test/roms/zelda.gb",
+        200000000u64,
+        "test/expectations/zelda/200000000_replay1.bmp",
+        Some("test/expectations/zelda/replay1.replay"),
+    )
+}
+#[test]
 fn tetris_10000000() -> Result<()> {
     do_rom_test(
         "test/roms/tetris.gb",

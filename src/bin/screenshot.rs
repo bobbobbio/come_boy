@@ -25,7 +25,7 @@ fn main() -> Result<()> {
     let options = Options::from_args();
 
     let mut renderer = BitmapRenderer::new(Default::default());
-    let game_pak = GamePak::from_path(&options.rom)?;
+    let game_pak = GamePak::from_path_without_sav(&options.rom)?;
     game_boy_emulator::run_until_and_take_screenshot(
         &mut renderer,
         game_pak,

@@ -765,7 +765,7 @@ pub fn do_rom_test(
     let mut renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
     run_until_and_take_screenshot(
         &mut renderer,
-        GamePak::from_path(rom_path)?,
+        GamePak::from_path_without_sav(rom_path)?,
         ticks,
         replay,
         tmp_output.path(),
