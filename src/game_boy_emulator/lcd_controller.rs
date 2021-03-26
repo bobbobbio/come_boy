@@ -260,6 +260,43 @@ impl LCDObject {
     fn read_flag(&self, flag: LCDObjectAttributeFlag) -> bool {
         self.flags & flag as u8 == flag as u8
     }
+
+    /// Returns tuple (y position, character code)
+    fn get_character_data_for_line(
+        &self,
+        line: u8,
+        object_block_composition_selection: bool,
+    ) -> (u8, u8) {
+        // If we are a double-height sprite
+        if object_block_composition_selection {
+            let first_code = self.character_code & !1;
+            let second_code = self.character_code | 1;
+            let vertical_flip = self.read_flag(LCDObjectAttributeFlag::VerticalFlip);
+
+            // Figure out which sprite the line crosses for double-height sprites
+            if line < self.y + CHARACTER_SIZE {
+                (
+                    self.y,
+                    if vertical_flip {
+                        second_code
+                    } else {
+                        first_code
+                    },
+                )
+            } else {
+                (
+                    self.y + CHARACTER_SIZE,
+                    if vertical_flip {
+                        first_code
+                    } else {
+                        second_code
+                    },
+                )
+            }
+        } else {
+            (self.y, self.character_code)
+        }
+    }
 }
 
 struct LCDObjectIterator<'a> {
@@ -630,36 +667,11 @@ impl LCDController {
             if (priority == ObjectPriority::Background) != low_priority {
                 continue;
             }
+
             let vertical_flip = object.read_flag(LCDObjectAttributeFlag::VerticalFlip);
             let horizantal_flip = object.read_flag(LCDObjectAttributeFlag::HorizantalFlip);
-
-            let (y, character_code) = if object_block_composition_selection {
-                let first_code = object.character_code & !1;
-                let second_code = object.character_code | 1;
-
-                if ly < object.y + CHARACTER_SIZE {
-                    (
-                        object.y,
-                        if vertical_flip {
-                            second_code
-                        } else {
-                            first_code
-                        },
-                    )
-                } else {
-                    (
-                        object.y + CHARACTER_SIZE,
-                        if vertical_flip {
-                            first_code
-                        } else {
-                            second_code
-                        },
-                    )
-                }
-            } else {
-                (object.y, object.character_code)
-            };
-
+            let (y, character_code) =
+                object.get_character_data_for_line(ly, object_block_composition_selection);
             let palette = match object.read_flag(LCDObjectAttributeFlag::Palette) {
                 false => &self.registers.obp0,
                 true => &self.registers.obp1,
