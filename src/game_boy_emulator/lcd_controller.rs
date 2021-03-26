@@ -10,7 +10,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
 
-const CHARACTER_SIZE: u8 = 8;
+const CHARACTER_SIZE: i32 = 8;
 
 const CHARACTER_AREA_SIZE: u16 = 32;
 
@@ -233,8 +233,8 @@ impl From<InterruptFlag> for InterruptEnableFlag {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct LCDObject {
-    y: u8,
-    x: u8,
+    y: i32,
+    x: i32,
     character_code: u8,
     flags: u8,
 }
@@ -264,9 +264,9 @@ impl LCDObject {
     /// Returns tuple (y position, character code)
     fn get_character_data_for_line(
         &self,
-        line: u8,
+        line: i32,
         object_block_composition_selection: bool,
-    ) -> (u8, u8) {
+    ) -> (i32, u8) {
         // If we are a double-height sprite
         if object_block_composition_selection {
             let first_code = self.character_code & !1;
@@ -311,8 +311,8 @@ impl<'a> Iterator for LCDObjectIterator<'a> {
             return None;
         } else {
             let lcd_object = LCDObject {
-                y: *self.chunk_iterator.next().unwrap() - CHARACTER_SIZE * 2,
-                x: *self.chunk_iterator.next().unwrap() - CHARACTER_SIZE,
+                y: *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE * 2,
+                x: *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE,
                 character_code: *self.chunk_iterator.next().unwrap(),
                 flags: *self.chunk_iterator.next().unwrap(),
             };
@@ -357,21 +357,21 @@ impl<'a> LCDDotData<'a> {
         renderer: &mut R,
         x: i32,
         y: i32,
-        ly: u8,
+        ly: i32,
         vertical_flip: bool,
         horizantal_flip: bool,
         enable_transparency: bool,
         palette: &GameBoyFlags<LCDColor>,
     ) {
-        assert!(ly as i32 >= y && (ly as i32) < y + CHARACTER_SIZE as i32);
+        assert!(ly >= y && ly < y + CHARACTER_SIZE);
         assert!(ly < 144, "drawing ly = {}", ly);
 
         let target_line = if vertical_flip {
-            y + CHARACTER_SIZE as i32 - 1 - ly as i32
+            y + CHARACTER_SIZE - 1 - ly
         } else {
-            ly as i32 - y
+            ly - y
         };
-        let start_pixel = (target_line * CHARACTER_SIZE as i32) as usize;
+        let start_pixel = (target_line * CHARACTER_SIZE) as usize;
         let end_pixel = start_pixel + CHARACTER_SIZE as usize;
         let iter = (start_pixel..end_pixel)
             .map(|i| self.read_pixel(i))
@@ -571,9 +571,9 @@ impl LCDController {
         wrap: bool,
         transparent: bool,
     ) {
-        let ly = self.registers.ly.read_value();
+        let ly = self.registers.ly.read_value() as i32;
 
-        if !wrap && (ly as i32) < scroll_y {
+        if !wrap && ly < scroll_y {
             return;
         }
 
@@ -584,9 +584,9 @@ impl LCDController {
 
         let tile_space_line_height =
             BACKGROUND_DISPLAY_DATA_1.len() as i32 / CHARACTER_AREA_SIZE as i32;
-        let mut otile_y = (ly as i32 - scroll_y) / CHARACTER_SIZE as i32;
+        let mut otile_y = (ly - scroll_y) / CHARACTER_SIZE;
 
-        if scroll_y > ly as i32 && (ly as i32 - scroll_y) % CHARACTER_SIZE as i32 != 0 {
+        if scroll_y > ly && (ly - scroll_y) % CHARACTER_SIZE != 0 {
             otile_y -= 1;
         }
 
@@ -608,9 +608,9 @@ impl LCDController {
                 character_data_selection,
                 *character_code,
             );
-            let x = scroll_x + (tile_x as i32 * CHARACTER_SIZE as i32);
-            let y = scroll_y + (otile_y * CHARACTER_SIZE as i32);
-            let tile_space_width = CHARACTER_AREA_SIZE as i32 * CHARACTER_SIZE as i32;
+            let x = scroll_x + (tile_x as i32 * CHARACTER_SIZE);
+            let y = scroll_y + (otile_y * CHARACTER_SIZE);
+            let tile_space_width = CHARACTER_AREA_SIZE as i32 * CHARACTER_SIZE;
             let full_xes = &[x, x - tile_space_width, x + tile_space_width];
             let xes = if wrap {
                 full_xes.iter().take(3)
@@ -618,7 +618,7 @@ impl LCDController {
                 full_xes.iter().take(1)
             };
             for &ix in xes {
-                if (ix >= 0 || ix + CHARACTER_SIZE as i32 >= 0) && ix < 160 {
+                if (ix >= 0 || ix + CHARACTER_SIZE >= 0) && ix < 160 {
                     character_data.draw_line(
                         renderer,
                         ix,
@@ -639,7 +639,7 @@ impl LCDController {
             return;
         }
 
-        let ly = self.registers.ly.read_value();
+        let ly = self.registers.ly.read_value() as i32;
 
         let object_block_composition_selection = self
             .registers
@@ -680,8 +680,8 @@ impl LCDController {
             let character_data = Self::read_dot_data(&self.character_data, true, character_code);
             character_data.draw_line(
                 renderer,
-                object.x as i32,
-                y as i32,
+                object.x,
+                y,
                 ly,
                 vertical_flip,
                 horizantal_flip,

@@ -2,6 +2,24 @@
 #[allow(unused_imports)]
 use crate::game_boy_emulator::{do_rom_test, do_save_state_rom_test, Result};
 #[test]
+fn pokemon_red_100000000() -> Result<()> {
+    do_rom_test(
+        "test/roms/pokemon_red.gb",
+        100000000u64,
+        "test/expectations/pokemon_red/100000000.bmp",
+        None,
+    )
+}
+#[test]
+fn pokemon_red_100000000_save_state() -> Result<()> {
+    do_save_state_rom_test(
+        "test/roms/pokemon_red.gb",
+        100000000u64,
+        "test/expectations/pokemon_red/100000000.bmp",
+        None,
+    )
+}
+#[test]
 fn zelda_200000000_replay1() -> Result<()> {
     do_rom_test(
         "test/roms/zelda.gb",
