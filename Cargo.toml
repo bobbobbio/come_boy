@@ -7,6 +7,13 @@ edition = "2018"
 repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 
+[profile.release]
+opt-level = 3
+debug = true
+lto = "thin"
+panic = "abort"
+
+
 [features]
 default = ["speedy2d"]
 
