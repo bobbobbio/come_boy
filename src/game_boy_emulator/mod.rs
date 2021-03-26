@@ -729,7 +729,7 @@ fn run_until_and_save_reload_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P
     // Run the emulator some amount of time less than requested
     let initial_ticks = e.cpu.elapsed_cycles;
     let final_ticks = initial_ticks + ticks;
-    let stopping_point = final_ticks - 50_000;
+    let stopping_point = final_ticks - 500_000;
     run_emulator_until(&mut e, renderer, stopping_point);
 
     // Save a save state
