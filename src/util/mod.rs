@@ -2,7 +2,6 @@
 
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::{mem, slice};
 
 macro_rules! from_u8 {
     ($($cname:ident),*) => ($(
@@ -50,9 +49,8 @@ fn get_16_bits(data: &[u8], index: usize) -> u16 {
 // This was taken from http://www.azillionmonkeys.com/qed/hash.html. The code
 // for this function (and only this function) below is LGPL 2.1. I have ported it to rust, but
 // kept the same behavior.
-fn super_fast_hash_iter<T: Sized>(data_in: &[T], mut hash: u32) -> u32 {
-    let mut len = data_in.len();
-    let data: &[u8] = unsafe { mem::transmute(slice::from_raw_parts(data_in.as_ptr(), len)) };
+fn super_fast_hash_iter(data: &[u8], mut hash: u32) -> u32 {
+    let mut len = data.len();
 
     let mut tmp: u32;
     let mut i = 0;
@@ -104,9 +102,9 @@ fn super_fast_hash_iter<T: Sized>(data_in: &[T], mut hash: u32) -> u32 {
     return hash;
 }
 
-pub fn super_fast_hash<T: Sized>(data_in: &[T]) -> u32 {
-    let len = data_in.len();
-    super_fast_hash_iter(data_in, len as u32)
+pub fn super_fast_hash(data: &[u8]) -> u32 {
+    let len = data.len();
+    super_fast_hash_iter(data, len as u32)
 }
 
 // These values were taken by running the original C version.
