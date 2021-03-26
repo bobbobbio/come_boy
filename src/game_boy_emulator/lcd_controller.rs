@@ -49,6 +49,9 @@ const UNUSABLE_MEMORY: Range<u16> = Range {
     end: 0xFF00,
 };
 
+/// The maximum number of sprites that can appear on one line
+const LINE_SPRITE_LIMIT: usize = 10;
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct DmaRegister {
     value: u8,
@@ -230,8 +233,8 @@ impl From<InterruptFlag> for InterruptEnableFlag {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct LCDObject {
-    y_coordinate: u8,
-    x_coordinate: u8,
+    y: u8,
+    x: u8,
     character_code: u8,
     flags: u8,
 }
@@ -271,8 +274,8 @@ impl<'a> Iterator for LCDObjectIterator<'a> {
             return None;
         } else {
             let lcd_object = LCDObject {
-                y_coordinate: *self.chunk_iterator.next().unwrap(),
-                x_coordinate: *self.chunk_iterator.next().unwrap(),
+                y: *self.chunk_iterator.next().unwrap() - CHARACTER_SIZE * 2,
+                x: *self.chunk_iterator.next().unwrap() - CHARACTER_SIZE,
                 character_code: *self.chunk_iterator.next().unwrap(),
                 flags: *self.chunk_iterator.next().unwrap(),
             };
@@ -401,6 +404,8 @@ pub struct LCDController {
     scheduler: Scheduler<LCDControllerEvent>,
     enabled: bool,
     interrupt_requested: bool,
+    #[serde(skip)]
+    object_buffer: Vec<LCDObject>,
 }
 
 impl LCDController {
@@ -416,6 +421,7 @@ impl LCDController {
             crash_message: None,
             interrupt_requested: false,
             registers: Default::default(),
+            object_buffer: Vec::new(),
         }
     }
 
@@ -604,71 +610,72 @@ impl LCDController {
             .read_flag(LCDControlFlag::ObjectBlockCompositionSelection);
 
         let sprite_height = if object_block_composition_selection {
-            CHARACTER_SIZE as i32 * 2
+            CHARACTER_SIZE * 2
         } else {
-            CHARACTER_SIZE as i32
+            CHARACTER_SIZE
         };
 
-        let iter = LCDObjectIterator::new(&self.oam_data);
-        let mut sorted_objects: Vec<_> = iter.collect();
-        sorted_objects.sort_by(|a, b| b.x_coordinate.partial_cmp(&a.x_coordinate).unwrap());
+        let iter = LCDObjectIterator::new(&self.oam_data)
+            .filter(|o| ly >= o.y && ly < o.y + sprite_height)
+            .take(LINE_SPRITE_LIMIT);
+        self.object_buffer.clear();
+        for obj in iter {
+            self.object_buffer.push(obj);
+        }
+        self.object_buffer
+            .sort_by(|a, b| b.x.partial_cmp(&a.x).unwrap());
 
-        for object in sorted_objects {
-            let x = object.x_coordinate as i32 - CHARACTER_SIZE as i32;
-            let y = object.y_coordinate as i32 - (CHARACTER_SIZE as i32 * 2);
-            if ly as i32 >= y && (ly as i32) < y + sprite_height {
-                let low_priority = object.read_flag(LCDObjectAttributeFlag::DisplayPriority);
-                if (priority == ObjectPriority::Background) != low_priority {
-                    continue;
-                }
-                let vertical_flip = object.read_flag(LCDObjectAttributeFlag::VerticalFlip);
-                let horizantal_flip = object.read_flag(LCDObjectAttributeFlag::HorizantalFlip);
-
-                let (y, character_code) = if object_block_composition_selection {
-                    let first_code = object.character_code & !1;
-                    let second_code = object.character_code | 1;
-
-                    if (ly as i32) < y + CHARACTER_SIZE as i32 {
-                        (
-                            y,
-                            if vertical_flip {
-                                second_code
-                            } else {
-                                first_code
-                            },
-                        )
-                    } else {
-                        (
-                            y + CHARACTER_SIZE as i32,
-                            if vertical_flip {
-                                first_code
-                            } else {
-                                second_code
-                            },
-                        )
-                    }
-                } else {
-                    (y, object.character_code)
-                };
-
-                let palette = match object.read_flag(LCDObjectAttributeFlag::Palette) {
-                    false => &self.registers.obp0,
-                    true => &self.registers.obp1,
-                };
-
-                let character_data =
-                    Self::read_dot_data(&self.character_data, true, character_code);
-                character_data.draw_line(
-                    renderer,
-                    x,
-                    y,
-                    ly,
-                    vertical_flip,
-                    horizantal_flip,
-                    true,
-                    palette,
-                );
+        for object in &self.object_buffer {
+            let low_priority = object.read_flag(LCDObjectAttributeFlag::DisplayPriority);
+            if (priority == ObjectPriority::Background) != low_priority {
+                continue;
             }
+            let vertical_flip = object.read_flag(LCDObjectAttributeFlag::VerticalFlip);
+            let horizantal_flip = object.read_flag(LCDObjectAttributeFlag::HorizantalFlip);
+
+            let (y, character_code) = if object_block_composition_selection {
+                let first_code = object.character_code & !1;
+                let second_code = object.character_code | 1;
+
+                if ly < object.y + CHARACTER_SIZE {
+                    (
+                        object.y,
+                        if vertical_flip {
+                            second_code
+                        } else {
+                            first_code
+                        },
+                    )
+                } else {
+                    (
+                        object.y + CHARACTER_SIZE,
+                        if vertical_flip {
+                            first_code
+                        } else {
+                            second_code
+                        },
+                    )
+                }
+            } else {
+                (object.y, object.character_code)
+            };
+
+            let palette = match object.read_flag(LCDObjectAttributeFlag::Palette) {
+                false => &self.registers.obp0,
+                true => &self.registers.obp1,
+            };
+
+            let character_data = Self::read_dot_data(&self.character_data, true, character_code);
+            character_data.draw_line(
+                renderer,
+                object.x as i32,
+                y as i32,
+                ly,
+                vertical_flip,
+                horizantal_flip,
+                true,
+                palette,
+            );
         }
     }
 
