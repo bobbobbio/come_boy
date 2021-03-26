@@ -5,7 +5,6 @@ use crate::intel_8080_emulator::{
 };
 use crate::util::TwosComplement;
 use serde_derive::{Deserialize, Serialize};
-use std::mem;
 
 pub use crate::emulator_common::disassembler::{
     MemoryAccessor, MemoryIterator, MemoryStream, SimpleMemoryAccessor,
@@ -114,21 +113,20 @@ impl LR35902Emulator {
     }
 
     fn read_raw_register_pair(&self, index: usize) -> u16 {
-        let register_pairs: &[u16; Intel8080Register::Count as usize / 2];
-        unsafe {
-            register_pairs = mem::transmute(&self.registers);
-        }
-
-        register_pairs[index]
+        let first_byte = index * 2;
+        let second_byte = first_byte + 1;
+        u16::from_be_bytes([self.registers[first_byte], self.registers[second_byte]])
     }
 
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
-        let register_pairs: &mut [u16; Intel8080Register::Count as usize / 2];
-        unsafe {
-            register_pairs = mem::transmute(&mut self.registers);
-        }
-        register_pairs[index] = value;
-        if index == Intel8080Register::A as usize / 2 {
+        let first_byte = index * 2;
+        let second_byte = first_byte + 1;
+
+        let bytes = value.to_be_bytes();
+        self.registers[first_byte] = bytes[0];
+        self.registers[second_byte] = bytes[1];
+
+        if second_byte == Intel8080Register::FLAGS as usize {
             // If we are setting the FLAGS register, we need to force the zero flags to be zero.
             self.registers[Intel8080Register::FLAGS as usize] &= LR35902Flag::ValidityMask as u8;
         }

@@ -3,7 +3,6 @@
 pub mod opcodes;
 
 use std::collections::HashMap;
-use std::mem;
 
 use crate::emulator_common::Intel8080Register;
 pub use crate::intel_8080_emulator::opcodes::{
@@ -104,17 +103,17 @@ pub trait Intel8080InstructionSetOps {
             | Intel8080Register::D
             | Intel8080Register::H
             | Intel8080Register::SP => {
-                self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
+                self.set_raw_register_pair(register as usize / 2, value);
             }
             Intel8080Register::PSW => {
-                self.set_raw_register_pair(Intel8080Register::A as usize / 2, u16::to_be(value));
+                self.set_raw_register_pair(Intel8080Register::A as usize / 2, value);
             }
             _ => panic!("Invalid register {:?}", register),
         }
     }
 
     fn read_register_pair(&self, register: Intel8080Register) -> u16 {
-        u16::from_be(match register {
+        match register {
             Intel8080Register::B
             | Intel8080Register::D
             | Intel8080Register::H
@@ -123,7 +122,7 @@ pub trait Intel8080InstructionSetOps {
                 self.read_raw_register_pair(Intel8080Register::A as usize / 2)
             }
             _ => panic!("Invalid register {:?}", register),
-        })
+        }
     }
 
     /*
@@ -354,12 +353,8 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         if address == 0xFFFF {
             return self.read_memory(address) as u16;
         }
-
-        let main_memory: &u16;
-        unsafe {
-            main_memory = mem::transmute(&self.main_memory[address as usize]);
-        }
-        return u16::from_le(*main_memory);
+        let address = address as usize;
+        u16::from_le_bytes([self.main_memory[address], self.main_memory[address + 1]])
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16) {
@@ -367,11 +362,10 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
             return self.set_memory(address, (value >> 8) as u8);
         }
 
-        let main_memory: &mut u16;
-        unsafe {
-            main_memory = mem::transmute(&mut self.main_memory[address as usize]);
-        }
-        *main_memory = u16::to_le(value);
+        let address = address as usize;
+        let bytes = value.to_le_bytes();
+        self.main_memory[address] = bytes[0];
+        self.main_memory[address + 1] = bytes[1];
     }
 
     fn set_flag(&mut self, flag: Intel8080Flag, value: bool) {
@@ -396,21 +390,20 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
     }
 
     fn read_raw_register_pair(&self, index: usize) -> u16 {
-        let register_pairs: &[u16; Intel8080Register::Count as usize / 2];
-        unsafe {
-            register_pairs = mem::transmute(&self.registers);
-        }
-
-        register_pairs[index]
+        let first_byte = index * 2;
+        let second_byte = first_byte + 1;
+        u16::from_be_bytes([self.registers[first_byte], self.registers[second_byte]])
     }
 
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
-        let register_pairs: &mut [u16; Intel8080Register::Count as usize / 2];
-        unsafe {
-            register_pairs = mem::transmute(&mut self.registers);
-        }
-        register_pairs[index] = value;
-        if index == Intel8080Register::A as usize / 2 {
+        let first_byte = index * 2;
+        let second_byte = first_byte + 1;
+
+        let bytes = value.to_be_bytes();
+        self.registers[first_byte] = bytes[0];
+        self.registers[second_byte] = bytes[1];
+
+        if second_byte == Intel8080Register::FLAGS as usize {
             // If we are setting the FLAGS register, we need to force the zero flags to be zero.
             self.registers[Intel8080Register::FLAGS as usize] &= Intel8080Flag::ValidityMask as u8;
         }
