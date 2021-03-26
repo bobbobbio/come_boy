@@ -1074,7 +1074,9 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
                 test_name += "_";
                 test_name += replay.file_stem().unwrap().to_str().unwrap();
             }
-            let test_name = Ident::new(&test_name, Span::call_site());
+            let rom_test_name = Ident::new(&test_name, Span::call_site());
+            let save_state_rom_test_name =
+                Ident::new(&format!("{}_save_state", test_name), Span::call_site());
 
             let rom_path = rom_path.to_str().unwrap();
             let expectation_path = expectation_path.to_str().unwrap();
@@ -1086,8 +1088,13 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
             };
             tokens.extend(quote! {
                 #[test]
-                fn #test_name() -> Result<()> {
+                fn #rom_test_name() -> Result<()> {
                     do_rom_test(#rom_path, #ticks, #expectation_path, #replay)
+                }
+
+                #[test]
+                fn #save_state_rom_test_name() -> Result<()> {
+                    do_save_state_rom_test(#rom_path, #ticks, #expectation_path, #replay)
                 }
             });
         }
@@ -1101,7 +1108,7 @@ fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
     tokens.extend(quote! {
         #[cfg(test)]
         #[allow(unused_imports)]
-        use crate::game_boy_emulator::{Result, do_rom_test};
+        use crate::game_boy_emulator::{Result, do_rom_test, do_save_state_rom_test};
     });
     generate_rom_test_functions(rom_dir, expectations_dir, &mut tokens);
 
