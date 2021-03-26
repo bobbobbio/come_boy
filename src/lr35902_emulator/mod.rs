@@ -96,11 +96,11 @@ impl LR35902Emulator {
     }
 
     pub fn read_register_pair(&self, register: Intel8080Register) -> u16 {
-        u16::from_be(self.read_raw_register_pair(register as usize / 2))
+        self.read_raw_register_pair(register as usize / 2)
     }
 
     pub fn set_register_pair(&mut self, register: Intel8080Register, value: u16) {
-        self.set_raw_register_pair(register as usize / 2, u16::to_be(value));
+        self.set_raw_register_pair(register as usize / 2, value);
     }
 
     fn read_raw_register(&self, index: usize) -> u8 {
