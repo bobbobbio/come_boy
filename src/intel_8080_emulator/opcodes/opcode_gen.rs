@@ -1,6 +1,6 @@
 use crate::emulator_common::Intel8080Register;
 use crate::intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
-use crate::util::{read_u16, read_u8};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 pub trait Intel8080InstructionSet {
     fn add_immediate_to_accumulator(&mut self, data1: u8);
@@ -88,15 +88,17 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
     mut stream: &[u8],
     machine: &mut I,
 ) -> u8 {
-    let opcode = read_u8(&mut stream).unwrap();
+    let opcode = stream.read_u8().unwrap();
     match opcode {
         0x00 => {
             machine.no_operation();
             0u8
         }
         0x01 => {
-            machine
-                .load_register_pair_immediate(Intel8080Register::B, read_u16(&mut stream).unwrap());
+            machine.load_register_pair_immediate(
+                Intel8080Register::B,
+                stream.read_u16::<LittleEndian>().unwrap(),
+            );
             0u8
         }
         0x02 => {
@@ -116,7 +118,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x06 => {
-            machine.move_immediate_data(Intel8080Register::B, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::B, stream.read_u8().unwrap());
             0u8
         }
         0x07 => {
@@ -144,7 +146,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x0E => {
-            machine.move_immediate_data(Intel8080Register::C, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::C, stream.read_u8().unwrap());
             0u8
         }
         0x0F => {
@@ -152,8 +154,10 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x11 => {
-            machine
-                .load_register_pair_immediate(Intel8080Register::D, read_u16(&mut stream).unwrap());
+            machine.load_register_pair_immediate(
+                Intel8080Register::D,
+                stream.read_u16::<LittleEndian>().unwrap(),
+            );
             0u8
         }
         0x12 => {
@@ -173,7 +177,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x16 => {
-            machine.move_immediate_data(Intel8080Register::D, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::D, stream.read_u8().unwrap());
             0u8
         }
         0x17 => {
@@ -201,7 +205,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x1E => {
-            machine.move_immediate_data(Intel8080Register::E, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::E, stream.read_u8().unwrap());
             0u8
         }
         0x1F => {
@@ -213,12 +217,14 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x21 => {
-            machine
-                .load_register_pair_immediate(Intel8080Register::H, read_u16(&mut stream).unwrap());
+            machine.load_register_pair_immediate(
+                Intel8080Register::H,
+                stream.read_u16::<LittleEndian>().unwrap(),
+            );
             0u8
         }
         0x22 => {
-            machine.store_h_and_l_direct(read_u16(&mut stream).unwrap());
+            machine.store_h_and_l_direct(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0x23 => {
@@ -234,7 +240,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x26 => {
-            machine.move_immediate_data(Intel8080Register::H, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::H, stream.read_u8().unwrap());
             0u8
         }
         0x27 => {
@@ -246,7 +252,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x2A => {
-            machine.load_h_and_l_direct(read_u16(&mut stream).unwrap());
+            machine.load_h_and_l_direct(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0x2B => {
@@ -262,7 +268,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x2E => {
-            machine.move_immediate_data(Intel8080Register::L, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::L, stream.read_u8().unwrap());
             0u8
         }
         0x2F => {
@@ -276,12 +282,12 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
         0x31 => {
             machine.load_register_pair_immediate(
                 Intel8080Register::SP,
-                read_u16(&mut stream).unwrap(),
+                stream.read_u16::<LittleEndian>().unwrap(),
             );
             0u8
         }
         0x32 => {
-            machine.store_accumulator_direct(read_u16(&mut stream).unwrap());
+            machine.store_accumulator_direct(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0x33 => {
@@ -297,7 +303,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x36 => {
-            machine.move_immediate_data(Intel8080Register::M, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::M, stream.read_u8().unwrap());
             0u8
         }
         0x37 => {
@@ -309,7 +315,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x3A => {
-            machine.load_accumulator_direct(read_u16(&mut stream).unwrap());
+            machine.load_accumulator_direct(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0x3B => {
@@ -325,7 +331,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0x3E => {
-            machine.move_immediate_data(Intel8080Register::A, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::A, stream.read_u8().unwrap());
             0u8
         }
         0x3F => {
@@ -853,15 +859,15 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xC2 => {
-            machine.jump_if_not_zero(read_u16(&mut stream).unwrap());
+            machine.jump_if_not_zero(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xC3 => {
-            machine.jump(read_u16(&mut stream).unwrap());
+            machine.jump(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xC4 => {
-            machine.call_if_not_zero(read_u16(&mut stream).unwrap());
+            machine.call_if_not_zero(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xC5 => {
@@ -869,7 +875,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xC6 => {
-            machine.add_immediate_to_accumulator(read_u8(&mut stream).unwrap());
+            machine.add_immediate_to_accumulator(stream.read_u8().unwrap());
             0u8
         }
         0xC7 => {
@@ -885,19 +891,19 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xCA => {
-            machine.jump_if_zero(read_u16(&mut stream).unwrap());
+            machine.jump_if_zero(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xCC => {
-            machine.call_if_zero(read_u16(&mut stream).unwrap());
+            machine.call_if_zero(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xCD => {
-            machine.call(read_u16(&mut stream).unwrap());
+            machine.call(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xCE => {
-            machine.add_immediate_to_accumulator_with_carry(read_u8(&mut stream).unwrap());
+            machine.add_immediate_to_accumulator_with_carry(stream.read_u8().unwrap());
             0u8
         }
         0xCF => {
@@ -913,15 +919,15 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xD2 => {
-            machine.jump_if_no_carry(read_u16(&mut stream).unwrap());
+            machine.jump_if_no_carry(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xD3 => {
-            machine.output(read_u8(&mut stream).unwrap());
+            machine.output(stream.read_u8().unwrap());
             0u8
         }
         0xD4 => {
-            machine.call_if_no_carry(read_u16(&mut stream).unwrap());
+            machine.call_if_no_carry(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xD5 => {
@@ -929,7 +935,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xD6 => {
-            machine.subtract_immediate_from_accumulator(read_u8(&mut stream).unwrap());
+            machine.subtract_immediate_from_accumulator(stream.read_u8().unwrap());
             0u8
         }
         0xD7 => {
@@ -941,19 +947,19 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xDA => {
-            machine.jump_if_carry(read_u16(&mut stream).unwrap());
+            machine.jump_if_carry(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xDB => {
-            machine.input(read_u8(&mut stream).unwrap());
+            machine.input(stream.read_u8().unwrap());
             0u8
         }
         0xDC => {
-            machine.call_if_carry(read_u16(&mut stream).unwrap());
+            machine.call_if_carry(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xDE => {
-            machine.subtract_immediate_from_accumulator_with_borrow(read_u8(&mut stream).unwrap());
+            machine.subtract_immediate_from_accumulator_with_borrow(stream.read_u8().unwrap());
             0u8
         }
         0xDF => {
@@ -969,7 +975,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xE2 => {
-            machine.jump_if_parity_odd(read_u16(&mut stream).unwrap());
+            machine.jump_if_parity_odd(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xE3 => {
@@ -977,7 +983,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xE4 => {
-            machine.call_if_parity_odd(read_u16(&mut stream).unwrap());
+            machine.call_if_parity_odd(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xE5 => {
@@ -985,7 +991,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xE6 => {
-            machine.and_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.and_immediate_with_accumulator(stream.read_u8().unwrap());
             0u8
         }
         0xE7 => {
@@ -1001,7 +1007,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xEA => {
-            machine.jump_if_parity_even(read_u16(&mut stream).unwrap());
+            machine.jump_if_parity_even(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xEB => {
@@ -1009,11 +1015,11 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xEC => {
-            machine.call_if_parity_even(read_u16(&mut stream).unwrap());
+            machine.call_if_parity_even(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xEE => {
-            machine.exclusive_or_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.exclusive_or_immediate_with_accumulator(stream.read_u8().unwrap());
             0u8
         }
         0xEF => {
@@ -1029,7 +1035,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xF2 => {
-            machine.jump_if_positive(read_u16(&mut stream).unwrap());
+            machine.jump_if_positive(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xF3 => {
@@ -1037,7 +1043,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xF4 => {
-            machine.call_if_plus(read_u16(&mut stream).unwrap());
+            machine.call_if_plus(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xF5 => {
@@ -1045,7 +1051,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xF6 => {
-            machine.or_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.or_immediate_with_accumulator(stream.read_u8().unwrap());
             0u8
         }
         0xF7 => {
@@ -1061,7 +1067,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xFA => {
-            machine.jump_if_minus(read_u16(&mut stream).unwrap());
+            machine.jump_if_minus(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xFB => {
@@ -1069,11 +1075,11 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
             0u8
         }
         0xFC => {
-            machine.call_if_minus(read_u16(&mut stream).unwrap());
+            machine.call_if_minus(stream.read_u16::<LittleEndian>().unwrap());
             0u8
         }
         0xFE => {
-            machine.compare_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.compare_immediate_with_accumulator(stream.read_u8().unwrap());
             0u8
         }
         0xFF => {
@@ -1084,7 +1090,7 @@ pub fn dispatch_intel8080_instruction<I: Intel8080InstructionSet>(
     }
 }
 pub fn get_intel8080_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
-    let (mut instr, size) = match read_u8(&mut stream).unwrap() {
+    let (mut instr, size) = match stream.read_u8().unwrap() {
         0x00 => (vec![0x00], 1u8),
         0x01 => (vec![0x01], 3u8),
         0x02 => (vec![0x02], 1u8),

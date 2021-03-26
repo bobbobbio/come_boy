@@ -22,15 +22,16 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 
 [dependencies]
 bincode = "*"
+bmp = "*"
+byteorder = "*"
 clap = "*"
+crossbeam = "*"
 nix = "*"
 sdl2 = { version = "0.32.*", optional = true }
 serde = "*"
 serde_derive = "*"
 speedy2d = { version = "*", optional = true }
 structopt = "*"
-crossbeam = "*"
-bmp = "*"
 
 [dev-dependencies]
 tempfile = "*"

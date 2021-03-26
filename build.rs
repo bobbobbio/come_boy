@@ -116,9 +116,9 @@ impl ToTokens for OpcodeArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(match self {
             OpcodeArgument::Register(r) => quote!(Intel8080Register::#r),
-            OpcodeArgument::ReadOneByte => quote!(read_u8(&mut stream).unwrap()),
-            OpcodeArgument::ReadTwoBytes => quote!(read_u16(&mut stream).unwrap()),
-            OpcodeArgument::ReadAddress => quote!(read_u16(&mut stream).unwrap()),
+            OpcodeArgument::ReadOneByte => quote!(stream.read_u8().unwrap()),
+            OpcodeArgument::ReadTwoBytes => quote!(stream.read_u16::<LittleEndian>().unwrap()),
+            OpcodeArgument::ReadAddress => quote!(stream.read_u16::<LittleEndian>().unwrap()),
             OpcodeArgument::ConstantValue(v) => quote!(#v),
         });
     }
@@ -550,9 +550,9 @@ impl OpcodeGenerator {
         let use_path = &self.use_path;
         let printer_name = &self.printer_name;
         tokens.extend(quote!(
+            use byteorder::{ReadBytesExt, LittleEndian};
             use crate::emulator_common::Intel8080Register;
             use crate::#(#use_path)::*::#printer_name;
-            use crate::util::{read_u16, read_u8};
             use std::io;
         ));
     }
@@ -604,7 +604,7 @@ impl OpcodeGenerator {
             let code = &tree.code;
             let dispatches = tree.children.values();
             tokens.extend(quote!(
-                #code => match (#code as u16) << 8 | read_u8(&mut stream).unwrap() as u16 {
+                #code => match (#code as u16) << 8 | stream.read_u8().unwrap() as u16 {
                     #( #dispatches, )*
                     v => panic!("Unknown opcode {}", v),
                 }
@@ -615,7 +615,7 @@ impl OpcodeGenerator {
 
         tokens.extend(quote!(
             pub fn #function_name<I: #trait_name>(mut stream: &[u8], machine: &mut I) -> u8 {
-                let opcode = read_u8(&mut stream).unwrap();
+                let opcode = stream.read_u8().unwrap();
                 match opcode {
                     #( #dispatches, )*
                     v => panic!("Unknown opcode {}", v),
@@ -646,7 +646,7 @@ impl OpcodeGenerator {
             let code = &tree.code;
             let dispatches = tree.children.values();
             tokens.extend(quote!(
-                #code => match (#code as u16) << 8 | match read_u8(&mut stream) {
+                #code => match (#code as u16) << 8 | match stream.read_u8() {
                     Ok(x) => x,
                     _ => return None,
                 } as u16
@@ -661,7 +661,7 @@ impl OpcodeGenerator {
 
         tokens.extend(quote!(
             pub fn #function_name<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
-                let (mut instr, size) = match read_u8(&mut stream).unwrap() {
+                let (mut instr, size) = match stream.read_u8().unwrap() {
                     #( #dispatches, )*
                     _ => return None,
                 };

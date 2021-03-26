@@ -2,7 +2,6 @@
 
 use serde_derive::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::io::{self, Result};
 use std::{mem, slice};
 
 macro_rules! from_u8 {
@@ -13,29 +12,6 @@ macro_rules! from_u8 {
             }
         }
     )*)
-}
-
-pub fn read_u16<T: io::Read>(mut stream: T) -> Result<u16> {
-    let mut arg_buffer = [0; 2];
-    stream.read_exact(&mut arg_buffer)?;
-    let narg: u16 = unsafe { mem::transmute(arg_buffer) };
-    Ok(u16::from_le(narg))
-}
-
-pub fn read_u8<T: io::Read>(mut stream: T) -> Result<u8> {
-    let mut arg_buffer = [0; 1];
-    stream.read_exact(&mut arg_buffer)?;
-    Ok(arg_buffer[0])
-}
-
-#[test]
-fn read_u8_test() {
-    assert_eq!(read_u8(&[0x0f][..]).unwrap(), 0x0f);
-}
-
-#[test]
-fn read_u16_test() {
-    assert_eq!(read_u16(&[0x0f, 0x08][..]).unwrap(), 0x080f);
 }
 
 pub trait TwosComplement<T> {

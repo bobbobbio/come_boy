@@ -1,6 +1,6 @@
 use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
-use crate::util::{read_u16, read_u8};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::io;
 pub trait LR35902InstructionSet {
     fn add_immediate_to_accumulator(&mut self, data1: u8);
@@ -95,15 +95,17 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
     mut stream: &[u8],
     machine: &mut I,
 ) -> u8 {
-    let opcode = read_u8(&mut stream).unwrap();
+    let opcode = stream.read_u8().unwrap();
     match opcode {
         0x00 => {
             machine.no_operation();
             4u8
         }
         0x01 => {
-            machine
-                .load_register_pair_immediate(Intel8080Register::B, read_u16(&mut stream).unwrap());
+            machine.load_register_pair_immediate(
+                Intel8080Register::B,
+                stream.read_u16::<LittleEndian>().unwrap(),
+            );
             12u8
         }
         0x02 => {
@@ -123,7 +125,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x06 => {
-            machine.move_immediate_data(Intel8080Register::B, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::B, stream.read_u8().unwrap());
             8u8
         }
         0x07 => {
@@ -131,7 +133,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x08 => {
-            machine.store_sp_direct(read_u16(&mut stream).unwrap());
+            machine.store_sp_direct(stream.read_u16::<LittleEndian>().unwrap());
             20u8
         }
         0x09 => {
@@ -155,14 +157,14 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x0E => {
-            machine.move_immediate_data(Intel8080Register::C, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::C, stream.read_u8().unwrap());
             8u8
         }
         0x0F => {
             machine.rotate_accumulator_right();
             4u8
         }
-        0x10 => match (0x10 as u16) << 8 | read_u8(&mut stream).unwrap() as u16 {
+        0x10 => match (0x10 as u16) << 8 | stream.read_u8().unwrap() as u16 {
             0x1000 => {
                 machine.halt_until_button_press();
                 4u8
@@ -170,8 +172,10 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             v => panic!("Unknown opcode {}", v),
         },
         0x11 => {
-            machine
-                .load_register_pair_immediate(Intel8080Register::D, read_u16(&mut stream).unwrap());
+            machine.load_register_pair_immediate(
+                Intel8080Register::D,
+                stream.read_u16::<LittleEndian>().unwrap(),
+            );
             12u8
         }
         0x12 => {
@@ -191,7 +195,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x16 => {
-            machine.move_immediate_data(Intel8080Register::D, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::D, stream.read_u8().unwrap());
             8u8
         }
         0x17 => {
@@ -199,7 +203,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x18 => {
-            machine.jump_relative(read_u8(&mut stream).unwrap());
+            machine.jump_relative(stream.read_u8().unwrap());
             12u8
         }
         0x19 => {
@@ -223,7 +227,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x1E => {
-            machine.move_immediate_data(Intel8080Register::E, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::E, stream.read_u8().unwrap());
             8u8
         }
         0x1F => {
@@ -231,12 +235,14 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x20 => {
-            machine.jump_relative_if_not_zero(read_u8(&mut stream).unwrap());
+            machine.jump_relative_if_not_zero(stream.read_u8().unwrap());
             8u8
         }
         0x21 => {
-            machine
-                .load_register_pair_immediate(Intel8080Register::H, read_u16(&mut stream).unwrap());
+            machine.load_register_pair_immediate(
+                Intel8080Register::H,
+                stream.read_u16::<LittleEndian>().unwrap(),
+            );
             12u8
         }
         0x22 => {
@@ -256,7 +262,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x26 => {
-            machine.move_immediate_data(Intel8080Register::H, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::H, stream.read_u8().unwrap());
             8u8
         }
         0x27 => {
@@ -264,7 +270,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x28 => {
-            machine.jump_relative_if_zero(read_u8(&mut stream).unwrap());
+            machine.jump_relative_if_zero(stream.read_u8().unwrap());
             8u8
         }
         0x29 => {
@@ -288,7 +294,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x2E => {
-            machine.move_immediate_data(Intel8080Register::L, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::L, stream.read_u8().unwrap());
             8u8
         }
         0x2F => {
@@ -296,13 +302,13 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x30 => {
-            machine.jump_relative_if_no_carry(read_u8(&mut stream).unwrap());
+            machine.jump_relative_if_no_carry(stream.read_u8().unwrap());
             8u8
         }
         0x31 => {
             machine.load_register_pair_immediate(
                 Intel8080Register::SP,
-                read_u16(&mut stream).unwrap(),
+                stream.read_u16::<LittleEndian>().unwrap(),
             );
             12u8
         }
@@ -323,7 +329,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             12u8
         }
         0x36 => {
-            machine.move_immediate_data(Intel8080Register::M, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::M, stream.read_u8().unwrap());
             12u8
         }
         0x37 => {
@@ -331,7 +337,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x38 => {
-            machine.jump_relative_if_carry(read_u8(&mut stream).unwrap());
+            machine.jump_relative_if_carry(stream.read_u8().unwrap());
             8u8
         }
         0x39 => {
@@ -355,7 +361,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0x3E => {
-            machine.move_immediate_data(Intel8080Register::A, read_u8(&mut stream).unwrap());
+            machine.move_immediate_data(Intel8080Register::A, stream.read_u8().unwrap());
             8u8
         }
         0x3F => {
@@ -883,15 +889,15 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             12u8
         }
         0xC2 => {
-            machine.jump_if_not_zero(read_u16(&mut stream).unwrap());
+            machine.jump_if_not_zero(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xC3 => {
-            machine.jump(read_u16(&mut stream).unwrap());
+            machine.jump(stream.read_u16::<LittleEndian>().unwrap());
             16u8
         }
         0xC4 => {
-            machine.call_if_not_zero(read_u16(&mut stream).unwrap());
+            machine.call_if_not_zero(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xC5 => {
@@ -899,7 +905,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xC6 => {
-            machine.add_immediate_to_accumulator(read_u8(&mut stream).unwrap());
+            machine.add_immediate_to_accumulator(stream.read_u8().unwrap());
             8u8
         }
         0xC7 => {
@@ -915,10 +921,10 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xCA => {
-            machine.jump_if_zero(read_u16(&mut stream).unwrap());
+            machine.jump_if_zero(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
-        0xCB => match (0xCB as u16) << 8 | read_u8(&mut stream).unwrap() as u16 {
+        0xCB => match (0xCB as u16) << 8 | stream.read_u8().unwrap() as u16 {
             0xCB00 => {
                 machine.rotate_register_left(Intel8080Register::B);
                 8u8
@@ -1946,15 +1952,15 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             v => panic!("Unknown opcode {}", v),
         },
         0xCC => {
-            machine.call_if_zero(read_u16(&mut stream).unwrap());
+            machine.call_if_zero(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xCD => {
-            machine.call(read_u16(&mut stream).unwrap());
+            machine.call(stream.read_u16::<LittleEndian>().unwrap());
             24u8
         }
         0xCE => {
-            machine.add_immediate_to_accumulator_with_carry(read_u8(&mut stream).unwrap());
+            machine.add_immediate_to_accumulator_with_carry(stream.read_u8().unwrap());
             8u8
         }
         0xCF => {
@@ -1970,11 +1976,11 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             12u8
         }
         0xD2 => {
-            machine.jump_if_no_carry(read_u16(&mut stream).unwrap());
+            machine.jump_if_no_carry(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xD4 => {
-            machine.call_if_no_carry(read_u16(&mut stream).unwrap());
+            machine.call_if_no_carry(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xD5 => {
@@ -1982,7 +1988,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xD6 => {
-            machine.subtract_immediate_from_accumulator(read_u8(&mut stream).unwrap());
+            machine.subtract_immediate_from_accumulator(stream.read_u8().unwrap());
             8u8
         }
         0xD7 => {
@@ -1998,15 +2004,15 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xDA => {
-            machine.jump_if_carry(read_u16(&mut stream).unwrap());
+            machine.jump_if_carry(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xDC => {
-            machine.call_if_carry(read_u16(&mut stream).unwrap());
+            machine.call_if_carry(stream.read_u16::<LittleEndian>().unwrap());
             12u8
         }
         0xDE => {
-            machine.subtract_immediate_from_accumulator_with_borrow(read_u8(&mut stream).unwrap());
+            machine.subtract_immediate_from_accumulator_with_borrow(stream.read_u8().unwrap());
             8u8
         }
         0xDF => {
@@ -2014,7 +2020,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xE0 => {
-            machine.store_accumulator_direct_one_byte(read_u8(&mut stream).unwrap());
+            machine.store_accumulator_direct_one_byte(stream.read_u8().unwrap());
             12u8
         }
         0xE1 => {
@@ -2030,7 +2036,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xE6 => {
-            machine.and_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.and_immediate_with_accumulator(stream.read_u8().unwrap());
             8u8
         }
         0xE7 => {
@@ -2038,7 +2044,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xE8 => {
-            machine.add_immediate_to_sp(read_u8(&mut stream).unwrap());
+            machine.add_immediate_to_sp(stream.read_u8().unwrap());
             16u8
         }
         0xE9 => {
@@ -2046,11 +2052,11 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0xEA => {
-            machine.store_accumulator_direct(read_u16(&mut stream).unwrap());
+            machine.store_accumulator_direct(stream.read_u16::<LittleEndian>().unwrap());
             16u8
         }
         0xEE => {
-            machine.exclusive_or_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.exclusive_or_immediate_with_accumulator(stream.read_u8().unwrap());
             8u8
         }
         0xEF => {
@@ -2058,7 +2064,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xF0 => {
-            machine.load_accumulator_direct_one_byte(read_u8(&mut stream).unwrap());
+            machine.load_accumulator_direct_one_byte(stream.read_u8().unwrap());
             12u8
         }
         0xF1 => {
@@ -2078,7 +2084,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xF6 => {
-            machine.or_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.or_immediate_with_accumulator(stream.read_u8().unwrap());
             8u8
         }
         0xF7 => {
@@ -2086,7 +2092,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             16u8
         }
         0xF8 => {
-            machine.store_sp_plus_immediate(read_u8(&mut stream).unwrap());
+            machine.store_sp_plus_immediate(stream.read_u8().unwrap());
             12u8
         }
         0xF9 => {
@@ -2094,7 +2100,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             8u8
         }
         0xFA => {
-            machine.load_accumulator_direct(read_u16(&mut stream).unwrap());
+            machine.load_accumulator_direct(stream.read_u16::<LittleEndian>().unwrap());
             16u8
         }
         0xFB => {
@@ -2102,7 +2108,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
             4u8
         }
         0xFE => {
-            machine.compare_immediate_with_accumulator(read_u8(&mut stream).unwrap());
+            machine.compare_immediate_with_accumulator(stream.read_u8().unwrap());
             8u8
         }
         0xFF => {
@@ -2113,7 +2119,7 @@ pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
     }
 }
 pub fn get_lr35902_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
-    let (mut instr, size) = match read_u8(&mut stream).unwrap() {
+    let (mut instr, size) = match stream.read_u8().unwrap() {
         0x00 => (vec![0x00], 1u8),
         0x01 => (vec![0x01], 3u8),
         0x02 => (vec![0x02], 1u8),
@@ -2131,7 +2137,7 @@ pub fn get_lr35902_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
         0x0E => (vec![0x0E], 2u8),
         0x0F => (vec![0x0F], 1u8),
         0x10 => match (0x10 as u16) << 8
-            | match read_u8(&mut stream) {
+            | match stream.read_u8() {
                 Ok(x) => x,
                 _ => return None,
             } as u16
@@ -2326,7 +2332,7 @@ pub fn get_lr35902_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
         0xC9 => (vec![0xC9], 1u8),
         0xCA => (vec![0xCA], 3u8),
         0xCB => match (0xCB as u16) << 8
-            | match read_u8(&mut stream) {
+            | match stream.read_u8() {
                 Ok(x) => x,
                 _ => return None,
             } as u16
