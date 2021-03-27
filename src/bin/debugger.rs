@@ -8,9 +8,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
-use nix::sys::signal;
-
 #[path = "../bin_common/mod.rs"]
 mod bin_common;
 
@@ -48,22 +45,11 @@ impl bin_common::frontend::Frontend for Frontend {
     }
 }
 
-#[cfg(any(target_os = "linux", target_os = "macos"))]
 fn set_up_signal_handler() {
-    extern "C" fn handle_sigint(_: i32) {
-        INTERRUPTED.store(true, Ordering::Relaxed)
-    }
-
-    let sig_action = signal::SigAction::new(
-        signal::SigHandler::Handler(handle_sigint),
-        signal::SaFlags::empty(),
-        signal::SigSet::empty(),
-    );
-    unsafe { signal::sigaction(signal::SIGINT, &sig_action) }.unwrap();
+    ctrlc::set_handler(move || INTERRUPTED.store(true, Ordering::Relaxed)).unwrap();
 }
 
 fn main() -> Result<()> {
-    #[cfg(any(target_os = "linux", target_os = "macos"))]
     set_up_signal_handler();
 
     let options = Options::from_args();
