@@ -93,20 +93,47 @@ impl DmaRegister {
 
 #[derive(Default, Serialize, Deserialize)]
 pub struct LcdControllerRegisters {
+    /// The LCDC (LCD control) register.
     pub lcdc: GameBoyFlags<LcdControlFlag>,
+
+    /// The LCD status register.
     pub stat: GameBoyFlags<LcdStatusFlag>,
+
+    /// SCY (scroll Y) register. Specifies the position of the visible portion of the background.
     pub scy: GameBoyRegister,
+
+    /// SCX (scroll X) register. Specifies the position of the visible portion of the background.
     pub scx: GameBoyRegister,
+
+    /// The LY register. This is the horizontal line currently being drawn.
     pub ly: GameBoyRegister,
+
+    /// LY compare register. Can be used by programs to be notified or detect when a certain
+    /// horizontal line is being drawn.
     pub lyc: GameBoyRegister,
+
+    /// DMA (direct memory access) transfer register. Can be used by programs to do bulk transfers
+    /// of memory.
     pub dma: DmaRegister,
+
+    /// BGP (background palette) register. The palette for background tiles.
     pub bgp: GameBoyFlags<LcdColor>,
+
+    /// OBP0 (object palette) register. First palette for objects (sprites).
     pub obp0: GameBoyFlags<LcdColor>,
+
+    /// OBP1 (object palette) register. Second palette for objects (sprites).
     pub obp1: GameBoyFlags<LcdColor>,
+
+    /// WY (window Y) register. The Y position of the window.
     pub wy: GameBoyRegister,
+
+    /// WX (window X) reigster. The X position of the window.
     pub wx: GameBoyRegister,
 }
 
+/// Tiles and objects (sprites) pixels are described using these values. The actual color they
+/// represent depends on the palette.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum LcdColor {
     Color3 = 0b11000000,
@@ -121,6 +148,7 @@ impl FlagMask for LcdColor {
     }
 }
 
+/// These are the 4 shades that the Game Boy (DMG) screen is capable of displaying.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum LcdShade {
     Shade0 = 0x0,
@@ -138,15 +166,35 @@ fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
     }
 }
 
+/// This is a mask for the LCDC (LCD control) register.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LcdControlFlag {
+    /// Controls whether the LCD is on and the PPU is running.
     DisplayOn = 0b10000000,
+
+    /// Controls which background display data the window is using.
+    /// (0 = BACKGROUND_DISPLAY_DATA_1, 1 = BACKGROUND_DISPLAY_DATA_2)
     WindowCodeAreaSelection = 0b01000000,
+
+    /// Controls whether the window is displayed or not.
     WindowingOn = 0b00100000,
+
+    /// Controls what character data the background and window use.
+    /// (0 = CHARACTER_DATA_2, 1 = CHARACTER_DATA_1)
     BGCharacterDataSelection = 0b00010000,
+
+    /// Controls which background display data the background is using.
+    /// (0 = BACKGROUND_DISPLAY_DATA_1, 1 = BACKGROUND_DISPLAY_DATA_2)
     BGCodeAreaSelection = 0b00001000,
+
+    /// This controls the size of objects (sprites).
+    /// (0 = 2 * CHARACTER_SIZE (16), 1 = CHARACTER_SIZE (8))
     ObjectBlockCompositionSelection = 0b00000100,
+
+    /// This controls whether the objects (sprites) are visible. (0 = not visible, 1 = visible)
     ObjectOn = 0b00000010,
+
+    /// This controls whether the background is visible. (0 = not visible, 1 = visible)
     BGDisplayOn = 0b00000001,
 }
 
@@ -158,11 +206,22 @@ impl FlagMask for LcdControlFlag {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LcdStatusFlag {
+    /// Enable interrupt when LCY == LY. (0 = disable, 1 = enable)
     InterruptLYMatching = 0b01000000,
+
+    /// Enable interrupt when mode 2 happens. (0 = disable, 1 = enable)
     InterruptMode10 = 0b00100000,
+
+    /// Enable interrupt when mode 1 happens. (0 = disable, 1 = enable)
     InterruptMode01 = 0b00010000,
+
+    /// Enable interrupt when mode 0 happens. (0 = disable, 1 = enable)
     InterruptMode00 = 0b00001000,
+
+    /// 1 when LYC == LY. 0 otherwise
     LYMatch = 0b00000100,
+
+    /// The current mode (operation state) of the LCD.
     Mode = 0b00000011,
 }
 
@@ -234,6 +293,7 @@ impl From<InterruptFlag> for InterruptEnableFlag {
     }
 }
 
+/// This represents an object (sprite).
 #[derive(Debug, Clone, Copy, PartialEq)]
 struct LcdObject {
     y: i32,
@@ -242,11 +302,20 @@ struct LcdObject {
     flags: u8,
 }
 
+/// Mask for LcdObject flags.
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum LcdObjectAttributeFlag {
+    /// Controls whether the object is displayed in front or behind the background and window.
+    /// (0 = in front, 1 = behind)
     DisplayPriority = 0b10000000,
+
+    /// Flips the object vertically. (0 = no flip, 1 = flip)
     VerticalFlip = 0b01000000,
-    HorizantalFlip = 0b00100000,
+
+    /// Flips the object horizontally. (0 = no flip, 1 = flip)
+    HorizontalFlip = 0b00100000,
+
+    /// The palette to be used.
     Palette = 0b00010000,
 }
 
@@ -316,7 +385,7 @@ impl LcdObject {
         }
 
         let vertical_flip = self.read_flag(LcdObjectAttributeFlag::VerticalFlip);
-        let horizantal_flip = self.read_flag(LcdObjectAttributeFlag::HorizantalFlip);
+        let horizantal_flip = self.read_flag(LcdObjectAttributeFlag::HorizontalFlip);
         let (y, character_code) =
             self.get_character_data_for_line(line, object_block_composition_selection);
 
