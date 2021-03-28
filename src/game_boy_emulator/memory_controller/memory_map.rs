@@ -212,6 +212,9 @@ impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor for GameBoy
         } else if address == 65344u16 {
             self.lcd_controller_registers_lcdc
                 .set_value(address - 65344u16, value)
+        } else if address == 65345u16 {
+            self.lcd_controller_registers_stat
+                .set_value(address - 65345u16, value)
         } else if address == 65346u16 {
             self.lcd_controller_registers_scy
                 .set_value(address - 65346u16, value)

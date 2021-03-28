@@ -1,15 +1,16 @@
-use std::io::{self, Result};
-use std::{fmt, str};
-
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::game_pak::GamePak;
+use crate::game_boy_emulator::joypad::PlainJoyPad;
 use crate::game_boy_emulator::lcd_controller::{LcdControlFlag, LcdController, LcdStatusFlag};
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use crate::game_boy_emulator::GameBoyEmulator;
+use crate::game_boy_emulator::{GameBoyEmulator, Underclocker};
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
+use std::io::{self, Result};
+use std::time::{Duration, Instant};
+use std::{fmt, str};
 
 impl fmt::Debug for GameBoyEmulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -24,13 +25,19 @@ impl fmt::Debug for GameBoyEmulator {
 struct GameBoyDebugger<'a, R> {
     emulator: GameBoyEmulator,
     renderer: &'a mut R,
+    underclocker: Underclocker,
+    input_poll: Instant,
 }
 
 impl<'a, R: Renderer> GameBoyDebugger<'a, R> {
     fn new(renderer: &'a mut R) -> Self {
+        let emulator = GameBoyEmulator::new();
+        let underclocker = Underclocker::new(emulator.cpu.elapsed_cycles);
         Self {
-            emulator: GameBoyEmulator::new(),
+            emulator,
             renderer,
+            underclocker,
+            input_poll: Instant::now(),
         }
     }
 }
@@ -47,6 +54,14 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
 
     fn next(&mut self) {
         self.emulator.tick(self.renderer);
+        self.underclocker.underclock(
+            self.emulator.cpu.elapsed_cycles,
+            self.emulator.clock_speed_hz,
+        );
+        if self.input_poll.elapsed() > Duration::from_millis(10) {
+            self.emulator.read_key_events(self.renderer).unwrap();
+            self.input_poll = Instant::now();
+        }
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
@@ -167,6 +182,9 @@ pub fn run_debugger<R: Renderer>(
 ) {
     let mut gameboy_debugger = GameBoyDebugger::new(renderer);
     gameboy_debugger.emulator.load_game_pak(game_pak);
+    gameboy_debugger
+        .emulator
+        .plug_in_joy_pad(PlainJoyPad::new());
 
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();

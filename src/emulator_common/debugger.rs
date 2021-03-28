@@ -124,7 +124,10 @@ impl<'a> Debugger<'a> {
         return true;
     }
 
-    fn check_for_breakpoint_crash_or_interrupt(&mut self, is_interrupted: &dyn Fn() -> bool) -> bool {
+    fn check_for_breakpoint_crash_or_interrupt(
+        &mut self,
+        is_interrupted: &dyn Fn() -> bool,
+    ) -> bool {
         if self.emulator.crashed().is_some() {
             writeln!(
                 self.out,

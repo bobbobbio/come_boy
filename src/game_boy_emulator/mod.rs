@@ -20,6 +20,7 @@ use std::io::{Read, Write};
 use std::mem;
 use std::ops::Range;
 use std::path::Path;
+use std::time::{Duration, Instant};
 
 pub use self::debugger::run_debugger;
 pub use self::disassembler::disassemble_game_boy_rom;
@@ -41,6 +42,40 @@ mod joypad;
 mod lcd_controller;
 mod sound_controller;
 mod tandem;
+
+struct Underclocker {
+    last_cycles: u64,
+    last_instant: Instant,
+}
+
+impl Underclocker {
+    fn new(now: u64) -> Self {
+        Self {
+            last_cycles: now,
+            last_instant: Instant::now(),
+        }
+    }
+
+    fn underclock(&mut self, now: u64, speed: u32) {
+        let elapsed_cycles = now - self.last_cycles;
+
+        // We can't sleep every tick, so just do it every so often.
+        if elapsed_cycles < 100_000 {
+            return;
+        }
+
+        let delay = Duration::from_secs(1) / speed;
+        let expected_time = (elapsed_cycles as u32) * delay;
+
+        // If we didn't take long enough, sleep the difference.
+        if let Some(sleep_time) = expected_time.checked_sub(self.last_instant.elapsed()) {
+            std::thread::sleep(sleep_time);
+        }
+
+        self.last_cycles = now;
+        self.last_instant = std::time::Instant::now();
+    }
+}
 
 #[derive(Debug, Copy, Clone)]
 enum UserControl {
@@ -458,29 +493,17 @@ impl GameBoyEmulator {
     }
 
     fn run_inner<R: Renderer>(&mut self, renderer: &mut R) -> std::result::Result<(), UserControl> {
-        let mut last_cycles = self.cpu.elapsed_cycles;
-        let mut last_instant = std::time::Instant::now();
+        let mut input_poll = Instant::now();
+        let mut underlocker = Underclocker::new(self.cpu.elapsed_cycles);
 
         while self.crashed().is_none() {
             self.tick(renderer);
+            underlocker.underclock(self.cpu.elapsed_cycles, self.clock_speed_hz);
 
-            let elapsed_cycles = self.cpu.elapsed_cycles - last_cycles;
-
-            // We can't sleep and poll events every tick, so just do it every so often.
-            if elapsed_cycles > 100_000 {
-                let delay = std::time::Duration::from_secs(1) / self.clock_speed_hz;
-                let expected_time = (elapsed_cycles as u32) * delay;
-
-                // If we didn't take long enough, sleep the difference.
-                if let Some(sleep_time) = expected_time.checked_sub(last_instant.elapsed()) {
-                    std::thread::sleep(sleep_time);
-                }
-
-                last_cycles = self.cpu.elapsed_cycles;
-                last_instant = std::time::Instant::now();
-
-                // Read events from renderer
+            // Only get input every 10 milliseconds
+            if input_poll.elapsed() > Duration::from_millis(10) {
                 self.read_key_events(renderer)?;
+                input_poll = Instant::now();
             }
         }
 
