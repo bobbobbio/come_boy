@@ -129,7 +129,11 @@ enum TimerFlags {
 }
 
 impl FlagMask for TimerFlags {
-    fn mask() -> u8 {
+    fn read_mask() -> u8 {
+        TimerFlags::Enabled as u8 | TimerFlags::Speed as u8
+    }
+
+    fn write_mask() -> u8 {
         TimerFlags::Enabled as u8 | TimerFlags::Speed as u8
     }
 }
@@ -198,7 +202,6 @@ impl GameBoyTimer {
 enum GameBoyEmulatorEvent {
     DividerTick,
     DriveJoypad,
-    UnknownEvent,
 }
 
 impl GameBoyEmulatorEvent {
@@ -206,7 +209,6 @@ impl GameBoyEmulatorEvent {
         match self {
             Self::DividerTick => emulator.divider_tick(time),
             Self::DriveJoypad => emulator.drive_joypad(time),
-            Self::UnknownEvent => emulator.unknown_event(time),
         }
     }
 }
@@ -259,11 +261,6 @@ impl GameBoyEmulator {
         e.set_state_post_bios();
         e.schedule_initial_events();
         e
-    }
-
-    fn unknown_event(&mut self, _time: u64) {
-        let value = self.registers.interrupt_flag.read_value();
-        self.registers.interrupt_flag.set_value(value | 0xE0);
     }
 
     fn plug_in_joy_pad<J: JoyPad + 'static>(&mut self, joypad: J) {
@@ -453,8 +450,6 @@ impl GameBoyEmulator {
         let now = self.cpu.elapsed_cycles;
         self.scheduler
             .schedule(now + 52, GameBoyEmulatorEvent::DividerTick);
-        self.scheduler
-            .schedule(now + 98584, GameBoyEmulatorEvent::UnknownEvent);
         self.scheduler
             .schedule(now + 456, GameBoyEmulatorEvent::DriveJoypad);
 

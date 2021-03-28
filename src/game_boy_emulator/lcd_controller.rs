@@ -203,7 +203,11 @@ pub enum LcdColor {
 }
 
 impl FlagMask for LcdColor {
-    fn mask() -> u8 {
+    fn read_mask() -> u8 {
+        0xFF
+    }
+
+    fn write_mask() -> u8 {
         0xFF
     }
 }
@@ -259,7 +263,11 @@ pub enum LcdControlFlag {
 }
 
 impl FlagMask for LcdControlFlag {
-    fn mask() -> u8 {
+    fn read_mask() -> u8 {
+        0xFF
+    }
+
+    fn write_mask() -> u8 {
         0xFF
     }
 }
@@ -287,8 +295,20 @@ pub enum LcdStatusFlag {
 }
 
 impl FlagMask for LcdStatusFlag {
-    fn mask() -> u8 {
-        0x7F
+    fn read_mask() -> u8 {
+        Self::InterruptLYMatching as u8
+            | Self::InterruptMode10 as u8
+            | Self::InterruptMode01 as u8
+            | Self::InterruptMode00 as u8
+            | Self::LYMatch as u8
+            | Self::Mode as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::InterruptLYMatching as u8
+            | Self::InterruptMode10 as u8
+            | Self::InterruptMode01 as u8
+            | Self::InterruptMode00 as u8
     }
 }
 
@@ -305,7 +325,15 @@ pub enum InterruptFlag {
 }
 
 impl FlagMask for InterruptFlag {
-    fn mask() -> u8 {
+    fn read_mask() -> u8 {
+        InterruptFlag::VerticalBlanking as u8
+            | InterruptFlag::LCDSTAT as u8
+            | InterruptFlag::Timer as u8
+            | InterruptFlag::Serial as u8
+            | InterruptFlag::Joypad as u8
+    }
+
+    fn write_mask() -> u8 {
         InterruptFlag::VerticalBlanking as u8
             | InterruptFlag::LCDSTAT as u8
             | InterruptFlag::Timer as u8
@@ -332,14 +360,16 @@ pub enum InterruptEnableFlag {
     VerticalBlanking = 0b00000001,
     LCDSTAT = 0b00000010,
     Timer = 0b00000100,
-    #[allow(dead_code)]
     Serial = 0b00001000,
-    #[allow(dead_code)]
     Joypad = 0b00010000,
 }
 
 impl FlagMask for InterruptEnableFlag {
-    fn mask() -> u8 {
+    fn read_mask() -> u8 {
+        0xFF
+    }
+
+    fn write_mask() -> u8 {
         0xFF
     }
 }
@@ -382,7 +412,11 @@ enum LcdObjectAttributeFlag {
 }
 
 impl FlagMask for LcdObjectAttributeFlag {
-    fn mask() -> u8 {
+    fn read_mask() -> u8 {
+        0xFF
+    }
+
+    fn write_mask() -> u8 {
         0xFF
     }
 }
