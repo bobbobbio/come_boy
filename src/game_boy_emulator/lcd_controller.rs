@@ -10,6 +10,9 @@ use serde_derive::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
 
+const SCREEN_WIDTH: i32 = 160;
+const SCREEN_HEIGHT: i32 = 144;
+
 const CHARACTER_SIZE: i32 = 8;
 
 const CHARACTER_AREA_SIZE: u16 = 32;
@@ -364,7 +367,7 @@ impl<'a> LCDDotData<'a> {
         palette: &GameBoyFlags<LCDColor>,
     ) {
         assert!(ly >= y && ly < y + CHARACTER_SIZE);
-        assert!(ly < 144, "drawing ly = {}", ly);
+        assert!((ly as i32) < SCREEN_HEIGHT, "drawing ly = {}", ly);
 
         let target_line = if vertical_flip {
             y + CHARACTER_SIZE - 1 - ly
@@ -380,7 +383,7 @@ impl<'a> LCDDotData<'a> {
             if horizantal_flip {
                 offset_x = CHARACTER_SIZE as usize - offset_x - 1;
             }
-            if x + offset_x as i32 >= 160 {
+            if x + offset_x as i32 >= SCREEN_WIDTH {
                 break;
             }
             if color != LCDColor::Color0 || !enable_transparency {
@@ -618,7 +621,7 @@ impl LCDController {
                 full_xes.iter().take(1)
             };
             for &ix in xes {
-                if (ix >= 0 || ix + CHARACTER_SIZE >= 0) && ix < 160 {
+                if (ix >= 0 || ix + CHARACTER_SIZE >= 0) && ix < SCREEN_WIDTH {
                     character_data.draw_line(
                         renderer,
                         ix,
@@ -702,7 +705,7 @@ impl LCDController {
     fn clear_line<R: Renderer>(&mut self, renderer: &mut R) {
         let ly = self.registers.ly.read_value();
 
-        for x in 0..160 {
+        for x in 0..SCREEN_WIDTH {
             renderer.color_pixel(x, ly as i32, color_for_shade::<R>(LCDShade::Shade0));
         }
     }
@@ -751,7 +754,7 @@ impl LCDController {
 
     fn mode_3<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         let ly = self.registers.ly.read_value();
-        assert!(ly < 144, "drawing ly = {}", ly);
+        assert!((ly as i32) < SCREEN_HEIGHT, "drawing ly = {}", ly);
         assert!(self.enabled);
 
         self.character_data.borrow();
@@ -799,7 +802,9 @@ impl LCDController {
         self.scheduler
             .schedule(time + 456, LCDControllerEvent::AdvanceLy);
 
-        if self.registers.ly.read_value() < 144 && self.registers.ly.read_value() > 0 {
+        if (self.registers.ly.read_value() as i32) < SCREEN_HEIGHT
+            && self.registers.ly.read_value() > 0
+        {
             self.oam_data.borrow();
             self.unusable_memory.borrow();
         }
