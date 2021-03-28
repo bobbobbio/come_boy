@@ -8,7 +8,11 @@ Currently in a pre-release state.  Runs some games, but many others do not work.
 
 ![tetris](/test/expectations/tetris/10000000.bmp?raw=true "Tetris")
 
-![kirby](/test/expectations/kirby_dream_land/50000000_replay1.bmp?raw=true "Tetris")
+![kirby](/test/expectations/kirby_dream_land/50000000_replay1.bmp?raw=true "Kirby")
+
+![zelda](/test/expectations/zelda/200000000_replay1.bmp?raw=true "Zelda")
+
+![pokemon_red](/test/expectations/pokemon_red/100000000.bmp?raw=true "Pokemon Red")
 
 # Building
 Build like as follows.
