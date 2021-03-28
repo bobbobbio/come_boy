@@ -357,12 +357,11 @@ impl From<InterruptFlag> for InterruptEnableFlag {
 }
 
 /// This represents an object (sprite).
-#[derive(Debug, Clone, Copy, PartialEq)]
 struct LcdObject {
     y: i32,
     x: i32,
     character_code: u8,
-    flags: u8,
+    flags: GameBoyFlags<LcdObjectAttributeFlag>,
 }
 
 /// Mask for LcdObject flags.
@@ -382,6 +381,12 @@ enum LcdObjectAttributeFlag {
     Palette = 0b00010000,
 }
 
+impl FlagMask for LcdObjectAttributeFlag {
+    fn mask() -> u8 {
+        0xFF
+    }
+}
+
 from_u8!(
     InterruptEnableFlag,
     InterruptFlag,
@@ -393,7 +398,7 @@ from_u8!(
 
 impl LcdObject {
     fn read_flag(&self, flag: LcdObjectAttributeFlag) -> bool {
-        self.flags & flag as u8 == flag as u8
+        self.flags.read_flag(flag)
     }
 
     /// Returns tuple (y position, character code)
@@ -477,13 +482,18 @@ impl<'a> Iterator for LcdObjectIterator<'a> {
         if self.chunk_iterator.peek() == None {
             return None;
         } else {
-            let lcd_object = LcdObject {
-                y: *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE * 2,
-                x: *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE,
-                character_code: *self.chunk_iterator.next().unwrap(),
-                flags: *self.chunk_iterator.next().unwrap(),
-            };
-            return Some(lcd_object);
+            let y = *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE * 2;
+            let x = *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE;
+            let character_code = *self.chunk_iterator.next().unwrap();
+            let mut flags = GameBoyFlags::new();
+            flags.set_value(*self.chunk_iterator.next().unwrap());
+
+            Some(LcdObject {
+                x,
+                y,
+                character_code,
+                flags,
+            })
         }
     }
 }
