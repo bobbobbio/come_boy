@@ -84,7 +84,7 @@
     },
     "0xFF41": {
         "field": "lcd_controller.registers.stat",
-        "mapping_type": "Read"
+        "mapping_type": "ReadWrite"
     },
     "0xFF42": {
         "field": "lcd_controller.registers.scy",
