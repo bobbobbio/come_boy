@@ -300,6 +300,38 @@ impl LcdObject {
             (self.y, self.character_code)
         }
     }
+
+    fn draw_line<R: Renderer>(
+        &self,
+        renderer: &mut R,
+        priority: ObjectPriority,
+        character_data: &MemoryChunk,
+        palette: &GameBoyFlags<LcdColor>,
+        object_block_composition_selection: bool,
+        line: i32,
+    ) {
+        let low_priority = self.read_flag(LcdObjectAttributeFlag::DisplayPriority);
+        if (priority == ObjectPriority::Background) != low_priority {
+            return;
+        }
+
+        let vertical_flip = self.read_flag(LcdObjectAttributeFlag::VerticalFlip);
+        let horizantal_flip = self.read_flag(LcdObjectAttributeFlag::HorizantalFlip);
+        let (y, character_code) =
+            self.get_character_data_for_line(line, object_block_composition_selection);
+
+        let character_data = LcdController::read_dot_data(character_data, true, character_code);
+        character_data.draw_line(
+            renderer,
+            self.x,
+            y,
+            line,
+            vertical_flip,
+            horizantal_flip,
+            true,
+            palette,
+        );
+    }
 }
 
 struct LcdObjectIterator<'a> {
@@ -401,7 +433,7 @@ impl<'a> LcdDotData<'a> {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ObjectPriority {
     Background,
     Foreground,
@@ -666,30 +698,17 @@ impl LcdController {
             .sort_by(|a, b| b.x.partial_cmp(&a.x).unwrap());
 
         for object in &self.object_buffer {
-            let low_priority = object.read_flag(LcdObjectAttributeFlag::DisplayPriority);
-            if (priority == ObjectPriority::Background) != low_priority {
-                continue;
-            }
-
-            let vertical_flip = object.read_flag(LcdObjectAttributeFlag::VerticalFlip);
-            let horizantal_flip = object.read_flag(LcdObjectAttributeFlag::HorizantalFlip);
-            let (y, character_code) =
-                object.get_character_data_for_line(ly, object_block_composition_selection);
             let palette = match object.read_flag(LcdObjectAttributeFlag::Palette) {
                 false => &self.registers.obp0,
                 true => &self.registers.obp1,
             };
-
-            let character_data = Self::read_dot_data(&self.character_data, true, character_code);
-            character_data.draw_line(
+            object.draw_line(
                 renderer,
-                object.x,
-                y,
-                ly,
-                vertical_flip,
-                horizantal_flip,
-                true,
+                priority,
+                &self.character_data,
                 palette,
+                object_block_composition_selection,
+                ly,
             );
         }
     }
