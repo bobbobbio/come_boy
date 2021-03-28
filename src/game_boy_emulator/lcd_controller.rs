@@ -47,7 +47,6 @@
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
-use crate::game_boy_emulator::Result;
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
 use serde_derive::{Deserialize, Serialize};
@@ -1031,15 +1030,6 @@ impl LcdController {
                 self.disable();
             }
         }
-    }
-
-    pub fn save_screenshot<R: Renderer, P: AsRef<std::path::Path>>(
-        &self,
-        renderer: &mut R,
-        path: P,
-    ) -> Result<()> {
-        renderer.save_buffer(path)?;
-        Ok(())
     }
 
     /// Should be called periodically to drive the emulator.

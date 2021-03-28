@@ -460,15 +460,6 @@ impl GameBoyEmulator {
         self.timer.schedule_initial_events(now);
     }
 
-    pub fn save_screenshot<R: Renderer, P: AsRef<std::path::Path>>(
-        &self,
-        renderer: &mut R,
-        path: P,
-    ) -> Result<()> {
-        self.lcd_controller.save_screenshot(renderer, path)?;
-        Ok(())
-    }
-
     fn run_inner<R: Renderer>(
         &mut self,
         renderer: &mut R,
@@ -701,7 +692,7 @@ fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: A
     }
     let ticks = e.cpu.elapsed_cycles + ticks;
     run_emulator_until(&mut e, renderer, ticks);
-    e.save_screenshot(renderer, output_path).unwrap();
+    renderer.save_buffer(output_path).unwrap();
 }
 
 pub fn run_until_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P2: AsRef<Path>>(
@@ -761,7 +752,7 @@ fn run_until_and_save_reload_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P
 
     // Run it the rest of the time
     run_emulator_until(&mut e, renderer, final_ticks);
-    e.save_screenshot(renderer, output_path).unwrap();
+    renderer.save_buffer(output_path).unwrap();
 
     Ok(())
 }
