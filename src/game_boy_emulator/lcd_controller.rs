@@ -1,5 +1,49 @@
 // Copyright 2018 Remi Bernotavicius
 
+//! This module contains an emulator for the LCD and PPU of the Game Boy.
+//!
+//! The LCD Controller draws a picture on the screen. It gets its data about what to draw from
+//! several memory-mapped chunks of data. The program writes to those sections of memory (but only
+//! when the LCD Controller isn't using it).
+//!
+//! The LCD Controller runs in a loop drawing the screen one horizontal line at a time. When it is
+//! actively drawing a line, its sections of memory are not available to the program. The program
+//! can only access the data during designated times. These times are known as the horizontal
+//! blanking period and the vertical blanking period.
+//!
+//! The LCD Controller denotes the various periods of time interesting to the program as "modes".
+//!
+//! - Mode 0: Horizontal blanking period
+//! - Mode 1: Vertical blanking period
+//! - Mode 2: Reading OAM period
+//! - Mode 3: Drawing
+//!
+//! It loops through Mode 2, Mode 3, Mode 0 for each horizontal line, and then it goes to Mode 1
+//! before going back to Mode 2 repeating the cycle. Most programs will want to do their work
+//! updating the data the LCD Controller reads during Mode 1, which is the longest mode.
+//!
+//! Here is a list of various terms used throughout.
+//!
+//! - LCD: Liquid Crystal Display; This is the type of display in the Game Boy.
+//! - Background: This is layer displayed on the screen consisting of an 2D array of tiles. It can
+//!               be scrolled using SCX and SCY registers.
+//! - Objects: These are sprites. It consists of 1 or 2 tiles (character data) and can be
+//!            independently placed on the screen.
+//! - Window: This is another layer displayed on the screen usually in front the background and
+//!           sprites. It can be scrolled independently of the background.
+//! - Dot Data: This is just an ordered (by position) array of dots (pixels). Basically a kind of
+//!             bitmap. It describes the color (palette entry) of each pixel.
+//! - Character Data: This is an 8x8 tile used for drawing sprites. It is represented as dot data.
+//! - OAM: Object Attribute Memory; This chunk of memory contains information about objects
+//!        (sprites) like position etc.
+//! - Background Display Data: This chunk of memory contains tiles for the background and window.
+//!                            The tiles are represented as dot data.
+//! - Horizontal Blanking Period: A period of time between when two lines of the screen are being
+//!                               drawn.
+//! - Vertical Blanking Period: A period of time between when the last line of the screen is drawn
+//!                             and the first line of the screen is drawn.
+//!
+
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
@@ -10,43 +54,58 @@ use serde_derive::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
 
+/// The width of the screen in pixels
 const SCREEN_WIDTH: i32 = 160;
+
+/// The height of the screen in pixels
 const SCREEN_HEIGHT: i32 = 144;
 
+/// This is the size (width and height) in pixels of one piece of character data.
 const CHARACTER_SIZE: i32 = 8;
 
+/// Character data in memory (called a character area) is sometimes indexed by coordinates. This is
+/// the width of such a space (in number of character data)
 const CHARACTER_AREA_SIZE: u16 = 32;
 
+/// This is the address range in memory where the character data is stored.
 const CHARACTER_DATA: Range<u16> = Range {
     start: 0x8000,
     end: 0x9800,
 };
 
+/// This range is the first section of character data. These are offsets from the start of
+/// character data section of memory.
 const CHARACTER_DATA_1: Range<u16> = Range {
     start: 0x0,
     end: 0x1000,
 };
 
+/// This range is the second section of character data. These are offsets from the start of
+/// character data section of memory.
 const CHARACTER_DATA_2: Range<u16> = Range {
     start: 0x800,
     end: 0x1800,
 };
 
+/// This is the address range of memory where the first section of background display data is stored.
 const BACKGROUND_DISPLAY_DATA_1: Range<u16> = Range {
     start: 0x9800,
     end: 0x9C00,
 };
 
+/// This is the address range of memory where the second section of background display data is stored.
 const BACKGROUND_DISPLAY_DATA_2: Range<u16> = Range {
     start: 0x9C00,
     end: 0xA000,
 };
 
+/// This is the address range of memory where object attribute data is stored.
 pub const OAM_DATA: Range<u16> = Range {
     start: 0xFE00,
     end: 0xFEA0,
 };
 
+/// This is an address range of memory where an unusable chunk of memory is stored.
 const UNUSABLE_MEMORY: Range<u16> = Range {
     start: 0xFEA0,
     end: 0xFF00,
@@ -55,6 +114,8 @@ const UNUSABLE_MEMORY: Range<u16> = Range {
 /// The maximum number of sprites that can appear on one line
 const LINE_SPRITE_LIMIT: usize = 10;
 
+/// This register is used to control DMA (direct memory access). It allows bulk transfers of
+/// memory.
 #[derive(Default, Serialize, Deserialize)]
 pub struct DmaRegister {
     value: u8,
@@ -204,6 +265,7 @@ impl FlagMask for LcdControlFlag {
     }
 }
 
+/// This is a mask for the STAT register.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum LcdStatusFlag {
     /// Enable interrupt when LCY == LY. (0 = disable, 1 = enable)
@@ -231,6 +293,7 @@ impl FlagMask for LcdStatusFlag {
     }
 }
 
+/// This mask represents the various interrupts the LcdController handles.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InterruptFlag {
     VerticalBlanking = 0b00000001,
@@ -264,6 +327,7 @@ impl From<InterruptEnableFlag> for InterruptFlag {
     }
 }
 
+/// This mask represent the various interrupts that the program can enable.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InterruptEnableFlag {
     VerticalBlanking = 0b00000001,
@@ -433,6 +497,7 @@ impl<'a> LcdObjectIterator<'a> {
     }
 }
 
+/// Dot data is basically just an array of pixels. Character data is comprised of it.
 struct LcdDotData<'a> {
     data: &'a [u8],
 }
@@ -502,12 +567,14 @@ impl<'a> LcdDotData<'a> {
     }
 }
 
+/// Represents which layer we are currently drawing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ObjectPriority {
     Background,
     Foreground,
 }
 
+/// Used with the scheduler to run functions after some amount of time.
 #[derive(Serialize, Deserialize)]
 enum LcdControllerEvent {
     AdvanceLy,
@@ -533,6 +600,7 @@ impl LcdControllerEvent {
     }
 }
 
+/// An emulator for the LCD and PPU of the Game Boy.
 #[derive(Serialize, Deserialize)]
 pub struct LcdController {
     pub crash_message: Option<String>,
@@ -566,12 +634,14 @@ impl LcdController {
         }
     }
 
+    /// Must be called after creation to schedule events needed for proper operation.
     pub fn schedule_initial_events(&mut self, now: u64) {
         self.scheduler.schedule(now + 56, LcdControllerEvent::Mode2);
         self.scheduler
             .schedule(now + 56 + 456, LcdControllerEvent::AdvanceLy);
     }
 
+    /// Must be called periodically so the proper interrupts can be triggered.
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.interrupt_requested {
             interrupt_flag.set_flag(InterruptFlag::VerticalBlanking, true);
@@ -579,6 +649,7 @@ impl LcdController {
         }
     }
 
+    /// Should be called periodically to drive the emulator.
     pub fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
             event.deliver(self, renderer, time);
@@ -602,6 +673,7 @@ impl LcdController {
         }
     }
 
+    /// Resets the state back to what it is when the Game Boy boots
     pub fn set_state_post_bios(&mut self) {
         self.registers
             .lcdc
@@ -782,7 +854,7 @@ impl LcdController {
         }
     }
 
-    pub fn mode_2(&mut self, time: u64) {
+    fn mode_2(&mut self, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x2);
@@ -877,7 +949,7 @@ impl LcdController {
         }
     }
 
-    pub fn advance_ly(&mut self, time: u64) {
+    fn advance_ly(&mut self, time: u64) {
         // This advances the ly register, which represents the horizontal line that is currently
         // being drawn on the LCD.
         self.registers.ly.add(1);
@@ -970,6 +1042,7 @@ impl LcdController {
         Ok(())
     }
 
+    /// Should be called periodically to drive the emulator.
     pub fn tick(&mut self, time: u64) {
         self.check_enabled_state(time);
     }
