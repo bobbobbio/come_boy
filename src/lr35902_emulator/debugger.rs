@@ -11,14 +11,14 @@ use crate::lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSe
 
 struct SimulatedInstructionLR35902<'a, M: MemoryAccessor> {
     emulator: &'a LR35902Emulator,
-    memory_accessor: &'a mut M,
+    memory_accessor: &'a M,
     instruction: &'a mut SimulatedInstruction,
 }
 
 impl<'a, M: MemoryAccessor> SimulatedInstructionLR35902<'a, M> {
     fn new(
         emulator: &'a LR35902Emulator,
-        memory_accessor: &'a mut M,
+        memory_accessor: &'a M,
         instruction: &'a mut SimulatedInstruction,
     ) -> SimulatedInstructionLR35902<'a, M> {
         SimulatedInstructionLR35902 {
@@ -41,7 +41,7 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     }
 
     fn set_memory(&mut self, address: u16, value: u8) {
-        self.memory_accessor.set_memory(address, value);
+        self.instruction.set_memory(address, value);
     }
 
     fn read_memory_u16(&self, address: u16) -> u16 {
@@ -49,7 +49,7 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16) {
-        self.memory_accessor.set_memory(address, (value >> 8) as u8);
+        self.instruction.set_memory(address, (value >> 8) as u8);
         if address != 0xFFFF {
             self.instruction
                 .set_memory(address.wrapping_add(1), value as u8);
