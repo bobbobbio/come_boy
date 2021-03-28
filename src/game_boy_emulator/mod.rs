@@ -3,7 +3,7 @@
 pub use self::game_pak::GamePak;
 use self::joypad::{JoyPad, PlainJoyPad};
 use self::joypad::{PlaybackJoyPad, RecordingJoyPad};
-use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LCDController, OAM_DATA};
+use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LcdController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
 };
@@ -214,7 +214,7 @@ const DEFAULT_CLOCK_SPEED_HZ: u32 = 4_190_000;
 struct GameBoyEmulator {
     cpu: LR35902Emulator,
     sound_controller: SoundController,
-    lcd_controller: LCDController,
+    lcd_controller: LcdController,
     high_ram: MemoryChunk,
     internal_ram_a: MemoryChunk,
     internal_ram_b: MemoryChunk,
@@ -239,7 +239,7 @@ impl GameBoyEmulator {
     fn new() -> Self {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
-            lcd_controller: LCDController::new(),
+            lcd_controller: LcdController::new(),
             sound_controller: Default::default(),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
             internal_ram_a: MemoryChunk::from_range(INTERNAL_RAM_A),

@@ -5,7 +5,7 @@ use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstructi
 use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::game_pak::GamePak;
-use crate::game_boy_emulator::lcd_controller::{LCDControlFlag, LCDController, LCDStatusFlag};
+use crate::game_boy_emulator::lcd_controller::{LcdControlFlag, LcdController, LcdStatusFlag};
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::GameBoyEmulator;
 use crate::lr35902_emulator::debugger::LR35902Debugger;
@@ -81,7 +81,7 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
     }
 }
 
-impl fmt::Debug for LCDController {
+impl fmt::Debug for LcdController {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // XXX: I don't like how this mapping information is repeated here.
         fmt_lcd_register(0xFF40, self.registers.lcdc.read_value(), "LCDC", f)?;
@@ -122,14 +122,14 @@ fn fmt_lcd_register<'a>(
 
 pub fn fmt_lcdc(lcdc: u8, f: &mut fmt::Formatter) -> fmt::Result {
     let all = [
-        LCDControlFlag::DisplayOn,
-        LCDControlFlag::WindowCodeAreaSelection,
-        LCDControlFlag::WindowingOn,
-        LCDControlFlag::BGCharacterDataSelection,
-        LCDControlFlag::BGCodeAreaSelection,
-        LCDControlFlag::ObjectBlockCompositionSelection,
-        LCDControlFlag::ObjectOn,
-        LCDControlFlag::BGDisplayOn,
+        LcdControlFlag::DisplayOn,
+        LcdControlFlag::WindowCodeAreaSelection,
+        LcdControlFlag::WindowingOn,
+        LcdControlFlag::BGCharacterDataSelection,
+        LcdControlFlag::BGCodeAreaSelection,
+        LcdControlFlag::ObjectBlockCompositionSelection,
+        LcdControlFlag::ObjectOn,
+        LcdControlFlag::BGDisplayOn,
     ];
     let mut set = vec![];
 
@@ -143,11 +143,11 @@ pub fn fmt_lcdc(lcdc: u8, f: &mut fmt::Formatter) -> fmt::Result {
 
 pub fn fmt_stat(stat: u8, f: &mut fmt::Formatter) -> fmt::Result {
     let all = [
-        LCDStatusFlag::InterruptLYMatching,
-        LCDStatusFlag::InterruptMode10,
-        LCDStatusFlag::InterruptMode01,
-        LCDStatusFlag::InterruptMode00,
-        LCDStatusFlag::LYMatch,
+        LcdStatusFlag::InterruptLYMatching,
+        LcdStatusFlag::InterruptMode10,
+        LcdStatusFlag::InterruptMode01,
+        LcdStatusFlag::InterruptMode00,
+        LcdStatusFlag::LYMatch,
     ];
     let mut set = vec![];
 

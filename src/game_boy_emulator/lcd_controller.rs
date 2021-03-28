@@ -92,54 +92,54 @@ impl DmaRegister {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct LCDControllerRegisters {
-    pub lcdc: GameBoyFlags<LCDControlFlag>,
-    pub stat: GameBoyFlags<LCDStatusFlag>,
+pub struct LcdControllerRegisters {
+    pub lcdc: GameBoyFlags<LcdControlFlag>,
+    pub stat: GameBoyFlags<LcdStatusFlag>,
     pub scy: GameBoyRegister,
     pub scx: GameBoyRegister,
     pub ly: GameBoyRegister,
     pub lyc: GameBoyRegister,
     pub dma: DmaRegister,
-    pub bgp: GameBoyFlags<LCDColor>,
-    pub obp0: GameBoyFlags<LCDColor>,
-    pub obp1: GameBoyFlags<LCDColor>,
+    pub bgp: GameBoyFlags<LcdColor>,
+    pub obp0: GameBoyFlags<LcdColor>,
+    pub obp1: GameBoyFlags<LcdColor>,
     pub wy: GameBoyRegister,
     pub wx: GameBoyRegister,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub enum LCDColor {
+pub enum LcdColor {
     Color3 = 0b11000000,
     Color2 = 0b00110000,
     Color1 = 0b00001100,
     Color0 = 0b00000011,
 }
 
-impl FlagMask for LCDColor {
+impl FlagMask for LcdColor {
     fn mask() -> u8 {
         0xFF
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum LCDShade {
+enum LcdShade {
     Shade0 = 0x0,
     Shade1 = 0x1,
     Shade2 = 0x2,
     Shade3 = 0x3,
 }
 
-fn color_for_shade<R: Renderer>(shade: LCDShade) -> R::Color {
+fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
     match shade {
-        LCDShade::Shade0 => R::Color::new(0xe0, 0xf8, 0xd0),
-        LCDShade::Shade1 => R::Color::new(0x88, 0xc0, 0x70),
-        LCDShade::Shade2 => R::Color::new(0x34, 0x68, 0x56),
-        LCDShade::Shade3 => R::Color::new(0x08, 0x18, 0x20),
+        LcdShade::Shade0 => R::Color::new(0xe0, 0xf8, 0xd0),
+        LcdShade::Shade1 => R::Color::new(0x88, 0xc0, 0x70),
+        LcdShade::Shade2 => R::Color::new(0x34, 0x68, 0x56),
+        LcdShade::Shade3 => R::Color::new(0x08, 0x18, 0x20),
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum LCDControlFlag {
+pub enum LcdControlFlag {
     DisplayOn = 0b10000000,
     WindowCodeAreaSelection = 0b01000000,
     WindowingOn = 0b00100000,
@@ -150,14 +150,14 @@ pub enum LCDControlFlag {
     BGDisplayOn = 0b00000001,
 }
 
-impl FlagMask for LCDControlFlag {
+impl FlagMask for LcdControlFlag {
     fn mask() -> u8 {
         0xFF
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub enum LCDStatusFlag {
+pub enum LcdStatusFlag {
     InterruptLYMatching = 0b01000000,
     InterruptMode10 = 0b00100000,
     InterruptMode01 = 0b00010000,
@@ -166,7 +166,7 @@ pub enum LCDStatusFlag {
     Mode = 0b00000011,
 }
 
-impl FlagMask for LCDStatusFlag {
+impl FlagMask for LcdStatusFlag {
     fn mask() -> u8 {
         0x7F
     }
@@ -235,7 +235,7 @@ impl From<InterruptFlag> for InterruptEnableFlag {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-struct LCDObject {
+struct LcdObject {
     y: i32,
     x: i32,
     character_code: u8,
@@ -243,7 +243,7 @@ struct LCDObject {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum LCDObjectAttributeFlag {
+enum LcdObjectAttributeFlag {
     DisplayPriority = 0b10000000,
     VerticalFlip = 0b01000000,
     HorizantalFlip = 0b00100000,
@@ -253,14 +253,14 @@ enum LCDObjectAttributeFlag {
 from_u8!(
     InterruptEnableFlag,
     InterruptFlag,
-    LCDControlFlag,
-    LCDObjectAttributeFlag,
-    LCDColor,
-    LCDStatusFlag
+    LcdControlFlag,
+    LcdObjectAttributeFlag,
+    LcdColor,
+    LcdStatusFlag
 );
 
-impl LCDObject {
-    fn read_flag(&self, flag: LCDObjectAttributeFlag) -> bool {
+impl LcdObject {
+    fn read_flag(&self, flag: LcdObjectAttributeFlag) -> bool {
         self.flags & flag as u8 == flag as u8
     }
 
@@ -274,7 +274,7 @@ impl LCDObject {
         if object_block_composition_selection {
             let first_code = self.character_code & !1;
             let second_code = self.character_code | 1;
-            let vertical_flip = self.read_flag(LCDObjectAttributeFlag::VerticalFlip);
+            let vertical_flip = self.read_flag(LcdObjectAttributeFlag::VerticalFlip);
 
             // Figure out which sprite the line crosses for double-height sprites
             if line < self.y + CHARACTER_SIZE {
@@ -302,18 +302,18 @@ impl LCDObject {
     }
 }
 
-struct LCDObjectIterator<'a> {
+struct LcdObjectIterator<'a> {
     chunk_iterator: iter::Peekable<std::slice::Iter<'a, u8>>,
 }
 
-impl<'a> Iterator for LCDObjectIterator<'a> {
-    type Item = LCDObject;
+impl<'a> Iterator for LcdObjectIterator<'a> {
+    type Item = LcdObject;
 
-    fn next(&mut self) -> Option<LCDObject> {
+    fn next(&mut self) -> Option<LcdObject> {
         if self.chunk_iterator.peek() == None {
             return None;
         } else {
-            let lcd_object = LCDObject {
+            let lcd_object = LcdObject {
                 y: *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE * 2,
                 x: *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE,
                 character_code: *self.chunk_iterator.next().unwrap(),
@@ -324,20 +324,20 @@ impl<'a> Iterator for LCDObjectIterator<'a> {
     }
 }
 
-impl<'a> LCDObjectIterator<'a> {
-    fn new(chunk: &'a MemoryChunk) -> LCDObjectIterator<'a> {
-        LCDObjectIterator {
+impl<'a> LcdObjectIterator<'a> {
+    fn new(chunk: &'a MemoryChunk) -> LcdObjectIterator<'a> {
+        LcdObjectIterator {
             chunk_iterator: chunk.as_slice().iter().peekable(),
         }
     }
 }
 
-struct LCDDotData<'a> {
+struct LcdDotData<'a> {
     data: &'a [u8],
 }
 
-impl<'a> LCDDotData<'a> {
-    fn read_pixel(&self, offset: usize) -> LCDColor {
+impl<'a> LcdDotData<'a> {
+    fn read_pixel(&self, offset: usize) -> LcdColor {
         let byte_offset = (offset / 8) * 2;
         let bit_offset = 7 - (offset % 8);
 
@@ -347,10 +347,10 @@ impl<'a> LCDDotData<'a> {
         let shade_upper = ((byte2 >> bit_offset) & 0x1) << 1;
         let shade_lower = (byte1 >> bit_offset) & 0x1;
         match shade_upper | shade_lower {
-            0x0 => LCDColor::Color0,
-            0x1 => LCDColor::Color1,
-            0x2 => LCDColor::Color2,
-            0x3 => LCDColor::Color3,
+            0x0 => LcdColor::Color0,
+            0x1 => LcdColor::Color1,
+            0x2 => LcdColor::Color2,
+            0x3 => LcdColor::Color3,
             _ => panic!(),
         }
     }
@@ -364,7 +364,7 @@ impl<'a> LCDDotData<'a> {
         vertical_flip: bool,
         horizantal_flip: bool,
         enable_transparency: bool,
-        palette: &GameBoyFlags<LCDColor>,
+        palette: &GameBoyFlags<LcdColor>,
     ) {
         assert!(ly >= y && ly < y + CHARACTER_SIZE);
         assert!((ly as i32) < SCREEN_HEIGHT, "drawing ly = {}", ly);
@@ -386,12 +386,12 @@ impl<'a> LCDDotData<'a> {
             if x + offset_x as i32 >= SCREEN_WIDTH {
                 break;
             }
-            if color != LCDColor::Color0 || !enable_transparency {
+            if color != LcdColor::Color0 || !enable_transparency {
                 let shade = match palette.read_flag_value(color) {
-                    0x0 => LCDShade::Shade0,
-                    0x1 => LCDShade::Shade1,
-                    0x2 => LCDShade::Shade2,
-                    0x3 => LCDShade::Shade3,
+                    0x0 => LcdShade::Shade0,
+                    0x1 => LcdShade::Shade1,
+                    0x2 => LcdShade::Shade2,
+                    0x3 => LcdShade::Shade3,
                     _ => panic!(),
                 };
                 let color = color_for_shade::<R>(shade);
@@ -408,7 +408,7 @@ enum ObjectPriority {
 }
 
 #[derive(Serialize, Deserialize)]
-enum LCDControllerEvent {
+enum LcdControllerEvent {
     AdvanceLy,
     AfterMode1,
     Mode0,
@@ -418,8 +418,8 @@ enum LCDControllerEvent {
     UpdateLyMatch,
 }
 
-impl LCDControllerEvent {
-    fn deliver<R: Renderer>(self, controller: &mut LCDController, renderer: &mut R, time: u64) {
+impl LcdControllerEvent {
+    fn deliver<R: Renderer>(self, controller: &mut LcdController, renderer: &mut R, time: u64) {
         match self {
             Self::AdvanceLy => controller.advance_ly(time),
             Self::AfterMode1 => controller.after_mode_1(time),
@@ -433,24 +433,24 @@ impl LCDControllerEvent {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct LCDController {
+pub struct LcdController {
     pub crash_message: Option<String>,
     pub character_data: MemoryChunk,
     pub background_display_data_1: MemoryChunk,
     pub background_display_data_2: MemoryChunk,
     pub oam_data: MemoryChunk,
     pub unusable_memory: MemoryChunk,
-    pub registers: LCDControllerRegisters,
-    scheduler: Scheduler<LCDControllerEvent>,
+    pub registers: LcdControllerRegisters,
+    scheduler: Scheduler<LcdControllerEvent>,
     enabled: bool,
     interrupt_requested: bool,
     #[serde(skip)]
-    object_buffer: Vec<LCDObject>,
+    object_buffer: Vec<LcdObject>,
 }
 
-impl LCDController {
+impl LcdController {
     pub fn new() -> Self {
-        LCDController {
+        LcdController {
             character_data: MemoryChunk::from_range(CHARACTER_DATA),
             background_display_data_1: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_1),
             background_display_data_2: MemoryChunk::from_range(BACKGROUND_DISPLAY_DATA_2),
@@ -466,9 +466,9 @@ impl LCDController {
     }
 
     pub fn schedule_initial_events(&mut self, now: u64) {
-        self.scheduler.schedule(now + 56, LCDControllerEvent::Mode2);
+        self.scheduler.schedule(now + 56, LcdControllerEvent::Mode2);
         self.scheduler
-            .schedule(now + 56 + 456, LCDControllerEvent::AdvanceLy);
+            .schedule(now + 56 + 456, LcdControllerEvent::AdvanceLy);
     }
 
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
@@ -488,7 +488,7 @@ impl LCDController {
         data: &MemoryChunk,
         character_data_selection: bool,
         character_code: u8,
-    ) -> LCDDotData {
+    ) -> LcdDotData {
         let location = if character_data_selection {
             CHARACTER_DATA_1.start as usize + character_code as usize * 16
         } else {
@@ -496,7 +496,7 @@ impl LCDController {
                 + (((character_code as i8) as isize + 128) as usize) * 16
         };
 
-        LCDDotData {
+        LcdDotData {
             data: &data.as_slice()[location..(location + 16)],
         }
     }
@@ -504,17 +504,17 @@ impl LCDController {
     pub fn set_state_post_bios(&mut self) {
         self.registers
             .lcdc
-            .set_flag(LCDControlFlag::DisplayOn, true);
+            .set_flag(LcdControlFlag::DisplayOn, true);
         self.registers
             .lcdc
-            .set_flag(LCDControlFlag::BGCharacterDataSelection, true);
+            .set_flag(LcdControlFlag::BGCharacterDataSelection, true);
         self.registers
             .lcdc
-            .set_flag(LCDControlFlag::BGDisplayOn, true);
+            .set_flag(LcdControlFlag::BGDisplayOn, true);
         self.registers.bgp.set_value(0xFC);
 
-        self.registers.stat.set_flag(LCDStatusFlag::LYMatch, true);
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
+        self.registers.stat.set_flag(LcdStatusFlag::LYMatch, true);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x1);
         self.registers.dma.set_value(0xff);
         self.registers.obp0.set_value(0xff);
         self.registers.obp1.set_value(0xff);
@@ -638,7 +638,7 @@ impl LCDController {
     }
 
     fn draw_oam_data<R: Renderer>(&mut self, renderer: &mut R, priority: ObjectPriority) {
-        if !self.registers.lcdc.read_flag(LCDControlFlag::ObjectOn) {
+        if !self.registers.lcdc.read_flag(LcdControlFlag::ObjectOn) {
             return;
         }
 
@@ -647,7 +647,7 @@ impl LCDController {
         let object_block_composition_selection = self
             .registers
             .lcdc
-            .read_flag(LCDControlFlag::ObjectBlockCompositionSelection);
+            .read_flag(LcdControlFlag::ObjectBlockCompositionSelection);
 
         let sprite_height = if object_block_composition_selection {
             CHARACTER_SIZE * 2
@@ -655,7 +655,7 @@ impl LCDController {
             CHARACTER_SIZE
         };
 
-        let iter = LCDObjectIterator::new(&self.oam_data)
+        let iter = LcdObjectIterator::new(&self.oam_data)
             .filter(|o| ly >= o.y && ly < o.y + sprite_height)
             .take(LINE_SPRITE_LIMIT);
         self.object_buffer.clear();
@@ -666,16 +666,16 @@ impl LCDController {
             .sort_by(|a, b| b.x.partial_cmp(&a.x).unwrap());
 
         for object in &self.object_buffer {
-            let low_priority = object.read_flag(LCDObjectAttributeFlag::DisplayPriority);
+            let low_priority = object.read_flag(LcdObjectAttributeFlag::DisplayPriority);
             if (priority == ObjectPriority::Background) != low_priority {
                 continue;
             }
 
-            let vertical_flip = object.read_flag(LCDObjectAttributeFlag::VerticalFlip);
-            let horizantal_flip = object.read_flag(LCDObjectAttributeFlag::HorizantalFlip);
+            let vertical_flip = object.read_flag(LcdObjectAttributeFlag::VerticalFlip);
+            let horizantal_flip = object.read_flag(LcdObjectAttributeFlag::HorizantalFlip);
             let (y, character_code) =
                 object.get_character_data_for_line(ly, object_block_composition_selection);
-            let palette = match object.read_flag(LCDObjectAttributeFlag::Palette) {
+            let palette = match object.read_flag(LcdObjectAttributeFlag::Palette) {
                 false => &self.registers.obp0,
                 true => &self.registers.obp1,
             };
@@ -697,16 +697,16 @@ impl LCDController {
     pub fn mode_2(&mut self, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x2);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x2);
         self.scheduler
-            .schedule(time + 77, LCDControllerEvent::Mode3);
+            .schedule(time + 77, LcdControllerEvent::Mode3);
     }
 
     fn clear_line<R: Renderer>(&mut self, renderer: &mut R) {
         let ly = self.registers.ly.read_value();
 
         for x in 0..SCREEN_WIDTH {
-            renderer.color_pixel(x, ly as i32, color_for_shade::<R>(LCDShade::Shade0));
+            renderer.color_pixel(x, ly as i32, color_for_shade::<R>(LcdShade::Shade0));
         }
     }
 
@@ -714,11 +714,11 @@ impl LCDController {
         let bg_area_selection = self
             .registers
             .lcdc
-            .read_flag(LCDControlFlag::BGCodeAreaSelection);
+            .read_flag(LcdControlFlag::BGCodeAreaSelection);
         let bg_character_data_selection = self
             .registers
             .lcdc
-            .read_flag(LCDControlFlag::BGCharacterDataSelection);
+            .read_flag(LcdControlFlag::BGCharacterDataSelection);
         let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
         self.draw_tiles(
             renderer,
@@ -732,14 +732,14 @@ impl LCDController {
     }
 
     fn draw_window<R: Renderer>(&mut self, renderer: &mut R) {
-        if !self.registers.lcdc.read_flag(LCDControlFlag::WindowingOn) {
+        if !self.registers.lcdc.read_flag(LcdControlFlag::WindowingOn) {
             return;
         }
 
         let window_area_selection = self
             .registers
             .lcdc
-            .read_flag(LCDControlFlag::WindowCodeAreaSelection);
+            .read_flag(LcdControlFlag::WindowCodeAreaSelection);
         let (scroll_x, scroll_y) = self.get_window_origin_relative_to_lcd();
         self.draw_tiles(
             renderer,
@@ -766,9 +766,9 @@ impl LCDController {
         self.draw_background(renderer);
         self.draw_window(renderer);
         self.draw_oam_data(renderer, ObjectPriority::Foreground);
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x3);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x3);
         self.scheduler
-            .schedule(time + 175, LCDControllerEvent::Mode0);
+            .schedule(time + 175, LcdControllerEvent::Mode0);
     }
 
     fn mode_0(&mut self, time: u64) {
@@ -778,14 +778,14 @@ impl LCDController {
         self.oam_data.release();
         self.unusable_memory.release();
 
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
 
         if self.registers.ly.read_value() < 143 {
             self.scheduler
-                .schedule(time + 204, LCDControllerEvent::Mode2);
+                .schedule(time + 204, LcdControllerEvent::Mode2);
         } else {
             self.scheduler
-                .schedule(time + 204, LCDControllerEvent::Mode1);
+                .schedule(time + 204, LcdControllerEvent::Mode1);
         }
     }
 
@@ -800,7 +800,7 @@ impl LCDController {
         }
 
         self.scheduler
-            .schedule(time + 456, LCDControllerEvent::AdvanceLy);
+            .schedule(time + 456, LcdControllerEvent::AdvanceLy);
 
         if (self.registers.ly.read_value() as i32) < SCREEN_HEIGHT
             && self.registers.ly.read_value() > 0
@@ -809,33 +809,33 @@ impl LCDController {
             self.unusable_memory.borrow();
         }
 
-        self.registers.stat.set_flag(LCDStatusFlag::LYMatch, false);
+        self.registers.stat.set_flag(LcdStatusFlag::LYMatch, false);
         self.scheduler
-            .schedule(time + 1, LCDControllerEvent::UpdateLyMatch);
+            .schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
     }
 
     fn update_ly_match(&mut self, _time: u64) {
         self.registers.stat.set_flag(
-            LCDStatusFlag::LYMatch,
+            LcdStatusFlag::LYMatch,
             self.registers.ly.read_value() == self.registers.lyc.read_value(),
         );
     }
 
     fn mode_1<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x1);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x1);
         renderer.present();
         self.interrupt_requested = true;
 
         self.scheduler
-            .schedule(time + 4552, LCDControllerEvent::AfterMode1);
+            .schedule(time + 4552, LcdControllerEvent::AfterMode1);
     }
 
     fn after_mode_1(&mut self, time: u64) {
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
         self.oam_data.borrow();
         self.unusable_memory.borrow();
 
-        self.scheduler.schedule(time + 8, LCDControllerEvent::Mode2);
+        self.scheduler.schedule(time + 8, LcdControllerEvent::Mode2);
     }
 
     fn enable(&mut self, time: u64) {
@@ -855,7 +855,7 @@ impl LCDController {
         self.oam_data.release();
         self.unusable_memory.release();
 
-        self.registers.stat.set_flag_value(LCDStatusFlag::Mode, 0x0);
+        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
         self.registers.ly.set_value(0);
         self.scheduler.drop_events();
 
@@ -863,7 +863,7 @@ impl LCDController {
     }
 
     fn check_enabled_state(&mut self, time: u64) {
-        let lcdc_enabled = self.registers.lcdc.read_flag(LCDControlFlag::DisplayOn);
+        let lcdc_enabled = self.registers.lcdc.read_flag(LcdControlFlag::DisplayOn);
         if self.enabled != lcdc_enabled {
             if lcdc_enabled {
                 self.enable(time);
