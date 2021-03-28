@@ -42,7 +42,11 @@ mod lcd_controller;
 mod sound_controller;
 mod tandem;
 
-struct SaveStateLoaded;
+#[derive(Debug, Copy, Clone)]
+enum UserControl {
+    SaveStateLoaded,
+    ScreenClosed,
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -273,12 +277,10 @@ impl GameBoyEmulator {
 
     fn crashed(&self) -> Option<&String> {
         if self.cpu.crashed() {
-            return self.cpu.crash_message.as_ref();
-        } else if self.lcd_controller.crashed() {
-            return self.lcd_controller.crash_message.as_ref();
+            self.cpu.crash_message.as_ref()
+        } else {
+            None
         }
-
-        None
     }
 
     fn divider_tick(&mut self, time: u64) {
@@ -327,13 +329,13 @@ impl GameBoyEmulator {
     fn read_key_events<R: Renderer>(
         &mut self,
         renderer: &mut R,
-    ) -> std::result::Result<(), SaveStateLoaded> {
+    ) -> std::result::Result<(), UserControl> {
         use crate::rendering::Event;
 
         for event in renderer.poll_events() {
             match event {
                 Event::Quit { .. } => {
-                    self.lcd_controller.crash_message = Some(String::from("Screen Closed"))
+                    return Err(UserControl::ScreenClosed);
                 }
                 Event::KeyDown(Keycode::F2) => {
                     if let Err(e) = self.save_state_to_file() {
@@ -341,7 +343,7 @@ impl GameBoyEmulator {
                     }
                 }
                 Event::KeyDown(Keycode::F3) => {
-                    return Err(SaveStateLoaded);
+                    return Err(UserControl::SaveStateLoaded);
                 }
                 Event::KeyDown(Keycode::F4) => {
                     if self.clock_speed_hz == DEFAULT_CLOCK_SPEED_HZ {
@@ -460,10 +462,7 @@ impl GameBoyEmulator {
         self.timer.schedule_initial_events(now);
     }
 
-    fn run_inner<R: Renderer>(
-        &mut self,
-        renderer: &mut R,
-    ) -> std::result::Result<(), SaveStateLoaded> {
+    fn run_inner<R: Renderer>(&mut self, renderer: &mut R) -> std::result::Result<(), UserControl> {
         let mut last_cycles = self.cpu.elapsed_cycles;
         let mut last_instant = std::time::Instant::now();
 
@@ -501,7 +500,7 @@ impl GameBoyEmulator {
 
     fn run<R: Renderer, J: JoyPad + 'static>(&mut self, renderer: &mut R, joypad: J) {
         self.plug_in_joy_pad(joypad);
-        while std::matches!(self.run_inner(renderer), Err(SaveStateLoaded)) {
+        while std::matches!(self.run_inner(renderer), Err(UserControl::SaveStateLoaded)) {
             if let Err(e) = self.load_state_from_file() {
                 println!("Failed to load state {:?}", e);
             }

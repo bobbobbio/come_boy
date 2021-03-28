@@ -602,7 +602,6 @@ impl LcdControllerEvent {
 /// An emulator for the LCD and PPU of the Game Boy.
 #[derive(Serialize, Deserialize)]
 pub struct LcdController {
-    pub crash_message: Option<String>,
     pub character_data: MemoryChunk,
     pub background_display_data_1: MemoryChunk,
     pub background_display_data_2: MemoryChunk,
@@ -626,7 +625,6 @@ impl LcdController {
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
             scheduler: Scheduler::new(),
-            crash_message: None,
             interrupt_requested: false,
             registers: Default::default(),
             object_buffer: Vec::new(),
@@ -730,10 +728,6 @@ impl LcdController {
         let y = self.registers.wy.read_value() as i32;
 
         return (x, y);
-    }
-
-    pub fn crashed(&self) -> bool {
-        self.crash_message.is_some()
     }
 
     fn draw_tiles<R: Renderer>(
