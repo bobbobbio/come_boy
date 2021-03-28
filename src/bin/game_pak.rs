@@ -14,7 +14,7 @@ struct Options {
 fn main() -> Result<()> {
     let options = Options::from_args();
 
-    let game_pak = GamePak::from_path(options.rom)?;
+    let game_pak = GamePak::from_path_without_sav(options.rom)?;
     println!("{:?}", game_pak);
 
     Ok(())
