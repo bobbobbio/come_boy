@@ -620,7 +620,8 @@ pub struct LcdController {
     pub registers: LcdControllerRegisters,
     scheduler: Scheduler<LcdControllerEvent>,
     enabled: bool,
-    interrupt_requested: bool,
+    vertical_blanking_interrupt: bool,
+    stat_interrupt: bool,
     #[serde(skip)]
     object_buffer: Vec<LcdObject>,
 }
@@ -635,7 +636,8 @@ impl LcdController {
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
             scheduler: Scheduler::new(),
-            interrupt_requested: false,
+            vertical_blanking_interrupt: false,
+            stat_interrupt: false,
             registers: Default::default(),
             object_buffer: Vec::new(),
         }
@@ -650,9 +652,13 @@ impl LcdController {
 
     /// Must be called periodically so the proper interrupts can be triggered.
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
-        if self.interrupt_requested {
+        if self.vertical_blanking_interrupt {
             interrupt_flag.set_flag(InterruptFlag::VerticalBlanking, true);
-            self.interrupt_requested = false;
+            self.vertical_blanking_interrupt = false;
+        }
+        if self.stat_interrupt {
+            interrupt_flag.set_flag(InterruptFlag::LCDSTAT, true);
+            self.stat_interrupt = false;
         }
     }
 
@@ -861,6 +867,14 @@ impl LcdController {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x2);
+        if self
+            .registers
+            .stat
+            .read_flag(LcdStatusFlag::InterruptMode10)
+        {
+            self.stat_interrupt = true;
+        }
+
         self.scheduler
             .schedule(time + 77, LcdControllerEvent::Mode3);
     }
@@ -943,6 +957,14 @@ impl LcdController {
 
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
 
+        if self
+            .registers
+            .stat
+            .read_flag(LcdStatusFlag::InterruptMode00)
+        {
+            self.stat_interrupt = true;
+        }
+
         if self.registers.ly.read_value() < 143 {
             self.scheduler
                 .schedule(time + 204, LcdControllerEvent::Mode2);
@@ -978,16 +1000,31 @@ impl LcdController {
     }
 
     fn update_ly_match(&mut self, _time: u64) {
-        self.registers.stat.set_flag(
-            LcdStatusFlag::LYMatch,
-            self.registers.ly.read_value() == self.registers.lyc.read_value(),
-        );
+        if self.registers.ly.read_value() == self.registers.lyc.read_value() {
+            self.registers.stat.set_flag(LcdStatusFlag::LYMatch, true);
+            if self
+                .registers
+                .stat
+                .read_flag(LcdStatusFlag::InterruptLYMatching)
+            {
+                self.stat_interrupt = true;
+            }
+        }
     }
 
     fn mode_1<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x1);
         renderer.present();
-        self.interrupt_requested = true;
+
+        self.vertical_blanking_interrupt = true;
+
+        if self
+            .registers
+            .stat
+            .read_flag(LcdStatusFlag::InterruptMode01)
+        {
+            self.stat_interrupt = true;
+        }
 
         self.scheduler
             .schedule(time + 4552, LcdControllerEvent::AfterMode1);
