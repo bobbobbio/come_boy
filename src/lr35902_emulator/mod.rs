@@ -11,9 +11,8 @@ pub use crate::emulator_common::disassembler::{
 };
 pub use crate::emulator_common::Intel8080Register;
 pub use crate::lr35902_emulator::debugger::run_debugger;
-pub use crate::lr35902_emulator::opcodes::disassemble_lr35902_rom;
 pub use crate::lr35902_emulator::opcodes::{
-    dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet,
+    disassemble_lr35902_rom, LR35902Instruction, LR35902InstructionSet,
 };
 
 #[cfg(test)]
@@ -53,7 +52,7 @@ pub struct LR35902Emulator {
     pub crash_message: Option<String>,
     pub call_stack: Vec<u16>,
     halted: bool,
-    instr: Option<Vec<u8>>,
+    instr: Option<LR35902Instruction>,
 }
 
 impl LR35902Emulator {
@@ -152,8 +151,8 @@ impl LR35902Emulator {
         assert!(self.interrupts_enabled);
         self.interrupts_enabled = false;
 
-        let mut instruction = LR35902Instruction::new(self, memory_accessor);
-        Intel8080InstructionSet::call(&mut instruction, address);
+        let mut ops = InstructionDispatchOps::new(self, memory_accessor);
+        Intel8080InstructionSet::call(&mut ops, address);
     }
 
     fn add_cycles(&mut self, cycles: u8) {
@@ -281,12 +280,12 @@ pub trait LR35902InstructionSetOps {
     fn wait_until_interrupt(&mut self);
 }
 
-struct LR35902Instruction<'a, M: MemoryAccessor> {
+struct InstructionDispatchOps<'a, M: MemoryAccessor> {
     emulator: &'a mut LR35902Emulator,
     memory_accessor: &'a mut M,
 }
 
-impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
+impl<'a, M: MemoryAccessor> InstructionDispatchOps<'a, M> {
     fn new(emulator: &'a mut LR35902Emulator, memory_accessor: &'a mut M) -> Self {
         Self {
             emulator,
@@ -295,7 +294,7 @@ impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
     }
 }
 
-impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
+impl<'a, M: MemoryAccessor> InstructionDispatchOps<'a, M> {
     fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
         self.emulator.set_flag(flag, value);
     }
@@ -337,7 +336,7 @@ impl<'a, M: MemoryAccessor> LR35902Instruction<'a, M> {
     }
 }
 
-impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for LR35902Instruction<'a, M> {
+impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for InstructionDispatchOps<'a, M> {
     fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
         self.set_flag(flag, value);
     }
@@ -1183,11 +1182,11 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
  */
 
 #[cfg(test)]
-fn instruction_test<F: Fn(&mut LR35902Instruction<SimpleMemoryAccessor>)>(func: F) {
+fn instruction_test<F: Fn(&mut InstructionDispatchOps<SimpleMemoryAccessor>)>(func: F) {
     let mut emulator = LR35902Emulator::new();
     let mut memory_accessor = SimpleMemoryAccessor::new();
-    let mut instruction = LR35902Instruction::new(&mut emulator, &mut memory_accessor);
-    func(&mut instruction);
+    let mut ops = InstructionDispatchOps::new(&mut emulator, &mut memory_accessor);
+    func(&mut ops);
 }
 
 #[test]
@@ -2343,14 +2342,14 @@ impl LR35902Emulator {
 
     fn run_lr35902_instruction<M: MemoryAccessor>(
         &mut self,
-        instruction: &[u8],
+        instruction: LR35902Instruction,
         memory_accessor: &mut M,
     ) {
-        let total_duration = {
-            let mut instr = LR35902Instruction::new(self, memory_accessor);
-            dispatch_lr35902_instruction(&instruction, &mut instr)
-        };
-        self.add_cycles(total_duration - (instruction.len() * 4) as u8);
+        let instruction_size = instruction.size();
+        let total_duration = instruction.duration();
+        let mut ops = InstructionDispatchOps::new(self, memory_accessor);
+        instruction.dispatch(&mut ops);
+        self.add_cycles(total_duration - (instruction_size * 4) as u8);
     }
 
     fn crash_from_unkown_opcode(&mut self) {
@@ -2366,11 +2365,11 @@ impl LR35902Emulator {
 
         let pc = self.read_program_counter();
         let stream = MemoryStream::new(memory_accessor, pc);
-        let instr = get_lr35902_instruction(stream);
+        let instr = LR35902Instruction::from_reader(stream).unwrap();
 
         if let Some(instr) = &instr {
-            self.set_program_counter(pc + instr.len() as u16);
-            self.add_cycles((instr.len() * 4) as u8);
+            self.set_program_counter(pc + instr.size() as u16);
+            self.add_cycles((instr.size() * 4) as u8);
         }
         self.instr = instr;
     }
@@ -2382,7 +2381,7 @@ impl LR35902Emulator {
 
         match self.instr.take() {
             Some(res) => {
-                self.run_lr35902_instruction(&res, memory_accessor);
+                self.run_lr35902_instruction(res, memory_accessor);
                 return;
             }
             None => self.crash_from_unkown_opcode(),

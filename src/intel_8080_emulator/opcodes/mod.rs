@@ -4,10 +4,10 @@ use std::io::{self, Result};
 use std::mem;
 
 use crate::emulator_common::disassembler::{
-    Disassembler, InstructionPrinter, InstructionPrinterFactory, SimpleMemoryAccessor,
+    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, SimpleMemoryAccessor,
 };
 pub use crate::intel_8080_emulator::opcodes::opcode_gen::{
-    dispatch_intel8080_instruction, get_intel8080_instruction, Intel8080InstructionSet,
+    Intel8080Instruction, Intel8080InstructionSet,
 };
 
 #[cfg(test)]
@@ -33,13 +33,21 @@ impl<'a> InstructionPrinterFactory<'a> for Intel8080InstructionPrinterFactory {
     }
 }
 
-impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8], _address: u16) -> Result<()> {
-        dispatch_intel8080_instruction(stream, self);
-        return mem::replace(&mut self.error, Ok(()));
+impl Instruction for Intel8080Instruction {
+    fn size(&self) -> u8 {
+        Intel8080Instruction::size(self)
     }
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>> {
-        get_intel8080_instruction(stream)
+}
+
+impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
+    type Instruction = Intel8080Instruction;
+
+    fn print_instruction(&mut self, instr: Intel8080Instruction, _address: u16) -> Result<()> {
+        instr.dispatch(self);
+        mem::replace(&mut self.error, Ok(()))
+    }
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<Intel8080Instruction>> {
+        Intel8080Instruction::from_reader(stream)
     }
 }
 

@@ -4,6 +4,9 @@ use std::io::{self, Result};
 use std::ops::Range;
 use std::str;
 
+#[cfg(test)]
+use byteorder::ReadBytesExt;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MemoryDescription {
     Instruction,
@@ -126,9 +129,16 @@ impl MemoryAccessor for SimpleMemoryAccessor {
  *       |_|
  */
 
+pub trait Instruction {
+    fn size(&self) -> u8;
+}
+
 pub trait InstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8], address: u16) -> Result<()>;
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>>;
+    type Instruction: Instruction;
+
+    fn print_instruction(&mut self, instr: Self::Instruction, address: u16) -> Result<()>;
+
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<Self::Instruction>>;
 }
 
 pub trait InstructionPrinterFactory<'a> {
@@ -259,15 +269,17 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
 
     fn disassemble_one_instruction(&mut self, include_opcodes: bool) -> Result<()> {
         let mut printed_instr: Vec<u8> = vec![];
-        let instr: Vec<u8>;
+        let mut instr = vec![];
         let printed;
         {
             let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
             let stream = MemoryStream::new(self.memory_accessor, self.index);
-            printed = match opcode_printer.get_instruction(stream) {
+            printed = match opcode_printer.get_instruction(stream)? {
                 Some(res) => {
-                    opcode_printer.print_instruction(&res, self.index)?;
-                    instr = res;
+                    for i in 0..res.size() {
+                        instr.push(self.memory_accessor.read_memory(self.index + i as u16));
+                    }
+                    opcode_printer.print_instruction(res, self.index)?;
                     true
                 }
                 None => {
@@ -318,28 +330,43 @@ struct TestInstructionPrinter<'a> {
 }
 
 #[cfg(test)]
+enum TestInstruction {
+    One,
+    Two(u8),
+    Three(u8, u8),
+}
+
+#[cfg(test)]
+impl Instruction for TestInstruction {
+    fn size(&self) -> u8 {
+        match self {
+            Self::One => 1,
+            Self::Two(_) => 2,
+            Self::Three(_, _) => 3,
+        }
+    }
+}
+
+#[cfg(test)]
 impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8], _address: u16) -> Result<()> {
-        match stream[0] {
-            0x1 => write!(self.stream_out, "TEST1").unwrap(),
-            0x2 => write!(self.stream_out, "TEST2").unwrap(),
-            0x3 => write!(self.stream_out, "TEST3").unwrap(),
-            _ => panic!("Unknown Opcode {}", stream[0]),
+    type Instruction = TestInstruction;
+
+    fn print_instruction(&mut self, instr: TestInstruction, _address: u16) -> Result<()> {
+        match instr {
+            TestInstruction::One => write!(self.stream_out, "TEST1")?,
+            TestInstruction::Two(v1) => write!(self.stream_out, "TEST2 {}", v1)?,
+            TestInstruction::Three(v1, v2) => write!(self.stream_out, "TEST3 {} {}", v1, v2)?,
         };
         Ok(())
     }
-    fn get_instruction<R: io::Read>(&self, mut stream: R) -> Option<Vec<u8>> {
-        let mut instr = vec![0];
-        stream.read(&mut instr).unwrap();
-        let size = match instr[0] {
-            0x1 => 1,
-            0x2 => 2,
-            0x3 => 3,
-            _ => return None,
-        };
-        instr.resize(size, 0);
-        stream.read(&mut instr[1..]).unwrap();
-        return Some(instr);
+
+    fn get_instruction<R: io::Read>(&self, mut stream: R) -> Result<Option<TestInstruction>> {
+        Ok(match stream.read_u8()? {
+            0x1 => Some(TestInstruction::One),
+            0x2 => Some(TestInstruction::Two(stream.read_u8()?)),
+            0x3 => Some(TestInstruction::Three(stream.read_u8()?, stream.read_u8()?)),
+            _ => None,
+        })
     }
 }
 
@@ -395,8 +422,8 @@ fn disassembler_test_multiple_byte_instructions() {
         &[0x1, 0x2, 0x0, 0x3, 0x0, 0x0],
         "\
          0000000 01       TEST1\n\
-         0000001 02 00    TEST2\n\
-         0000003 03 00 00 TEST3\n\
+         0000001 02 00    TEST2 0\n\
+         0000003 03 00 00 TEST3 0 0\n\
          ",
     );
 }
@@ -407,8 +434,8 @@ fn disassembler_test_instruction_arguments_are_printed() {
         TestInstructionPrinterFactory,
         &[0x3, 0xff, 0xfe, 0x3, 0xfd, 0xfc],
         "\
-         0000000 03 ff fe TEST3\n\
-         0000003 03 fd fc TEST3\n\
+         0000000 03 ff fe TEST3 255 254\n\
+         0000003 03 fd fc TEST3 253 252\n\
          ",
     );
 }

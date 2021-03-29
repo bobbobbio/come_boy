@@ -4,12 +4,10 @@ use std::io::{self, Result};
 use std::mem;
 
 use crate::emulator_common::disassembler::{
-    Disassembler, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
+    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
     SimpleMemoryAccessor,
 };
-pub use crate::lr35902_emulator::opcodes::opcode_gen::{
-    dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet,
-};
+pub use crate::lr35902_emulator::opcodes::opcode_gen::{LR35902Instruction, LR35902InstructionSet};
 
 #[cfg(test)]
 use crate::emulator_common::disassembler::do_disassembler_test;
@@ -34,13 +32,22 @@ impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {
     }
 }
 
+impl Instruction for LR35902Instruction {
+    fn size(&self) -> u8 {
+        LR35902Instruction::size(self)
+    }
+}
+
 impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8], _address: u16) -> Result<()> {
-        dispatch_lr35902_instruction(stream, self);
+    type Instruction = LR35902Instruction;
+
+    fn print_instruction(&mut self, instr: LR35902Instruction, _address: u16) -> Result<()> {
+        instr.dispatch(self);
         mem::replace(&mut self.error, Ok(()))
     }
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>> {
-        get_lr35902_instruction(stream)
+
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<LR35902Instruction>> {
+        LR35902Instruction::from_reader(stream)
     }
 }
 

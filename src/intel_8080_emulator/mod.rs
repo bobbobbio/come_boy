@@ -6,8 +6,8 @@ use std::collections::HashMap;
 
 use crate::emulator_common::Intel8080Register;
 pub use crate::intel_8080_emulator::opcodes::{
-    disassemble_8080_rom, dispatch_intel8080_instruction, get_intel8080_instruction,
-    Intel8080InstructionPrinterFactory, Intel8080InstructionSet,
+    disassemble_8080_rom, Intel8080Instruction, Intel8080InstructionPrinterFactory,
+    Intel8080InstructionSet,
 };
 use crate::util::TwosComplement;
 
@@ -3030,14 +3030,14 @@ fn if_no_carry_updates_call_stack() {
 impl<'a> Intel8080Emulator<'a> {
     pub fn run_one_instruction(&mut self) {
         let pc = self.program_counter as usize;
-        let instruction = match get_intel8080_instruction(&self.main_memory[pc..]) {
+        let maybe_instr = Intel8080Instruction::from_reader(&self.main_memory[pc..]).unwrap();
+        let instruction = match maybe_instr {
             Some(res) => res,
             None => panic!("Unknown Opcode {}", self.main_memory[pc]),
         };
 
-        self.program_counter += instruction.len() as u16;
-
-        dispatch_intel8080_instruction(&instruction, self);
+        self.program_counter += instruction.size() as u16;
+        instruction.dispatch(self);
     }
 
     pub fn run(&mut self) {

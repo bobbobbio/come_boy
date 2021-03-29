@@ -1,7 +1,4134 @@
+#![allow(dead_code)]
 use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
 use byteorder::{LittleEndian, ReadBytesExt};
+use serde_derive::{Deserialize, Serialize};
 use std::io;
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LR35902Instruction {
+    AddImmediateToAccumulator {
+        data1: u8,
+    },
+    AddImmediateToAccumulatorWithCarry {
+        data1: u8,
+    },
+    AddImmediateToSp {
+        data1: u8,
+    },
+    AddToAccumulator {
+        register1: Intel8080Register,
+    },
+    AddToAccumulatorWithCarry {
+        register1: Intel8080Register,
+    },
+    AndImmediateWithAccumulator {
+        data1: u8,
+    },
+    Call {
+        address1: u16,
+    },
+    CallIfCarry {
+        address1: u16,
+    },
+    CallIfNoCarry {
+        address1: u16,
+    },
+    CallIfNotZero {
+        address1: u16,
+    },
+    CallIfZero {
+        address1: u16,
+    },
+    CompareImmediateWithAccumulator {
+        data1: u8,
+    },
+    CompareWithAccumulator {
+        register1: Intel8080Register,
+    },
+    ComplementAccumulator,
+    ComplementCarry,
+    DecimalAdjustAccumulator,
+    DecrementRegisterOrMemory {
+        register1: Intel8080Register,
+    },
+    DecrementRegisterPair {
+        register1: Intel8080Register,
+    },
+    DisableInterrupts,
+    DoubleAdd {
+        register1: Intel8080Register,
+    },
+    EnableInterrupts,
+    ExclusiveOrImmediateWithAccumulator {
+        data1: u8,
+    },
+    Halt,
+    HaltUntilButtonPress,
+    IncrementRegisterOrMemory {
+        register1: Intel8080Register,
+    },
+    IncrementRegisterPair {
+        register1: Intel8080Register,
+    },
+    Jump {
+        address1: u16,
+    },
+    JumpIfCarry {
+        address1: u16,
+    },
+    JumpIfNoCarry {
+        address1: u16,
+    },
+    JumpIfNotZero {
+        address1: u16,
+    },
+    JumpIfZero {
+        address1: u16,
+    },
+    JumpRelative {
+        data1: u8,
+    },
+    JumpRelativeIfCarry {
+        data1: u8,
+    },
+    JumpRelativeIfNoCarry {
+        data1: u8,
+    },
+    JumpRelativeIfNotZero {
+        data1: u8,
+    },
+    JumpRelativeIfZero {
+        data1: u8,
+    },
+    LoadAccumulator {
+        register1: Intel8080Register,
+    },
+    LoadAccumulatorDirect {
+        address1: u16,
+    },
+    LoadAccumulatorDirectOneByte {
+        data1: u8,
+    },
+    LoadAccumulatorOneByte,
+    LoadProgramCounter,
+    LoadRegisterPairImmediate {
+        register1: Intel8080Register,
+        data2: u16,
+    },
+    LoadSpFromHAndL,
+    LogicalAndWithAccumulator {
+        register1: Intel8080Register,
+    },
+    LogicalExclusiveOrWithAccumulator {
+        register1: Intel8080Register,
+    },
+    LogicalOrWithAccumulator {
+        register1: Intel8080Register,
+    },
+    MoveAndDecrementHl {
+        register1: Intel8080Register,
+        register2: Intel8080Register,
+    },
+    MoveAndIncrementHl {
+        register1: Intel8080Register,
+        register2: Intel8080Register,
+    },
+    MoveData {
+        register1: Intel8080Register,
+        register2: Intel8080Register,
+    },
+    MoveImmediateData {
+        register1: Intel8080Register,
+        data2: u8,
+    },
+    NoOperation,
+    OrImmediateWithAccumulator {
+        data1: u8,
+    },
+    PopDataOffStack {
+        register1: Intel8080Register,
+    },
+    PushDataOntoStack {
+        register1: Intel8080Register,
+    },
+    ResetBit {
+        data1: u8,
+        register2: Intel8080Register,
+    },
+    Restart {
+        data1: u8,
+    },
+    ReturnAndEnableInterrupts,
+    ReturnIfCarry,
+    ReturnIfNoCarry,
+    ReturnIfNotZero,
+    ReturnIfZero,
+    ReturnUnconditionally,
+    RotateAccumulatorLeft,
+    RotateAccumulatorLeftThroughCarry,
+    RotateAccumulatorRight,
+    RotateAccumulatorRightThroughCarry,
+    RotateRegisterLeft {
+        register1: Intel8080Register,
+    },
+    RotateRegisterLeftThroughCarry {
+        register1: Intel8080Register,
+    },
+    RotateRegisterRight {
+        register1: Intel8080Register,
+    },
+    RotateRegisterRightThroughCarry {
+        register1: Intel8080Register,
+    },
+    SetBit {
+        data1: u8,
+        register2: Intel8080Register,
+    },
+    SetCarry,
+    ShiftRegisterLeft {
+        register1: Intel8080Register,
+    },
+    ShiftRegisterRight {
+        register1: Intel8080Register,
+    },
+    ShiftRegisterRightSigned {
+        register1: Intel8080Register,
+    },
+    StoreAccumulator {
+        register1: Intel8080Register,
+    },
+    StoreAccumulatorDirect {
+        address1: u16,
+    },
+    StoreAccumulatorDirectOneByte {
+        data1: u8,
+    },
+    StoreAccumulatorOneByte,
+    StoreSpDirect {
+        address1: u16,
+    },
+    StoreSpPlusImmediate {
+        data1: u8,
+    },
+    SubtractFromAccumulator {
+        register1: Intel8080Register,
+    },
+    SubtractFromAccumulatorWithBorrow {
+        register1: Intel8080Register,
+    },
+    SubtractImmediateFromAccumulator {
+        data1: u8,
+    },
+    SubtractImmediateFromAccumulatorWithBorrow {
+        data1: u8,
+    },
+    SwapRegister {
+        register1: Intel8080Register,
+    },
+    TestBit {
+        data1: u8,
+        register2: Intel8080Register,
+    },
+}
+impl LR35902Instruction {
+    pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
+        let opcode = stream.read_u8()?;
+        Ok(match opcode {
+            0x00 => Some(Self::NoOperation),
+            0x01 => Some(Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::B,
+                data2: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0x02 => Some(Self::StoreAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0x03 => Some(Self::IncrementRegisterPair {
+                register1: Intel8080Register::B,
+            }),
+            0x04 => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+            }),
+            0x05 => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+            }),
+            0x06 => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::B,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x07 => Some(Self::RotateAccumulatorLeft),
+            0x08 => Some(Self::StoreSpDirect {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0x09 => Some(Self::DoubleAdd {
+                register1: Intel8080Register::B,
+            }),
+            0x0A => Some(Self::LoadAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0x0B => Some(Self::DecrementRegisterPair {
+                register1: Intel8080Register::B,
+            }),
+            0x0C => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+            }),
+            0x0D => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+            }),
+            0x0E => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::C,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x0F => Some(Self::RotateAccumulatorRight),
+            0x10 => match (0x10 as u16) << 8 | stream.read_u8()? as u16 {
+                0x1000 => Some(Self::HaltUntilButtonPress),
+                _ => None,
+            },
+            0x11 => Some(Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::D,
+                data2: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0x12 => Some(Self::StoreAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0x13 => Some(Self::IncrementRegisterPair {
+                register1: Intel8080Register::D,
+            }),
+            0x14 => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+            }),
+            0x15 => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+            }),
+            0x16 => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::D,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x17 => Some(Self::RotateAccumulatorLeftThroughCarry),
+            0x18 => Some(Self::JumpRelative {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0x19 => Some(Self::DoubleAdd {
+                register1: Intel8080Register::D,
+            }),
+            0x1A => Some(Self::LoadAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0x1B => Some(Self::DecrementRegisterPair {
+                register1: Intel8080Register::D,
+            }),
+            0x1C => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+            }),
+            0x1D => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+            }),
+            0x1E => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::E,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x1F => Some(Self::RotateAccumulatorRightThroughCarry),
+            0x20 => Some(Self::JumpRelativeIfNotZero {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0x21 => Some(Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::H,
+                data2: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0x22 => Some(Self::MoveAndIncrementHl {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+            }),
+            0x23 => Some(Self::IncrementRegisterPair {
+                register1: Intel8080Register::H,
+            }),
+            0x24 => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+            }),
+            0x25 => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+            }),
+            0x26 => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::H,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x27 => Some(Self::DecimalAdjustAccumulator),
+            0x28 => Some(Self::JumpRelativeIfZero {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0x29 => Some(Self::DoubleAdd {
+                register1: Intel8080Register::H,
+            }),
+            0x2A => Some(Self::MoveAndIncrementHl {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+            }),
+            0x2B => Some(Self::DecrementRegisterPair {
+                register1: Intel8080Register::H,
+            }),
+            0x2C => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+            }),
+            0x2D => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+            }),
+            0x2E => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::L,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x2F => Some(Self::ComplementAccumulator),
+            0x30 => Some(Self::JumpRelativeIfNoCarry {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0x31 => Some(Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::SP,
+                data2: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0x32 => Some(Self::MoveAndDecrementHl {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+            }),
+            0x33 => Some(Self::IncrementRegisterPair {
+                register1: Intel8080Register::SP,
+            }),
+            0x34 => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+            }),
+            0x35 => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+            }),
+            0x36 => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::M,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x37 => Some(Self::SetCarry),
+            0x38 => Some(Self::JumpRelativeIfCarry {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0x39 => Some(Self::DoubleAdd {
+                register1: Intel8080Register::SP,
+            }),
+            0x3A => Some(Self::MoveAndDecrementHl {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+            }),
+            0x3B => Some(Self::DecrementRegisterPair {
+                register1: Intel8080Register::SP,
+            }),
+            0x3C => Some(Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+            }),
+            0x3D => Some(Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+            }),
+            0x3E => Some(Self::MoveImmediateData {
+                register1: Intel8080Register::A,
+                data2: stream.read_u8().unwrap(),
+            }),
+            0x3F => Some(Self::ComplementCarry),
+            0x40 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::B,
+            }),
+            0x41 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::C,
+            }),
+            0x42 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::D,
+            }),
+            0x43 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::E,
+            }),
+            0x44 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::H,
+            }),
+            0x45 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::L,
+            }),
+            0x46 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::M,
+            }),
+            0x47 => Some(Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::A,
+            }),
+            0x48 => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::B,
+            }),
+            0x49 => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::C,
+            }),
+            0x4A => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::D,
+            }),
+            0x4B => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::E,
+            }),
+            0x4C => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::H,
+            }),
+            0x4D => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::L,
+            }),
+            0x4E => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::M,
+            }),
+            0x4F => Some(Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::A,
+            }),
+            0x50 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::B,
+            }),
+            0x51 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::C,
+            }),
+            0x52 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::D,
+            }),
+            0x53 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::E,
+            }),
+            0x54 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::H,
+            }),
+            0x55 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::L,
+            }),
+            0x56 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::M,
+            }),
+            0x57 => Some(Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::A,
+            }),
+            0x58 => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::B,
+            }),
+            0x59 => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::C,
+            }),
+            0x5A => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::D,
+            }),
+            0x5B => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::E,
+            }),
+            0x5C => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::H,
+            }),
+            0x5D => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::L,
+            }),
+            0x5E => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::M,
+            }),
+            0x5F => Some(Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::A,
+            }),
+            0x60 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::B,
+            }),
+            0x61 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::C,
+            }),
+            0x62 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::D,
+            }),
+            0x63 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::E,
+            }),
+            0x64 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::H,
+            }),
+            0x65 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::L,
+            }),
+            0x66 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::M,
+            }),
+            0x67 => Some(Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::A,
+            }),
+            0x68 => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::B,
+            }),
+            0x69 => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::C,
+            }),
+            0x6A => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::D,
+            }),
+            0x6B => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::E,
+            }),
+            0x6C => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::H,
+            }),
+            0x6D => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::L,
+            }),
+            0x6E => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::M,
+            }),
+            0x6F => Some(Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::A,
+            }),
+            0x70 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::B,
+            }),
+            0x71 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::C,
+            }),
+            0x72 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::D,
+            }),
+            0x73 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::E,
+            }),
+            0x74 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::H,
+            }),
+            0x75 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::L,
+            }),
+            0x76 => Some(Self::Halt),
+            0x77 => Some(Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+            }),
+            0x78 => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::B,
+            }),
+            0x79 => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::C,
+            }),
+            0x7A => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::D,
+            }),
+            0x7B => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::E,
+            }),
+            0x7C => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::H,
+            }),
+            0x7D => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::L,
+            }),
+            0x7E => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+            }),
+            0x7F => Some(Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::A,
+            }),
+            0x80 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0x81 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::C,
+            }),
+            0x82 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0x83 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::E,
+            }),
+            0x84 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::H,
+            }),
+            0x85 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::L,
+            }),
+            0x86 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::M,
+            }),
+            0x87 => Some(Self::AddToAccumulator {
+                register1: Intel8080Register::A,
+            }),
+            0x88 => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::B,
+            }),
+            0x89 => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::C,
+            }),
+            0x8A => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::D,
+            }),
+            0x8B => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::E,
+            }),
+            0x8C => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::H,
+            }),
+            0x8D => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::L,
+            }),
+            0x8E => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::M,
+            }),
+            0x8F => Some(Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::A,
+            }),
+            0x90 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0x91 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::C,
+            }),
+            0x92 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0x93 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::E,
+            }),
+            0x94 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::H,
+            }),
+            0x95 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::L,
+            }),
+            0x96 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::M,
+            }),
+            0x97 => Some(Self::SubtractFromAccumulator {
+                register1: Intel8080Register::A,
+            }),
+            0x98 => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::B,
+            }),
+            0x99 => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::C,
+            }),
+            0x9A => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::D,
+            }),
+            0x9B => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::E,
+            }),
+            0x9C => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::H,
+            }),
+            0x9D => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::L,
+            }),
+            0x9E => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::M,
+            }),
+            0x9F => Some(Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::A,
+            }),
+            0xA0 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0xA1 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::C,
+            }),
+            0xA2 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0xA3 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::E,
+            }),
+            0xA4 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::H,
+            }),
+            0xA5 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::L,
+            }),
+            0xA6 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::M,
+            }),
+            0xA7 => Some(Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::A,
+            }),
+            0xA8 => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0xA9 => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::C,
+            }),
+            0xAA => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0xAB => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::E,
+            }),
+            0xAC => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::H,
+            }),
+            0xAD => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::L,
+            }),
+            0xAE => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::M,
+            }),
+            0xAF => Some(Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::A,
+            }),
+            0xB0 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0xB1 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::C,
+            }),
+            0xB2 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0xB3 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::E,
+            }),
+            0xB4 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::H,
+            }),
+            0xB5 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::L,
+            }),
+            0xB6 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::M,
+            }),
+            0xB7 => Some(Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::A,
+            }),
+            0xB8 => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::B,
+            }),
+            0xB9 => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::C,
+            }),
+            0xBA => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::D,
+            }),
+            0xBB => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::E,
+            }),
+            0xBC => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::H,
+            }),
+            0xBD => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::L,
+            }),
+            0xBE => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::M,
+            }),
+            0xBF => Some(Self::CompareWithAccumulator {
+                register1: Intel8080Register::A,
+            }),
+            0xC0 => Some(Self::ReturnIfNotZero),
+            0xC1 => Some(Self::PopDataOffStack {
+                register1: Intel8080Register::B,
+            }),
+            0xC2 => Some(Self::JumpIfNotZero {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xC3 => Some(Self::Jump {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xC4 => Some(Self::CallIfNotZero {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xC5 => Some(Self::PushDataOntoStack {
+                register1: Intel8080Register::B,
+            }),
+            0xC6 => Some(Self::AddImmediateToAccumulator {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xC7 => Some(Self::Restart { data1: 0u8 }),
+            0xC8 => Some(Self::ReturnIfZero),
+            0xC9 => Some(Self::ReturnUnconditionally),
+            0xCA => Some(Self::JumpIfZero {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xCB => match (0xCB as u16) << 8 | stream.read_u8()? as u16 {
+                0xCB00 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB01 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB02 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB03 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB04 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB05 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB06 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB07 => Some(Self::RotateRegisterLeft {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB08 => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB09 => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB0A => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB0B => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB0C => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB0D => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB0E => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB0F => Some(Self::RotateRegisterRight {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB10 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB11 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB12 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB13 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB14 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB15 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB16 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB17 => Some(Self::RotateRegisterLeftThroughCarry {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB18 => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB19 => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB1A => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB1B => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB1C => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB1D => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB1E => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB1F => Some(Self::RotateRegisterRightThroughCarry {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB20 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB21 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB22 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB23 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB24 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB25 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB26 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB27 => Some(Self::ShiftRegisterLeft {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB28 => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB29 => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB2A => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB2B => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB2C => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB2D => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB2E => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB2F => Some(Self::ShiftRegisterRightSigned {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB30 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB31 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB32 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB33 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB34 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB35 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB36 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB37 => Some(Self::SwapRegister {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB38 => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::B,
+                }),
+                0xCB39 => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::C,
+                }),
+                0xCB3A => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::D,
+                }),
+                0xCB3B => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::E,
+                }),
+                0xCB3C => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::H,
+                }),
+                0xCB3D => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::L,
+                }),
+                0xCB3E => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::M,
+                }),
+                0xCB3F => Some(Self::ShiftRegisterRight {
+                    register1: Intel8080Register::A,
+                }),
+                0xCB40 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB41 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB42 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB43 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB44 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB45 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB46 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB47 => Some(Self::TestBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB48 => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB49 => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB4A => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB4B => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB4C => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB4D => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB4E => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB4F => Some(Self::TestBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB50 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB51 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB52 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB53 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB54 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB55 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB56 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB57 => Some(Self::TestBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB58 => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB59 => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB5A => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB5B => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB5C => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB5D => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB5E => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB5F => Some(Self::TestBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB60 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB61 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB62 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB63 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB64 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB65 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB66 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB67 => Some(Self::TestBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB68 => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB69 => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB6A => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB6B => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB6C => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB6D => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB6E => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB6F => Some(Self::TestBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB70 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB71 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB72 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB73 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB74 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB75 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB76 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB77 => Some(Self::TestBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB78 => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB79 => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB7A => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB7B => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB7C => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB7D => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB7E => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB7F => Some(Self::TestBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB80 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB81 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB82 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB83 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB84 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB85 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB86 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB87 => Some(Self::ResetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB88 => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB89 => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB8A => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB8B => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB8C => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB8D => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB8E => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB8F => Some(Self::ResetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB90 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB91 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB92 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB93 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB94 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB95 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB96 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB97 => Some(Self::ResetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCB98 => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCB99 => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCB9A => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCB9B => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCB9C => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCB9D => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCB9E => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCB9F => Some(Self::ResetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBA0 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBA1 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBA2 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBA3 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBA4 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBA5 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBA6 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBA7 => Some(Self::ResetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBA8 => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBA9 => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBAA => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBAB => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBAC => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBAD => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBAE => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBAF => Some(Self::ResetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBB0 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBB1 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBB2 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBB3 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBB4 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBB5 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBB6 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBB7 => Some(Self::ResetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBB8 => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBB9 => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBBA => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBBB => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBBC => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBBD => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBBE => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBBF => Some(Self::ResetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBC0 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBC1 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBC2 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBC3 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBC4 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBC5 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBC6 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBC7 => Some(Self::SetBit {
+                    data1: 0u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBC8 => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBC9 => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBCA => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBCB => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBCC => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBCD => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBCE => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBCF => Some(Self::SetBit {
+                    data1: 1u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBD0 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBD1 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBD2 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBD3 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBD4 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBD5 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBD6 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBD7 => Some(Self::SetBit {
+                    data1: 2u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBD8 => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBD9 => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBDA => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBDB => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBDC => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBDD => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBDE => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBDF => Some(Self::SetBit {
+                    data1: 3u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBE0 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBE1 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBE2 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBE3 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBE4 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBE5 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBE6 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBE7 => Some(Self::SetBit {
+                    data1: 4u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBE8 => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBE9 => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBEA => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBEB => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBEC => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBED => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBEE => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBEF => Some(Self::SetBit {
+                    data1: 5u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBF0 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBF1 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBF2 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBF3 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBF4 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBF5 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBF6 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBF7 => Some(Self::SetBit {
+                    data1: 6u8,
+                    register2: Intel8080Register::A,
+                }),
+                0xCBF8 => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::B,
+                }),
+                0xCBF9 => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::C,
+                }),
+                0xCBFA => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::D,
+                }),
+                0xCBFB => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::E,
+                }),
+                0xCBFC => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::H,
+                }),
+                0xCBFD => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::L,
+                }),
+                0xCBFE => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::M,
+                }),
+                0xCBFF => Some(Self::SetBit {
+                    data1: 7u8,
+                    register2: Intel8080Register::A,
+                }),
+                _ => None,
+            },
+            0xCC => Some(Self::CallIfZero {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xCD => Some(Self::Call {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xCE => Some(Self::AddImmediateToAccumulatorWithCarry {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xCF => Some(Self::Restart { data1: 1u8 }),
+            0xD0 => Some(Self::ReturnIfNoCarry),
+            0xD1 => Some(Self::PopDataOffStack {
+                register1: Intel8080Register::D,
+            }),
+            0xD2 => Some(Self::JumpIfNoCarry {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xD4 => Some(Self::CallIfNoCarry {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xD5 => Some(Self::PushDataOntoStack {
+                register1: Intel8080Register::D,
+            }),
+            0xD6 => Some(Self::SubtractImmediateFromAccumulator {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xD7 => Some(Self::Restart { data1: 2u8 }),
+            0xD8 => Some(Self::ReturnIfCarry),
+            0xD9 => Some(Self::ReturnAndEnableInterrupts),
+            0xDA => Some(Self::JumpIfCarry {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xDC => Some(Self::CallIfCarry {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xDE => Some(Self::SubtractImmediateFromAccumulatorWithBorrow {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xDF => Some(Self::Restart { data1: 3u8 }),
+            0xE0 => Some(Self::StoreAccumulatorDirectOneByte {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xE1 => Some(Self::PopDataOffStack {
+                register1: Intel8080Register::H,
+            }),
+            0xE2 => Some(Self::StoreAccumulatorOneByte),
+            0xE5 => Some(Self::PushDataOntoStack {
+                register1: Intel8080Register::H,
+            }),
+            0xE6 => Some(Self::AndImmediateWithAccumulator {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xE7 => Some(Self::Restart { data1: 4u8 }),
+            0xE8 => Some(Self::AddImmediateToSp {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xE9 => Some(Self::LoadProgramCounter),
+            0xEA => Some(Self::StoreAccumulatorDirect {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xEE => Some(Self::ExclusiveOrImmediateWithAccumulator {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xEF => Some(Self::Restart { data1: 5u8 }),
+            0xF0 => Some(Self::LoadAccumulatorDirectOneByte {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xF1 => Some(Self::PopDataOffStack {
+                register1: Intel8080Register::PSW,
+            }),
+            0xF2 => Some(Self::LoadAccumulatorOneByte),
+            0xF3 => Some(Self::DisableInterrupts),
+            0xF5 => Some(Self::PushDataOntoStack {
+                register1: Intel8080Register::PSW,
+            }),
+            0xF6 => Some(Self::OrImmediateWithAccumulator {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xF7 => Some(Self::Restart { data1: 6u8 }),
+            0xF8 => Some(Self::StoreSpPlusImmediate {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xF9 => Some(Self::LoadSpFromHAndL),
+            0xFA => Some(Self::LoadAccumulatorDirect {
+                address1: stream.read_u16::<LittleEndian>().unwrap(),
+            }),
+            0xFB => Some(Self::EnableInterrupts),
+            0xFE => Some(Self::CompareImmediateWithAccumulator {
+                data1: stream.read_u8().unwrap(),
+            }),
+            0xFF => Some(Self::Restart { data1: 7u8 }),
+            _ => None,
+        })
+    }
+}
+impl LR35902Instruction {
+    pub fn size(&self) -> u8 {
+        match self {
+            Self::NoOperation { .. } => 1u8,
+            Self::LoadRegisterPairImmediate { .. } => 3u8,
+            Self::StoreAccumulator { .. } => 1u8,
+            Self::IncrementRegisterPair { .. } => 1u8,
+            Self::IncrementRegisterOrMemory { .. } => 1u8,
+            Self::DecrementRegisterOrMemory { .. } => 1u8,
+            Self::MoveImmediateData { .. } => 2u8,
+            Self::RotateAccumulatorLeft { .. } => 1u8,
+            Self::StoreSpDirect { .. } => 3u8,
+            Self::DoubleAdd { .. } => 1u8,
+            Self::LoadAccumulator { .. } => 1u8,
+            Self::DecrementRegisterPair { .. } => 1u8,
+            Self::RotateAccumulatorRight { .. } => 1u8,
+            Self::HaltUntilButtonPress { .. } => 2u8,
+            Self::RotateAccumulatorLeftThroughCarry { .. } => 1u8,
+            Self::JumpRelative { .. } => 2u8,
+            Self::RotateAccumulatorRightThroughCarry { .. } => 1u8,
+            Self::JumpRelativeIfNotZero { .. } => 2u8,
+            Self::MoveAndIncrementHl { .. } => 1u8,
+            Self::DecimalAdjustAccumulator { .. } => 1u8,
+            Self::JumpRelativeIfZero { .. } => 2u8,
+            Self::ComplementAccumulator { .. } => 1u8,
+            Self::JumpRelativeIfNoCarry { .. } => 2u8,
+            Self::MoveAndDecrementHl { .. } => 1u8,
+            Self::SetCarry { .. } => 1u8,
+            Self::JumpRelativeIfCarry { .. } => 2u8,
+            Self::ComplementCarry { .. } => 1u8,
+            Self::MoveData { .. } => 1u8,
+            Self::Halt { .. } => 1u8,
+            Self::AddToAccumulator { .. } => 1u8,
+            Self::AddToAccumulatorWithCarry { .. } => 1u8,
+            Self::SubtractFromAccumulator { .. } => 1u8,
+            Self::SubtractFromAccumulatorWithBorrow { .. } => 1u8,
+            Self::LogicalAndWithAccumulator { .. } => 1u8,
+            Self::LogicalExclusiveOrWithAccumulator { .. } => 1u8,
+            Self::LogicalOrWithAccumulator { .. } => 1u8,
+            Self::CompareWithAccumulator { .. } => 1u8,
+            Self::ReturnIfNotZero { .. } => 1u8,
+            Self::PopDataOffStack { .. } => 1u8,
+            Self::JumpIfNotZero { .. } => 3u8,
+            Self::Jump { .. } => 3u8,
+            Self::CallIfNotZero { .. } => 3u8,
+            Self::PushDataOntoStack { .. } => 1u8,
+            Self::AddImmediateToAccumulator { .. } => 2u8,
+            Self::Restart { .. } => 1u8,
+            Self::ReturnIfZero { .. } => 1u8,
+            Self::ReturnUnconditionally { .. } => 1u8,
+            Self::JumpIfZero { .. } => 3u8,
+            Self::RotateRegisterLeft { .. } => 2u8,
+            Self::RotateRegisterRight { .. } => 2u8,
+            Self::RotateRegisterLeftThroughCarry { .. } => 2u8,
+            Self::RotateRegisterRightThroughCarry { .. } => 2u8,
+            Self::ShiftRegisterLeft { .. } => 2u8,
+            Self::ShiftRegisterRightSigned { .. } => 2u8,
+            Self::SwapRegister { .. } => 2u8,
+            Self::ShiftRegisterRight { .. } => 2u8,
+            Self::TestBit { .. } => 2u8,
+            Self::ResetBit { .. } => 2u8,
+            Self::SetBit { .. } => 2u8,
+            Self::CallIfZero { .. } => 3u8,
+            Self::Call { .. } => 3u8,
+            Self::AddImmediateToAccumulatorWithCarry { .. } => 2u8,
+            Self::ReturnIfNoCarry { .. } => 1u8,
+            Self::JumpIfNoCarry { .. } => 3u8,
+            Self::CallIfNoCarry { .. } => 3u8,
+            Self::SubtractImmediateFromAccumulator { .. } => 2u8,
+            Self::ReturnIfCarry { .. } => 1u8,
+            Self::ReturnAndEnableInterrupts { .. } => 1u8,
+            Self::JumpIfCarry { .. } => 3u8,
+            Self::CallIfCarry { .. } => 3u8,
+            Self::SubtractImmediateFromAccumulatorWithBorrow { .. } => 2u8,
+            Self::StoreAccumulatorDirectOneByte { .. } => 2u8,
+            Self::StoreAccumulatorOneByte { .. } => 1u8,
+            Self::AndImmediateWithAccumulator { .. } => 2u8,
+            Self::AddImmediateToSp { .. } => 2u8,
+            Self::LoadProgramCounter { .. } => 1u8,
+            Self::StoreAccumulatorDirect { .. } => 3u8,
+            Self::ExclusiveOrImmediateWithAccumulator { .. } => 2u8,
+            Self::LoadAccumulatorDirectOneByte { .. } => 2u8,
+            Self::LoadAccumulatorOneByte { .. } => 1u8,
+            Self::DisableInterrupts { .. } => 1u8,
+            Self::OrImmediateWithAccumulator { .. } => 2u8,
+            Self::StoreSpPlusImmediate { .. } => 2u8,
+            Self::LoadSpFromHAndL { .. } => 1u8,
+            Self::LoadAccumulatorDirect { .. } => 3u8,
+            Self::EnableInterrupts { .. } => 1u8,
+            Self::CompareImmediateWithAccumulator { .. } => 2u8,
+        }
+    }
+}
+impl LR35902Instruction {
+    pub fn duration(&self) -> u8 {
+        match self {
+            Self::NoOperation { .. } => 4u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::B,
+                ..
+            } => 12u8,
+            Self::StoreAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::RotateAccumulatorLeft { .. } => 4u8,
+            Self::StoreSpDirect { .. } => 20u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::LoadAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::RotateAccumulatorRight { .. } => 4u8,
+            Self::HaltUntilButtonPress { .. } => 4u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::D,
+                ..
+            } => 12u8,
+            Self::StoreAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::RotateAccumulatorLeftThroughCarry { .. } => 4u8,
+            Self::JumpRelative { .. } => 12u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::LoadAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::RotateAccumulatorRightThroughCarry { .. } => 4u8,
+            Self::JumpRelativeIfNotZero { .. } => 8u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::H,
+                ..
+            } => 12u8,
+            Self::MoveAndIncrementHl {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::DecimalAdjustAccumulator { .. } => 4u8,
+            Self::JumpRelativeIfZero { .. } => 8u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::MoveAndIncrementHl {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ComplementAccumulator { .. } => 4u8,
+            Self::JumpRelativeIfNoCarry { .. } => 8u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::SP,
+                ..
+            } => 12u8,
+            Self::MoveAndDecrementHl {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::SP,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+                ..
+            } => 12u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+                ..
+            } => 12u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::M,
+                ..
+            } => 12u8,
+            Self::SetCarry { .. } => 4u8,
+            Self::JumpRelativeIfCarry { .. } => 8u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::SP,
+                ..
+            } => 8u8,
+            Self::MoveAndDecrementHl {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::SP,
+                ..
+            } => 8u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ComplementCarry { .. } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::Halt { .. } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 4u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 8u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 4u8,
+            Self::ReturnIfNotZero { .. } => 8u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::B,
+                ..
+            } => 12u8,
+            Self::JumpIfNotZero { .. } => 12u8,
+            Self::Jump { .. } => 16u8,
+            Self::CallIfNotZero { .. } => 12u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::B,
+                ..
+            } => 16u8,
+            Self::AddImmediateToAccumulator { .. } => 8u8,
+            Self::Restart { data1: 0u8, .. } => 16u8,
+            Self::ReturnIfZero { .. } => 8u8,
+            Self::ReturnUnconditionally { .. } => 16u8,
+            Self::JumpIfZero { .. } => 12u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::RotateRegisterLeft {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::RotateRegisterRight {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::RotateRegisterLeftThroughCarry {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::RotateRegisterRightThroughCarry {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ShiftRegisterLeft {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ShiftRegisterRightSigned {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SwapRegister {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ShiftRegisterRight {
+                register1: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 0u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 1u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 2u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 3u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 4u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 5u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 6u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::TestBit {
+                data1: 7u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 0u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 1u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 2u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 3u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 4u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 5u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 6u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::ResetBit {
+                data1: 7u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 0u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 1u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 2u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 3u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 4u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 5u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 6u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::B,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::C,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::D,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::E,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::H,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::L,
+                ..
+            } => 8u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::M,
+                ..
+            } => 16u8,
+            Self::SetBit {
+                data1: 7u8,
+                register2: Intel8080Register::A,
+                ..
+            } => 8u8,
+            Self::CallIfZero { .. } => 12u8,
+            Self::Call { .. } => 24u8,
+            Self::AddImmediateToAccumulatorWithCarry { .. } => 8u8,
+            Self::Restart { data1: 1u8, .. } => 16u8,
+            Self::ReturnIfNoCarry { .. } => 8u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::D,
+                ..
+            } => 12u8,
+            Self::JumpIfNoCarry { .. } => 12u8,
+            Self::CallIfNoCarry { .. } => 12u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::D,
+                ..
+            } => 16u8,
+            Self::SubtractImmediateFromAccumulator { .. } => 8u8,
+            Self::Restart { data1: 2u8, .. } => 16u8,
+            Self::ReturnIfCarry { .. } => 8u8,
+            Self::ReturnAndEnableInterrupts { .. } => 16u8,
+            Self::JumpIfCarry { .. } => 12u8,
+            Self::CallIfCarry { .. } => 12u8,
+            Self::SubtractImmediateFromAccumulatorWithBorrow { .. } => 8u8,
+            Self::Restart { data1: 3u8, .. } => 16u8,
+            Self::StoreAccumulatorDirectOneByte { .. } => 12u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::H,
+                ..
+            } => 12u8,
+            Self::StoreAccumulatorOneByte { .. } => 8u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::H,
+                ..
+            } => 16u8,
+            Self::AndImmediateWithAccumulator { .. } => 8u8,
+            Self::Restart { data1: 4u8, .. } => 16u8,
+            Self::AddImmediateToSp { .. } => 16u8,
+            Self::LoadProgramCounter { .. } => 4u8,
+            Self::StoreAccumulatorDirect { .. } => 16u8,
+            Self::ExclusiveOrImmediateWithAccumulator { .. } => 8u8,
+            Self::Restart { data1: 5u8, .. } => 16u8,
+            Self::LoadAccumulatorDirectOneByte { .. } => 12u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::PSW,
+                ..
+            } => 12u8,
+            Self::LoadAccumulatorOneByte { .. } => 8u8,
+            Self::DisableInterrupts { .. } => 4u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::PSW,
+                ..
+            } => 16u8,
+            Self::OrImmediateWithAccumulator { .. } => 8u8,
+            Self::Restart { data1: 6u8, .. } => 16u8,
+            Self::StoreSpPlusImmediate { .. } => 12u8,
+            Self::LoadSpFromHAndL { .. } => 8u8,
+            Self::LoadAccumulatorDirect { .. } => 16u8,
+            Self::EnableInterrupts { .. } => 4u8,
+            Self::CompareImmediateWithAccumulator { .. } => 8u8,
+            Self::Restart { data1: 7u8, .. } => 16u8,
+            instr => panic!("invalid instruction {:?}", instr),
+        }
+    }
+}
 pub trait LR35902InstructionSet {
     fn add_immediate_to_accumulator(&mut self, data1: u8);
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8);
@@ -91,2557 +4218,159 @@ pub trait LR35902InstructionSet {
     fn swap_register(&mut self, register1: Intel8080Register);
     fn test_bit(&mut self, data1: u8, register2: Intel8080Register);
 }
-pub fn dispatch_lr35902_instruction<I: LR35902InstructionSet>(
-    mut stream: &[u8],
-    machine: &mut I,
-) -> u8 {
-    let opcode = stream.read_u8().unwrap();
-    match opcode {
-        0x00 => {
-            machine.no_operation();
-            4u8
-        }
-        0x01 => {
-            machine.load_register_pair_immediate(
-                Intel8080Register::B,
-                stream.read_u16::<LittleEndian>().unwrap(),
-            );
-            12u8
-        }
-        0x02 => {
-            machine.store_accumulator(Intel8080Register::B);
-            8u8
-        }
-        0x03 => {
-            machine.increment_register_pair(Intel8080Register::B);
-            8u8
-        }
-        0x04 => {
-            machine.increment_register_or_memory(Intel8080Register::B);
-            4u8
-        }
-        0x05 => {
-            machine.decrement_register_or_memory(Intel8080Register::B);
-            4u8
-        }
-        0x06 => {
-            machine.move_immediate_data(Intel8080Register::B, stream.read_u8().unwrap());
-            8u8
-        }
-        0x07 => {
-            machine.rotate_accumulator_left();
-            4u8
-        }
-        0x08 => {
-            machine.store_sp_direct(stream.read_u16::<LittleEndian>().unwrap());
-            20u8
-        }
-        0x09 => {
-            machine.double_add(Intel8080Register::B);
-            8u8
-        }
-        0x0A => {
-            machine.load_accumulator(Intel8080Register::B);
-            8u8
-        }
-        0x0B => {
-            machine.decrement_register_pair(Intel8080Register::B);
-            8u8
-        }
-        0x0C => {
-            machine.increment_register_or_memory(Intel8080Register::C);
-            4u8
-        }
-        0x0D => {
-            machine.decrement_register_or_memory(Intel8080Register::C);
-            4u8
-        }
-        0x0E => {
-            machine.move_immediate_data(Intel8080Register::C, stream.read_u8().unwrap());
-            8u8
-        }
-        0x0F => {
-            machine.rotate_accumulator_right();
-            4u8
-        }
-        0x10 => match (0x10 as u16) << 8 | stream.read_u8().unwrap() as u16 {
-            0x1000 => {
-                machine.halt_until_button_press();
-                4u8
-            }
-            v => panic!("Unknown opcode {}", v),
-        },
-        0x11 => {
-            machine.load_register_pair_immediate(
-                Intel8080Register::D,
-                stream.read_u16::<LittleEndian>().unwrap(),
-            );
-            12u8
-        }
-        0x12 => {
-            machine.store_accumulator(Intel8080Register::D);
-            8u8
-        }
-        0x13 => {
-            machine.increment_register_pair(Intel8080Register::D);
-            8u8
-        }
-        0x14 => {
-            machine.increment_register_or_memory(Intel8080Register::D);
-            4u8
-        }
-        0x15 => {
-            machine.decrement_register_or_memory(Intel8080Register::D);
-            4u8
-        }
-        0x16 => {
-            machine.move_immediate_data(Intel8080Register::D, stream.read_u8().unwrap());
-            8u8
-        }
-        0x17 => {
-            machine.rotate_accumulator_left_through_carry();
-            4u8
-        }
-        0x18 => {
-            machine.jump_relative(stream.read_u8().unwrap());
-            12u8
-        }
-        0x19 => {
-            machine.double_add(Intel8080Register::D);
-            8u8
-        }
-        0x1A => {
-            machine.load_accumulator(Intel8080Register::D);
-            8u8
-        }
-        0x1B => {
-            machine.decrement_register_pair(Intel8080Register::D);
-            8u8
-        }
-        0x1C => {
-            machine.increment_register_or_memory(Intel8080Register::E);
-            4u8
-        }
-        0x1D => {
-            machine.decrement_register_or_memory(Intel8080Register::E);
-            4u8
-        }
-        0x1E => {
-            machine.move_immediate_data(Intel8080Register::E, stream.read_u8().unwrap());
-            8u8
-        }
-        0x1F => {
-            machine.rotate_accumulator_right_through_carry();
-            4u8
-        }
-        0x20 => {
-            machine.jump_relative_if_not_zero(stream.read_u8().unwrap());
-            8u8
-        }
-        0x21 => {
-            machine.load_register_pair_immediate(
-                Intel8080Register::H,
-                stream.read_u16::<LittleEndian>().unwrap(),
-            );
-            12u8
-        }
-        0x22 => {
-            machine.move_and_increment_hl(Intel8080Register::M, Intel8080Register::A);
-            8u8
-        }
-        0x23 => {
-            machine.increment_register_pair(Intel8080Register::H);
-            8u8
-        }
-        0x24 => {
-            machine.increment_register_or_memory(Intel8080Register::H);
-            4u8
-        }
-        0x25 => {
-            machine.decrement_register_or_memory(Intel8080Register::H);
-            4u8
-        }
-        0x26 => {
-            machine.move_immediate_data(Intel8080Register::H, stream.read_u8().unwrap());
-            8u8
-        }
-        0x27 => {
-            machine.decimal_adjust_accumulator();
-            4u8
-        }
-        0x28 => {
-            machine.jump_relative_if_zero(stream.read_u8().unwrap());
-            8u8
-        }
-        0x29 => {
-            machine.double_add(Intel8080Register::H);
-            8u8
-        }
-        0x2A => {
-            machine.move_and_increment_hl(Intel8080Register::A, Intel8080Register::M);
-            8u8
-        }
-        0x2B => {
-            machine.decrement_register_pair(Intel8080Register::H);
-            8u8
-        }
-        0x2C => {
-            machine.increment_register_or_memory(Intel8080Register::L);
-            4u8
-        }
-        0x2D => {
-            machine.decrement_register_or_memory(Intel8080Register::L);
-            4u8
-        }
-        0x2E => {
-            machine.move_immediate_data(Intel8080Register::L, stream.read_u8().unwrap());
-            8u8
-        }
-        0x2F => {
-            machine.complement_accumulator();
-            4u8
-        }
-        0x30 => {
-            machine.jump_relative_if_no_carry(stream.read_u8().unwrap());
-            8u8
-        }
-        0x31 => {
-            machine.load_register_pair_immediate(
-                Intel8080Register::SP,
-                stream.read_u16::<LittleEndian>().unwrap(),
-            );
-            12u8
-        }
-        0x32 => {
-            machine.move_and_decrement_hl(Intel8080Register::M, Intel8080Register::A);
-            8u8
-        }
-        0x33 => {
-            machine.increment_register_pair(Intel8080Register::SP);
-            8u8
-        }
-        0x34 => {
-            machine.increment_register_or_memory(Intel8080Register::M);
-            12u8
-        }
-        0x35 => {
-            machine.decrement_register_or_memory(Intel8080Register::M);
-            12u8
-        }
-        0x36 => {
-            machine.move_immediate_data(Intel8080Register::M, stream.read_u8().unwrap());
-            12u8
-        }
-        0x37 => {
-            machine.set_carry();
-            4u8
-        }
-        0x38 => {
-            machine.jump_relative_if_carry(stream.read_u8().unwrap());
-            8u8
-        }
-        0x39 => {
-            machine.double_add(Intel8080Register::SP);
-            8u8
-        }
-        0x3A => {
-            machine.move_and_decrement_hl(Intel8080Register::A, Intel8080Register::M);
-            8u8
-        }
-        0x3B => {
-            machine.decrement_register_pair(Intel8080Register::SP);
-            8u8
-        }
-        0x3C => {
-            machine.increment_register_or_memory(Intel8080Register::A);
-            4u8
-        }
-        0x3D => {
-            machine.decrement_register_or_memory(Intel8080Register::A);
-            4u8
-        }
-        0x3E => {
-            machine.move_immediate_data(Intel8080Register::A, stream.read_u8().unwrap());
-            8u8
-        }
-        0x3F => {
-            machine.complement_carry();
-            4u8
-        }
-        0x40 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::B);
-            4u8
-        }
-        0x41 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::C);
-            4u8
-        }
-        0x42 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::D);
-            4u8
-        }
-        0x43 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::E);
-            4u8
-        }
-        0x44 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::H);
-            4u8
-        }
-        0x45 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::L);
-            4u8
-        }
-        0x46 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::M);
-            8u8
-        }
-        0x47 => {
-            machine.move_data(Intel8080Register::B, Intel8080Register::A);
-            4u8
-        }
-        0x48 => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::B);
-            4u8
-        }
-        0x49 => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::C);
-            4u8
-        }
-        0x4A => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::D);
-            4u8
-        }
-        0x4B => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::E);
-            4u8
-        }
-        0x4C => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::H);
-            4u8
-        }
-        0x4D => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::L);
-            4u8
-        }
-        0x4E => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::M);
-            8u8
-        }
-        0x4F => {
-            machine.move_data(Intel8080Register::C, Intel8080Register::A);
-            4u8
-        }
-        0x50 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::B);
-            4u8
-        }
-        0x51 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::C);
-            4u8
-        }
-        0x52 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::D);
-            4u8
-        }
-        0x53 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::E);
-            4u8
-        }
-        0x54 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::H);
-            4u8
-        }
-        0x55 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::L);
-            4u8
-        }
-        0x56 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::M);
-            8u8
-        }
-        0x57 => {
-            machine.move_data(Intel8080Register::D, Intel8080Register::A);
-            4u8
-        }
-        0x58 => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::B);
-            4u8
-        }
-        0x59 => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::C);
-            4u8
-        }
-        0x5A => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::D);
-            4u8
-        }
-        0x5B => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::E);
-            4u8
-        }
-        0x5C => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::H);
-            4u8
-        }
-        0x5D => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::L);
-            4u8
-        }
-        0x5E => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::M);
-            8u8
-        }
-        0x5F => {
-            machine.move_data(Intel8080Register::E, Intel8080Register::A);
-            4u8
-        }
-        0x60 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::B);
-            4u8
-        }
-        0x61 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::C);
-            4u8
-        }
-        0x62 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::D);
-            4u8
-        }
-        0x63 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::E);
-            4u8
-        }
-        0x64 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::H);
-            4u8
-        }
-        0x65 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::L);
-            4u8
-        }
-        0x66 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::M);
-            8u8
-        }
-        0x67 => {
-            machine.move_data(Intel8080Register::H, Intel8080Register::A);
-            4u8
-        }
-        0x68 => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::B);
-            4u8
-        }
-        0x69 => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::C);
-            4u8
-        }
-        0x6A => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::D);
-            4u8
-        }
-        0x6B => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::E);
-            4u8
-        }
-        0x6C => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::H);
-            4u8
-        }
-        0x6D => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::L);
-            4u8
-        }
-        0x6E => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::M);
-            8u8
-        }
-        0x6F => {
-            machine.move_data(Intel8080Register::L, Intel8080Register::A);
-            4u8
-        }
-        0x70 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::B);
-            8u8
-        }
-        0x71 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::C);
-            8u8
-        }
-        0x72 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::D);
-            8u8
-        }
-        0x73 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::E);
-            8u8
-        }
-        0x74 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::H);
-            8u8
-        }
-        0x75 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::L);
-            8u8
-        }
-        0x76 => {
-            machine.halt();
-            4u8
-        }
-        0x77 => {
-            machine.move_data(Intel8080Register::M, Intel8080Register::A);
-            8u8
-        }
-        0x78 => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::B);
-            4u8
-        }
-        0x79 => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::C);
-            4u8
-        }
-        0x7A => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::D);
-            4u8
-        }
-        0x7B => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::E);
-            4u8
-        }
-        0x7C => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::H);
-            4u8
-        }
-        0x7D => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::L);
-            4u8
-        }
-        0x7E => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::M);
-            8u8
-        }
-        0x7F => {
-            machine.move_data(Intel8080Register::A, Intel8080Register::A);
-            4u8
-        }
-        0x80 => {
-            machine.add_to_accumulator(Intel8080Register::B);
-            4u8
-        }
-        0x81 => {
-            machine.add_to_accumulator(Intel8080Register::C);
-            4u8
-        }
-        0x82 => {
-            machine.add_to_accumulator(Intel8080Register::D);
-            4u8
-        }
-        0x83 => {
-            machine.add_to_accumulator(Intel8080Register::E);
-            4u8
-        }
-        0x84 => {
-            machine.add_to_accumulator(Intel8080Register::H);
-            4u8
-        }
-        0x85 => {
-            machine.add_to_accumulator(Intel8080Register::L);
-            4u8
-        }
-        0x86 => {
-            machine.add_to_accumulator(Intel8080Register::M);
-            8u8
-        }
-        0x87 => {
-            machine.add_to_accumulator(Intel8080Register::A);
-            4u8
-        }
-        0x88 => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::B);
-            4u8
-        }
-        0x89 => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::C);
-            4u8
-        }
-        0x8A => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::D);
-            4u8
-        }
-        0x8B => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::E);
-            4u8
-        }
-        0x8C => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::H);
-            4u8
-        }
-        0x8D => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::L);
-            4u8
-        }
-        0x8E => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::M);
-            8u8
-        }
-        0x8F => {
-            machine.add_to_accumulator_with_carry(Intel8080Register::A);
-            4u8
-        }
-        0x90 => {
-            machine.subtract_from_accumulator(Intel8080Register::B);
-            4u8
-        }
-        0x91 => {
-            machine.subtract_from_accumulator(Intel8080Register::C);
-            4u8
-        }
-        0x92 => {
-            machine.subtract_from_accumulator(Intel8080Register::D);
-            4u8
-        }
-        0x93 => {
-            machine.subtract_from_accumulator(Intel8080Register::E);
-            4u8
-        }
-        0x94 => {
-            machine.subtract_from_accumulator(Intel8080Register::H);
-            4u8
-        }
-        0x95 => {
-            machine.subtract_from_accumulator(Intel8080Register::L);
-            4u8
-        }
-        0x96 => {
-            machine.subtract_from_accumulator(Intel8080Register::M);
-            8u8
-        }
-        0x97 => {
-            machine.subtract_from_accumulator(Intel8080Register::A);
-            4u8
-        }
-        0x98 => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::B);
-            4u8
-        }
-        0x99 => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::C);
-            4u8
-        }
-        0x9A => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::D);
-            4u8
-        }
-        0x9B => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::E);
-            4u8
-        }
-        0x9C => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::H);
-            4u8
-        }
-        0x9D => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::L);
-            4u8
-        }
-        0x9E => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::M);
-            8u8
-        }
-        0x9F => {
-            machine.subtract_from_accumulator_with_borrow(Intel8080Register::A);
-            4u8
-        }
-        0xA0 => {
-            machine.logical_and_with_accumulator(Intel8080Register::B);
-            4u8
-        }
-        0xA1 => {
-            machine.logical_and_with_accumulator(Intel8080Register::C);
-            4u8
-        }
-        0xA2 => {
-            machine.logical_and_with_accumulator(Intel8080Register::D);
-            4u8
-        }
-        0xA3 => {
-            machine.logical_and_with_accumulator(Intel8080Register::E);
-            4u8
-        }
-        0xA4 => {
-            machine.logical_and_with_accumulator(Intel8080Register::H);
-            4u8
-        }
-        0xA5 => {
-            machine.logical_and_with_accumulator(Intel8080Register::L);
-            4u8
-        }
-        0xA6 => {
-            machine.logical_and_with_accumulator(Intel8080Register::M);
-            8u8
-        }
-        0xA7 => {
-            machine.logical_and_with_accumulator(Intel8080Register::A);
-            4u8
-        }
-        0xA8 => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::B);
-            4u8
-        }
-        0xA9 => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::C);
-            4u8
-        }
-        0xAA => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::D);
-            4u8
-        }
-        0xAB => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::E);
-            4u8
-        }
-        0xAC => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::H);
-            4u8
-        }
-        0xAD => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::L);
-            4u8
-        }
-        0xAE => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::M);
-            8u8
-        }
-        0xAF => {
-            machine.logical_exclusive_or_with_accumulator(Intel8080Register::A);
-            4u8
-        }
-        0xB0 => {
-            machine.logical_or_with_accumulator(Intel8080Register::B);
-            4u8
-        }
-        0xB1 => {
-            machine.logical_or_with_accumulator(Intel8080Register::C);
-            4u8
-        }
-        0xB2 => {
-            machine.logical_or_with_accumulator(Intel8080Register::D);
-            4u8
-        }
-        0xB3 => {
-            machine.logical_or_with_accumulator(Intel8080Register::E);
-            4u8
-        }
-        0xB4 => {
-            machine.logical_or_with_accumulator(Intel8080Register::H);
-            4u8
-        }
-        0xB5 => {
-            machine.logical_or_with_accumulator(Intel8080Register::L);
-            4u8
-        }
-        0xB6 => {
-            machine.logical_or_with_accumulator(Intel8080Register::M);
-            8u8
-        }
-        0xB7 => {
-            machine.logical_or_with_accumulator(Intel8080Register::A);
-            4u8
-        }
-        0xB8 => {
-            machine.compare_with_accumulator(Intel8080Register::B);
-            4u8
-        }
-        0xB9 => {
-            machine.compare_with_accumulator(Intel8080Register::C);
-            4u8
-        }
-        0xBA => {
-            machine.compare_with_accumulator(Intel8080Register::D);
-            4u8
-        }
-        0xBB => {
-            machine.compare_with_accumulator(Intel8080Register::E);
-            4u8
-        }
-        0xBC => {
-            machine.compare_with_accumulator(Intel8080Register::H);
-            4u8
-        }
-        0xBD => {
-            machine.compare_with_accumulator(Intel8080Register::L);
-            4u8
-        }
-        0xBE => {
-            machine.compare_with_accumulator(Intel8080Register::M);
-            8u8
-        }
-        0xBF => {
-            machine.compare_with_accumulator(Intel8080Register::A);
-            4u8
-        }
-        0xC0 => {
-            machine.return_if_not_zero();
-            8u8
-        }
-        0xC1 => {
-            machine.pop_data_off_stack(Intel8080Register::B);
-            12u8
-        }
-        0xC2 => {
-            machine.jump_if_not_zero(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xC3 => {
-            machine.jump(stream.read_u16::<LittleEndian>().unwrap());
-            16u8
-        }
-        0xC4 => {
-            machine.call_if_not_zero(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xC5 => {
-            machine.push_data_onto_stack(Intel8080Register::B);
-            16u8
-        }
-        0xC6 => {
-            machine.add_immediate_to_accumulator(stream.read_u8().unwrap());
-            8u8
-        }
-        0xC7 => {
-            machine.restart(0u8);
-            16u8
-        }
-        0xC8 => {
-            machine.return_if_zero();
-            8u8
-        }
-        0xC9 => {
-            machine.return_unconditionally();
-            16u8
-        }
-        0xCA => {
-            machine.jump_if_zero(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xCB => match (0xCB as u16) << 8 | stream.read_u8().unwrap() as u16 {
-            0xCB00 => {
-                machine.rotate_register_left(Intel8080Register::B);
-                8u8
-            }
-            0xCB01 => {
-                machine.rotate_register_left(Intel8080Register::C);
-                8u8
-            }
-            0xCB02 => {
-                machine.rotate_register_left(Intel8080Register::D);
-                8u8
-            }
-            0xCB03 => {
-                machine.rotate_register_left(Intel8080Register::E);
-                8u8
-            }
-            0xCB04 => {
-                machine.rotate_register_left(Intel8080Register::H);
-                8u8
-            }
-            0xCB05 => {
-                machine.rotate_register_left(Intel8080Register::L);
-                8u8
-            }
-            0xCB06 => {
-                machine.rotate_register_left(Intel8080Register::M);
-                16u8
-            }
-            0xCB07 => {
-                machine.rotate_register_left(Intel8080Register::A);
-                8u8
-            }
-            0xCB08 => {
-                machine.rotate_register_right(Intel8080Register::B);
-                8u8
-            }
-            0xCB09 => {
-                machine.rotate_register_right(Intel8080Register::C);
-                8u8
-            }
-            0xCB0A => {
-                machine.rotate_register_right(Intel8080Register::D);
-                8u8
-            }
-            0xCB0B => {
-                machine.rotate_register_right(Intel8080Register::E);
-                8u8
-            }
-            0xCB0C => {
-                machine.rotate_register_right(Intel8080Register::H);
-                8u8
-            }
-            0xCB0D => {
-                machine.rotate_register_right(Intel8080Register::L);
-                8u8
-            }
-            0xCB0E => {
-                machine.rotate_register_right(Intel8080Register::M);
-                16u8
-            }
-            0xCB0F => {
-                machine.rotate_register_right(Intel8080Register::A);
-                8u8
-            }
-            0xCB10 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::B);
-                8u8
-            }
-            0xCB11 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::C);
-                8u8
-            }
-            0xCB12 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::D);
-                8u8
-            }
-            0xCB13 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::E);
-                8u8
-            }
-            0xCB14 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::H);
-                8u8
-            }
-            0xCB15 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::L);
-                8u8
-            }
-            0xCB16 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::M);
-                16u8
-            }
-            0xCB17 => {
-                machine.rotate_register_left_through_carry(Intel8080Register::A);
-                8u8
-            }
-            0xCB18 => {
-                machine.rotate_register_right_through_carry(Intel8080Register::B);
-                8u8
-            }
-            0xCB19 => {
-                machine.rotate_register_right_through_carry(Intel8080Register::C);
-                8u8
-            }
-            0xCB1A => {
-                machine.rotate_register_right_through_carry(Intel8080Register::D);
-                8u8
-            }
-            0xCB1B => {
-                machine.rotate_register_right_through_carry(Intel8080Register::E);
-                8u8
-            }
-            0xCB1C => {
-                machine.rotate_register_right_through_carry(Intel8080Register::H);
-                8u8
-            }
-            0xCB1D => {
-                machine.rotate_register_right_through_carry(Intel8080Register::L);
-                8u8
-            }
-            0xCB1E => {
-                machine.rotate_register_right_through_carry(Intel8080Register::M);
-                16u8
-            }
-            0xCB1F => {
-                machine.rotate_register_right_through_carry(Intel8080Register::A);
-                8u8
-            }
-            0xCB20 => {
-                machine.shift_register_left(Intel8080Register::B);
-                8u8
-            }
-            0xCB21 => {
-                machine.shift_register_left(Intel8080Register::C);
-                8u8
-            }
-            0xCB22 => {
-                machine.shift_register_left(Intel8080Register::D);
-                8u8
-            }
-            0xCB23 => {
-                machine.shift_register_left(Intel8080Register::E);
-                8u8
-            }
-            0xCB24 => {
-                machine.shift_register_left(Intel8080Register::H);
-                8u8
-            }
-            0xCB25 => {
-                machine.shift_register_left(Intel8080Register::L);
-                8u8
-            }
-            0xCB26 => {
-                machine.shift_register_left(Intel8080Register::M);
-                16u8
-            }
-            0xCB27 => {
-                machine.shift_register_left(Intel8080Register::A);
-                8u8
-            }
-            0xCB28 => {
-                machine.shift_register_right_signed(Intel8080Register::B);
-                8u8
-            }
-            0xCB29 => {
-                machine.shift_register_right_signed(Intel8080Register::C);
-                8u8
-            }
-            0xCB2A => {
-                machine.shift_register_right_signed(Intel8080Register::D);
-                8u8
-            }
-            0xCB2B => {
-                machine.shift_register_right_signed(Intel8080Register::E);
-                8u8
-            }
-            0xCB2C => {
-                machine.shift_register_right_signed(Intel8080Register::H);
-                8u8
-            }
-            0xCB2D => {
-                machine.shift_register_right_signed(Intel8080Register::L);
-                8u8
-            }
-            0xCB2E => {
-                machine.shift_register_right_signed(Intel8080Register::M);
-                16u8
+impl LR35902Instruction {
+    pub fn dispatch<I: LR35902InstructionSet>(self, machine: &mut I) {
+        match self {
+            Self::NoOperation {} => machine.no_operation(),
+            Self::LoadRegisterPairImmediate { register1, data2 } => {
+                machine.load_register_pair_immediate(register1, data2)
+            }
+            Self::StoreAccumulator { register1 } => machine.store_accumulator(register1),
+            Self::IncrementRegisterPair { register1 } => machine.increment_register_pair(register1),
+            Self::IncrementRegisterOrMemory { register1 } => {
+                machine.increment_register_or_memory(register1)
+            }
+            Self::DecrementRegisterOrMemory { register1 } => {
+                machine.decrement_register_or_memory(register1)
+            }
+            Self::MoveImmediateData { register1, data2 } => {
+                machine.move_immediate_data(register1, data2)
+            }
+            Self::RotateAccumulatorLeft {} => machine.rotate_accumulator_left(),
+            Self::StoreSpDirect { address1 } => machine.store_sp_direct(address1),
+            Self::DoubleAdd { register1 } => machine.double_add(register1),
+            Self::LoadAccumulator { register1 } => machine.load_accumulator(register1),
+            Self::DecrementRegisterPair { register1 } => machine.decrement_register_pair(register1),
+            Self::RotateAccumulatorRight {} => machine.rotate_accumulator_right(),
+            Self::HaltUntilButtonPress {} => machine.halt_until_button_press(),
+            Self::RotateAccumulatorLeftThroughCarry {} => {
+                machine.rotate_accumulator_left_through_carry()
+            }
+            Self::JumpRelative { data1 } => machine.jump_relative(data1),
+            Self::RotateAccumulatorRightThroughCarry {} => {
+                machine.rotate_accumulator_right_through_carry()
+            }
+            Self::JumpRelativeIfNotZero { data1 } => machine.jump_relative_if_not_zero(data1),
+            Self::MoveAndIncrementHl {
+                register1,
+                register2,
+            } => machine.move_and_increment_hl(register1, register2),
+            Self::DecimalAdjustAccumulator {} => machine.decimal_adjust_accumulator(),
+            Self::JumpRelativeIfZero { data1 } => machine.jump_relative_if_zero(data1),
+            Self::ComplementAccumulator {} => machine.complement_accumulator(),
+            Self::JumpRelativeIfNoCarry { data1 } => machine.jump_relative_if_no_carry(data1),
+            Self::MoveAndDecrementHl {
+                register1,
+                register2,
+            } => machine.move_and_decrement_hl(register1, register2),
+            Self::SetCarry {} => machine.set_carry(),
+            Self::JumpRelativeIfCarry { data1 } => machine.jump_relative_if_carry(data1),
+            Self::ComplementCarry {} => machine.complement_carry(),
+            Self::MoveData {
+                register1,
+                register2,
+            } => machine.move_data(register1, register2),
+            Self::Halt {} => machine.halt(),
+            Self::AddToAccumulator { register1 } => machine.add_to_accumulator(register1),
+            Self::AddToAccumulatorWithCarry { register1 } => {
+                machine.add_to_accumulator_with_carry(register1)
+            }
+            Self::SubtractFromAccumulator { register1 } => {
+                machine.subtract_from_accumulator(register1)
+            }
+            Self::SubtractFromAccumulatorWithBorrow { register1 } => {
+                machine.subtract_from_accumulator_with_borrow(register1)
+            }
+            Self::LogicalAndWithAccumulator { register1 } => {
+                machine.logical_and_with_accumulator(register1)
+            }
+            Self::LogicalExclusiveOrWithAccumulator { register1 } => {
+                machine.logical_exclusive_or_with_accumulator(register1)
+            }
+            Self::LogicalOrWithAccumulator { register1 } => {
+                machine.logical_or_with_accumulator(register1)
+            }
+            Self::CompareWithAccumulator { register1 } => {
+                machine.compare_with_accumulator(register1)
+            }
+            Self::ReturnIfNotZero {} => machine.return_if_not_zero(),
+            Self::PopDataOffStack { register1 } => machine.pop_data_off_stack(register1),
+            Self::JumpIfNotZero { address1 } => machine.jump_if_not_zero(address1),
+            Self::Jump { address1 } => machine.jump(address1),
+            Self::CallIfNotZero { address1 } => machine.call_if_not_zero(address1),
+            Self::PushDataOntoStack { register1 } => machine.push_data_onto_stack(register1),
+            Self::AddImmediateToAccumulator { data1 } => {
+                machine.add_immediate_to_accumulator(data1)
+            }
+            Self::Restart { data1 } => machine.restart(data1),
+            Self::ReturnIfZero {} => machine.return_if_zero(),
+            Self::ReturnUnconditionally {} => machine.return_unconditionally(),
+            Self::JumpIfZero { address1 } => machine.jump_if_zero(address1),
+            Self::RotateRegisterLeft { register1 } => machine.rotate_register_left(register1),
+            Self::RotateRegisterRight { register1 } => machine.rotate_register_right(register1),
+            Self::RotateRegisterLeftThroughCarry { register1 } => {
+                machine.rotate_register_left_through_carry(register1)
+            }
+            Self::RotateRegisterRightThroughCarry { register1 } => {
+                machine.rotate_register_right_through_carry(register1)
+            }
+            Self::ShiftRegisterLeft { register1 } => machine.shift_register_left(register1),
+            Self::ShiftRegisterRightSigned { register1 } => {
+                machine.shift_register_right_signed(register1)
+            }
+            Self::SwapRegister { register1 } => machine.swap_register(register1),
+            Self::ShiftRegisterRight { register1 } => machine.shift_register_right(register1),
+            Self::TestBit { data1, register2 } => machine.test_bit(data1, register2),
+            Self::ResetBit { data1, register2 } => machine.reset_bit(data1, register2),
+            Self::SetBit { data1, register2 } => machine.set_bit(data1, register2),
+            Self::CallIfZero { address1 } => machine.call_if_zero(address1),
+            Self::Call { address1 } => machine.call(address1),
+            Self::AddImmediateToAccumulatorWithCarry { data1 } => {
+                machine.add_immediate_to_accumulator_with_carry(data1)
+            }
+            Self::ReturnIfNoCarry {} => machine.return_if_no_carry(),
+            Self::JumpIfNoCarry { address1 } => machine.jump_if_no_carry(address1),
+            Self::CallIfNoCarry { address1 } => machine.call_if_no_carry(address1),
+            Self::SubtractImmediateFromAccumulator { data1 } => {
+                machine.subtract_immediate_from_accumulator(data1)
+            }
+            Self::ReturnIfCarry {} => machine.return_if_carry(),
+            Self::ReturnAndEnableInterrupts {} => machine.return_and_enable_interrupts(),
+            Self::JumpIfCarry { address1 } => machine.jump_if_carry(address1),
+            Self::CallIfCarry { address1 } => machine.call_if_carry(address1),
+            Self::SubtractImmediateFromAccumulatorWithBorrow { data1 } => {
+                machine.subtract_immediate_from_accumulator_with_borrow(data1)
+            }
+            Self::StoreAccumulatorDirectOneByte { data1 } => {
+                machine.store_accumulator_direct_one_byte(data1)
+            }
+            Self::StoreAccumulatorOneByte {} => machine.store_accumulator_one_byte(),
+            Self::AndImmediateWithAccumulator { data1 } => {
+                machine.and_immediate_with_accumulator(data1)
+            }
+            Self::AddImmediateToSp { data1 } => machine.add_immediate_to_sp(data1),
+            Self::LoadProgramCounter {} => machine.load_program_counter(),
+            Self::StoreAccumulatorDirect { address1 } => machine.store_accumulator_direct(address1),
+            Self::ExclusiveOrImmediateWithAccumulator { data1 } => {
+                machine.exclusive_or_immediate_with_accumulator(data1)
+            }
+            Self::LoadAccumulatorDirectOneByte { data1 } => {
+                machine.load_accumulator_direct_one_byte(data1)
+            }
+            Self::LoadAccumulatorOneByte {} => machine.load_accumulator_one_byte(),
+            Self::DisableInterrupts {} => machine.disable_interrupts(),
+            Self::OrImmediateWithAccumulator { data1 } => {
+                machine.or_immediate_with_accumulator(data1)
+            }
+            Self::StoreSpPlusImmediate { data1 } => machine.store_sp_plus_immediate(data1),
+            Self::LoadSpFromHAndL {} => machine.load_sp_from_h_and_l(),
+            Self::LoadAccumulatorDirect { address1 } => machine.load_accumulator_direct(address1),
+            Self::EnableInterrupts {} => machine.enable_interrupts(),
+            Self::CompareImmediateWithAccumulator { data1 } => {
+                machine.compare_immediate_with_accumulator(data1)
             }
-            0xCB2F => {
-                machine.shift_register_right_signed(Intel8080Register::A);
-                8u8
-            }
-            0xCB30 => {
-                machine.swap_register(Intel8080Register::B);
-                8u8
-            }
-            0xCB31 => {
-                machine.swap_register(Intel8080Register::C);
-                8u8
-            }
-            0xCB32 => {
-                machine.swap_register(Intel8080Register::D);
-                8u8
-            }
-            0xCB33 => {
-                machine.swap_register(Intel8080Register::E);
-                8u8
-            }
-            0xCB34 => {
-                machine.swap_register(Intel8080Register::H);
-                8u8
-            }
-            0xCB35 => {
-                machine.swap_register(Intel8080Register::L);
-                8u8
-            }
-            0xCB36 => {
-                machine.swap_register(Intel8080Register::M);
-                16u8
-            }
-            0xCB37 => {
-                machine.swap_register(Intel8080Register::A);
-                8u8
-            }
-            0xCB38 => {
-                machine.shift_register_right(Intel8080Register::B);
-                8u8
-            }
-            0xCB39 => {
-                machine.shift_register_right(Intel8080Register::C);
-                8u8
-            }
-            0xCB3A => {
-                machine.shift_register_right(Intel8080Register::D);
-                8u8
-            }
-            0xCB3B => {
-                machine.shift_register_right(Intel8080Register::E);
-                8u8
-            }
-            0xCB3C => {
-                machine.shift_register_right(Intel8080Register::H);
-                8u8
-            }
-            0xCB3D => {
-                machine.shift_register_right(Intel8080Register::L);
-                8u8
-            }
-            0xCB3E => {
-                machine.shift_register_right(Intel8080Register::M);
-                16u8
-            }
-            0xCB3F => {
-                machine.shift_register_right(Intel8080Register::A);
-                8u8
-            }
-            0xCB40 => {
-                machine.test_bit(0u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB41 => {
-                machine.test_bit(0u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB42 => {
-                machine.test_bit(0u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB43 => {
-                machine.test_bit(0u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB44 => {
-                machine.test_bit(0u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB45 => {
-                machine.test_bit(0u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB46 => {
-                machine.test_bit(0u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB47 => {
-                machine.test_bit(0u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB48 => {
-                machine.test_bit(1u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB49 => {
-                machine.test_bit(1u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB4A => {
-                machine.test_bit(1u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB4B => {
-                machine.test_bit(1u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB4C => {
-                machine.test_bit(1u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB4D => {
-                machine.test_bit(1u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB4E => {
-                machine.test_bit(1u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB4F => {
-                machine.test_bit(1u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB50 => {
-                machine.test_bit(2u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB51 => {
-                machine.test_bit(2u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB52 => {
-                machine.test_bit(2u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB53 => {
-                machine.test_bit(2u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB54 => {
-                machine.test_bit(2u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB55 => {
-                machine.test_bit(2u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB56 => {
-                machine.test_bit(2u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB57 => {
-                machine.test_bit(2u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB58 => {
-                machine.test_bit(3u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB59 => {
-                machine.test_bit(3u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB5A => {
-                machine.test_bit(3u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB5B => {
-                machine.test_bit(3u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB5C => {
-                machine.test_bit(3u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB5D => {
-                machine.test_bit(3u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB5E => {
-                machine.test_bit(3u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB5F => {
-                machine.test_bit(3u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB60 => {
-                machine.test_bit(4u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB61 => {
-                machine.test_bit(4u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB62 => {
-                machine.test_bit(4u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB63 => {
-                machine.test_bit(4u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB64 => {
-                machine.test_bit(4u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB65 => {
-                machine.test_bit(4u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB66 => {
-                machine.test_bit(4u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB67 => {
-                machine.test_bit(4u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB68 => {
-                machine.test_bit(5u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB69 => {
-                machine.test_bit(5u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB6A => {
-                machine.test_bit(5u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB6B => {
-                machine.test_bit(5u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB6C => {
-                machine.test_bit(5u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB6D => {
-                machine.test_bit(5u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB6E => {
-                machine.test_bit(5u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB6F => {
-                machine.test_bit(5u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB70 => {
-                machine.test_bit(6u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB71 => {
-                machine.test_bit(6u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB72 => {
-                machine.test_bit(6u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB73 => {
-                machine.test_bit(6u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB74 => {
-                machine.test_bit(6u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB75 => {
-                machine.test_bit(6u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB76 => {
-                machine.test_bit(6u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB77 => {
-                machine.test_bit(6u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB78 => {
-                machine.test_bit(7u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB79 => {
-                machine.test_bit(7u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB7A => {
-                machine.test_bit(7u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB7B => {
-                machine.test_bit(7u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB7C => {
-                machine.test_bit(7u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB7D => {
-                machine.test_bit(7u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB7E => {
-                machine.test_bit(7u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB7F => {
-                machine.test_bit(7u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB80 => {
-                machine.reset_bit(0u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB81 => {
-                machine.reset_bit(0u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB82 => {
-                machine.reset_bit(0u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB83 => {
-                machine.reset_bit(0u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB84 => {
-                machine.reset_bit(0u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB85 => {
-                machine.reset_bit(0u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB86 => {
-                machine.reset_bit(0u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB87 => {
-                machine.reset_bit(0u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB88 => {
-                machine.reset_bit(1u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB89 => {
-                machine.reset_bit(1u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB8A => {
-                machine.reset_bit(1u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB8B => {
-                machine.reset_bit(1u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB8C => {
-                machine.reset_bit(1u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB8D => {
-                machine.reset_bit(1u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB8E => {
-                machine.reset_bit(1u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB8F => {
-                machine.reset_bit(1u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB90 => {
-                machine.reset_bit(2u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB91 => {
-                machine.reset_bit(2u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB92 => {
-                machine.reset_bit(2u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB93 => {
-                machine.reset_bit(2u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB94 => {
-                machine.reset_bit(2u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB95 => {
-                machine.reset_bit(2u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB96 => {
-                machine.reset_bit(2u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB97 => {
-                machine.reset_bit(2u8, Intel8080Register::A);
-                8u8
-            }
-            0xCB98 => {
-                machine.reset_bit(3u8, Intel8080Register::B);
-                8u8
-            }
-            0xCB99 => {
-                machine.reset_bit(3u8, Intel8080Register::C);
-                8u8
-            }
-            0xCB9A => {
-                machine.reset_bit(3u8, Intel8080Register::D);
-                8u8
-            }
-            0xCB9B => {
-                machine.reset_bit(3u8, Intel8080Register::E);
-                8u8
-            }
-            0xCB9C => {
-                machine.reset_bit(3u8, Intel8080Register::H);
-                8u8
-            }
-            0xCB9D => {
-                machine.reset_bit(3u8, Intel8080Register::L);
-                8u8
-            }
-            0xCB9E => {
-                machine.reset_bit(3u8, Intel8080Register::M);
-                16u8
-            }
-            0xCB9F => {
-                machine.reset_bit(3u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBA0 => {
-                machine.reset_bit(4u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBA1 => {
-                machine.reset_bit(4u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBA2 => {
-                machine.reset_bit(4u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBA3 => {
-                machine.reset_bit(4u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBA4 => {
-                machine.reset_bit(4u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBA5 => {
-                machine.reset_bit(4u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBA6 => {
-                machine.reset_bit(4u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBA7 => {
-                machine.reset_bit(4u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBA8 => {
-                machine.reset_bit(5u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBA9 => {
-                machine.reset_bit(5u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBAA => {
-                machine.reset_bit(5u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBAB => {
-                machine.reset_bit(5u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBAC => {
-                machine.reset_bit(5u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBAD => {
-                machine.reset_bit(5u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBAE => {
-                machine.reset_bit(5u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBAF => {
-                machine.reset_bit(5u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBB0 => {
-                machine.reset_bit(6u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBB1 => {
-                machine.reset_bit(6u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBB2 => {
-                machine.reset_bit(6u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBB3 => {
-                machine.reset_bit(6u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBB4 => {
-                machine.reset_bit(6u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBB5 => {
-                machine.reset_bit(6u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBB6 => {
-                machine.reset_bit(6u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBB7 => {
-                machine.reset_bit(6u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBB8 => {
-                machine.reset_bit(7u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBB9 => {
-                machine.reset_bit(7u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBBA => {
-                machine.reset_bit(7u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBBB => {
-                machine.reset_bit(7u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBBC => {
-                machine.reset_bit(7u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBBD => {
-                machine.reset_bit(7u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBBE => {
-                machine.reset_bit(7u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBBF => {
-                machine.reset_bit(7u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBC0 => {
-                machine.set_bit(0u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBC1 => {
-                machine.set_bit(0u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBC2 => {
-                machine.set_bit(0u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBC3 => {
-                machine.set_bit(0u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBC4 => {
-                machine.set_bit(0u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBC5 => {
-                machine.set_bit(0u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBC6 => {
-                machine.set_bit(0u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBC7 => {
-                machine.set_bit(0u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBC8 => {
-                machine.set_bit(1u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBC9 => {
-                machine.set_bit(1u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBCA => {
-                machine.set_bit(1u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBCB => {
-                machine.set_bit(1u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBCC => {
-                machine.set_bit(1u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBCD => {
-                machine.set_bit(1u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBCE => {
-                machine.set_bit(1u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBCF => {
-                machine.set_bit(1u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBD0 => {
-                machine.set_bit(2u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBD1 => {
-                machine.set_bit(2u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBD2 => {
-                machine.set_bit(2u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBD3 => {
-                machine.set_bit(2u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBD4 => {
-                machine.set_bit(2u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBD5 => {
-                machine.set_bit(2u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBD6 => {
-                machine.set_bit(2u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBD7 => {
-                machine.set_bit(2u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBD8 => {
-                machine.set_bit(3u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBD9 => {
-                machine.set_bit(3u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBDA => {
-                machine.set_bit(3u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBDB => {
-                machine.set_bit(3u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBDC => {
-                machine.set_bit(3u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBDD => {
-                machine.set_bit(3u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBDE => {
-                machine.set_bit(3u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBDF => {
-                machine.set_bit(3u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBE0 => {
-                machine.set_bit(4u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBE1 => {
-                machine.set_bit(4u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBE2 => {
-                machine.set_bit(4u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBE3 => {
-                machine.set_bit(4u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBE4 => {
-                machine.set_bit(4u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBE5 => {
-                machine.set_bit(4u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBE6 => {
-                machine.set_bit(4u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBE7 => {
-                machine.set_bit(4u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBE8 => {
-                machine.set_bit(5u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBE9 => {
-                machine.set_bit(5u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBEA => {
-                machine.set_bit(5u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBEB => {
-                machine.set_bit(5u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBEC => {
-                machine.set_bit(5u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBED => {
-                machine.set_bit(5u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBEE => {
-                machine.set_bit(5u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBEF => {
-                machine.set_bit(5u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBF0 => {
-                machine.set_bit(6u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBF1 => {
-                machine.set_bit(6u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBF2 => {
-                machine.set_bit(6u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBF3 => {
-                machine.set_bit(6u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBF4 => {
-                machine.set_bit(6u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBF5 => {
-                machine.set_bit(6u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBF6 => {
-                machine.set_bit(6u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBF7 => {
-                machine.set_bit(6u8, Intel8080Register::A);
-                8u8
-            }
-            0xCBF8 => {
-                machine.set_bit(7u8, Intel8080Register::B);
-                8u8
-            }
-            0xCBF9 => {
-                machine.set_bit(7u8, Intel8080Register::C);
-                8u8
-            }
-            0xCBFA => {
-                machine.set_bit(7u8, Intel8080Register::D);
-                8u8
-            }
-            0xCBFB => {
-                machine.set_bit(7u8, Intel8080Register::E);
-                8u8
-            }
-            0xCBFC => {
-                machine.set_bit(7u8, Intel8080Register::H);
-                8u8
-            }
-            0xCBFD => {
-                machine.set_bit(7u8, Intel8080Register::L);
-                8u8
-            }
-            0xCBFE => {
-                machine.set_bit(7u8, Intel8080Register::M);
-                16u8
-            }
-            0xCBFF => {
-                machine.set_bit(7u8, Intel8080Register::A);
-                8u8
-            }
-            v => panic!("Unknown opcode {}", v),
-        },
-        0xCC => {
-            machine.call_if_zero(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xCD => {
-            machine.call(stream.read_u16::<LittleEndian>().unwrap());
-            24u8
-        }
-        0xCE => {
-            machine.add_immediate_to_accumulator_with_carry(stream.read_u8().unwrap());
-            8u8
-        }
-        0xCF => {
-            machine.restart(1u8);
-            16u8
-        }
-        0xD0 => {
-            machine.return_if_no_carry();
-            8u8
-        }
-        0xD1 => {
-            machine.pop_data_off_stack(Intel8080Register::D);
-            12u8
-        }
-        0xD2 => {
-            machine.jump_if_no_carry(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xD4 => {
-            machine.call_if_no_carry(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xD5 => {
-            machine.push_data_onto_stack(Intel8080Register::D);
-            16u8
-        }
-        0xD6 => {
-            machine.subtract_immediate_from_accumulator(stream.read_u8().unwrap());
-            8u8
-        }
-        0xD7 => {
-            machine.restart(2u8);
-            16u8
-        }
-        0xD8 => {
-            machine.return_if_carry();
-            8u8
-        }
-        0xD9 => {
-            machine.return_and_enable_interrupts();
-            16u8
-        }
-        0xDA => {
-            machine.jump_if_carry(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xDC => {
-            machine.call_if_carry(stream.read_u16::<LittleEndian>().unwrap());
-            12u8
-        }
-        0xDE => {
-            machine.subtract_immediate_from_accumulator_with_borrow(stream.read_u8().unwrap());
-            8u8
-        }
-        0xDF => {
-            machine.restart(3u8);
-            16u8
-        }
-        0xE0 => {
-            machine.store_accumulator_direct_one_byte(stream.read_u8().unwrap());
-            12u8
-        }
-        0xE1 => {
-            machine.pop_data_off_stack(Intel8080Register::H);
-            12u8
-        }
-        0xE2 => {
-            machine.store_accumulator_one_byte();
-            8u8
-        }
-        0xE5 => {
-            machine.push_data_onto_stack(Intel8080Register::H);
-            16u8
-        }
-        0xE6 => {
-            machine.and_immediate_with_accumulator(stream.read_u8().unwrap());
-            8u8
-        }
-        0xE7 => {
-            machine.restart(4u8);
-            16u8
-        }
-        0xE8 => {
-            machine.add_immediate_to_sp(stream.read_u8().unwrap());
-            16u8
-        }
-        0xE9 => {
-            machine.load_program_counter();
-            4u8
-        }
-        0xEA => {
-            machine.store_accumulator_direct(stream.read_u16::<LittleEndian>().unwrap());
-            16u8
-        }
-        0xEE => {
-            machine.exclusive_or_immediate_with_accumulator(stream.read_u8().unwrap());
-            8u8
-        }
-        0xEF => {
-            machine.restart(5u8);
-            16u8
-        }
-        0xF0 => {
-            machine.load_accumulator_direct_one_byte(stream.read_u8().unwrap());
-            12u8
-        }
-        0xF1 => {
-            machine.pop_data_off_stack(Intel8080Register::PSW);
-            12u8
-        }
-        0xF2 => {
-            machine.load_accumulator_one_byte();
-            8u8
-        }
-        0xF3 => {
-            machine.disable_interrupts();
-            4u8
-        }
-        0xF5 => {
-            machine.push_data_onto_stack(Intel8080Register::PSW);
-            16u8
-        }
-        0xF6 => {
-            machine.or_immediate_with_accumulator(stream.read_u8().unwrap());
-            8u8
-        }
-        0xF7 => {
-            machine.restart(6u8);
-            16u8
-        }
-        0xF8 => {
-            machine.store_sp_plus_immediate(stream.read_u8().unwrap());
-            12u8
-        }
-        0xF9 => {
-            machine.load_sp_from_h_and_l();
-            8u8
-        }
-        0xFA => {
-            machine.load_accumulator_direct(stream.read_u16::<LittleEndian>().unwrap());
-            16u8
-        }
-        0xFB => {
-            machine.enable_interrupts();
-            4u8
-        }
-        0xFE => {
-            machine.compare_immediate_with_accumulator(stream.read_u8().unwrap());
-            8u8
-        }
-        0xFF => {
-            machine.restart(7u8);
-            16u8
         }
-        v => panic!("Unknown opcode {}", v),
     }
-}
-pub fn get_lr35902_instruction<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
-    let (mut instr, size) = match stream.read_u8().unwrap() {
-        0x00 => (vec![0x00], 1u8),
-        0x01 => (vec![0x01], 3u8),
-        0x02 => (vec![0x02], 1u8),
-        0x03 => (vec![0x03], 1u8),
-        0x04 => (vec![0x04], 1u8),
-        0x05 => (vec![0x05], 1u8),
-        0x06 => (vec![0x06], 2u8),
-        0x07 => (vec![0x07], 1u8),
-        0x08 => (vec![0x08], 3u8),
-        0x09 => (vec![0x09], 1u8),
-        0x0A => (vec![0x0A], 1u8),
-        0x0B => (vec![0x0B], 1u8),
-        0x0C => (vec![0x0C], 1u8),
-        0x0D => (vec![0x0D], 1u8),
-        0x0E => (vec![0x0E], 2u8),
-        0x0F => (vec![0x0F], 1u8),
-        0x10 => match (0x10 as u16) << 8
-            | match stream.read_u8() {
-                Ok(x) => x,
-                _ => return None,
-            } as u16
-        {
-            0x1000 => (vec![0x10, 0x00], 2u8),
-            _ => return None,
-        },
-        0x11 => (vec![0x11], 3u8),
-        0x12 => (vec![0x12], 1u8),
-        0x13 => (vec![0x13], 1u8),
-        0x14 => (vec![0x14], 1u8),
-        0x15 => (vec![0x15], 1u8),
-        0x16 => (vec![0x16], 2u8),
-        0x17 => (vec![0x17], 1u8),
-        0x18 => (vec![0x18], 2u8),
-        0x19 => (vec![0x19], 1u8),
-        0x1A => (vec![0x1A], 1u8),
-        0x1B => (vec![0x1B], 1u8),
-        0x1C => (vec![0x1C], 1u8),
-        0x1D => (vec![0x1D], 1u8),
-        0x1E => (vec![0x1E], 2u8),
-        0x1F => (vec![0x1F], 1u8),
-        0x20 => (vec![0x20], 2u8),
-        0x21 => (vec![0x21], 3u8),
-        0x22 => (vec![0x22], 1u8),
-        0x23 => (vec![0x23], 1u8),
-        0x24 => (vec![0x24], 1u8),
-        0x25 => (vec![0x25], 1u8),
-        0x26 => (vec![0x26], 2u8),
-        0x27 => (vec![0x27], 1u8),
-        0x28 => (vec![0x28], 2u8),
-        0x29 => (vec![0x29], 1u8),
-        0x2A => (vec![0x2A], 1u8),
-        0x2B => (vec![0x2B], 1u8),
-        0x2C => (vec![0x2C], 1u8),
-        0x2D => (vec![0x2D], 1u8),
-        0x2E => (vec![0x2E], 2u8),
-        0x2F => (vec![0x2F], 1u8),
-        0x30 => (vec![0x30], 2u8),
-        0x31 => (vec![0x31], 3u8),
-        0x32 => (vec![0x32], 1u8),
-        0x33 => (vec![0x33], 1u8),
-        0x34 => (vec![0x34], 1u8),
-        0x35 => (vec![0x35], 1u8),
-        0x36 => (vec![0x36], 2u8),
-        0x37 => (vec![0x37], 1u8),
-        0x38 => (vec![0x38], 2u8),
-        0x39 => (vec![0x39], 1u8),
-        0x3A => (vec![0x3A], 1u8),
-        0x3B => (vec![0x3B], 1u8),
-        0x3C => (vec![0x3C], 1u8),
-        0x3D => (vec![0x3D], 1u8),
-        0x3E => (vec![0x3E], 2u8),
-        0x3F => (vec![0x3F], 1u8),
-        0x40 => (vec![0x40], 1u8),
-        0x41 => (vec![0x41], 1u8),
-        0x42 => (vec![0x42], 1u8),
-        0x43 => (vec![0x43], 1u8),
-        0x44 => (vec![0x44], 1u8),
-        0x45 => (vec![0x45], 1u8),
-        0x46 => (vec![0x46], 1u8),
-        0x47 => (vec![0x47], 1u8),
-        0x48 => (vec![0x48], 1u8),
-        0x49 => (vec![0x49], 1u8),
-        0x4A => (vec![0x4A], 1u8),
-        0x4B => (vec![0x4B], 1u8),
-        0x4C => (vec![0x4C], 1u8),
-        0x4D => (vec![0x4D], 1u8),
-        0x4E => (vec![0x4E], 1u8),
-        0x4F => (vec![0x4F], 1u8),
-        0x50 => (vec![0x50], 1u8),
-        0x51 => (vec![0x51], 1u8),
-        0x52 => (vec![0x52], 1u8),
-        0x53 => (vec![0x53], 1u8),
-        0x54 => (vec![0x54], 1u8),
-        0x55 => (vec![0x55], 1u8),
-        0x56 => (vec![0x56], 1u8),
-        0x57 => (vec![0x57], 1u8),
-        0x58 => (vec![0x58], 1u8),
-        0x59 => (vec![0x59], 1u8),
-        0x5A => (vec![0x5A], 1u8),
-        0x5B => (vec![0x5B], 1u8),
-        0x5C => (vec![0x5C], 1u8),
-        0x5D => (vec![0x5D], 1u8),
-        0x5E => (vec![0x5E], 1u8),
-        0x5F => (vec![0x5F], 1u8),
-        0x60 => (vec![0x60], 1u8),
-        0x61 => (vec![0x61], 1u8),
-        0x62 => (vec![0x62], 1u8),
-        0x63 => (vec![0x63], 1u8),
-        0x64 => (vec![0x64], 1u8),
-        0x65 => (vec![0x65], 1u8),
-        0x66 => (vec![0x66], 1u8),
-        0x67 => (vec![0x67], 1u8),
-        0x68 => (vec![0x68], 1u8),
-        0x69 => (vec![0x69], 1u8),
-        0x6A => (vec![0x6A], 1u8),
-        0x6B => (vec![0x6B], 1u8),
-        0x6C => (vec![0x6C], 1u8),
-        0x6D => (vec![0x6D], 1u8),
-        0x6E => (vec![0x6E], 1u8),
-        0x6F => (vec![0x6F], 1u8),
-        0x70 => (vec![0x70], 1u8),
-        0x71 => (vec![0x71], 1u8),
-        0x72 => (vec![0x72], 1u8),
-        0x73 => (vec![0x73], 1u8),
-        0x74 => (vec![0x74], 1u8),
-        0x75 => (vec![0x75], 1u8),
-        0x76 => (vec![0x76], 1u8),
-        0x77 => (vec![0x77], 1u8),
-        0x78 => (vec![0x78], 1u8),
-        0x79 => (vec![0x79], 1u8),
-        0x7A => (vec![0x7A], 1u8),
-        0x7B => (vec![0x7B], 1u8),
-        0x7C => (vec![0x7C], 1u8),
-        0x7D => (vec![0x7D], 1u8),
-        0x7E => (vec![0x7E], 1u8),
-        0x7F => (vec![0x7F], 1u8),
-        0x80 => (vec![0x80], 1u8),
-        0x81 => (vec![0x81], 1u8),
-        0x82 => (vec![0x82], 1u8),
-        0x83 => (vec![0x83], 1u8),
-        0x84 => (vec![0x84], 1u8),
-        0x85 => (vec![0x85], 1u8),
-        0x86 => (vec![0x86], 1u8),
-        0x87 => (vec![0x87], 1u8),
-        0x88 => (vec![0x88], 1u8),
-        0x89 => (vec![0x89], 1u8),
-        0x8A => (vec![0x8A], 1u8),
-        0x8B => (vec![0x8B], 1u8),
-        0x8C => (vec![0x8C], 1u8),
-        0x8D => (vec![0x8D], 1u8),
-        0x8E => (vec![0x8E], 1u8),
-        0x8F => (vec![0x8F], 1u8),
-        0x90 => (vec![0x90], 1u8),
-        0x91 => (vec![0x91], 1u8),
-        0x92 => (vec![0x92], 1u8),
-        0x93 => (vec![0x93], 1u8),
-        0x94 => (vec![0x94], 1u8),
-        0x95 => (vec![0x95], 1u8),
-        0x96 => (vec![0x96], 1u8),
-        0x97 => (vec![0x97], 1u8),
-        0x98 => (vec![0x98], 1u8),
-        0x99 => (vec![0x99], 1u8),
-        0x9A => (vec![0x9A], 1u8),
-        0x9B => (vec![0x9B], 1u8),
-        0x9C => (vec![0x9C], 1u8),
-        0x9D => (vec![0x9D], 1u8),
-        0x9E => (vec![0x9E], 1u8),
-        0x9F => (vec![0x9F], 1u8),
-        0xA0 => (vec![0xA0], 1u8),
-        0xA1 => (vec![0xA1], 1u8),
-        0xA2 => (vec![0xA2], 1u8),
-        0xA3 => (vec![0xA3], 1u8),
-        0xA4 => (vec![0xA4], 1u8),
-        0xA5 => (vec![0xA5], 1u8),
-        0xA6 => (vec![0xA6], 1u8),
-        0xA7 => (vec![0xA7], 1u8),
-        0xA8 => (vec![0xA8], 1u8),
-        0xA9 => (vec![0xA9], 1u8),
-        0xAA => (vec![0xAA], 1u8),
-        0xAB => (vec![0xAB], 1u8),
-        0xAC => (vec![0xAC], 1u8),
-        0xAD => (vec![0xAD], 1u8),
-        0xAE => (vec![0xAE], 1u8),
-        0xAF => (vec![0xAF], 1u8),
-        0xB0 => (vec![0xB0], 1u8),
-        0xB1 => (vec![0xB1], 1u8),
-        0xB2 => (vec![0xB2], 1u8),
-        0xB3 => (vec![0xB3], 1u8),
-        0xB4 => (vec![0xB4], 1u8),
-        0xB5 => (vec![0xB5], 1u8),
-        0xB6 => (vec![0xB6], 1u8),
-        0xB7 => (vec![0xB7], 1u8),
-        0xB8 => (vec![0xB8], 1u8),
-        0xB9 => (vec![0xB9], 1u8),
-        0xBA => (vec![0xBA], 1u8),
-        0xBB => (vec![0xBB], 1u8),
-        0xBC => (vec![0xBC], 1u8),
-        0xBD => (vec![0xBD], 1u8),
-        0xBE => (vec![0xBE], 1u8),
-        0xBF => (vec![0xBF], 1u8),
-        0xC0 => (vec![0xC0], 1u8),
-        0xC1 => (vec![0xC1], 1u8),
-        0xC2 => (vec![0xC2], 3u8),
-        0xC3 => (vec![0xC3], 3u8),
-        0xC4 => (vec![0xC4], 3u8),
-        0xC5 => (vec![0xC5], 1u8),
-        0xC6 => (vec![0xC6], 2u8),
-        0xC7 => (vec![0xC7], 1u8),
-        0xC8 => (vec![0xC8], 1u8),
-        0xC9 => (vec![0xC9], 1u8),
-        0xCA => (vec![0xCA], 3u8),
-        0xCB => match (0xCB as u16) << 8
-            | match stream.read_u8() {
-                Ok(x) => x,
-                _ => return None,
-            } as u16
-        {
-            0xCB00 => (vec![0xCB, 0x00], 2u8),
-            0xCB01 => (vec![0xCB, 0x01], 2u8),
-            0xCB02 => (vec![0xCB, 0x02], 2u8),
-            0xCB03 => (vec![0xCB, 0x03], 2u8),
-            0xCB04 => (vec![0xCB, 0x04], 2u8),
-            0xCB05 => (vec![0xCB, 0x05], 2u8),
-            0xCB06 => (vec![0xCB, 0x06], 2u8),
-            0xCB07 => (vec![0xCB, 0x07], 2u8),
-            0xCB08 => (vec![0xCB, 0x08], 2u8),
-            0xCB09 => (vec![0xCB, 0x09], 2u8),
-            0xCB0A => (vec![0xCB, 0x0A], 2u8),
-            0xCB0B => (vec![0xCB, 0x0B], 2u8),
-            0xCB0C => (vec![0xCB, 0x0C], 2u8),
-            0xCB0D => (vec![0xCB, 0x0D], 2u8),
-            0xCB0E => (vec![0xCB, 0x0E], 2u8),
-            0xCB0F => (vec![0xCB, 0x0F], 2u8),
-            0xCB10 => (vec![0xCB, 0x10], 2u8),
-            0xCB11 => (vec![0xCB, 0x11], 2u8),
-            0xCB12 => (vec![0xCB, 0x12], 2u8),
-            0xCB13 => (vec![0xCB, 0x13], 2u8),
-            0xCB14 => (vec![0xCB, 0x14], 2u8),
-            0xCB15 => (vec![0xCB, 0x15], 2u8),
-            0xCB16 => (vec![0xCB, 0x16], 2u8),
-            0xCB17 => (vec![0xCB, 0x17], 2u8),
-            0xCB18 => (vec![0xCB, 0x18], 2u8),
-            0xCB19 => (vec![0xCB, 0x19], 2u8),
-            0xCB1A => (vec![0xCB, 0x1A], 2u8),
-            0xCB1B => (vec![0xCB, 0x1B], 2u8),
-            0xCB1C => (vec![0xCB, 0x1C], 2u8),
-            0xCB1D => (vec![0xCB, 0x1D], 2u8),
-            0xCB1E => (vec![0xCB, 0x1E], 2u8),
-            0xCB1F => (vec![0xCB, 0x1F], 2u8),
-            0xCB20 => (vec![0xCB, 0x20], 2u8),
-            0xCB21 => (vec![0xCB, 0x21], 2u8),
-            0xCB22 => (vec![0xCB, 0x22], 2u8),
-            0xCB23 => (vec![0xCB, 0x23], 2u8),
-            0xCB24 => (vec![0xCB, 0x24], 2u8),
-            0xCB25 => (vec![0xCB, 0x25], 2u8),
-            0xCB26 => (vec![0xCB, 0x26], 2u8),
-            0xCB27 => (vec![0xCB, 0x27], 2u8),
-            0xCB28 => (vec![0xCB, 0x28], 2u8),
-            0xCB29 => (vec![0xCB, 0x29], 2u8),
-            0xCB2A => (vec![0xCB, 0x2A], 2u8),
-            0xCB2B => (vec![0xCB, 0x2B], 2u8),
-            0xCB2C => (vec![0xCB, 0x2C], 2u8),
-            0xCB2D => (vec![0xCB, 0x2D], 2u8),
-            0xCB2E => (vec![0xCB, 0x2E], 2u8),
-            0xCB2F => (vec![0xCB, 0x2F], 2u8),
-            0xCB30 => (vec![0xCB, 0x30], 2u8),
-            0xCB31 => (vec![0xCB, 0x31], 2u8),
-            0xCB32 => (vec![0xCB, 0x32], 2u8),
-            0xCB33 => (vec![0xCB, 0x33], 2u8),
-            0xCB34 => (vec![0xCB, 0x34], 2u8),
-            0xCB35 => (vec![0xCB, 0x35], 2u8),
-            0xCB36 => (vec![0xCB, 0x36], 2u8),
-            0xCB37 => (vec![0xCB, 0x37], 2u8),
-            0xCB38 => (vec![0xCB, 0x38], 2u8),
-            0xCB39 => (vec![0xCB, 0x39], 2u8),
-            0xCB3A => (vec![0xCB, 0x3A], 2u8),
-            0xCB3B => (vec![0xCB, 0x3B], 2u8),
-            0xCB3C => (vec![0xCB, 0x3C], 2u8),
-            0xCB3D => (vec![0xCB, 0x3D], 2u8),
-            0xCB3E => (vec![0xCB, 0x3E], 2u8),
-            0xCB3F => (vec![0xCB, 0x3F], 2u8),
-            0xCB40 => (vec![0xCB, 0x40], 2u8),
-            0xCB41 => (vec![0xCB, 0x41], 2u8),
-            0xCB42 => (vec![0xCB, 0x42], 2u8),
-            0xCB43 => (vec![0xCB, 0x43], 2u8),
-            0xCB44 => (vec![0xCB, 0x44], 2u8),
-            0xCB45 => (vec![0xCB, 0x45], 2u8),
-            0xCB46 => (vec![0xCB, 0x46], 2u8),
-            0xCB47 => (vec![0xCB, 0x47], 2u8),
-            0xCB48 => (vec![0xCB, 0x48], 2u8),
-            0xCB49 => (vec![0xCB, 0x49], 2u8),
-            0xCB4A => (vec![0xCB, 0x4A], 2u8),
-            0xCB4B => (vec![0xCB, 0x4B], 2u8),
-            0xCB4C => (vec![0xCB, 0x4C], 2u8),
-            0xCB4D => (vec![0xCB, 0x4D], 2u8),
-            0xCB4E => (vec![0xCB, 0x4E], 2u8),
-            0xCB4F => (vec![0xCB, 0x4F], 2u8),
-            0xCB50 => (vec![0xCB, 0x50], 2u8),
-            0xCB51 => (vec![0xCB, 0x51], 2u8),
-            0xCB52 => (vec![0xCB, 0x52], 2u8),
-            0xCB53 => (vec![0xCB, 0x53], 2u8),
-            0xCB54 => (vec![0xCB, 0x54], 2u8),
-            0xCB55 => (vec![0xCB, 0x55], 2u8),
-            0xCB56 => (vec![0xCB, 0x56], 2u8),
-            0xCB57 => (vec![0xCB, 0x57], 2u8),
-            0xCB58 => (vec![0xCB, 0x58], 2u8),
-            0xCB59 => (vec![0xCB, 0x59], 2u8),
-            0xCB5A => (vec![0xCB, 0x5A], 2u8),
-            0xCB5B => (vec![0xCB, 0x5B], 2u8),
-            0xCB5C => (vec![0xCB, 0x5C], 2u8),
-            0xCB5D => (vec![0xCB, 0x5D], 2u8),
-            0xCB5E => (vec![0xCB, 0x5E], 2u8),
-            0xCB5F => (vec![0xCB, 0x5F], 2u8),
-            0xCB60 => (vec![0xCB, 0x60], 2u8),
-            0xCB61 => (vec![0xCB, 0x61], 2u8),
-            0xCB62 => (vec![0xCB, 0x62], 2u8),
-            0xCB63 => (vec![0xCB, 0x63], 2u8),
-            0xCB64 => (vec![0xCB, 0x64], 2u8),
-            0xCB65 => (vec![0xCB, 0x65], 2u8),
-            0xCB66 => (vec![0xCB, 0x66], 2u8),
-            0xCB67 => (vec![0xCB, 0x67], 2u8),
-            0xCB68 => (vec![0xCB, 0x68], 2u8),
-            0xCB69 => (vec![0xCB, 0x69], 2u8),
-            0xCB6A => (vec![0xCB, 0x6A], 2u8),
-            0xCB6B => (vec![0xCB, 0x6B], 2u8),
-            0xCB6C => (vec![0xCB, 0x6C], 2u8),
-            0xCB6D => (vec![0xCB, 0x6D], 2u8),
-            0xCB6E => (vec![0xCB, 0x6E], 2u8),
-            0xCB6F => (vec![0xCB, 0x6F], 2u8),
-            0xCB70 => (vec![0xCB, 0x70], 2u8),
-            0xCB71 => (vec![0xCB, 0x71], 2u8),
-            0xCB72 => (vec![0xCB, 0x72], 2u8),
-            0xCB73 => (vec![0xCB, 0x73], 2u8),
-            0xCB74 => (vec![0xCB, 0x74], 2u8),
-            0xCB75 => (vec![0xCB, 0x75], 2u8),
-            0xCB76 => (vec![0xCB, 0x76], 2u8),
-            0xCB77 => (vec![0xCB, 0x77], 2u8),
-            0xCB78 => (vec![0xCB, 0x78], 2u8),
-            0xCB79 => (vec![0xCB, 0x79], 2u8),
-            0xCB7A => (vec![0xCB, 0x7A], 2u8),
-            0xCB7B => (vec![0xCB, 0x7B], 2u8),
-            0xCB7C => (vec![0xCB, 0x7C], 2u8),
-            0xCB7D => (vec![0xCB, 0x7D], 2u8),
-            0xCB7E => (vec![0xCB, 0x7E], 2u8),
-            0xCB7F => (vec![0xCB, 0x7F], 2u8),
-            0xCB80 => (vec![0xCB, 0x80], 2u8),
-            0xCB81 => (vec![0xCB, 0x81], 2u8),
-            0xCB82 => (vec![0xCB, 0x82], 2u8),
-            0xCB83 => (vec![0xCB, 0x83], 2u8),
-            0xCB84 => (vec![0xCB, 0x84], 2u8),
-            0xCB85 => (vec![0xCB, 0x85], 2u8),
-            0xCB86 => (vec![0xCB, 0x86], 2u8),
-            0xCB87 => (vec![0xCB, 0x87], 2u8),
-            0xCB88 => (vec![0xCB, 0x88], 2u8),
-            0xCB89 => (vec![0xCB, 0x89], 2u8),
-            0xCB8A => (vec![0xCB, 0x8A], 2u8),
-            0xCB8B => (vec![0xCB, 0x8B], 2u8),
-            0xCB8C => (vec![0xCB, 0x8C], 2u8),
-            0xCB8D => (vec![0xCB, 0x8D], 2u8),
-            0xCB8E => (vec![0xCB, 0x8E], 2u8),
-            0xCB8F => (vec![0xCB, 0x8F], 2u8),
-            0xCB90 => (vec![0xCB, 0x90], 2u8),
-            0xCB91 => (vec![0xCB, 0x91], 2u8),
-            0xCB92 => (vec![0xCB, 0x92], 2u8),
-            0xCB93 => (vec![0xCB, 0x93], 2u8),
-            0xCB94 => (vec![0xCB, 0x94], 2u8),
-            0xCB95 => (vec![0xCB, 0x95], 2u8),
-            0xCB96 => (vec![0xCB, 0x96], 2u8),
-            0xCB97 => (vec![0xCB, 0x97], 2u8),
-            0xCB98 => (vec![0xCB, 0x98], 2u8),
-            0xCB99 => (vec![0xCB, 0x99], 2u8),
-            0xCB9A => (vec![0xCB, 0x9A], 2u8),
-            0xCB9B => (vec![0xCB, 0x9B], 2u8),
-            0xCB9C => (vec![0xCB, 0x9C], 2u8),
-            0xCB9D => (vec![0xCB, 0x9D], 2u8),
-            0xCB9E => (vec![0xCB, 0x9E], 2u8),
-            0xCB9F => (vec![0xCB, 0x9F], 2u8),
-            0xCBA0 => (vec![0xCB, 0xA0], 2u8),
-            0xCBA1 => (vec![0xCB, 0xA1], 2u8),
-            0xCBA2 => (vec![0xCB, 0xA2], 2u8),
-            0xCBA3 => (vec![0xCB, 0xA3], 2u8),
-            0xCBA4 => (vec![0xCB, 0xA4], 2u8),
-            0xCBA5 => (vec![0xCB, 0xA5], 2u8),
-            0xCBA6 => (vec![0xCB, 0xA6], 2u8),
-            0xCBA7 => (vec![0xCB, 0xA7], 2u8),
-            0xCBA8 => (vec![0xCB, 0xA8], 2u8),
-            0xCBA9 => (vec![0xCB, 0xA9], 2u8),
-            0xCBAA => (vec![0xCB, 0xAA], 2u8),
-            0xCBAB => (vec![0xCB, 0xAB], 2u8),
-            0xCBAC => (vec![0xCB, 0xAC], 2u8),
-            0xCBAD => (vec![0xCB, 0xAD], 2u8),
-            0xCBAE => (vec![0xCB, 0xAE], 2u8),
-            0xCBAF => (vec![0xCB, 0xAF], 2u8),
-            0xCBB0 => (vec![0xCB, 0xB0], 2u8),
-            0xCBB1 => (vec![0xCB, 0xB1], 2u8),
-            0xCBB2 => (vec![0xCB, 0xB2], 2u8),
-            0xCBB3 => (vec![0xCB, 0xB3], 2u8),
-            0xCBB4 => (vec![0xCB, 0xB4], 2u8),
-            0xCBB5 => (vec![0xCB, 0xB5], 2u8),
-            0xCBB6 => (vec![0xCB, 0xB6], 2u8),
-            0xCBB7 => (vec![0xCB, 0xB7], 2u8),
-            0xCBB8 => (vec![0xCB, 0xB8], 2u8),
-            0xCBB9 => (vec![0xCB, 0xB9], 2u8),
-            0xCBBA => (vec![0xCB, 0xBA], 2u8),
-            0xCBBB => (vec![0xCB, 0xBB], 2u8),
-            0xCBBC => (vec![0xCB, 0xBC], 2u8),
-            0xCBBD => (vec![0xCB, 0xBD], 2u8),
-            0xCBBE => (vec![0xCB, 0xBE], 2u8),
-            0xCBBF => (vec![0xCB, 0xBF], 2u8),
-            0xCBC0 => (vec![0xCB, 0xC0], 2u8),
-            0xCBC1 => (vec![0xCB, 0xC1], 2u8),
-            0xCBC2 => (vec![0xCB, 0xC2], 2u8),
-            0xCBC3 => (vec![0xCB, 0xC3], 2u8),
-            0xCBC4 => (vec![0xCB, 0xC4], 2u8),
-            0xCBC5 => (vec![0xCB, 0xC5], 2u8),
-            0xCBC6 => (vec![0xCB, 0xC6], 2u8),
-            0xCBC7 => (vec![0xCB, 0xC7], 2u8),
-            0xCBC8 => (vec![0xCB, 0xC8], 2u8),
-            0xCBC9 => (vec![0xCB, 0xC9], 2u8),
-            0xCBCA => (vec![0xCB, 0xCA], 2u8),
-            0xCBCB => (vec![0xCB, 0xCB], 2u8),
-            0xCBCC => (vec![0xCB, 0xCC], 2u8),
-            0xCBCD => (vec![0xCB, 0xCD], 2u8),
-            0xCBCE => (vec![0xCB, 0xCE], 2u8),
-            0xCBCF => (vec![0xCB, 0xCF], 2u8),
-            0xCBD0 => (vec![0xCB, 0xD0], 2u8),
-            0xCBD1 => (vec![0xCB, 0xD1], 2u8),
-            0xCBD2 => (vec![0xCB, 0xD2], 2u8),
-            0xCBD3 => (vec![0xCB, 0xD3], 2u8),
-            0xCBD4 => (vec![0xCB, 0xD4], 2u8),
-            0xCBD5 => (vec![0xCB, 0xD5], 2u8),
-            0xCBD6 => (vec![0xCB, 0xD6], 2u8),
-            0xCBD7 => (vec![0xCB, 0xD7], 2u8),
-            0xCBD8 => (vec![0xCB, 0xD8], 2u8),
-            0xCBD9 => (vec![0xCB, 0xD9], 2u8),
-            0xCBDA => (vec![0xCB, 0xDA], 2u8),
-            0xCBDB => (vec![0xCB, 0xDB], 2u8),
-            0xCBDC => (vec![0xCB, 0xDC], 2u8),
-            0xCBDD => (vec![0xCB, 0xDD], 2u8),
-            0xCBDE => (vec![0xCB, 0xDE], 2u8),
-            0xCBDF => (vec![0xCB, 0xDF], 2u8),
-            0xCBE0 => (vec![0xCB, 0xE0], 2u8),
-            0xCBE1 => (vec![0xCB, 0xE1], 2u8),
-            0xCBE2 => (vec![0xCB, 0xE2], 2u8),
-            0xCBE3 => (vec![0xCB, 0xE3], 2u8),
-            0xCBE4 => (vec![0xCB, 0xE4], 2u8),
-            0xCBE5 => (vec![0xCB, 0xE5], 2u8),
-            0xCBE6 => (vec![0xCB, 0xE6], 2u8),
-            0xCBE7 => (vec![0xCB, 0xE7], 2u8),
-            0xCBE8 => (vec![0xCB, 0xE8], 2u8),
-            0xCBE9 => (vec![0xCB, 0xE9], 2u8),
-            0xCBEA => (vec![0xCB, 0xEA], 2u8),
-            0xCBEB => (vec![0xCB, 0xEB], 2u8),
-            0xCBEC => (vec![0xCB, 0xEC], 2u8),
-            0xCBED => (vec![0xCB, 0xED], 2u8),
-            0xCBEE => (vec![0xCB, 0xEE], 2u8),
-            0xCBEF => (vec![0xCB, 0xEF], 2u8),
-            0xCBF0 => (vec![0xCB, 0xF0], 2u8),
-            0xCBF1 => (vec![0xCB, 0xF1], 2u8),
-            0xCBF2 => (vec![0xCB, 0xF2], 2u8),
-            0xCBF3 => (vec![0xCB, 0xF3], 2u8),
-            0xCBF4 => (vec![0xCB, 0xF4], 2u8),
-            0xCBF5 => (vec![0xCB, 0xF5], 2u8),
-            0xCBF6 => (vec![0xCB, 0xF6], 2u8),
-            0xCBF7 => (vec![0xCB, 0xF7], 2u8),
-            0xCBF8 => (vec![0xCB, 0xF8], 2u8),
-            0xCBF9 => (vec![0xCB, 0xF9], 2u8),
-            0xCBFA => (vec![0xCB, 0xFA], 2u8),
-            0xCBFB => (vec![0xCB, 0xFB], 2u8),
-            0xCBFC => (vec![0xCB, 0xFC], 2u8),
-            0xCBFD => (vec![0xCB, 0xFD], 2u8),
-            0xCBFE => (vec![0xCB, 0xFE], 2u8),
-            0xCBFF => (vec![0xCB, 0xFF], 2u8),
-            _ => return None,
-        },
-        0xCC => (vec![0xCC], 3u8),
-        0xCD => (vec![0xCD], 3u8),
-        0xCE => (vec![0xCE], 2u8),
-        0xCF => (vec![0xCF], 1u8),
-        0xD0 => (vec![0xD0], 1u8),
-        0xD1 => (vec![0xD1], 1u8),
-        0xD2 => (vec![0xD2], 3u8),
-        0xD4 => (vec![0xD4], 3u8),
-        0xD5 => (vec![0xD5], 1u8),
-        0xD6 => (vec![0xD6], 2u8),
-        0xD7 => (vec![0xD7], 1u8),
-        0xD8 => (vec![0xD8], 1u8),
-        0xD9 => (vec![0xD9], 1u8),
-        0xDA => (vec![0xDA], 3u8),
-        0xDC => (vec![0xDC], 3u8),
-        0xDE => (vec![0xDE], 2u8),
-        0xDF => (vec![0xDF], 1u8),
-        0xE0 => (vec![0xE0], 2u8),
-        0xE1 => (vec![0xE1], 1u8),
-        0xE2 => (vec![0xE2], 1u8),
-        0xE5 => (vec![0xE5], 1u8),
-        0xE6 => (vec![0xE6], 2u8),
-        0xE7 => (vec![0xE7], 1u8),
-        0xE8 => (vec![0xE8], 2u8),
-        0xE9 => (vec![0xE9], 1u8),
-        0xEA => (vec![0xEA], 3u8),
-        0xEE => (vec![0xEE], 2u8),
-        0xEF => (vec![0xEF], 1u8),
-        0xF0 => (vec![0xF0], 2u8),
-        0xF1 => (vec![0xF1], 1u8),
-        0xF2 => (vec![0xF2], 1u8),
-        0xF3 => (vec![0xF3], 1u8),
-        0xF5 => (vec![0xF5], 1u8),
-        0xF6 => (vec![0xF6], 2u8),
-        0xF7 => (vec![0xF7], 1u8),
-        0xF8 => (vec![0xF8], 2u8),
-        0xF9 => (vec![0xF9], 1u8),
-        0xFA => (vec![0xFA], 3u8),
-        0xFB => (vec![0xFB], 1u8),
-        0xFE => (vec![0xFE], 2u8),
-        0xFF => (vec![0xFF], 1u8),
-        _ => return None,
-    };
-    let op_size = instr.len();
-    instr.resize(size as usize, 0);
-    stream.read(&mut instr[op_size..]).unwrap();
-    return Some(instr);
 }
 impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {
     fn add_immediate_to_accumulator(&mut self, data1: u8) {

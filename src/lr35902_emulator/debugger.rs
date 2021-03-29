@@ -6,7 +6,7 @@ use std::io::{self, Result};
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use crate::emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};
 use crate::emulator_common::Intel8080Register;
-use crate::lr35902_emulator::opcodes::{dispatch_lr35902_instruction, get_lr35902_instruction};
+use crate::lr35902_emulator::opcodes::LR35902Instruction;
 use crate::lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
 
 struct SimulatedInstructionLR35902<'a, M: MemoryAccessor> {
@@ -151,15 +151,16 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
         let pc = self.read_program_counter();
-        let instr = get_lr35902_instruction(MemoryStream::new(self.memory_accessor, pc));
-        match instr {
+        let maybe_instr =
+            LR35902Instruction::from_reader(MemoryStream::new(self.memory_accessor, pc)).unwrap();
+        match maybe_instr {
             Some(res) => {
                 let mut wrapping_instruction = SimulatedInstructionLR35902::new(
                     self.emulator,
                     self.memory_accessor,
                     instruction,
                 );
-                dispatch_lr35902_instruction(&res, &mut wrapping_instruction);
+                res.dispatch(&mut wrapping_instruction);
                 return;
             }
             None => {}

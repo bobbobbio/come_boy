@@ -2,9 +2,7 @@
 
 use crate::emulator_common::disassembler::{InstructionPrinter, InstructionPrinterFactory};
 use crate::emulator_common::Intel8080Register;
-pub use crate::lr35902_emulator::{
-    dispatch_lr35902_instruction, get_lr35902_instruction, LR35902InstructionSet,
-};
+pub use crate::lr35902_emulator::{LR35902Instruction, LR35902InstructionSet};
 use std::io::Result;
 use std::{io, mem};
 
@@ -29,13 +27,16 @@ impl<'a> InstructionPrinterFactory<'a> for RGBDSInstructionPrinterFactory {
 }
 
 impl<'a> InstructionPrinter<'a> for RGBDSInstructionPrinter<'a> {
-    fn print_instruction(&mut self, stream: &[u8], address: u16) -> Result<()> {
-        self.address = address + (stream.len() as u16);
-        dispatch_lr35902_instruction(stream, self);
+    type Instruction = LR35902Instruction;
+
+    fn print_instruction(&mut self, instr: LR35902Instruction, address: u16) -> Result<()> {
+        self.address = address + (instr.size() as u16);
+        instr.dispatch(self);
         mem::replace(&mut self.error, Ok(()))
     }
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Option<Vec<u8>> {
-        get_lr35902_instruction(stream)
+
+    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<LR35902Instruction>> {
+        LR35902Instruction::from_reader(stream)
     }
 }
 

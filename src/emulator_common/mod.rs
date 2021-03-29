@@ -1,5 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
+use serde_derive::{Deserialize, Serialize};
+
 pub mod debugger;
 pub mod disassembler;
 
@@ -11,7 +13,7 @@ pub mod disassembler;
  *                                                        |___/
  */
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Intel8080Register {
     B = 0,
     C = 1,

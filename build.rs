@@ -2,6 +2,7 @@
 
 #![recursion_limit = "128"]
 
+use heck::{CamelCase, SnakeCase};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use serde_derive::Deserialize;
@@ -112,6 +113,18 @@ enum OpcodeArgument {
     ConstantValue(u8),
 }
 
+impl OpcodeArgument {
+    fn dynamic(&self) -> bool {
+        match self {
+            Self::Register(_) => false,
+            Self::ReadOneByte => true,
+            Self::ReadTwoBytes => true,
+            Self::ReadAddress => true,
+            Self::ConstantValue(_) => false,
+        }
+    }
+}
+
 impl ToTokens for OpcodeArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(match self {
@@ -174,13 +187,6 @@ impl OpcodeCode {
         OpcodeCode {
             code: vec![self.code[depth]],
         }
-    }
-
-    fn split(&self) -> Vec<Self> {
-        (0..self.len())
-            .into_iter()
-            .map(|n| self.subcode(n))
-            .collect()
     }
 
     fn len(&self) -> usize {
@@ -288,11 +294,11 @@ impl ToTokens for OpcodeFunction {
 #[derive(Debug, PartialEq, Clone)]
 struct OpcodeFunctionCall {
     function: OpcodeFunction,
-    args: Vec<OpcodeArgument>,
+    args: Vec<Ident>,
 }
 
 impl OpcodeFunctionCall {
-    fn new(function: OpcodeFunction, args: Vec<OpcodeArgument>) -> Self {
+    fn new(function: OpcodeFunction, args: Vec<Ident>) -> Self {
         OpcodeFunctionCall { function, args }
     }
 }
@@ -310,9 +316,11 @@ impl ToTokens for OpcodeFunctionCall {
 #[derive(Debug, PartialEq, Clone)]
 struct Opcode {
     code: OpcodeCode,
+    camel_name: String,
     instruction: String,
     description: String,
     function_call: OpcodeFunctionCall,
+    enum_args: Vec<OpcodeArgument>,
     size: u8,
     duration: u8,
 }
@@ -322,17 +330,22 @@ impl Opcode {
     where
         F: FnMut(String, Vec<OpcodeParameterType>) -> OpcodeFunction,
     {
-        let description = on_disk.description.replace(" ", "_").to_lowercase();
-        let args: Vec<OpcodeArgument> = on_disk.args.iter().map(|e| e.parse().unwrap()).collect();
+        let description = on_disk.description.to_snake_case();
+        let camel_name = on_disk.description.to_camel_case();
+        let enum_args: Vec<OpcodeArgument> =
+            on_disk.args.iter().map(|e| e.parse().unwrap()).collect();
         let function = function_factory(
             description.clone(),
-            args.iter().map(|e| e.clone().into()).collect(),
+            enum_args.iter().map(|e| e.clone().into()).collect(),
         );
+        let args = function.parameters.iter().map(|p| p.name.clone()).collect();
         Opcode {
             code: code.parse().unwrap(),
             instruction: on_disk.instr,
+            camel_name,
             description,
             function_call: OpcodeFunctionCall::new(function, args),
+            enum_args,
             duration: on_disk.duration.unwrap_or(0),
             size: on_disk.size,
         }
@@ -496,7 +509,7 @@ where
 }
 
 struct OpcodeGenerator {
-    instruction_set_name: &'static str,
+    enum_name: Ident,
     trait_name: Ident,
     use_path: Vec<Ident>,
     printer_name: Ident,
@@ -523,6 +536,10 @@ impl OpcodeGenerator {
 
             return new_function;
         });
+        let enum_name = Ident::new(
+            &format!("{}Instruction", instruction_set_name),
+            Span::call_site(),
+        );
         let trait_name = Ident::new(
             &format!("{}InstructionSet", instruction_set_name),
             Span::call_site(),
@@ -537,7 +554,7 @@ impl OpcodeGenerator {
             .collect();
 
         OpcodeGenerator {
-            instruction_set_name,
+            enum_name,
             trait_name,
             use_path,
             printer_name,
@@ -554,6 +571,7 @@ impl OpcodeGenerator {
             use crate::emulator_common::Intel8080Register;
             use crate::#(#use_path)::*::#printer_name;
             use std::io;
+            use serde_derive::{Serialize, Deserialize};
         ));
     }
 
@@ -567,7 +585,7 @@ impl OpcodeGenerator {
         ));
     }
 
-    fn build_dispatches(
+    fn build_tree_dispatches(
         &self,
         leaf_tokenize: fn(&OpcodeDispatchTreeNode, &mut TokenStream),
         inner_tokenize: fn(&OpcodeDispatchTreeNode, &mut TokenStream),
@@ -581,94 +599,219 @@ impl OpcodeGenerator {
         dispatches
     }
 
+    fn build_dispatches_unique_functions(
+        &self,
+        leaf_tokenize: fn(&OpcodeDispatchTreeNode, &mut TokenStream),
+    ) -> Vec<OpcodeDispatchTreeNode> {
+        fn do_nothing_tokenize(_: &OpcodeDispatchTreeNode, _: &mut TokenStream) {}
+
+        let mut functions = BTreeSet::new();
+        let mut dispatches = vec![];
+        for opcode in &self.opcodes {
+            if !functions.insert(opcode.function_call.function.clone()) {
+                continue;
+            }
+            let mut leaf = OpcodeDispatchTreeNode::new(
+                opcode.code.clone(),
+                leaf_tokenize,
+                do_nothing_tokenize,
+            );
+            leaf.opcode = Some(opcode.clone());
+            dispatches.push(leaf);
+        }
+        dispatches
+    }
+
+    fn build_dispatches(
+        &self,
+        leaf_tokenize: fn(&OpcodeDispatchTreeNode, &mut TokenStream),
+    ) -> Vec<OpcodeDispatchTreeNode> {
+        fn do_nothing_tokenize(_: &OpcodeDispatchTreeNode, _: &mut TokenStream) {}
+
+        let mut dispatches = vec![];
+        for opcode in &self.opcodes {
+            let mut leaf = OpcodeDispatchTreeNode::new(
+                opcode.code.clone(),
+                leaf_tokenize,
+                do_nothing_tokenize,
+            );
+            leaf.opcode = Some(opcode.clone());
+            dispatches.push(leaf);
+        }
+        dispatches
+    }
+
     fn generate_instruction_dispatch(&self, tokens: &mut TokenStream) {
+        let enum_name = &self.enum_name;
         let trait_name = &self.trait_name;
-        let function_name = Ident::new(
-            &format!(
-                "dispatch_{}_instruction",
-                self.instruction_set_name.to_lowercase()
-            ),
-            Span::call_site(),
-        );
 
         fn leaf_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
-            let code = &tree.opcode.as_ref().unwrap().code;
-            let function_call = &tree.opcode.as_ref().unwrap().function_call;
-            let duration = tree.opcode.as_ref().unwrap().duration;
+            let opcode = tree.opcode.as_ref().unwrap();
+            let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
+            let function_call = &opcode.function_call;
+            let field_names = function_call.function.parameters.iter().map(|n| &n.name);
             tokens.extend(quote!(
-                #code => { machine.#function_call; #duration }
+                Self::#variant_name { #(#field_names, )* } => machine.#function_call
             ));
         }
 
-        fn inner_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
-            let code = &tree.code;
-            let dispatches = tree.children.values();
-            tokens.extend(quote!(
-                #code => match (#code as u16) << 8 | stream.read_u8().unwrap() as u16 {
-                    #( #dispatches, )*
-                    v => panic!("Unknown opcode {}", v),
-                }
-            ));
-        }
-
-        let dispatches = self.build_dispatches(leaf_tokenize, inner_tokenize);
+        let dispatches = self.build_dispatches_unique_functions(leaf_tokenize);
 
         tokens.extend(quote!(
-            pub fn #function_name<I: #trait_name>(mut stream: &[u8], machine: &mut I) -> u8 {
-                let opcode = stream.read_u8().unwrap();
-                match opcode {
-                    #( #dispatches, )*
-                    v => panic!("Unknown opcode {}", v),
+            impl #enum_name {
+                pub fn dispatch<I: #trait_name>(self, machine: &mut I) {
+                    match self {
+                        #( #dispatches, )*
+                    }
                 }
             }
         ));
     }
 
-    fn generate_get_instruction(&self, tokens: &mut TokenStream) {
-        let function_name = Ident::new(
-            &format!(
-                "get_{}_instruction",
-                self.instruction_set_name.to_lowercase()
-            ),
-            Span::call_site(),
-        );
+    fn generate_instruction_enum(&self, tokens: &mut TokenStream) {
+        let enum_name = &self.enum_name;
+
+        let mut variants: BTreeMap<String, syn::Variant> = BTreeMap::new();
+        for opcode in &self.opcodes {
+            let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
+            let parameters = &opcode.function_call.function.parameters;
+            if parameters.is_empty() {
+                variants.insert(
+                    opcode.camel_name.clone(),
+                    syn::parse_quote!(
+                        #variant_name
+                    ),
+                );
+            } else {
+                variants.insert(
+                    opcode.camel_name.clone(),
+                    syn::parse_quote!(
+                        #variant_name { #(#parameters, )* }
+                    ),
+                );
+            }
+        }
 
         fn leaf_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
-            let code = &tree.opcode.as_ref().unwrap().code;
-            let subcodes = code.split();
-            let size = tree.opcode.as_ref().unwrap().size;
-            tokens.extend(quote!(
-                #code => (vec![#(#subcodes),*], #size)
-            ));
+            let opcode = tree.opcode.as_ref().unwrap();
+            let code = &opcode.code;
+            let variant_name = &opcode.camel_name;
+            let variant = Ident::new(variant_name, Span::call_site());
+            let field_names = opcode
+                .function_call
+                .function
+                .parameters
+                .iter()
+                .map(|n| &n.name);
+            let values = &opcode.enum_args;
+            if values.is_empty() {
+                tokens.extend(quote!(
+                    #code => Some(Self::#variant)
+                ));
+            } else {
+                tokens.extend(quote!(
+                    #code => Some(Self::#variant { #(#field_names : #values,)* })
+                ));
+            }
         }
 
         fn inner_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
             let code = &tree.code;
             let dispatches = tree.children.values();
             tokens.extend(quote!(
-                #code => match (#code as u16) << 8 | match stream.read_u8() {
-                    Ok(x) => x,
-                    _ => return None,
-                } as u16
-                {
+                #code => match (#code as u16) << 8 | stream.read_u8()? as u16 {
                     #( #dispatches, )*
-                    _ => return None,
+                    _ => None,
                 }
             ));
         }
 
-        let dispatches = self.build_dispatches(leaf_tokenize, inner_tokenize);
+        let dispatches = self.build_tree_dispatches(leaf_tokenize, inner_tokenize);
+
+        let variants_values = variants.values();
 
         tokens.extend(quote!(
-            pub fn #function_name<R: io::Read>(mut stream: R) -> Option<Vec<u8>> {
-                let (mut instr, size) = match stream.read_u8().unwrap() {
-                    #( #dispatches, )*
-                    _ => return None,
-                };
-                let op_size = instr.len();
-                instr.resize(size as usize, 0);
-                stream.read(&mut instr[op_size..]).unwrap();
-                return Some(instr);
+            #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+            pub enum #enum_name {
+                #( #variants_values, )*
+            }
+
+            impl #enum_name {
+                pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
+                    let opcode = stream.read_u8()?;
+                    Ok(match opcode {
+                        #( #dispatches, )*
+                        _ => None,
+                    })
+                }
+            }
+        ));
+    }
+
+    fn generate_size_fn(&self, tokens: &mut TokenStream) {
+        let enum_name = &self.enum_name;
+
+        fn leaf_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
+            let opcode = tree.opcode.as_ref().unwrap();
+            let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
+            let size = opcode.size;
+            tokens.extend(quote!(
+                Self::#variant_name { .. } => { #size }
+            ));
+        }
+
+        let dispatches = self.build_dispatches_unique_functions(leaf_tokenize);
+
+        tokens.extend(quote!(
+            impl #enum_name {
+                pub fn size(&self) -> u8 {
+                    match self {
+                        #( #dispatches, )*
+                    }
+                }
+            }
+        ));
+    }
+
+    fn generate_duration_fn(&self, tokens: &mut TokenStream) {
+        let enum_name = &self.enum_name;
+
+        fn leaf_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
+            let opcode = tree.opcode.as_ref().unwrap();
+            let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
+            let duration = opcode.duration;
+
+            let field_names = opcode
+                .function_call
+                .function
+                .parameters
+                .iter()
+                .map(|n| &n.name);
+            let values = &opcode.enum_args;
+
+            let matches: Vec<_> = field_names
+                .zip(values.iter())
+                .filter(|(_, v)| !v.dynamic())
+                .collect();
+
+            let field_names = matches.iter().map(|(k, _)| k);
+            let values = matches.iter().map(|(_, v)| v);
+
+            tokens.extend(quote!(
+                Self::#variant_name { #(#field_names : #values,)* .. } => { #duration }
+            ));
+        }
+
+        let dispatches = self.build_dispatches(leaf_tokenize);
+
+        tokens.extend(quote!(
+            impl #enum_name {
+                pub fn duration(&self) -> u8 {
+                    match self {
+                        #( #dispatches, )*
+                        instr => panic!("invalid instruction {:?}", instr)
+                    }
+                }
             }
         ));
     }
@@ -694,9 +837,11 @@ impl OpcodeGenerator {
 
     fn generate(&self, tokens: &mut TokenStream) {
         self.generate_preamble(tokens);
+        self.generate_instruction_enum(tokens);
+        self.generate_size_fn(tokens);
+        self.generate_duration_fn(tokens);
         self.generate_instructions_trait(tokens);
         self.generate_instruction_dispatch(tokens);
-        self.generate_get_instruction(tokens);
         self.generate_opcode_printer(tokens);
     }
 }
@@ -709,6 +854,9 @@ fn generate_opcode_rs(
 ) {
     let use_path = opcodes_path.split("/").map(Into::into).collect();
     let mut tokens = TokenStream::new();
+    tokens.extend(quote! {
+        #![allow(dead_code)]
+    });
     let generator = OpcodeGenerator::new(instruction_set_name, use_path, opcodes_json);
     generator.generate(&mut tokens);
 

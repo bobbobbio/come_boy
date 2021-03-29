@@ -37,6 +37,7 @@ ctrlc = "*"
 tempfile = "*"
 
 [build-dependencies]
+heck = "*"
 proc-macro2 = "*"
 quote = "*"
 serde = "*"
