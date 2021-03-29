@@ -179,11 +179,10 @@ impl Renderer for SpeedyRenderer {
 
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
         assert!(x < self.width as i32, "x = {} > {}", x, self.width);
-        assert!(y < self.height as i32, "y = {} > {}", x, self.height);
+        assert!(y < self.height as i32, "y = {} > {}", y, self.height);
+        assert!(x >= 0, "x = {} > 0", x);
+        assert!(y >= 0, "y = {} > 0", y);
 
-        if x < 0 || y < 0 {
-            return;
-        }
         let i = (y as usize * self.width + x as usize) * 3;
         self.back_buffer[i] = color.r;
         self.back_buffer[i + 1] = color.g;

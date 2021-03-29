@@ -472,31 +472,27 @@ impl LcdObject {
         }
     }
 
-    fn draw_line<R: Renderer>(
+    fn draw_line(
         &self,
-        renderer: &mut R,
-        priority: ObjectPriority,
+        line: &mut ScanLine,
         character_data: &MemoryChunk,
         palette: &GameBoyFlags<LcdColor>,
         object_block_composition_selection: bool,
-        line: i32,
+        ly: i32,
     ) {
-        let low_priority = self.read_flag(LcdObjectAttributeFlag::DisplayPriority);
-        if (priority == ObjectPriority::Background) != low_priority {
-            return;
-        }
-
+        let behind_bg = self.read_flag(LcdObjectAttributeFlag::DisplayPriority);
         let vertical_flip = self.read_flag(LcdObjectAttributeFlag::VerticalFlip);
         let horizantal_flip = self.read_flag(LcdObjectAttributeFlag::HorizontalFlip);
         let (y, character_code) =
-            self.get_character_data_for_line(line, object_block_composition_selection);
+            self.get_character_data_for_line(ly, object_block_composition_selection);
 
         let character_data = LcdController::read_dot_data(character_data, true, character_code);
         character_data.draw_line(
-            renderer,
+            line,
             self.x,
             y,
-            line,
+            ly,
+            behind_bg,
             vertical_flip,
             horizantal_flip,
             true,
@@ -564,12 +560,13 @@ impl<'a> LcdDotData<'a> {
         }
     }
 
-    fn draw_line<R: Renderer>(
+    fn draw_line(
         &self,
-        renderer: &mut R,
+        line: &mut ScanLine,
         x: i32,
         y: i32,
         ly: i32,
+        behind_bg: bool,
         vertical_flip: bool,
         horizantal_flip: bool,
         enable_transparency: bool,
@@ -592,7 +589,10 @@ impl<'a> LcdDotData<'a> {
             if horizantal_flip {
                 offset_x = CHARACTER_SIZE as usize - offset_x - 1;
             }
-            if x + offset_x as i32 >= SCREEN_WIDTH {
+            let x = x + offset_x as i32;
+            if x < 0 {
+                continue;
+            } else if x >= SCREEN_WIDTH {
                 break;
             }
             if color != LcdColor::Color0 || !enable_transparency {
@@ -603,18 +603,12 @@ impl<'a> LcdDotData<'a> {
                     0x3 => LcdShade::Shade3,
                     _ => panic!(),
                 };
-                let color = color_for_shade::<R>(shade);
-                renderer.color_pixel(x + offset_x as i32, ly as i32, color);
+                if !behind_bg || line.get_pixel(x) == LcdShade::Shade0 {
+                    line.set_pixel(x, shade);
+                }
             }
         }
     }
-}
-
-/// Represents which layer we are currently drawing
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ObjectPriority {
-    Background,
-    Foreground,
 }
 
 /// Used with the scheduler to run functions after some amount of time.
@@ -639,6 +633,34 @@ impl LcdControllerEvent {
             Self::Mode2 => controller.mode_2(time),
             Self::Mode3 => controller.mode_3(renderer, time),
             Self::UpdateLyMatch => controller.update_ly_match(time),
+        }
+    }
+}
+
+struct ScanLine {
+    data: [LcdShade; SCREEN_WIDTH as usize],
+}
+
+impl ScanLine {
+    fn new() -> Self {
+        Self {
+            data: [LcdShade::Shade0; SCREEN_WIDTH as usize],
+        }
+    }
+
+    fn set_pixel(&mut self, x: i32, shade: LcdShade) {
+        assert!(x >= 0 && x < self.data.len() as i32);
+        self.data[x as usize] = shade
+    }
+
+    fn get_pixel(&self, x: i32) -> LcdShade {
+        assert!(x >= 0 && x < self.data.len() as i32);
+        self.data[x as usize]
+    }
+
+    fn draw<R: Renderer>(&self, renderer: &mut R, y: i32) {
+        for (x, &v) in self.data.iter().enumerate() {
+            renderer.color_pixel(x as i32, y, color_for_shade::<R>(v));
         }
     }
 }
@@ -780,15 +802,14 @@ impl LcdController {
         return (x, y);
     }
 
-    fn draw_tiles<R: Renderer>(
+    fn draw_tiles(
         &mut self,
-        renderer: &mut R,
+        line: &mut ScanLine,
         scroll_x: i32,
         scroll_y: i32,
         area_selection: bool,
         character_data_selection: bool,
         wrap: bool,
-        transparent: bool,
     ) {
         let ly = self.registers.ly.read_value() as i32;
 
@@ -839,13 +860,14 @@ impl LcdController {
             for &ix in xes {
                 if (ix >= 0 || ix + CHARACTER_SIZE >= 0) && ix < SCREEN_WIDTH {
                     character_data.draw_line(
-                        renderer,
+                        line,
                         ix,
                         y,
                         ly,
                         false,
                         false,
-                        transparent,
+                        false,
+                        false,
                         &self.registers.bgp,
                     );
                 }
@@ -853,7 +875,7 @@ impl LcdController {
         }
     }
 
-    fn draw_oam_data<R: Renderer>(&mut self, renderer: &mut R, priority: ObjectPriority) {
+    fn draw_oam_data(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::ObjectOn) {
             return;
         }
@@ -887,8 +909,7 @@ impl LcdController {
                 true => &self.registers.obp1,
             };
             object.draw_line(
-                renderer,
-                priority,
+                line,
                 &self.character_data,
                 palette,
                 object_block_composition_selection,
@@ -913,15 +934,7 @@ impl LcdController {
             .schedule(time + 77, LcdControllerEvent::Mode3);
     }
 
-    fn clear_line<R: Renderer>(&mut self, renderer: &mut R) {
-        let ly = self.registers.ly.read_value();
-
-        for x in 0..SCREEN_WIDTH {
-            renderer.color_pixel(x, ly as i32, color_for_shade::<R>(LcdShade::Shade0));
-        }
-    }
-
-    fn draw_background<R: Renderer>(&mut self, renderer: &mut R) {
+    fn draw_background(&mut self, line: &mut ScanLine) {
         let bg_area_selection = self
             .registers
             .lcdc
@@ -932,17 +945,16 @@ impl LcdController {
             .read_flag(LcdControlFlag::BGCharacterDataSelection);
         let (scroll_x, scroll_y) = self.get_scroll_origin_relative_to_lcd();
         self.draw_tiles(
-            renderer,
+            line,
             scroll_x,
             scroll_y,
             bg_area_selection,
             bg_character_data_selection,
             true,
-            true,
         );
     }
 
-    fn draw_window<R: Renderer>(&mut self, renderer: &mut R) {
+    fn draw_window(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::WindowingOn) {
             return;
         }
@@ -953,11 +965,10 @@ impl LcdController {
             .read_flag(LcdControlFlag::WindowCodeAreaSelection);
         let (scroll_x, scroll_y) = self.get_window_origin_relative_to_lcd();
         self.draw_tiles(
-            renderer,
+            line,
             scroll_x,
             scroll_y,
             window_area_selection,
-            false,
             false,
             false,
         );
@@ -972,11 +983,12 @@ impl LcdController {
         self.background_display_data_1.borrow();
         self.background_display_data_2.borrow();
 
-        self.clear_line(renderer);
-        self.draw_oam_data(renderer, ObjectPriority::Background);
-        self.draw_background(renderer);
-        self.draw_window(renderer);
-        self.draw_oam_data(renderer, ObjectPriority::Foreground);
+        let mut line = ScanLine::new();
+        self.draw_background(&mut line);
+        self.draw_window(&mut line);
+        self.draw_oam_data(&mut line);
+        line.draw(renderer, ly as i32);
+
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x3);
         self.scheduler
             .schedule(time + 175, LcdControllerEvent::Mode0);
