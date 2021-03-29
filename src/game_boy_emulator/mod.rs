@@ -43,6 +43,25 @@ mod lcd_controller;
 mod sound_controller;
 mod tandem;
 
+/// This is how many ticks of the emulator we do before under-clocking and checking for input
+const SLEEP_INPUT_TICKS: u64 = 10_000;
+
+struct ModuloCounter {
+    counter: u64,
+    every: u64,
+}
+
+impl ModuloCounter {
+    fn new(every: u64) -> Self {
+        Self { counter: 0, every }
+    }
+
+    fn incr(&mut self) -> bool {
+        self.counter = self.counter.wrapping_add(1);
+        self.counter % self.every == 0
+    }
+}
+
 struct Underclocker {
     last_cycles: u64,
     last_instant: Instant,
@@ -58,11 +77,6 @@ impl Underclocker {
 
     fn underclock(&mut self, now: u64, speed: u32) {
         let elapsed_cycles = now - self.last_cycles;
-
-        // We can't sleep every tick, so just do it every so often.
-        if elapsed_cycles < 100_000 {
-            return;
-        }
 
         let delay = Duration::from_secs(1) / speed;
         let expected_time = (elapsed_cycles as u32) * delay;
@@ -493,17 +507,17 @@ impl GameBoyEmulator {
     }
 
     fn run_inner<R: Renderer>(&mut self, renderer: &mut R) -> std::result::Result<(), UserControl> {
-        let mut input_poll = Instant::now();
-        let mut underlocker = Underclocker::new(self.cpu.elapsed_cycles);
+        let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles);
+        let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 
         while self.crashed().is_none() {
             self.tick(renderer);
-            underlocker.underclock(self.cpu.elapsed_cycles, self.clock_speed_hz);
 
-            // Only get input every 10 milliseconds
-            if input_poll.elapsed() > Duration::from_millis(10) {
+            // We can't do this every tick because it is too slow. So instead so only every so
+            // often.
+            if sometimes.incr() {
+                underclocker.underclock(self.cpu.elapsed_cycles, self.clock_speed_hz);
                 self.read_key_events(renderer)?;
-                input_poll = Instant::now();
             }
         }
 

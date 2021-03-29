@@ -5,11 +5,10 @@ use crate::game_boy_emulator::game_pak::GamePak;
 use crate::game_boy_emulator::joypad::PlainJoyPad;
 use crate::game_boy_emulator::lcd_controller::{LcdControlFlag, LcdController, LcdStatusFlag};
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use crate::game_boy_emulator::{GameBoyEmulator, Underclocker};
+use crate::game_boy_emulator::{GameBoyEmulator, ModuloCounter, Underclocker, SLEEP_INPUT_TICKS};
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
 use std::io::{self, Result};
-use std::time::{Duration, Instant};
 use std::{fmt, str};
 
 impl fmt::Debug for GameBoyEmulator {
@@ -26,7 +25,7 @@ struct GameBoyDebugger<'a, R> {
     emulator: GameBoyEmulator,
     renderer: &'a mut R,
     underclocker: Underclocker,
-    input_poll: Instant,
+    sometimes: ModuloCounter,
 }
 
 impl<'a, R: Renderer> GameBoyDebugger<'a, R> {
@@ -37,7 +36,7 @@ impl<'a, R: Renderer> GameBoyDebugger<'a, R> {
             emulator,
             renderer,
             underclocker,
-            input_poll: Instant::now(),
+            sometimes: ModuloCounter::new(SLEEP_INPUT_TICKS),
         }
     }
 }
@@ -54,13 +53,12 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
 
     fn next(&mut self) {
         self.emulator.tick(self.renderer);
-        self.underclocker.underclock(
-            self.emulator.cpu.elapsed_cycles,
-            self.emulator.clock_speed_hz,
-        );
-        if self.input_poll.elapsed() > Duration::from_millis(10) {
+        if self.sometimes.incr() {
+            self.underclocker.underclock(
+                self.emulator.cpu.elapsed_cycles,
+                self.emulator.clock_speed_hz,
+            );
             self.emulator.read_key_events(self.renderer).unwrap();
-            self.input_poll = Instant::now();
         }
     }
 
