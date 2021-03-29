@@ -56,6 +56,24 @@ fn zelda_200000000_replay1_save_state() -> Result<()> {
     )
 }
 #[test]
+fn aladdin_60000000() -> Result<()> {
+    do_rom_test(
+        "test/roms/aladdin.gb",
+        60000000u64,
+        "test/expectations/aladdin/60000000.bmp",
+        None,
+    )
+}
+#[test]
+fn aladdin_60000000_save_state() -> Result<()> {
+    do_save_state_rom_test(
+        "test/roms/aladdin.gb",
+        60000000u64,
+        "test/expectations/aladdin/60000000.bmp",
+        None,
+    )
+}
+#[test]
 fn tetris_10000000() -> Result<()> {
     do_rom_test(
         "test/roms/tetris.gb",
