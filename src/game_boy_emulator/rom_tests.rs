@@ -38,6 +38,24 @@ fn f1race_80000000_save_state() -> Result<()> {
     )
 }
 #[test]
+fn zelda_60000000() -> Result<()> {
+    do_rom_test(
+        "test/roms/zelda.gb",
+        60000000u64,
+        "test/expectations/zelda/60000000.bmp",
+        None,
+    )
+}
+#[test]
+fn zelda_60000000_save_state() -> Result<()> {
+    do_save_state_rom_test(
+        "test/roms/zelda.gb",
+        60000000u64,
+        "test/expectations/zelda/60000000.bmp",
+        None,
+    )
+}
+#[test]
 fn zelda_200000000_replay1() -> Result<()> {
     do_rom_test(
         "test/roms/zelda.gb",
@@ -52,6 +70,24 @@ fn zelda_200000000_replay1_save_state() -> Result<()> {
         "test/roms/zelda.gb",
         200000000u64,
         "test/expectations/zelda/200000000_replay1.bmp",
+        Some("test/expectations/zelda/replay1.replay"),
+    )
+}
+#[test]
+fn zelda_7000000_replay1() -> Result<()> {
+    do_rom_test(
+        "test/roms/zelda.gb",
+        7000000u64,
+        "test/expectations/zelda/7000000_replay1.bmp",
+        Some("test/expectations/zelda/replay1.replay"),
+    )
+}
+#[test]
+fn zelda_7000000_replay1_save_state() -> Result<()> {
+    do_save_state_rom_test(
+        "test/roms/zelda.gb",
+        7000000u64,
+        "test/expectations/zelda/7000000_replay1.bmp",
         Some("test/expectations/zelda/replay1.replay"),
     )
 }
