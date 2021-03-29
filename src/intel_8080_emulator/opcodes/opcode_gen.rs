@@ -1033,6 +1033,859 @@ impl Intel8080Instruction {
         }
     }
 }
+impl Intel8080Instruction {
+    pub fn duration(&self) -> u8 {
+        match self {
+            Self::NoOperation { .. } => 0u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::StoreAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::RotateAccumulatorLeft { .. } => 0u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::LoadAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::RotateAccumulatorRight { .. } => 0u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::StoreAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::RotateAccumulatorLeftThroughCarry { .. } => 0u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::LoadAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::RotateAccumulatorRightThroughCarry { .. } => 0u8,
+            Self::Rim { .. } => 0u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::StoreHAndLDirect { .. } => 0u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::DecimalAdjustAccumulator { .. } => 0u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::LoadHAndLDirect { .. } => 0u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::ComplementAccumulator { .. } => 0u8,
+            Self::Sim { .. } => 0u8,
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::SP,
+                ..
+            } => 0u8,
+            Self::StoreAccumulatorDirect { .. } => 0u8,
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::SP,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::SetCarry { .. } => 0u8,
+            Self::DoubleAdd {
+                register1: Intel8080Register::SP,
+                ..
+            } => 0u8,
+            Self::LoadAccumulatorDirect { .. } => 0u8,
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::SP,
+                ..
+            } => 0u8,
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveImmediateData {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::ComplementCarry { .. } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::Halt { .. } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::AddToAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => 0u8,
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => 0u8,
+            Self::ReturnIfNotZero { .. } => 0u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::JumpIfNotZero { .. } => 0u8,
+            Self::Jump { .. } => 0u8,
+            Self::CallIfNotZero { .. } => 0u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::B,
+                ..
+            } => 0u8,
+            Self::AddImmediateToAccumulator { .. } => 0u8,
+            Self::Restart { data1: 0u8, .. } => 0u8,
+            Self::ReturnIfZero { .. } => 0u8,
+            Self::ReturnUnconditionally { .. } => 0u8,
+            Self::JumpIfZero { .. } => 0u8,
+            Self::CallIfZero { .. } => 0u8,
+            Self::Call { .. } => 0u8,
+            Self::AddImmediateToAccumulatorWithCarry { .. } => 0u8,
+            Self::Restart { data1: 1u8, .. } => 0u8,
+            Self::ReturnIfNoCarry { .. } => 0u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::JumpIfNoCarry { .. } => 0u8,
+            Self::Output { .. } => 0u8,
+            Self::CallIfNoCarry { .. } => 0u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::D,
+                ..
+            } => 0u8,
+            Self::SubtractImmediateFromAccumulator { .. } => 0u8,
+            Self::Restart { data1: 2u8, .. } => 0u8,
+            Self::ReturnIfCarry { .. } => 0u8,
+            Self::JumpIfCarry { .. } => 0u8,
+            Self::Input { .. } => 0u8,
+            Self::CallIfCarry { .. } => 0u8,
+            Self::SubtractImmediateFromAccumulatorWithBorrow { .. } => 0u8,
+            Self::Restart { data1: 3u8, .. } => 0u8,
+            Self::ReturnIfParityOdd { .. } => 0u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::JumpIfParityOdd { .. } => 0u8,
+            Self::ExchangeStack { .. } => 0u8,
+            Self::CallIfParityOdd { .. } => 0u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::H,
+                ..
+            } => 0u8,
+            Self::AndImmediateWithAccumulator { .. } => 0u8,
+            Self::Restart { data1: 4u8, .. } => 0u8,
+            Self::ReturnIfParityEven { .. } => 0u8,
+            Self::LoadProgramCounter { .. } => 0u8,
+            Self::JumpIfParityEven { .. } => 0u8,
+            Self::ExchangeRegisters { .. } => 0u8,
+            Self::CallIfParityEven { .. } => 0u8,
+            Self::ExclusiveOrImmediateWithAccumulator { .. } => 0u8,
+            Self::Restart { data1: 5u8, .. } => 0u8,
+            Self::ReturnIfPlus { .. } => 0u8,
+            Self::PopDataOffStack {
+                register1: Intel8080Register::PSW,
+                ..
+            } => 0u8,
+            Self::JumpIfPositive { .. } => 0u8,
+            Self::DisableInterrupts { .. } => 0u8,
+            Self::CallIfPlus { .. } => 0u8,
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::PSW,
+                ..
+            } => 0u8,
+            Self::OrImmediateWithAccumulator { .. } => 0u8,
+            Self::Restart { data1: 6u8, .. } => 0u8,
+            Self::ReturnIfMinus { .. } => 0u8,
+            Self::LoadSpFromHAndL { .. } => 0u8,
+            Self::JumpIfMinus { .. } => 0u8,
+            Self::EnableInterrupts { .. } => 0u8,
+            Self::CallIfMinus { .. } => 0u8,
+            Self::CompareImmediateWithAccumulator { .. } => 0u8,
+            Self::Restart { data1: 7u8, .. } => 0u8,
+            instr => panic!("invalid instruction {:?}", instr),
+        }
+    }
+}
 pub trait Intel8080InstructionSet {
     fn add_immediate_to_accumulator(&mut self, data1: u8);
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8);
@@ -1116,1676 +1969,133 @@ pub trait Intel8080InstructionSet {
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8);
 }
 impl Intel8080Instruction {
-    pub fn dispatch<I: Intel8080InstructionSet>(self, machine: &mut I) -> u8 {
+    pub fn dispatch<I: Intel8080InstructionSet>(self, machine: &mut I) {
         match self {
-            Self::NoOperation {} => {
-                machine.no_operation();
-                0u8
+            Self::NoOperation {} => machine.no_operation(),
+            Self::LoadRegisterPairImmediate { register1, data2 } => {
+                machine.load_register_pair_immediate(register1, data2)
             }
-            Self::LoadRegisterPairImmediate {
-                register1: Intel8080Register::B,
-                data2,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.load_register_pair_immediate(register1, data2);
-                0u8
+            Self::StoreAccumulator { register1 } => machine.store_accumulator(register1),
+            Self::IncrementRegisterPair { register1 } => machine.increment_register_pair(register1),
+            Self::IncrementRegisterOrMemory { register1 } => {
+                machine.increment_register_or_memory(register1)
             }
-            Self::StoreAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.store_accumulator(register1);
-                0u8
+            Self::DecrementRegisterOrMemory { register1 } => {
+                machine.decrement_register_or_memory(register1)
             }
-            Self::IncrementRegisterPair {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.increment_register_pair(register1);
-                0u8
+            Self::MoveImmediateData { register1, data2 } => {
+                machine.move_immediate_data(register1, data2)
             }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::B,
-                data2,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
-            Self::RotateAccumulatorLeft {} => {
-                machine.rotate_accumulator_left();
-                0u8
-            }
-            Self::DoubleAdd {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.double_add(register1);
-                0u8
-            }
-            Self::LoadAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.load_accumulator(register1);
-                0u8
-            }
-            Self::DecrementRegisterPair {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.decrement_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::C,
-                data2,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
-            Self::RotateAccumulatorRight {} => {
-                machine.rotate_accumulator_right();
-                0u8
-            }
-            Self::LoadRegisterPairImmediate {
-                register1: Intel8080Register::D,
-                data2,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.load_register_pair_immediate(register1, data2);
-                0u8
-            }
-            Self::StoreAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.store_accumulator(register1);
-                0u8
-            }
-            Self::IncrementRegisterPair {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.increment_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::D,
-                data2,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
+            Self::RotateAccumulatorLeft {} => machine.rotate_accumulator_left(),
+            Self::DoubleAdd { register1 } => machine.double_add(register1),
+            Self::LoadAccumulator { register1 } => machine.load_accumulator(register1),
+            Self::DecrementRegisterPair { register1 } => machine.decrement_register_pair(register1),
+            Self::RotateAccumulatorRight {} => machine.rotate_accumulator_right(),
             Self::RotateAccumulatorLeftThroughCarry {} => {
-                machine.rotate_accumulator_left_through_carry();
-                0u8
-            }
-            Self::DoubleAdd {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.double_add(register1);
-                0u8
-            }
-            Self::LoadAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.load_accumulator(register1);
-                0u8
-            }
-            Self::DecrementRegisterPair {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.decrement_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::E,
-                data2,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.move_immediate_data(register1, data2);
-                0u8
+                machine.rotate_accumulator_left_through_carry()
             }
             Self::RotateAccumulatorRightThroughCarry {} => {
-                machine.rotate_accumulator_right_through_carry();
-                0u8
+                machine.rotate_accumulator_right_through_carry()
             }
-            Self::Rim {} => {
-                machine.rim();
-                0u8
-            }
-            Self::LoadRegisterPairImmediate {
-                register1: Intel8080Register::H,
-                data2,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.load_register_pair_immediate(register1, data2);
-                0u8
-            }
-            Self::StoreHAndLDirect { address1 } => {
-                machine.store_h_and_l_direct(address1);
-                0u8
-            }
-            Self::IncrementRegisterPair {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.increment_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::H,
-                data2,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
-            Self::DecimalAdjustAccumulator {} => {
-                machine.decimal_adjust_accumulator();
-                0u8
-            }
-            Self::DoubleAdd {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.double_add(register1);
-                0u8
-            }
-            Self::LoadHAndLDirect { address1 } => {
-                machine.load_h_and_l_direct(address1);
-                0u8
-            }
-            Self::DecrementRegisterPair {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.decrement_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::L,
-                data2,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
-            Self::ComplementAccumulator {} => {
-                machine.complement_accumulator();
-                0u8
-            }
-            Self::Sim {} => {
-                machine.sim();
-                0u8
-            }
-            Self::LoadRegisterPairImmediate {
-                register1: Intel8080Register::SP,
-                data2,
-            } => {
-                let register1 = Intel8080Register::SP;
-                machine.load_register_pair_immediate(register1, data2);
-                0u8
-            }
-            Self::StoreAccumulatorDirect { address1 } => {
-                machine.store_accumulator_direct(address1);
-                0u8
-            }
-            Self::IncrementRegisterPair {
-                register1: Intel8080Register::SP,
-            } => {
-                let register1 = Intel8080Register::SP;
-                machine.increment_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::M,
-                data2,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
-            Self::SetCarry {} => {
-                machine.set_carry();
-                0u8
-            }
-            Self::DoubleAdd {
-                register1: Intel8080Register::SP,
-            } => {
-                let register1 = Intel8080Register::SP;
-                machine.double_add(register1);
-                0u8
-            }
-            Self::LoadAccumulatorDirect { address1 } => {
-                machine.load_accumulator_direct(address1);
-                0u8
-            }
-            Self::DecrementRegisterPair {
-                register1: Intel8080Register::SP,
-            } => {
-                let register1 = Intel8080Register::SP;
-                machine.decrement_register_pair(register1);
-                0u8
-            }
-            Self::IncrementRegisterOrMemory {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.increment_register_or_memory(register1);
-                0u8
-            }
-            Self::DecrementRegisterOrMemory {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.decrement_register_or_memory(register1);
-                0u8
-            }
-            Self::MoveImmediateData {
-                register1: Intel8080Register::A,
-                data2,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.move_immediate_data(register1, data2);
-                0u8
-            }
-            Self::ComplementCarry {} => {
-                machine.complement_carry();
-                0u8
-            }
+            Self::Rim {} => machine.rim(),
+            Self::StoreHAndLDirect { address1 } => machine.store_h_and_l_direct(address1),
+            Self::DecimalAdjustAccumulator {} => machine.decimal_adjust_accumulator(),
+            Self::LoadHAndLDirect { address1 } => machine.load_h_and_l_direct(address1),
+            Self::ComplementAccumulator {} => machine.complement_accumulator(),
+            Self::Sim {} => machine.sim(),
+            Self::StoreAccumulatorDirect { address1 } => machine.store_accumulator_direct(address1),
+            Self::SetCarry {} => machine.set_carry(),
+            Self::LoadAccumulatorDirect { address1 } => machine.load_accumulator_direct(address1),
+            Self::ComplementCarry {} => machine.complement_carry(),
             Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::B,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::B;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::C,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::C;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::D,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::D;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::E,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::E;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::H,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::H;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::L,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::L;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::Halt {} => {
-                machine.halt();
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::M,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::M;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::B;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::C;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::D;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::E;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::H;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::L;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::M;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::MoveData {
-                register1: Intel8080Register::A,
-                register2: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                let register2 = Intel8080Register::A;
-                machine.move_data(register1, register2);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulator {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.add_to_accumulator(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::AddToAccumulatorWithCarry {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.add_to_accumulator_with_carry(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulator {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.subtract_from_accumulator(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::SubtractFromAccumulatorWithBorrow {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.subtract_from_accumulator_with_borrow(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalAndWithAccumulator {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.logical_and_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalExclusiveOrWithAccumulator {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.logical_exclusive_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::LogicalOrWithAccumulator {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.logical_or_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::C,
-            } => {
-                let register1 = Intel8080Register::C;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::E,
-            } => {
-                let register1 = Intel8080Register::E;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::L,
-            } => {
-                let register1 = Intel8080Register::L;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::M,
-            } => {
-                let register1 = Intel8080Register::M;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::CompareWithAccumulator {
-                register1: Intel8080Register::A,
-            } => {
-                let register1 = Intel8080Register::A;
-                machine.compare_with_accumulator(register1);
-                0u8
-            }
-            Self::ReturnIfNotZero {} => {
-                machine.return_if_not_zero();
-                0u8
-            }
-            Self::PopDataOffStack {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.pop_data_off_stack(register1);
-                0u8
-            }
-            Self::JumpIfNotZero { address1 } => {
-                machine.jump_if_not_zero(address1);
-                0u8
-            }
-            Self::Jump { address1 } => {
-                machine.jump(address1);
-                0u8
-            }
-            Self::CallIfNotZero { address1 } => {
-                machine.call_if_not_zero(address1);
-                0u8
-            }
-            Self::PushDataOntoStack {
-                register1: Intel8080Register::B,
-            } => {
-                let register1 = Intel8080Register::B;
-                machine.push_data_onto_stack(register1);
-                0u8
-            }
+                register1,
+                register2,
+            } => machine.move_data(register1, register2),
+            Self::Halt {} => machine.halt(),
+            Self::AddToAccumulator { register1 } => machine.add_to_accumulator(register1),
+            Self::AddToAccumulatorWithCarry { register1 } => {
+                machine.add_to_accumulator_with_carry(register1)
+            }
+            Self::SubtractFromAccumulator { register1 } => {
+                machine.subtract_from_accumulator(register1)
+            }
+            Self::SubtractFromAccumulatorWithBorrow { register1 } => {
+                machine.subtract_from_accumulator_with_borrow(register1)
+            }
+            Self::LogicalAndWithAccumulator { register1 } => {
+                machine.logical_and_with_accumulator(register1)
+            }
+            Self::LogicalExclusiveOrWithAccumulator { register1 } => {
+                machine.logical_exclusive_or_with_accumulator(register1)
+            }
+            Self::LogicalOrWithAccumulator { register1 } => {
+                machine.logical_or_with_accumulator(register1)
+            }
+            Self::CompareWithAccumulator { register1 } => {
+                machine.compare_with_accumulator(register1)
+            }
+            Self::ReturnIfNotZero {} => machine.return_if_not_zero(),
+            Self::PopDataOffStack { register1 } => machine.pop_data_off_stack(register1),
+            Self::JumpIfNotZero { address1 } => machine.jump_if_not_zero(address1),
+            Self::Jump { address1 } => machine.jump(address1),
+            Self::CallIfNotZero { address1 } => machine.call_if_not_zero(address1),
+            Self::PushDataOntoStack { register1 } => machine.push_data_onto_stack(register1),
             Self::AddImmediateToAccumulator { data1 } => {
-                machine.add_immediate_to_accumulator(data1);
-                0u8
+                machine.add_immediate_to_accumulator(data1)
             }
-            Self::Restart { data1: 0u8 } => {
-                let data1 = 0u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfZero {} => {
-                machine.return_if_zero();
-                0u8
-            }
-            Self::ReturnUnconditionally {} => {
-                machine.return_unconditionally();
-                0u8
-            }
-            Self::JumpIfZero { address1 } => {
-                machine.jump_if_zero(address1);
-                0u8
-            }
-            Self::CallIfZero { address1 } => {
-                machine.call_if_zero(address1);
-                0u8
-            }
-            Self::Call { address1 } => {
-                machine.call(address1);
-                0u8
-            }
+            Self::Restart { data1 } => machine.restart(data1),
+            Self::ReturnIfZero {} => machine.return_if_zero(),
+            Self::ReturnUnconditionally {} => machine.return_unconditionally(),
+            Self::JumpIfZero { address1 } => machine.jump_if_zero(address1),
+            Self::CallIfZero { address1 } => machine.call_if_zero(address1),
+            Self::Call { address1 } => machine.call(address1),
             Self::AddImmediateToAccumulatorWithCarry { data1 } => {
-                machine.add_immediate_to_accumulator_with_carry(data1);
-                0u8
+                machine.add_immediate_to_accumulator_with_carry(data1)
             }
-            Self::Restart { data1: 1u8 } => {
-                let data1 = 1u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfNoCarry {} => {
-                machine.return_if_no_carry();
-                0u8
-            }
-            Self::PopDataOffStack {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.pop_data_off_stack(register1);
-                0u8
-            }
-            Self::JumpIfNoCarry { address1 } => {
-                machine.jump_if_no_carry(address1);
-                0u8
-            }
-            Self::Output { data1 } => {
-                machine.output(data1);
-                0u8
-            }
-            Self::CallIfNoCarry { address1 } => {
-                machine.call_if_no_carry(address1);
-                0u8
-            }
-            Self::PushDataOntoStack {
-                register1: Intel8080Register::D,
-            } => {
-                let register1 = Intel8080Register::D;
-                machine.push_data_onto_stack(register1);
-                0u8
-            }
+            Self::ReturnIfNoCarry {} => machine.return_if_no_carry(),
+            Self::JumpIfNoCarry { address1 } => machine.jump_if_no_carry(address1),
+            Self::Output { data1 } => machine.output(data1),
+            Self::CallIfNoCarry { address1 } => machine.call_if_no_carry(address1),
             Self::SubtractImmediateFromAccumulator { data1 } => {
-                machine.subtract_immediate_from_accumulator(data1);
-                0u8
+                machine.subtract_immediate_from_accumulator(data1)
             }
-            Self::Restart { data1: 2u8 } => {
-                let data1 = 2u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfCarry {} => {
-                machine.return_if_carry();
-                0u8
-            }
-            Self::JumpIfCarry { address1 } => {
-                machine.jump_if_carry(address1);
-                0u8
-            }
-            Self::Input { data1 } => {
-                machine.input(data1);
-                0u8
-            }
-            Self::CallIfCarry { address1 } => {
-                machine.call_if_carry(address1);
-                0u8
-            }
+            Self::ReturnIfCarry {} => machine.return_if_carry(),
+            Self::JumpIfCarry { address1 } => machine.jump_if_carry(address1),
+            Self::Input { data1 } => machine.input(data1),
+            Self::CallIfCarry { address1 } => machine.call_if_carry(address1),
             Self::SubtractImmediateFromAccumulatorWithBorrow { data1 } => {
-                machine.subtract_immediate_from_accumulator_with_borrow(data1);
-                0u8
+                machine.subtract_immediate_from_accumulator_with_borrow(data1)
             }
-            Self::Restart { data1: 3u8 } => {
-                let data1 = 3u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfParityOdd {} => {
-                machine.return_if_parity_odd();
-                0u8
-            }
-            Self::PopDataOffStack {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.pop_data_off_stack(register1);
-                0u8
-            }
-            Self::JumpIfParityOdd { address1 } => {
-                machine.jump_if_parity_odd(address1);
-                0u8
-            }
-            Self::ExchangeStack {} => {
-                machine.exchange_stack();
-                0u8
-            }
-            Self::CallIfParityOdd { address1 } => {
-                machine.call_if_parity_odd(address1);
-                0u8
-            }
-            Self::PushDataOntoStack {
-                register1: Intel8080Register::H,
-            } => {
-                let register1 = Intel8080Register::H;
-                machine.push_data_onto_stack(register1);
-                0u8
-            }
+            Self::ReturnIfParityOdd {} => machine.return_if_parity_odd(),
+            Self::JumpIfParityOdd { address1 } => machine.jump_if_parity_odd(address1),
+            Self::ExchangeStack {} => machine.exchange_stack(),
+            Self::CallIfParityOdd { address1 } => machine.call_if_parity_odd(address1),
             Self::AndImmediateWithAccumulator { data1 } => {
-                machine.and_immediate_with_accumulator(data1);
-                0u8
+                machine.and_immediate_with_accumulator(data1)
             }
-            Self::Restart { data1: 4u8 } => {
-                let data1 = 4u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfParityEven {} => {
-                machine.return_if_parity_even();
-                0u8
-            }
-            Self::LoadProgramCounter {} => {
-                machine.load_program_counter();
-                0u8
-            }
-            Self::JumpIfParityEven { address1 } => {
-                machine.jump_if_parity_even(address1);
-                0u8
-            }
-            Self::ExchangeRegisters {} => {
-                machine.exchange_registers();
-                0u8
-            }
-            Self::CallIfParityEven { address1 } => {
-                machine.call_if_parity_even(address1);
-                0u8
-            }
+            Self::ReturnIfParityEven {} => machine.return_if_parity_even(),
+            Self::LoadProgramCounter {} => machine.load_program_counter(),
+            Self::JumpIfParityEven { address1 } => machine.jump_if_parity_even(address1),
+            Self::ExchangeRegisters {} => machine.exchange_registers(),
+            Self::CallIfParityEven { address1 } => machine.call_if_parity_even(address1),
             Self::ExclusiveOrImmediateWithAccumulator { data1 } => {
-                machine.exclusive_or_immediate_with_accumulator(data1);
-                0u8
+                machine.exclusive_or_immediate_with_accumulator(data1)
             }
-            Self::Restart { data1: 5u8 } => {
-                let data1 = 5u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfPlus {} => {
-                machine.return_if_plus();
-                0u8
-            }
-            Self::PopDataOffStack {
-                register1: Intel8080Register::PSW,
-            } => {
-                let register1 = Intel8080Register::PSW;
-                machine.pop_data_off_stack(register1);
-                0u8
-            }
-            Self::JumpIfPositive { address1 } => {
-                machine.jump_if_positive(address1);
-                0u8
-            }
-            Self::DisableInterrupts {} => {
-                machine.disable_interrupts();
-                0u8
-            }
-            Self::CallIfPlus { address1 } => {
-                machine.call_if_plus(address1);
-                0u8
-            }
-            Self::PushDataOntoStack {
-                register1: Intel8080Register::PSW,
-            } => {
-                let register1 = Intel8080Register::PSW;
-                machine.push_data_onto_stack(register1);
-                0u8
-            }
+            Self::ReturnIfPlus {} => machine.return_if_plus(),
+            Self::JumpIfPositive { address1 } => machine.jump_if_positive(address1),
+            Self::DisableInterrupts {} => machine.disable_interrupts(),
+            Self::CallIfPlus { address1 } => machine.call_if_plus(address1),
             Self::OrImmediateWithAccumulator { data1 } => {
-                machine.or_immediate_with_accumulator(data1);
-                0u8
+                machine.or_immediate_with_accumulator(data1)
             }
-            Self::Restart { data1: 6u8 } => {
-                let data1 = 6u8;
-                machine.restart(data1);
-                0u8
-            }
-            Self::ReturnIfMinus {} => {
-                machine.return_if_minus();
-                0u8
-            }
-            Self::LoadSpFromHAndL {} => {
-                machine.load_sp_from_h_and_l();
-                0u8
-            }
-            Self::JumpIfMinus { address1 } => {
-                machine.jump_if_minus(address1);
-                0u8
-            }
-            Self::EnableInterrupts {} => {
-                machine.enable_interrupts();
-                0u8
-            }
-            Self::CallIfMinus { address1 } => {
-                machine.call_if_minus(address1);
-                0u8
-            }
+            Self::ReturnIfMinus {} => machine.return_if_minus(),
+            Self::LoadSpFromHAndL {} => machine.load_sp_from_h_and_l(),
+            Self::JumpIfMinus { address1 } => machine.jump_if_minus(address1),
+            Self::EnableInterrupts {} => machine.enable_interrupts(),
+            Self::CallIfMinus { address1 } => machine.call_if_minus(address1),
             Self::CompareImmediateWithAccumulator { data1 } => {
-                machine.compare_immediate_with_accumulator(data1);
-                0u8
+                machine.compare_immediate_with_accumulator(data1)
             }
-            Self::Restart { data1: 7u8 } => {
-                let data1 = 7u8;
-                machine.restart(data1);
-                0u8
-            }
-            instr => panic!("invalid instruction {:?}", instr),
         }
     }
 }

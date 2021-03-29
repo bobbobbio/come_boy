@@ -648,47 +648,20 @@ impl OpcodeGenerator {
         fn leaf_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
             let opcode = tree.opcode.as_ref().unwrap();
             let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
-            let duration = opcode.duration;
-
-            let field_names = opcode
-                .function_call
-                .function
-                .parameters
-                .iter()
-                .map(|n| &n.name);
-            let values = &opcode.enum_args;
-
-            let mut free_fields = vec![];
-            let mut bound_fields = vec![];
-            let mut bound_values = vec![];
-            for (n, v) in field_names.zip(values.iter()) {
-                if v.dynamic() {
-                    free_fields.push(n);
-                } else {
-                    bound_fields.push(n);
-                    bound_values.push(v);
-                }
-            }
-
             let function_call = &opcode.function_call;
-
+            let field_names = function_call.function.parameters.iter().map(|n| &n.name);
             tokens.extend(quote!(
-                Self::#variant_name { #(#bound_fields : #bound_values,)* #(#free_fields,)* } => {
-                    #(let #bound_fields = #bound_values;)*
-                    machine.#function_call;
-                    #duration
-                }
+                Self::#variant_name { #(#field_names, )* } => machine.#function_call
             ));
         }
 
-        let dispatches = self.build_dispatches(leaf_tokenize);
+        let dispatches = self.build_dispatches_unique_functions(leaf_tokenize);
 
         tokens.extend(quote!(
             impl #enum_name {
-                pub fn dispatch<I: #trait_name>(self, machine: &mut I) -> u8 {
+                pub fn dispatch<I: #trait_name>(self, machine: &mut I) {
                     match self {
                         #( #dispatches, )*
-                        instr => panic!("invalid instruction {:?}", instr)
                     }
                 }
             }
@@ -800,6 +773,49 @@ impl OpcodeGenerator {
         ));
     }
 
+    fn generate_duration_fn(&self, tokens: &mut TokenStream) {
+        let enum_name = &self.enum_name;
+
+        fn leaf_tokenize(tree: &OpcodeDispatchTreeNode, tokens: &mut TokenStream) {
+            let opcode = tree.opcode.as_ref().unwrap();
+            let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
+            let duration = opcode.duration;
+
+            let field_names = opcode
+                .function_call
+                .function
+                .parameters
+                .iter()
+                .map(|n| &n.name);
+            let values = &opcode.enum_args;
+
+            let matches: Vec<_> = field_names
+                .zip(values.iter())
+                .filter(|(_, v)| !v.dynamic())
+                .collect();
+
+            let field_names = matches.iter().map(|(k, _)| k);
+            let values = matches.iter().map(|(_, v)| v);
+
+            tokens.extend(quote!(
+                Self::#variant_name { #(#field_names : #values,)* .. } => { #duration }
+            ));
+        }
+
+        let dispatches = self.build_dispatches(leaf_tokenize);
+
+        tokens.extend(quote!(
+            impl #enum_name {
+                pub fn duration(&self) -> u8 {
+                    match self {
+                        #( #dispatches, )*
+                        instr => panic!("invalid instruction {:?}", instr)
+                    }
+                }
+            }
+        ));
+    }
+
     fn generate_opcode_printer(&self, tokens: &mut TokenStream) {
         let trait_name = &self.trait_name;
         let printer_name = &self.printer_name;
@@ -823,6 +839,7 @@ impl OpcodeGenerator {
         self.generate_preamble(tokens);
         self.generate_instruction_enum(tokens);
         self.generate_size_fn(tokens);
+        self.generate_duration_fn(tokens);
         self.generate_instructions_trait(tokens);
         self.generate_instruction_dispatch(tokens);
         self.generate_opcode_printer(tokens);

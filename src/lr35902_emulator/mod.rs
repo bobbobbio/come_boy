@@ -2346,8 +2346,9 @@ impl LR35902Emulator {
         memory_accessor: &mut M,
     ) {
         let instruction_size = instruction.size();
+        let total_duration = instruction.duration();
         let mut ops = InstructionDispatchOps::new(self, memory_accessor);
-        let total_duration = instruction.dispatch(&mut ops);
+        instruction.dispatch(&mut ops);
         self.add_cycles(total_duration - (instruction_size * 4) as u8);
     }
 
