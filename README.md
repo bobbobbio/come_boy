@@ -7,12 +7,10 @@ Written by Remi Bernotavicius (remi@abort.cc)
 Currently in a pre-release state.  Runs some games, but many others do not work.
 
 ![tetris](/test/expectations/tetris/10000000.bmp?raw=true "Tetris")
-
 ![kirby](/test/expectations/kirby_dream_land/50000000_replay1.bmp?raw=true "Kirby")
-
 ![zelda](/test/expectations/zelda/200000000_replay1.bmp?raw=true "Zelda")
-
 ![pokemon_red](/test/expectations/pokemon_red/100000000.bmp?raw=true "Pokemon Red")
+![f1race](/test/expectations/f1race/80000000.bmp?raw=true "F-1 Race")
 
 # Building
 Build like as follows.
