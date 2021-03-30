@@ -10,55 +10,42 @@ use std::ops::Range;
 #[macro_use]
 pub mod memory_map;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct GameBoyRegister {
-    pub chunk: MemoryChunk,
-}
-
-impl Default for GameBoyRegister {
-    fn default() -> Self {
-        GameBoyRegister::new()
-    }
+    value: u8,
 }
 
 impl MemoryMappedHardware for GameBoyRegister {
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
-        self.chunk.read_value(address)
+        self.value
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
-        self.chunk.set_value(address, value)
+        self.value = value;
     }
 }
 
 impl GameBoyRegister {
-    pub fn new() -> GameBoyRegister {
-        GameBoyRegister {
-            chunk: MemoryChunk::from_range(0..1),
-        }
-    }
-
     pub fn read_value(&self) -> u8 {
-        self.chunk.read_value(0)
+        self.value
     }
 
     pub fn set_value(&mut self, value: u8) {
-        self.chunk.set_value(0, value)
+        self.value = value;
     }
 
     pub fn add(&mut self, value: u8) {
-        let old_value = self.read_value();
-        self.set_value(old_value.wrapping_add(value));
+        self.value = self.value.wrapping_add(value);
     }
+}
 
-    // XXX this isn't used, but might be useful.
-    #[allow(dead_code)]
-    pub fn subtract(&mut self, value: u8) {
-        let old_value = self.read_value();
-        self.set_value(old_value.wrapping_sub(value));
-    }
+#[test]
+fn gameboy_register_read_write() {
+    let mut register = GameBoyRegister::default();
+    register.set_value(12);
+    assert_eq!(register.read_value(), 12);
 }
 
 pub trait FlagMask {
@@ -66,58 +53,46 @@ pub trait FlagMask {
     fn write_mask() -> u8;
 }
 
-impl FlagMask for u8 {
-    fn read_mask() -> u8 {
-        0xFF
-    }
-
-    fn write_mask() -> u8 {
-        0xFF
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct GameBoyFlags<T> {
-    chunk: MemoryChunk,
+    value: u8,
     phantom: PhantomData<T>,
 }
 
 impl<T> Default for GameBoyFlags<T> {
     fn default() -> Self {
-        GameBoyFlags::new()
+        Self {
+            value: 0,
+            phantom: PhantomData,
+        }
     }
 }
 
 impl<T: FlagMask> MemoryMappedHardware for GameBoyFlags<T> {
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
-        self.chunk.read_value(address) | !T::read_mask()
+        Self::read_value(self)
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
-        self.chunk
-            .set_value(address, (value & T::write_mask()) | !T::write_mask())
+        Self::set_value(self, value);
     }
 }
 
 impl<T> GameBoyFlags<T> {
     pub fn new() -> Self {
-        Self {
-            chunk: MemoryChunk::from_range(0..1),
-            phantom: Default::default(),
-        }
+        Self::default()
     }
 }
 
 impl<T: FlagMask> GameBoyFlags<T> {
     pub fn set_value(&mut self, value: u8) {
-        self.chunk
-            .set_value(0, (value & T::write_mask()) | !T::write_mask())
+        self.value = (value & T::write_mask()) | (self.value & !T::write_mask());
     }
 
     pub fn read_value(&self) -> u8 {
-        self.chunk.read_value(0) | !T::read_mask()
+        self.value | !T::read_mask()
     }
 }
 
@@ -143,25 +118,92 @@ where
         let value = self.read_value();
         let mask = u8::from(f);
         let v = (v << mask.trailing_zeros()) & mask;
-        self.chunk.set_value(0, (value & !mask) | v);
+        self.value = (value & !mask) | v;
+    }
+}
+
+#[cfg(test)]
+enum TestMaskedValue {
+    ReadWriteValue = 0b00000011,
+    ReadWriteFlag = 0b00000100,
+    ReadOnlyValue = 0b00011000,
+    ReadOnlyFlag = 0b00100000,
+}
+
+#[cfg(test)]
+from_u8!(TestMaskedValue);
+
+#[cfg(test)]
+impl FlagMask for TestMaskedValue {
+    fn read_mask() -> u8 {
+        Self::ReadWriteValue as u8
+            | Self::ReadWriteFlag as u8
+            | Self::ReadOnlyValue as u8
+            | Self::ReadOnlyFlag as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::ReadWriteValue as u8 | Self::ReadWriteFlag as u8
     }
 }
 
 #[test]
 fn set_flag_then_read_flag() {
-    let mut f: GameBoyFlags<u8> = GameBoyFlags::new();
-    f.set_flag(0b0010, true);
-    assert!(f.read_flag(0b0010));
+    let mut f: GameBoyFlags<TestMaskedValue> = GameBoyFlags::new();
+    f.set_flag(TestMaskedValue::ReadWriteFlag, true);
+    assert!(f.read_flag(TestMaskedValue::ReadWriteFlag));
 
-    f.set_flag(0b0010, false);
-    assert!(!f.read_flag(0b0010));
+    f.set_flag(TestMaskedValue::ReadWriteFlag, false);
+    assert!(!f.read_flag(TestMaskedValue::ReadWriteFlag));
 }
 
 #[test]
 fn set_flag_value_then_read_flag_value() {
-    let mut f: GameBoyFlags<u8> = GameBoyFlags::new();
-    f.set_flag_value(0b001110, 0b101);
-    assert_eq!(f.read_flag_value(0b001110), 0b101);
+    let mut f: GameBoyFlags<TestMaskedValue> = GameBoyFlags::new();
+
+    for i in 0..3 {
+        f.set_flag_value(TestMaskedValue::ReadWriteValue, i);
+        assert_eq!(f.read_flag_value(TestMaskedValue::ReadWriteValue), i);
+    }
+
+    // When we set a value too large, we only keep the lower bits that fit
+    f.set_flag_value(TestMaskedValue::ReadWriteValue, 0b1101);
+    assert_eq!(f.read_flag_value(TestMaskedValue::ReadWriteValue), 0b01);
+}
+
+#[test]
+fn flags_read_mask() {
+    let mut f: GameBoyFlags<TestMaskedValue> = GameBoyFlags::new();
+
+    // The values outside the read mask should be 1
+    assert_eq!(f.read_value(), 0b11000000);
+
+    // Even if we try to set it to 0, we can't read the outside the read-mask
+    f.set_value(0);
+    assert_eq!(f.read_value(), 0b11000000);
+}
+
+#[test]
+fn flags_write_mask() {
+    let mut f: GameBoyFlags<TestMaskedValue> = GameBoyFlags::new();
+
+    f.set_flag_value(TestMaskedValue::ReadOnlyValue, 2);
+    assert_eq!(f.read_flag_value(TestMaskedValue::ReadOnlyValue), 2);
+
+    f.set_flag(TestMaskedValue::ReadOnlyFlag, true);
+    assert!(f.read_flag(TestMaskedValue::ReadOnlyFlag));
+
+    // No matter what value we set, the read-only value should stay the same
+    f.set_value(0);
+    assert_eq!(f.read_flag_value(TestMaskedValue::ReadOnlyValue), 2);
+    assert!(f.read_flag(TestMaskedValue::ReadOnlyFlag));
+
+    f.set_flag(TestMaskedValue::ReadOnlyFlag, false);
+
+    // If we set read-only and read-write bits, only the read-write bits are written
+    f.set_value(TestMaskedValue::ReadWriteFlag as u8 | TestMaskedValue::ReadOnlyFlag as u8);
+    assert!(!f.read_flag(TestMaskedValue::ReadOnlyFlag));
+    assert!(f.read_flag(TestMaskedValue::ReadWriteFlag));
 }
 
 pub trait MemoryMappedHardware {
@@ -261,12 +303,6 @@ impl MemoryChunk {
     pub fn as_slice(&self) -> &[u8] {
         self.value.as_slice()
     }
-
-    /*
-    pub fn as_mut_slice(&mut self) -> &mut [u8] {
-        self.value.as_mut_slice()
-    }
-    */
 }
 
 #[test]
