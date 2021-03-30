@@ -354,10 +354,6 @@ impl GameBoyEmulator {
         self.cpu
             .execute_instruction(&mut game_boy_memory_map_mut!(self));
 
-        if let Some(game_pak) = &mut self.game_pak {
-            game_pak.tick();
-        }
-
         self.lcd_controller.tick(now);
         self.execute_dma();
 

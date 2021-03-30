@@ -74,16 +74,6 @@ impl MemoryMappedHardware for MemoryBankController {
 }
 
 impl MemoryBankController {
-    fn tick(&mut self) {
-        match self {
-            Self::Zero(r) => r.tick(),
-            Self::One(r) => r.tick(),
-            Self::Two(r) => r.tick(),
-            Self::Three(r) => r.tick(),
-            Self::Five(r) => r.tick(),
-        }
-    }
-
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         match self {
             Self::Zero(r) => r.reattach_banks(banks),
@@ -121,8 +111,6 @@ impl MemoryBankController0 {
         MemoryBankController0 { banks }
     }
 
-    fn tick(&mut self) {}
-
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.banks = banks
     }
@@ -159,24 +147,16 @@ struct SwitchableBank<T> {
 }
 
 impl<T> SwitchableBank<T> {
-    fn new(banks: Vec<T>) -> Self {
+    fn new(banks: Vec<T>, current_bank: usize) -> Self {
         SwitchableBank {
             banks,
-            current_bank: 0,
+            current_bank,
         }
     }
 
     fn switch_bank(&mut self, new_bank: usize) {
-        let new_bank = match new_bank {
-            0 => 1,
-            v if v > self.banks.len() => panic!("Switch to non-existent bank {}", v),
-            v => v,
-        };
+        assert!(new_bank < self.banks.len());
         self.current_bank = new_bank;
-    }
-
-    fn len(&self) -> usize {
-        self.banks.len()
     }
 }
 
@@ -267,16 +247,16 @@ impl MemoryMappedHardware for MemoryBankController1 {
             // Select ROM bank (lower 5 bits)
             self.rom_bank_number &= !0x1F;
             self.rom_bank_number |= (value as usize) & 0x1F;
-            if self.rom_bank_number == 0 {
-                self.rom_bank_number = 1;
-            }
+            self.update_rom_bank();
         } else if address < 0x6000 {
             // Either select RAM bank or select ROM bank (6th and 7th bit)
             if self.rom_ram_select == RomOrRam::Ram {
                 self.ram_bank_number = value as usize;
+                self.update_ram_bank();
             } else {
                 self.rom_bank_number &= !(0x03 << 5);
                 self.rom_bank_number |= ((value as usize) & 0x03) << 5;
+                self.update_rom_bank();
             }
         } else if address < 0x8000 {
             // Either select RAM bank or upper bits of ROM bank
@@ -302,23 +282,24 @@ impl fmt::Debug for MemoryBankController1 {
 impl MemoryBankController1 {
     fn new<R: Into<CartridgeRam>>(banks: Vec<RomBank>, ram: R) -> Self {
         MemoryBankController1 {
-            rom_bank_number: 0,
+            rom_bank_number: 1,
             ram_bank_number: 0,
             rom_ram_select: RomOrRam::Rom,
             ram_enable: false,
-            switchable_bank: SwitchableBank::new(banks),
+            switchable_bank: SwitchableBank::new(banks, 1),
             ram: ram.into(),
         }
     }
 
-    fn tick(&mut self) {
-        let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
-
-        self.switchable_bank.switch_bank(rom_bank_value);
-
-        if self.ram_enable {
-            self.ram.switch_bank(self.ram_bank_number);
+    fn update_rom_bank(&mut self) {
+        if self.rom_bank_number == 0 {
+            self.rom_bank_number = 1;
         }
+        self.switchable_bank.switch_bank(self.rom_bank_number);
+    }
+
+    fn update_ram_bank(&mut self) {
+        self.ram.switch_bank(self.ram_bank_number);
     }
 
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
@@ -362,10 +343,6 @@ impl MemoryBankController3 {
         }
     }
 
-    fn tick(&mut self) {
-        self.inner.tick();
-    }
-
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.inner.reattach_banks(banks)
     }
@@ -398,13 +375,12 @@ impl MemoryMappedHardware for MemoryBankController3 {
             // Select ROM bank (lower 7 bits)
             self.inner.rom_bank_number &= !0x7F;
             self.inner.rom_bank_number |= (value as usize) & 0x7F;
-            if self.inner.rom_bank_number == 0 {
-                self.inner.rom_bank_number = 1;
-            }
+            self.inner.update_rom_bank();
         } else if address < 0x6000 {
             if value < 0x08 {
                 self.clock_ram_select = ClockOrRam::Ram;
                 self.inner.ram_bank_number = value as usize;
+                self.inner.update_ram_bank();
             } else {
                 self.clock_ram_select = ClockOrRam::Clock;
                 // Select RTC register
@@ -561,17 +537,20 @@ impl fmt::Debug for MemoryBankController2 {
 
 impl MemoryBankController2 {
     fn new<R: Into<InternalRam>>(banks: Vec<RomBank>, ram: R) -> Self {
-        MemoryBankController2 {
+        Self {
             internal_ram: ram.into(),
-            rom_bank_number: 0,
+            rom_bank_number: 1,
             ram_enable: false,
-            switchable_bank: SwitchableBank::new(banks),
+            switchable_bank: SwitchableBank::new(banks, 1),
         }
     }
 
-    fn tick(&mut self) {
-        let rom_bank_value = self.rom_bank_number % self.switchable_bank.len();
-        self.switchable_bank.switch_bank(rom_bank_value);
+    fn update_rom_bank(&mut self) {
+        if self.rom_bank_number == 0 {
+            self.rom_bank_number = 1;
+        }
+
+        self.switchable_bank.switch_bank(self.rom_bank_number);
     }
 
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
@@ -604,6 +583,7 @@ impl MemoryMappedHardware for MemoryBankController2 {
         } else if address < 0x4000 {
             if (address >> 8) & 0x01 == 1 {
                 self.rom_bank_number = (value & 0x0F) as usize;
+                self.update_rom_bank();
             }
         } else if address >= 0xA000 && address < 0xA200 {
             if self.ram_enable {
@@ -637,10 +617,6 @@ impl MemoryBankController5 {
         }
     }
 
-    fn tick(&mut self) {
-        self.inner.tick();
-    }
-
     fn reattach_banks(&mut self, banks: Vec<RomBank>) {
         self.inner.reattach_banks(banks)
     }
@@ -663,13 +639,16 @@ impl MemoryMappedHardware for MemoryBankController5 {
             // Select ROM bank (lower 8 bits)
             self.inner.rom_bank_number &= !0xFF;
             self.inner.rom_bank_number |= value as usize;
+            self.inner.update_rom_bank();
         } else if address < 0x4000 {
             // Select ROM bank (9th bit)
             self.inner.rom_bank_number &= !(0x01 << 8);
             self.inner.rom_bank_number |= ((value & 0x01) as usize) << 8;
+            self.inner.update_rom_bank();
         } else if address < 0x6000 {
             // Select RAM bank
             self.inner.ram_bank_number = value as usize;
+            self.inner.update_ram_bank();
         } else if address < 0xA000 {
             // nothing
         } else {
@@ -780,7 +759,7 @@ impl VolatileRam {
             v => panic!("Unknown RAM size {}", v),
         };
         VolatileRam {
-            switchable_bank: SwitchableBank::new(ram),
+            switchable_bank: SwitchableBank::new(ram, 0),
         }
     }
 
@@ -916,7 +895,7 @@ impl NonVolatileRam {
         }
 
         Self {
-            switchable_bank: SwitchableBank::new(ram),
+            switchable_bank: SwitchableBank::new(ram, 0),
             file,
         }
     }
@@ -1078,10 +1057,6 @@ impl GamePak {
             };
 
         GamePak { title, hash, mbc }
-    }
-
-    pub fn tick(&mut self) {
-        self.mbc.tick();
     }
 
     pub fn title(&self) -> &str {
