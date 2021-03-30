@@ -1,7 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
 use serde_derive::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::VecDeque;
 
 macro_rules! from_u8 {
     ($($cname:ident),*) => ($(
@@ -145,41 +145,52 @@ fn super_fast_hash_example_5() {
  * |____/ \___|_| |_|\___|\__,_|\__,_|_|\___|_|
  */
 
+#[derive(Serialize, Deserialize)]
+struct SchedulerEntry<T> {
+    time: u64,
+    event: T,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Scheduler<T> {
-    timeline: BTreeMap<u64, Vec<T>>,
+    timeline: VecDeque<SchedulerEntry<T>>,
 }
 
 impl<T> Scheduler<T> {
     pub fn new() -> Self {
         Scheduler {
-            timeline: BTreeMap::new(),
+            timeline: VecDeque::new(),
         }
+    }
+
+    /// This is a linear search from the end. Binary-search might be better, but I suspect most
+    /// insertions are closer to the end of the queue anyway.
+    fn insertion_position(&self, time: u64) -> usize {
+        let mut index = self.timeline.len();
+        while index > 0 && self.timeline[index - 1].time >= time {
+            index -= 1;
+        }
+        index
     }
 
     pub fn schedule(&mut self, time: u64, event: T) {
-        if !self.timeline.contains_key(&time) {
-            self.timeline.insert(time, Vec::new());
-        }
-        self.timeline.get_mut(&time).unwrap().push(event);
+        let index = self.insertion_position(time);
+        let entry = SchedulerEntry { time, event };
+        self.timeline.insert(index, entry);
     }
 
     pub fn poll(&mut self, current_time: u64) -> Option<(u64, T)> {
-        let entry = self.timeline.range_mut(..=current_time).next();
-        if let Some((k, v)) = entry {
-            let key = *k;
-            let entry = (key, v.pop().unwrap());
-            if v.len() == 0 {
-                self.timeline.remove(&key);
+        if let Some(front) = self.timeline.front() {
+            if front.time <= current_time {
+                let entry = self.timeline.pop_front().unwrap();
+                return Some((entry.time, entry.event));
             }
-            Some(entry)
-        } else {
-            None
         }
+        None
     }
 
     pub fn drop_events(&mut self) {
-        self.timeline = BTreeMap::new();
+        self.timeline = VecDeque::new();
     }
 }
 
@@ -197,6 +208,16 @@ fn scheduler_on_time() {
 }
 
 #[test]
+fn scheduler_no_events_yet() {
+    let mut scheduler = Scheduler::new();
+    scheduler.schedule(1, 1);
+    scheduler.schedule(2, 2);
+    scheduler.schedule(3, 3);
+
+    assert_eq!(scheduler.poll(0), None);
+}
+
+#[test]
 fn scheduler_late() {
     let mut scheduler = Scheduler::new();
     scheduler.schedule(1, 1);
@@ -206,5 +227,22 @@ fn scheduler_late() {
     assert_eq!(scheduler.poll(4), Some((1, 1)));
     assert_eq!(scheduler.poll(4), Some((2, 2)));
     assert_eq!(scheduler.poll(4), Some((3, 3)));
+    assert_eq!(scheduler.poll(4), None);
+}
+
+#[test]
+fn scheduler_overlapping_events() {
+    let mut scheduler = Scheduler::new();
+    scheduler.schedule(1, 1);
+    scheduler.schedule(2, 2);
+    scheduler.schedule(2, 3);
+    scheduler.schedule(2, 4);
+    scheduler.schedule(3, 5);
+
+    assert_eq!(scheduler.poll(4), Some((1, 1)));
+    assert_eq!(scheduler.poll(4), Some((2, 4)));
+    assert_eq!(scheduler.poll(4), Some((2, 3)));
+    assert_eq!(scheduler.poll(4), Some((2, 2)));
+    assert_eq!(scheduler.poll(4), Some((3, 5)));
     assert_eq!(scheduler.poll(4), None);
 }
