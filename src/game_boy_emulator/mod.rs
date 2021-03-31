@@ -262,8 +262,10 @@ impl GameBoyEmulatorEvent {
     }
 }
 
-// GameBoy clock speed is 4.19Mhz
-const DEFAULT_CLOCK_SPEED_HZ: u32 = 4_190_000;
+fn default_clock_speed_hz() -> u32 {
+    // GameBoy clock speed is 4.19Mhz
+    4_190_000
+}
 
 #[derive(Serialize, Deserialize)]
 struct GameBoyEmulator {
@@ -278,7 +280,7 @@ struct GameBoyEmulator {
     scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
 
-    #[serde(skip)]
+    #[serde(skip, default = "default_clock_speed_hz")]
     clock_speed_hz: u32,
 
     #[serde(skip)]
@@ -302,7 +304,7 @@ impl GameBoyEmulator {
             registers: Default::default(),
             scheduler: Scheduler::new(),
             timer: Default::default(),
-            clock_speed_hz: DEFAULT_CLOCK_SPEED_HZ,
+            clock_speed_hz: default_clock_speed_hz(),
             game_pak: None,
             joypad_key_events: vec![],
             joypad: None,
@@ -388,10 +390,10 @@ impl GameBoyEmulator {
                     return Err(UserControl::SaveStateLoaded);
                 }
                 Event::KeyDown(Keycode::F4) => {
-                    if self.clock_speed_hz == DEFAULT_CLOCK_SPEED_HZ {
+                    if self.clock_speed_hz == default_clock_speed_hz() {
                         self.clock_speed_hz = u32::MAX;
                     } else {
-                        self.clock_speed_hz = DEFAULT_CLOCK_SPEED_HZ;
+                        self.clock_speed_hz = default_clock_speed_hz();
                     }
                 }
                 Event::KeyDown(code) => self.joypad_key_events.push(KeyEvent::Down(code)),
