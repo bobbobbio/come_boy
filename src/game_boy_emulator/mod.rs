@@ -1,8 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
 pub use self::game_pak::GamePak;
-use self::joypad::{JoyPad, PlainJoyPad};
-use self::joypad::{PlaybackJoyPad, RecordingJoyPad};
+use self::joypad::{ControllerJoyPad, JoyPad, PlaybackJoyPad, RecordingJoyPad};
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LcdController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
@@ -623,7 +622,7 @@ impl GameBoyEmulator {
 #[test]
 fn initial_state_test() {
     let mut e = GameBoyEmulator::new();
-    e.plug_in_joy_pad(PlainJoyPad::new());
+    e.plug_in_joy_pad(joypad::PlainJoyPad::new());
 
     // Lock down the initial state.
     assert_eq!(e.hash(), 1497694477);
@@ -685,7 +684,7 @@ pub fn run_emulator<R: Renderer>(
         e.load_state(&save_state[..])?;
     }
 
-    e.run(renderer, PlainJoyPad::new());
+    e.run(renderer, ControllerJoyPad::new());
     Ok(())
 }
 

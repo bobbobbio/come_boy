@@ -26,12 +26,13 @@ bmp = "*"
 byteorder = "*"
 clap = "*"
 crossbeam = "*"
+ctrlc = "*"
+gilrs = "*"
 sdl2 = { version = "0.32.*", optional = true }
 serde = "*"
 serde_derive = "*"
 speedy2d = { version = "*", optional = true }
 structopt = "*"
-ctrlc = "*"
 
 [dev-dependencies]
 tempfile = "*"
