@@ -5,6 +5,7 @@ use self::joypad::{ControllerJoyPad, JoyPad, PlaybackJoyPad, RecordingJoyPad};
 use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LcdController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
+    MemoryMappedHardware,
 };
 use self::sound_controller::SoundController;
 use crate::emulator_common::disassembler::MemoryAccessor;
@@ -152,6 +153,30 @@ const INTERNAL_RAM_B: Range<u16> = Range {
     end: 0xE000,
 };
 
+#[derive(Serialize, Deserialize, Default)]
+struct Divider(GameBoyRegister);
+
+impl Divider {
+    fn set_state_post_bios(&mut self) {
+        self.0.set_value(0xab);
+    }
+    fn increment(&mut self) {
+        self.0.add(1)
+    }
+}
+
+impl MemoryMappedHardware for Divider {
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        self.0.read_value()
+    }
+
+    fn set_value(&mut self, address: u16, _value: u8) {
+        assert_eq!(address, 0);
+        self.0.set_value(0);
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 struct GameBoyRegisters {
     interrupt_flag: GameBoyFlags<InterruptFlag>,
@@ -159,16 +184,48 @@ struct GameBoyRegisters {
 
     serial_transfer_data: GameBoyRegister,
     serial_transfer_control: GameBoyRegister,
-    divider: GameBoyRegister,
+    divider: Divider,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+struct TimerControl {
+    value: GameBoyFlags<TimerFlags>,
+    timer_restart_requested: bool,
+}
+
+impl TimerControl {
+    fn read_flag(&self, flag: TimerFlags) -> bool {
+        self.value.read_flag(flag)
+    }
+
+    fn read_flag_value(&self, flag: TimerFlags) -> u8 {
+        self.value.read_flag_value(flag)
+    }
+
+    fn set_value(&mut self, value: u8) {
+        self.value.set_value(value);
+    }
+}
+
+impl MemoryMappedHardware for TimerControl {
+    fn read_value(&self, address: u16) -> u8 {
+        MemoryMappedHardware::read_value(&self.value, address)
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.timer_restart_requested = true;
+        MemoryMappedHardware::set_value(&mut self.value, address, value)
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
 struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
-    control: GameBoyFlags<TimerFlags>,
+    control: TimerControl,
     scheduler: Scheduler<()>,
     interrupt_requested: bool,
+    running: bool,
 }
 
 enum TimerFlags {
@@ -194,16 +251,13 @@ impl GameBoyTimer {
     }
 
     fn timer_speed(&self) -> u64 {
-        let speed = match self.control.read_flag_value(TimerFlags::Speed) {
-            0b00 => 4096,
-            0b01 => 262144,
-            0b10 => 65536,
-            0b11 => 16384,
+        match self.control.read_flag_value(TimerFlags::Speed) {
+            0b00 => 1024,
+            0b01 => 16,
+            0b10 => 64,
+            0b11 => 256,
             _ => panic!(),
-        };
-
-        // 4Mhz = 4M clock ticks/s / speed ticks/s
-        4194304 / speed
+        }
     }
 
     fn set_state_post_bios(&mut self) {
@@ -217,19 +271,28 @@ impl GameBoyTimer {
         self.scheduler.schedule(now + speed, ());
     }
 
-    fn tick(&mut self, now: u64) {
-        if self.enabled() {
-            let counter = self.counter.read_value().wrapping_add(1);
-            if counter == 0 {
-                self.interrupt_requested = true;
-                let modulo_value = self.modulo.read_value();
-                self.counter.set_value(modulo_value);
-            } else {
-                self.counter.set_value(counter);
-            }
+    fn fire(&mut self, now: u64) {
+        let counter = self.counter.read_value().wrapping_add(1);
+        if counter == 0 {
+            self.interrupt_requested = true;
+            let modulo_value = self.modulo.read_value();
+            self.counter.set_value(modulo_value);
+        } else {
+            self.counter.set_value(counter);
         }
         let speed = self.timer_speed();
         self.scheduler.schedule(now + speed, ());
+    }
+
+    fn tick(&mut self, now: u64) {
+        if self.control.timer_restart_requested {
+            self.scheduler.drop_events();
+            if self.enabled() {
+                let speed = self.timer_speed();
+                self.scheduler.schedule(now + speed, ());
+            }
+            self.control.timer_restart_requested = false;
+        }
     }
 
     fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
@@ -241,7 +304,7 @@ impl GameBoyTimer {
 
     fn deliver_events(&mut self, now: u64) {
         while let Some((time, ())) = self.scheduler.poll(now) {
-            self.tick(time);
+            self.fire(time);
         }
     }
 }
@@ -262,8 +325,8 @@ impl GameBoyEmulatorEvent {
 }
 
 fn default_clock_speed_hz() -> u32 {
-    // GameBoy clock speed is 4.19Mhz
-    4_190_000
+    // GameBoy clock speed is about 4.19Mhz
+    4_194_304
 }
 
 #[derive(Serialize, Deserialize)]
@@ -331,7 +394,7 @@ impl GameBoyEmulator {
     }
 
     fn divider_tick(&mut self, time: u64) {
-        self.registers.divider.add(1);
+        self.registers.divider.increment();
         self.scheduler
             .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
@@ -355,6 +418,7 @@ impl GameBoyEmulator {
         self.cpu
             .execute_instruction(&mut game_boy_memory_map_mut!(self));
 
+        self.timer.tick(now);
         self.lcd_controller.tick(now);
         self.execute_dma();
 
@@ -470,7 +534,7 @@ impl GameBoyEmulator {
         self.registers.serial_transfer_data.set_value(0x0);
         self.registers.serial_transfer_control.set_value(0x7e);
 
-        self.registers.divider.set_value(0xab);
+        self.registers.divider.set_state_post_bios();
         self.timer.set_state_post_bios();
 
         self.registers.interrupt_flag.set_value(0xe1);
@@ -662,7 +726,6 @@ fn blargg_test_rom_cpu_instrs_2_interrupts() {
 }
 
 #[test]
-#[ignore]
 fn blargg_test_rom_instr_timing() {
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(GamePak::new(

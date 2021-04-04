@@ -3140,7 +3140,7 @@ impl LR35902Instruction {
                 data1: 0u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 0u8,
                 register2: Intel8080Register::A,
@@ -3180,7 +3180,7 @@ impl LR35902Instruction {
                 data1: 1u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 1u8,
                 register2: Intel8080Register::A,
@@ -3220,7 +3220,7 @@ impl LR35902Instruction {
                 data1: 2u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 2u8,
                 register2: Intel8080Register::A,
@@ -3260,7 +3260,7 @@ impl LR35902Instruction {
                 data1: 3u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 3u8,
                 register2: Intel8080Register::A,
@@ -3300,7 +3300,7 @@ impl LR35902Instruction {
                 data1: 4u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 4u8,
                 register2: Intel8080Register::A,
@@ -3340,7 +3340,7 @@ impl LR35902Instruction {
                 data1: 5u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 5u8,
                 register2: Intel8080Register::A,
@@ -3380,7 +3380,7 @@ impl LR35902Instruction {
                 data1: 6u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 6u8,
                 register2: Intel8080Register::A,
@@ -3420,7 +3420,7 @@ impl LR35902Instruction {
                 data1: 7u8,
                 register2: Intel8080Register::M,
                 ..
-            } => 16u8,
+            } => 12u8,
             Self::TestBit {
                 data1: 7u8,
                 register2: Intel8080Register::A,

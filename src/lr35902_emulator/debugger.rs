@@ -112,10 +112,11 @@ impl fmt::Debug for LR35902Emulator {
         )?;
         write!(
             f,
-            "PC: {:x}, SP: {:x}, M: {:x}",
+            "PC: {:x}, SP: {:x}, M: {:x}, clock = {}",
             self.read_program_counter(),
             self.read_register_pair(Intel8080Register::SP),
-            self.read_register(Intel8080Register::M)
+            self.read_register(Intel8080Register::M),
+            self.elapsed_cycles,
         )?;
 
         Ok(())
