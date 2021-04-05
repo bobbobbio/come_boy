@@ -13,6 +13,7 @@ use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, Renderer};
 use crate::util::{super_fast_hash, Scheduler};
+use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs::File;
@@ -222,6 +223,8 @@ struct GameBoyTimer {
     running: bool,
 }
 
+#[derive(ReprFrom)]
+#[repr(u8)]
 enum TimerFlags {
     Enabled = 0b00000100,
     Speed = 0b00000011,
@@ -236,8 +239,6 @@ impl FlagMask for TimerFlags {
         TimerFlags::Enabled as u8 | TimerFlags::Speed as u8
     }
 }
-
-from_u8!(TimerFlags);
 
 impl GameBoyTimer {
     fn enabled(&self) -> bool {

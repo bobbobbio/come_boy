@@ -123,15 +123,14 @@ where
 }
 
 #[cfg(test)]
+#[derive(enum_utils::ReprFrom)]
+#[repr(u8)]
 enum TestMaskedValue {
     ReadWriteValue = 0b00000011,
     ReadWriteFlag = 0b00000100,
     ReadOnlyValue = 0b00011000,
     ReadOnlyFlag = 0b00100000,
 }
-
-#[cfg(test)]
-from_u8!(TestMaskedValue);
 
 #[cfg(test)]
 impl FlagMask for TestMaskedValue {

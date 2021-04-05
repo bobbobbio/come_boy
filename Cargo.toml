@@ -27,6 +27,7 @@ byteorder = "*"
 clap = "*"
 crossbeam = "*"
 ctrlc = "*"
+enum-utils = "*"
 gilrs = "*"
 sdl2 = { version = "0.32.*", optional = true }
 serde = "*"

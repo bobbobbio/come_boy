@@ -3,16 +3,6 @@
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
-macro_rules! from_u8 {
-    ($($cname:ident),*) => ($(
-        impl From<$cname> for u8 {
-            fn from(f: $cname) -> u8 {
-                f as u8
-            }
-        }
-    )*)
-}
-
 pub trait TwosComplement<T> {
     fn twos_complement(self) -> T;
 }

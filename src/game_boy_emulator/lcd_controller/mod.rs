@@ -49,6 +49,7 @@ use crate::game_boy_emulator::memory_controller::{
 };
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
+use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Range;
@@ -194,7 +195,8 @@ pub struct LcdControllerRegisters {
 
 /// Tiles and objects (sprites) pixels are described using these values. The actual color they
 /// represent depends on the palette.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, Serialize, Deserialize)]
+#[repr(u8)]
 pub enum LcdColor {
     Color3 = 0b11000000,
     Color2 = 0b00110000,
@@ -231,7 +233,8 @@ fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
 }
 
 /// This is a mask for the LCDC (LCD control) register.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum LcdControlFlag {
     /// Controls whether the LCD is on and the PPU is running.
     DisplayOn = 0b10000000,
@@ -273,7 +276,8 @@ impl FlagMask for LcdControlFlag {
 }
 
 /// This is a mask for the STAT register.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum LcdStatusFlag {
     /// Enable interrupt when LCY == LY. (0 = disable, 1 = enable)
     InterruptLYMatching = 0b01000000,
@@ -313,7 +317,8 @@ impl FlagMask for LcdStatusFlag {
 }
 
 /// This mask represents the various interrupts the LcdController handles.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum InterruptFlag {
     VerticalBlanking = 0b00000001,
     LCDSTAT = 0b00000010,
@@ -355,7 +360,8 @@ impl From<InterruptEnableFlag> for InterruptFlag {
 }
 
 /// This mask represent the various interrupts that the program can enable.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum InterruptEnableFlag {
     VerticalBlanking = 0b00000001,
     LCDSTAT = 0b00000010,
@@ -395,7 +401,8 @@ struct LcdObject {
 }
 
 /// Mask for LcdObject flags.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 enum LcdObjectAttributeFlag {
     /// Controls whether the object is displayed in front or behind the background and window.
     /// (0 = in front, 1 = behind)
@@ -420,15 +427,6 @@ impl FlagMask for LcdObjectAttributeFlag {
         0xFF
     }
 }
-
-from_u8!(
-    InterruptEnableFlag,
-    InterruptFlag,
-    LcdControlFlag,
-    LcdObjectAttributeFlag,
-    LcdColor,
-    LcdStatusFlag
-);
 
 impl LcdObject {
     fn read_flag(&self, flag: LcdObjectAttributeFlag) -> bool {

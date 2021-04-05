@@ -5,19 +5,19 @@ use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, MemoryAccessor, MemoryMappedHardware,
 };
 use crate::game_boy_emulator::{GameBoyRegister, MemoryChunk};
+use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 
 #[macro_use]
 mod memory_map;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum SweepFlag {
     Time = 0b01110000,
     IncreaseOrDecrease = 0b00001000,
     Shift = 0b00000111,
 }
-
-from_u8!(SweepFlag);
 
 impl FlagMask for SweepFlag {
     fn read_mask() -> u8 {
@@ -46,12 +46,11 @@ pub struct Tone {
     pub frequency_high: GameBoyRegister,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum EnabledFlag {
     Enabled = 0b10000000,
 }
-
-from_u8!(EnabledFlag);
 
 impl FlagMask for EnabledFlag {
     fn read_mask() -> u8 {
@@ -63,12 +62,11 @@ impl FlagMask for EnabledFlag {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum OutputLevel {
     Level = 0b01100000,
 }
-
-from_u8!(OutputLevel);
 
 impl FlagMask for OutputLevel {
     fn read_mask() -> u8 {
@@ -103,12 +101,11 @@ impl Default for WaveOutput {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum SoundLength {
     Length = 0b00111111,
 }
-
-from_u8!(SoundLength);
 
 impl FlagMask for SoundLength {
     fn read_mask() -> u8 {
@@ -120,13 +117,12 @@ impl FlagMask for SoundLength {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
 pub enum Counter {
     Initial = 0b10000000,
     Selection = 0b01000000,
 }
-
-from_u8!(Counter);
 
 impl FlagMask for Counter {
     fn read_mask() -> u8 {
