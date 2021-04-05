@@ -25,3 +25,15 @@ fn mooneye_test_rom_acceptance_oam_dma_basic() {
     ));
     run_mooneye_test_rom(&mut e, 0x486e);
 }
+
+/// "This test checks what happens if you read the DMA register. Reads should always simply return
+/// the last written value, regardless of the state of the OAM DMA transfer or other things"
+#[test]
+fn mooneye_test_rom_acceptance_oam_dma_reg_read() {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(
+        &read_mooneye_test_rom("acceptance/oam_dma/reg_read.gb"),
+        None,
+    ));
+    run_mooneye_test_rom(&mut e, 0x486e);
+}
