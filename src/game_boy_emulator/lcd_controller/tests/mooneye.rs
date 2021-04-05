@@ -37,3 +37,16 @@ fn mooneye_test_rom_acceptance_oam_dma_reg_read() {
     ));
     run_mooneye_test_rom(&mut e, 0x486e);
 }
+
+/// "This test checks that OAM DMA source memory areas work as expected, including the area past
+/// $DFFF"
+#[test]
+#[ignore]
+fn mooneye_test_rom_acceptance_oam_dma_sources_gs() {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(
+        &read_mooneye_test_rom("acceptance/oam_dma/sources-GS.gb"),
+        None,
+    ));
+    run_mooneye_test_rom(&mut e, 0x490e);
+}
