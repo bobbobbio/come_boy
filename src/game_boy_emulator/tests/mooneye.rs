@@ -8,11 +8,19 @@ use crate::lr35902_emulator::tests::{read_screen_message, read_test_rom};
 fn assert_mooneye_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
     let message = read_screen_message(memory_accessor);
 
-    let message: String = message
-        .chars()
-        .filter(|&c| c != '\0' && c != '\n')
+    let message: String = message.chars().filter(|&c| c != '\0').collect();
+    let lines: Vec<_> = message
+        .split('\n')
+        .map(|l| l.trim())
+        .filter(|&l| !l.is_empty())
         .collect();
-    assert_eq!(message, "Test OK");
+
+    if let Some(assertions_index) = lines.iter().position(|&l| l == "Assertions") {
+        let assertions = &lines[(assertions_index + 1)..];
+        assert!(assertions.iter().all(|l| l.contains("OK")), "{}", message);
+    } else {
+        assert_eq!(lines[0], "Test OK", "{}", message);
+    }
 }
 
 pub(crate) fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
@@ -33,4 +41,15 @@ fn mooneye_test_rom_acceptance_instr_daa() {
         None,
     ));
     run_mooneye_test_rom(&mut e, 0x686e);
+}
+
+/// "This test checks that bottom 4 bits of the F register always return 0"
+#[test]
+fn mooneye_test_rom_acceptance_bits_reg_f() {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(
+        &read_mooneye_test_rom("acceptance/bits/reg_f.gb"),
+        None,
+    ));
+    run_mooneye_test_rom(&mut e, 0x4b2e);
 }
