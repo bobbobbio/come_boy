@@ -711,8 +711,13 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
         pc = e.cpu.read_program_counter();
     }
 
-    let memory_map = game_boy_memory_map!(e);
-    assert_blargg_test_rom_success(&memory_map);
+    // If the LCD Controller is in mode 3, we can't access the message. Wait for the memory to be
+    // available.
+    while game_boy_memory_map!(e).read_memory(0x9800) == 0xFF {
+        e.tick(&mut NullRenderer);
+    }
+
+    assert_blargg_test_rom_success(&game_boy_memory_map!(e));
 }
 
 #[test]

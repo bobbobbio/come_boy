@@ -86,7 +86,7 @@ impl<'a> Iterator for MemoryIterator<'a> {
 
 impl<'a> MemoryIterator<'a> {
     pub fn new(memory_accessor: &'a dyn MemoryAccessor, range: Range<u16>) -> MemoryIterator {
-        assert!(range.start < range.end);
+        assert!(range.start <= range.end);
         return MemoryIterator {
             memory_accessor: memory_accessor,
             current_address: range.start,

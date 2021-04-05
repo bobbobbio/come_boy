@@ -2447,16 +2447,49 @@ fn run_blargg_test_rom<M: MemoryAccessor>(
 
 #[cfg(test)]
 pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
-    // Scrape from memory what is displayed on the screen
     let mut message = String::new();
-    let iter = &mut MemoryIterator::new(memory_accessor, 0x9800..0x9BFF).peekable();
-    while iter.peek() != None {
-        for c in iter.take(0x20) {
-            // The rom happens to use ASCII as the way it maps characters to the correct tile.
-            message.push(c as char);
+
+    // Repeat some LCD logic here to read the tiles on screen to keep these test independent of the
+    // LCD controller code.
+    let screen_width = 160;
+    let screen_height = 144;
+    let pixels_per_tile = 8;
+
+    // When there is too much output the tiles scroll on the screen vertically, so we have to take
+    // that into account here.
+    let scy = memory_accessor.read_memory(0xFF42);
+    let scx = memory_accessor.read_memory(0xFF43);
+    assert_eq!(scx, 0);
+
+    let bg_tiles_per_row = 32;
+    let skip = scy as u16 / pixels_per_tile * bg_tiles_per_row;
+
+    let screen_tiles_per_row = screen_width / pixels_per_tile;
+    let screen_tiles_per_column = screen_height / pixels_per_tile;
+    let visible_rows = bg_tiles_per_row * screen_tiles_per_column;
+
+    // Two ranges because of the vertical wrapping of the tiles
+    let start1 = 0x9800 + skip;
+    let end1 = std::cmp::min(start1 + visible_rows, 0x9c00);
+
+    let start2 = 0x9800;
+    let end2 = start2 + visible_rows - (end1 - start1);
+
+    for r in vec![start1..end1, start2..end2].into_iter() {
+        let iter = &mut MemoryIterator::new(memory_accessor, r).peekable();
+        while iter.peek() != None {
+            for c in iter.take(screen_tiles_per_row as usize) {
+                // The rom happens to use ASCII as the way it maps characters to the correct tile.
+                message.push(c as char);
+            }
+            message = String::from(message.trim_end());
+            message.push('\n');
+
+            // Skip the part that is off-screen
+            for _ in 0..(bg_tiles_per_row - screen_tiles_per_row) {
+                iter.next();
+            }
         }
-        message = String::from(message.trim_end());
-        message.push('\n');
     }
 
     // The message ends with 'Passed' when the test was successful

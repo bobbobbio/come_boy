@@ -24,3 +24,4 @@ function download_package {
 
 download_package cpu_instrs
 download_package instr_timing
+download_package oam_bug
