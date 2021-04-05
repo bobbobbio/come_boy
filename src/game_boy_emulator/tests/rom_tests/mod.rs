@@ -113,7 +113,8 @@ fn compare_screenshots(expectation_path: &str, actual: &std::path::Path) -> Resu
     Ok(())
 }
 
-pub fn do_rom_test(
+#[allow(dead_code)]
+fn do_rom_test(
     rom_path: &str,
     ticks: u64,
     expectation_path: &str,
@@ -130,7 +131,8 @@ pub fn do_rom_test(
     Ok(())
 }
 
-pub fn do_save_state_rom_test(
+#[allow(dead_code)]
+fn do_save_state_rom_test(
     rom_path: &str,
     ticks: u64,
     expectation_path: &str,
