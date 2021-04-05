@@ -1,6 +1,5 @@
-#[cfg(test)]
-#[allow(unused_imports)]
-use crate::game_boy_emulator::{do_rom_test, do_save_state_rom_test, Result};
+use super::{do_rom_test, do_save_state_rom_test};
+use crate::game_boy_emulator::Result;
 #[test]
 fn pokemon_red_100000000() -> Result<()> {
     do_rom_test(

@@ -1250,13 +1250,12 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
 }
 
 fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
-    let output_file = format!("src/{}/rom_tests.rs", module);
+    let output_file = format!("src/{}/tests/rom_tests/gen.rs", module);
     let mut out = File::create(&output_file).unwrap();
     let mut tokens = TokenStream::new();
     tokens.extend(quote! {
-        #[cfg(test)]
-        #[allow(unused_imports)]
-        use crate::game_boy_emulator::{Result, do_rom_test, do_save_state_rom_test};
+        use crate::game_boy_emulator::Result;
+        use super::{do_rom_test, do_save_state_rom_test};
     });
     generate_rom_test_functions(rom_dir, expectations_dir, &mut tokens);
 
