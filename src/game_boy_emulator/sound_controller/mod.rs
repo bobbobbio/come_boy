@@ -1,16 +1,37 @@
 // Copyright 2018 Remi Bernotavicius
 
 use self::memory_map::{SoundControllerMemoryMap, SoundControllerMemoryMapMut};
-use crate::game_boy_emulator::memory_controller::{MemoryAccessor, MemoryMappedHardware};
+use crate::game_boy_emulator::memory_controller::{
+    FlagMask, GameBoyFlags, MemoryAccessor, MemoryMappedHardware,
+};
 use crate::game_boy_emulator::{GameBoyRegister, MemoryChunk};
 use serde_derive::{Deserialize, Serialize};
 
 #[macro_use]
 mod memory_map;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SweepFlag {
+    Time = 0b01110000,
+    IncreaseOrDecrease = 0b00001000,
+    Shift = 0b00000111,
+}
+
+from_u8!(SweepFlag);
+
+impl FlagMask for SweepFlag {
+    fn read_mask() -> u8 {
+        Self::Time as u8 | Self::IncreaseOrDecrease as u8 | Self::Shift as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::Time as u8 | Self::IncreaseOrDecrease as u8 | Self::Shift as u8
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct ToneAndSweep {
-    pub sweep: GameBoyRegister,
+    pub sweep: GameBoyFlags<SweepFlag>,
     pub sound_length: GameBoyRegister,
     pub volume_envelope: GameBoyRegister,
     pub frequency_low: GameBoyRegister,
@@ -25,11 +46,45 @@ pub struct Tone {
     pub frequency_high: GameBoyRegister,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum EnabledFlag {
+    Enabled = 0b10000000,
+}
+
+from_u8!(EnabledFlag);
+
+impl FlagMask for EnabledFlag {
+    fn read_mask() -> u8 {
+        Self::Enabled as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::Enabled as u8
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OutputLevel {
+    Level = 0b01100000,
+}
+
+from_u8!(OutputLevel);
+
+impl FlagMask for OutputLevel {
+    fn read_mask() -> u8 {
+        Self::Level as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::Level as u8
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct WaveOutput {
-    pub enabled: GameBoyRegister,
+    pub enabled: GameBoyFlags<EnabledFlag>,
     pub sound_length: GameBoyRegister,
-    pub output_level: GameBoyRegister,
+    pub output_level: GameBoyFlags<OutputLevel>,
     pub frequency_low: GameBoyRegister,
     pub frequency_high: GameBoyRegister,
     pub wave_pattern: MemoryChunk,
@@ -48,12 +103,47 @@ impl Default for WaveOutput {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SoundLength {
+    Length = 0b00111111,
+}
+
+from_u8!(SoundLength);
+
+impl FlagMask for SoundLength {
+    fn read_mask() -> u8 {
+        Self::Length as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::Length as u8
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Counter {
+    Initial = 0b10000000,
+    Selection = 0b01000000,
+}
+
+from_u8!(Counter);
+
+impl FlagMask for Counter {
+    fn read_mask() -> u8 {
+        Self::Selection as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::Initial as u8 | Self::Selection as u8
+    }
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct Noise {
-    pub sound_length: GameBoyRegister,
+    pub sound_length: GameBoyFlags<SoundLength>,
     pub volume_envelope: GameBoyRegister,
     pub polynomial_counter: GameBoyRegister,
-    pub counter: GameBoyRegister,
+    pub counter: GameBoyFlags<Counter>,
 }
 
 #[derive(Default, Serialize, Deserialize)]

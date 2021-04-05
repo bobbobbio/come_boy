@@ -57,7 +57,6 @@ fn mooneye_test_rom_acceptance_bits_reg_f() {
 /// "This test checks all unused bits in working $FFxx IO, and all unused $FFxx IO. Unused bits and
 /// unused IO all return 1s"
 #[test]
-#[ignore]
 fn mooneye_test_rom_acceptance_bits_unused_hwio_gs() {
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(GamePak::new(
