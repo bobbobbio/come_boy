@@ -1,5 +1,11 @@
 before_install:
   - ./download_test_roms
+
+addons:
+  apt:
+    packages:
+      - libudev-dev
+
 language: rust
 rust:
   - stable
