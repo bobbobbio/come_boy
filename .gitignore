@@ -1,5 +1,6 @@
 target
 blargg_test_roms
+mooneye_test_roms
 *.swp
 *.pyc
 Cargo.lock

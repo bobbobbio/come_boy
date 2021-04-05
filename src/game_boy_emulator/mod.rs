@@ -26,7 +26,10 @@ pub use self::debugger::run_debugger;
 pub use self::disassembler::disassemble_game_boy_rom;
 
 #[cfg(test)]
-use crate::lr35902_emulator::{assert_blargg_test_rom_success, read_blargg_test_rom};
+use crate::lr35902_emulator::{
+    assert_blargg_test_rom_success, assert_mooneye_test_rom_success, read_blargg_test_rom,
+    read_mooneye_test_rom,
+};
 
 #[cfg(test)]
 use crate::rendering::NullRenderer;
@@ -702,7 +705,7 @@ fn initial_state_test() {
  */
 
 #[cfg(test)]
-fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
+fn run_emulator_until_pc(e: &mut GameBoyEmulator, stop_address: u16) {
     let mut pc = e.cpu.read_program_counter();
     // This address is where the rom ends.  At this address is an infinite loop where normally the
     // rom will sit at forever.
@@ -716,8 +719,18 @@ fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
     while game_boy_memory_map!(e).read_memory(0x9800) == 0xFF {
         e.tick(&mut NullRenderer);
     }
+}
 
+#[cfg(test)]
+fn run_blargg_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
+    run_emulator_until_pc(e, stop_address);
     assert_blargg_test_rom_success(&game_boy_memory_map!(e));
+}
+
+#[cfg(test)]
+fn run_mooneye_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
+    run_emulator_until_pc(e, stop_address);
+    assert_mooneye_test_rom_success(&game_boy_memory_map!(e));
 }
 
 #[test]
@@ -738,6 +751,17 @@ fn blargg_test_rom_instr_timing() {
         None,
     ));
     run_blargg_test_rom(&mut e, 0xc8b0);
+}
+
+/// "Tests the DAA instruction with all possible input combinations"
+#[test]
+fn mooneye_test_rom_acceptance_instr_daa() {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(
+        &read_mooneye_test_rom("acceptance/instr/daa.gb"),
+        None,
+    ));
+    run_mooneye_test_rom(&mut e, 0x686e);
 }
 
 pub fn run_emulator<R: Renderer>(

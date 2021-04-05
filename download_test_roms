@@ -6,22 +6,29 @@ set -ex
 # (http://blargg.8bitalley.com/) wrote. If this url no longer contains the
 # packages, google for 'blargg gameboy test rom' or the like, and hopefully you
 # can find them. Tests inside the LR35902 emulator code use these roms.
-URL=http://gbdev.gg8.se/files/roms/blargg-gb-tests
+BLARGG_URL=http://gbdev.gg8.se/files/roms/blargg-gb-tests
 
-DOWNLOAD_DIR=$( dirname $0 )/blargg_test_roms
-mkdir -p $DOWNLOAD_DIR
+# This the official build of the latest mooneye hardware tests
+# (https://github.com/Gekkio/mooneye-gb)
+MOONEYE_URL=https://gekkio.fi/files/mooneye-gb/latest
+
+ROOT_DIR=$( dirname $0 )
 
 function download_package {
-    if [ -d $DOWNLOAD_DIR/$1 ]; then
-        echo "Skipping $1, already downloaded"
+    mkdir -p $ROOT_DIR/$1
+
+    if [ -e $ROOT_DIR/$1/$3 ]; then
+        echo "Skipping $1/$3, already downloaded"
     else
         TEMPFILE=`mktemp`
-        wget $URL/$1.zip -O $TEMPFILE
-        unzip $TEMPFILE -d $DOWNLOAD_DIR
+        wget $2/$3.zip -O $TEMPFILE
+        unzip $TEMPFILE -d $ROOT_DIR/$1
         rm -f $TEMPFILE
+        touch $ROOT_DIR/$1/$3
     fi
 }
 
-download_package cpu_instrs
-download_package instr_timing
-download_package oam_bug
+download_package blargg_test_roms $BLARGG_URL cpu_instrs
+download_package blargg_test_roms $BLARGG_URL instr_timing
+download_package blargg_test_roms $BLARGG_URL oam_bug
+download_package mooneye_test_roms $MOONEYE_URL mooneye-gb_hwtests

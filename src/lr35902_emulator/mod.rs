@@ -2419,13 +2419,33 @@ fn load_rom(memory_accessor: &mut SimpleMemoryAccessor, rom: &Vec<u8>) {
 }
 
 #[cfg(test)]
-pub fn read_blargg_test_rom(name: &str) -> Vec<u8> {
+fn read_test_rom(rom_dir: &str, name: &str) -> Vec<u8> {
     let mut rom: Vec<u8> = vec![];
-    let mut file = File::open(format!("blargg_test_roms/{}", name))
+    let mut file = File::open(format!("{}/{}", rom_dir, name))
         .ok()
         .expect("Did you forget to download the test roms?");
     file.read_to_end(&mut rom).unwrap();
-    return rom;
+    rom
+}
+
+#[cfg(test)]
+pub fn read_blargg_test_rom(name: &str) -> Vec<u8> {
+    read_test_rom("blargg_test_roms", name)
+}
+
+#[cfg(test)]
+fn run_emulator_until_pc<M: MemoryAccessor>(
+    e: &mut LR35902Emulator,
+    memory_accessor: &mut M,
+    stop_address: u16,
+) {
+    let mut pc = e.read_program_counter();
+    // This address is where the ROM ends.  At this address is an infinite loop where normally the
+    // ROM will sit at forever.
+    while pc != stop_address {
+        e.run_one_instruction(memory_accessor);
+        pc = e.read_program_counter();
+    }
 }
 
 #[cfg(test)]
@@ -2434,19 +2454,13 @@ fn run_blargg_test_rom<M: MemoryAccessor>(
     memory_accessor: &mut M,
     stop_address: u16,
 ) {
-    let mut pc = e.read_program_counter();
-    // This address is where the rom ends.  At this address is an infinite loop where normally the
-    // rom will sit at forever.
-    while pc != stop_address {
-        e.run_one_instruction(memory_accessor);
-        pc = e.read_program_counter();
-    }
-
+    run_emulator_until_pc(e, memory_accessor, stop_address);
     assert_blargg_test_rom_success(memory_accessor);
 }
 
+/// Reads the visible tiles on the screen as text. It assumes the tile mapping is ASCII.
 #[cfg(test)]
-pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
+fn read_screen_message<M: MemoryAccessor>(memory_accessor: &M) -> String {
     let mut message = String::new();
 
     // Repeat some LCD logic here to read the tiles on screen to keep these test independent of the
@@ -2479,7 +2493,7 @@ pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
         let iter = &mut MemoryIterator::new(memory_accessor, r).peekable();
         while iter.peek() != None {
             for c in iter.take(screen_tiles_per_row as usize) {
-                // The rom happens to use ASCII as the way it maps characters to the correct tile.
+                // This is where we assume the tile number uses ASCII
                 message.push(c as char);
             }
             message = String::from(message.trim_end());
@@ -2491,6 +2505,12 @@ pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
             }
         }
     }
+    message
+}
+
+#[cfg(test)]
+pub fn assert_blargg_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
+    let message = read_screen_message(memory_accessor);
 
     // The message ends with 'Passed' when the test was successful
     assert!(message.ends_with("Passed\n"), "{}", message);
@@ -2552,4 +2572,20 @@ fn blargg_test_rom_cpu_instrs_10_bit_ops() {
 #[test]
 fn blargg_test_rom_cpu_instrs_11_op_a_hl() {
     run_blargg_test_rom_cpu_instrs("cpu_instrs/individual/11-op a,(hl).gb", 0xcc62);
+}
+
+#[cfg(test)]
+pub fn assert_mooneye_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
+    let message = read_screen_message(memory_accessor);
+
+    let message: String = message
+        .chars()
+        .filter(|&c| c != '\0' && c != '\n')
+        .collect();
+    assert_eq!(message, "Test OK");
+}
+
+#[cfg(test)]
+pub fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
+    read_test_rom("mooneye_test_roms", name)
 }
