@@ -14,3 +14,14 @@ fn mooneye_test_rom_acceptance_bits_mem_oam() {
     ));
     run_mooneye_test_rom(&mut e, 0x486e);
 }
+
+/// "This test checks that OAM DMA copies all bytes correctly"
+#[test]
+fn mooneye_test_rom_acceptance_oam_dma_basic() {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(
+        &read_mooneye_test_rom("acceptance/oam_dma/basic.gb"),
+        None,
+    ));
+    run_mooneye_test_rom(&mut e, 0x486e);
+}
