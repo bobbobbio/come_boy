@@ -66,3 +66,16 @@ fn mooneye_test_rom_acceptance_bits_unused_hwio_gs() {
     ));
     run_mooneye_test_rom(&mut e, 0x486e);
 }
+
+/// "Tests what happens if the IE register is the target for one of the PC pushes during interrupt
+/// dispatch."
+#[test]
+#[ignore]
+fn mooneye_test_rom_acceptance_interrupts_ie_push() {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(
+        &read_mooneye_test_rom("acceptance/interrupts/ie_push.gb"),
+        None,
+    ));
+    run_mooneye_test_rom(&mut e, 0x486e);
+}
