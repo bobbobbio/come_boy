@@ -5,7 +5,7 @@ use crate::emulator_common::disassembler::MemoryAccessor;
 use crate::game_boy_emulator::{memory_controller::GameBoyMemoryMap, GameBoyEmulator, GamePak};
 use crate::lr35902_emulator::tests::{read_screen_message, read_test_rom};
 
-pub fn assert_mooneye_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
+fn assert_mooneye_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
     let message = read_screen_message(memory_accessor);
 
     let message: String = message
@@ -15,11 +15,11 @@ pub fn assert_mooneye_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
     assert_eq!(message, "Test OK");
 }
 
-pub fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
+pub(crate) fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
     read_test_rom("mooneye_test_roms", name)
 }
 
-fn run_mooneye_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
+pub(crate) fn run_mooneye_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
     run_emulator_until_pc(e, stop_address);
     assert_mooneye_test_rom_success(&game_boy_memory_map!(e));
 }
