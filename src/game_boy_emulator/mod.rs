@@ -19,7 +19,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::ops::Range;
+use std::ops::{Range, RangeFrom};
 use std::path::Path;
 use std::time::{Duration, Instant};
 use std::{fmt, mem};
@@ -418,6 +418,36 @@ impl GameBoyEmulatorEvent {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct DmaTransfer {
+    src_current: u16,
+    dst_end: u16,
+    dst_current: u16,
+}
+
+impl DmaTransfer {
+    fn new(dst: Range<u16>, src: RangeFrom<u16>) -> Self {
+        Self {
+            src_current: src.start,
+            dst_end: dst.end,
+            dst_current: dst.start,
+        }
+    }
+
+    fn tick(&mut self, memory_map: &mut GameBoyMemoryMapMut, cpu: &mut LR35902Emulator) {
+        let value = memory_map.read_memory(self.src_current);
+        memory_map.set_memory(self.dst_current, value);
+        cpu.add_cycles(1);
+
+        self.src_current = self.src_current.wrapping_add(1);
+        self.dst_current = self.dst_current.wrapping_add(1);
+    }
+
+    fn is_done(&self) -> bool {
+        self.dst_current == self.dst_end
+    }
+}
+
 fn default_clock_speed_hz() -> u32 {
     // GameBoy clock speed is about 4.19Mhz
     4_194_304
@@ -435,6 +465,8 @@ pub(crate) struct GameBoyEmulator {
     registers: GameBoyRegisters,
     scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
+
+    dma_transfer: Option<DmaTransfer>,
 
     #[serde(skip, default = "default_clock_speed_hz")]
     clock_speed_hz: u32,
@@ -460,6 +492,7 @@ impl GameBoyEmulator {
             registers: Default::default(),
             scheduler: Scheduler::new(),
             timer: Default::default(),
+            dma_transfer: None,
             clock_speed_hz: default_clock_speed_hz(),
             game_pak: None,
             joypad_key_events: vec![],
@@ -570,12 +603,20 @@ impl GameBoyEmulator {
     }
 
     fn execute_dma(&mut self) {
-        // XXX This is suppose to take about 40 cycles to complete.
-        if let Some(address) = self.lcd_controller.registers.dma.take_request() {
-            let mut memory_map = game_boy_memory_map_mut!(self);
-            for (dst_address, src_address) in OAM_DATA.zip(address..) {
-                let value = memory_map.read_memory(src_address);
-                memory_map.set_memory(dst_address, value);
+        if let Some(mut address) = self.lcd_controller.registers.dma.take_request() {
+            // 0xE000 to 0xFFFF is mapped differently for DMA. It ends up just being the internal
+            // ram repeated again. To account for this we just adjust the source address.
+            if address >= INTERNAL_RAM_B.end {
+                address -= 0x2000;
+            }
+            self.dma_transfer = Some(DmaTransfer::new(OAM_DATA, address..));
+        }
+
+        if let Some(transfer) = self.dma_transfer.as_mut() {
+            transfer.tick(&mut game_boy_memory_map_mut!(self), &mut self.cpu);
+
+            if transfer.is_done() {
+                self.dma_transfer = None;
             }
         }
     }

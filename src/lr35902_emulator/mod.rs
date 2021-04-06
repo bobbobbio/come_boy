@@ -151,7 +151,7 @@ impl LR35902Emulator {
         Intel8080InstructionSetOps::push_u16_onto_stack(&mut ops, address);
     }
 
-    fn add_cycles(&mut self, cycles: u8) {
+    pub fn add_cycles(&mut self, cycles: u8) {
         self.elapsed_cycles += cycles as u64;
     }
 
