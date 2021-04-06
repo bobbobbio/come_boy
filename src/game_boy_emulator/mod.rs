@@ -2,7 +2,7 @@
 
 pub use self::game_pak::GamePak;
 use self::joypad::{ControllerJoyPad, JoyPad, PlaybackJoyPad, RecordingJoyPad};
-use self::lcd_controller::{InterruptEnableFlag, InterruptFlag, LcdController, OAM_DATA};
+use self::lcd_controller::{LcdController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
     MemoryMappedHardware,
@@ -128,11 +128,87 @@ impl From<bincode::Error> for Error {
  *                                         |___/
  */
 
-const LCDCSTATUS_INTERRUPT_ADDRESS: u16 = 0x0048;
+const ALL_INTERRUPTS: [(InterruptFlag, u16); 5] = [
+    (InterruptFlag::VerticalBlanking, 0x0040),
+    (InterruptFlag::LCDSTAT, 0x0048),
+    (InterruptFlag::Timer, 0x0050),
+    (InterruptFlag::Serial, 0x0058),
+    (InterruptFlag::Joypad, 0x0060),
+];
 
-const TIMER_INTERRUPT_ADDRESS: u16 = 0x0050;
+/// This mask represents the various interrupts the LcdController handles.
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[repr(u8)]
+pub enum InterruptFlag {
+    VerticalBlanking = 0b00000001,
+    LCDSTAT = 0b00000010,
+    Timer = 0b00000100,
+    Serial = 0b00001000,
+    Joypad = 0b00010000,
+}
 
-const VERTICAL_BLANKING_INTERRUPT_ADDRESS: u16 = 0x0040;
+impl FlagMask for InterruptFlag {
+    fn read_mask() -> u8 {
+        InterruptFlag::VerticalBlanking as u8
+            | InterruptFlag::LCDSTAT as u8
+            | InterruptFlag::Timer as u8
+            | InterruptFlag::Serial as u8
+            | InterruptFlag::Joypad as u8
+    }
+
+    fn write_mask() -> u8 {
+        InterruptFlag::VerticalBlanking as u8
+            | InterruptFlag::LCDSTAT as u8
+            | InterruptFlag::Timer as u8
+            | InterruptFlag::Serial as u8
+            | InterruptFlag::Joypad as u8
+    }
+}
+
+impl From<InterruptEnableFlag> for InterruptFlag {
+    fn from(f: InterruptEnableFlag) -> Self {
+        match f {
+            InterruptEnableFlag::VerticalBlanking => InterruptFlag::VerticalBlanking,
+            InterruptEnableFlag::LCDSTAT => InterruptFlag::LCDSTAT,
+            InterruptEnableFlag::Timer => InterruptFlag::Timer,
+            InterruptEnableFlag::Serial => InterruptFlag::Serial,
+            InterruptEnableFlag::Joypad => InterruptFlag::Joypad,
+        }
+    }
+}
+
+/// This mask represent the various interrupts that the program can enable.
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[repr(u8)]
+pub enum InterruptEnableFlag {
+    VerticalBlanking = 0b00000001,
+    LCDSTAT = 0b00000010,
+    Timer = 0b00000100,
+    Serial = 0b00001000,
+    Joypad = 0b00010000,
+}
+
+impl FlagMask for InterruptEnableFlag {
+    fn read_mask() -> u8 {
+        0xFF
+    }
+
+    fn write_mask() -> u8 {
+        0xFF
+    }
+}
+
+impl From<InterruptFlag> for InterruptEnableFlag {
+    fn from(f: InterruptFlag) -> Self {
+        match f {
+            InterruptFlag::VerticalBlanking => InterruptEnableFlag::VerticalBlanking,
+            InterruptFlag::LCDSTAT => InterruptEnableFlag::LCDSTAT,
+            InterruptFlag::Timer => InterruptEnableFlag::Timer,
+            InterruptFlag::Serial => InterruptEnableFlag::Serial,
+            InterruptFlag::Joypad => InterruptEnableFlag::Joypad,
+        }
+    }
+}
 
 const HIGH_RAM: Range<u16> = Range {
     start: 0xFF80,
@@ -504,28 +580,65 @@ impl GameBoyEmulator {
         }
     }
 
+    /// If the stack happens to overflow into the IO registers, it can cause weird behavior when
+    /// handling interrupts.
+    ///
+    /// Before handling an interrupt we push the return address to the stack. If the high byte when
+    /// writing that address overwrites the IE register (0xFFFF) the interrupt handling will
+    /// short-circuit and jump to address 0x0000.
+    fn maybe_handle_ie_push_bug(&mut self, flag: InterruptFlag) -> bool {
+        let sp = self.cpu.read_register_pair(Intel8080Register::SP);
+
+        if sp == 0xFFFE && !self.registers.interrupt_enable.read_flag(flag.into()) {
+            self.cpu.jump(&mut game_boy_memory_map_mut!(self), 0x0000);
+            true
+        } else {
+            false
+        }
+    }
+
     fn deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) {
+        let pc = self.cpu.read_program_counter();
+        self.cpu
+            .push_u16_onto_stack(&mut game_boy_memory_map_mut!(self), pc);
+
+        if self.maybe_handle_ie_push_bug(flag) {
+            return;
+        }
+
+        self.cpu.jump(&mut game_boy_memory_map_mut!(self), address);
+        self.cpu.push_frame(address);
+
+        self.registers.interrupt_flag.set_flag(flag, false);
+    }
+
+    fn maybe_deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) -> bool {
         let interrupt_flag_value = self.registers.interrupt_flag.read_flag(flag);
         let interrupt_enable_value = self.registers.interrupt_enable.read_flag(flag.into());
 
         if interrupt_flag_value && interrupt_enable_value {
             self.cpu.resume();
-
             if self.cpu.get_interrupts_enabled() {
-                self.registers.interrupt_flag.set_flag(flag, false);
-                self.cpu
-                    .interrupt(&mut game_boy_memory_map_mut!(self), address);
+                self.deliver_interrupt(flag, address);
+                true
+            } else {
+                false
             }
+        } else {
+            false
         }
     }
 
     fn handle_interrupts(&mut self) {
-        self.deliver_interrupt(
-            InterruptFlag::VerticalBlanking,
-            VERTICAL_BLANKING_INTERRUPT_ADDRESS,
-        );
-        self.deliver_interrupt(InterruptFlag::LCDSTAT, LCDCSTATUS_INTERRUPT_ADDRESS);
-        self.deliver_interrupt(InterruptFlag::Timer, TIMER_INTERRUPT_ADDRESS);
+        let mut interrupted = false;
+
+        for &(flag, address) in &ALL_INTERRUPTS {
+            interrupted |= self.maybe_deliver_interrupt(flag, address);
+        }
+
+        if interrupted {
+            self.cpu.set_interrupts_enabled(false);
+        }
     }
 
     fn set_state_post_bios(&mut self) {

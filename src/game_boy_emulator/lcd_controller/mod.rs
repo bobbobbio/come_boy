@@ -47,6 +47,7 @@
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
+use crate::game_boy_emulator::InterruptFlag;
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
 use enum_iterator::IntoEnumIterator;
@@ -320,82 +321,6 @@ impl FlagMask for LcdStatusFlag {
             | Self::InterruptMode10 as u8
             | Self::InterruptMode01 as u8
             | Self::InterruptMode00 as u8
-    }
-}
-
-/// This mask represents the various interrupts the LcdController handles.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
-#[repr(u8)]
-pub enum InterruptFlag {
-    VerticalBlanking = 0b00000001,
-    LCDSTAT = 0b00000010,
-    Timer = 0b00000100,
-    #[allow(dead_code)]
-    Serial = 0b00001000,
-    #[allow(dead_code)]
-    Joypad = 0b00010000,
-}
-
-impl FlagMask for InterruptFlag {
-    fn read_mask() -> u8 {
-        InterruptFlag::VerticalBlanking as u8
-            | InterruptFlag::LCDSTAT as u8
-            | InterruptFlag::Timer as u8
-            | InterruptFlag::Serial as u8
-            | InterruptFlag::Joypad as u8
-    }
-
-    fn write_mask() -> u8 {
-        InterruptFlag::VerticalBlanking as u8
-            | InterruptFlag::LCDSTAT as u8
-            | InterruptFlag::Timer as u8
-            | InterruptFlag::Serial as u8
-            | InterruptFlag::Joypad as u8
-    }
-}
-
-impl From<InterruptEnableFlag> for InterruptFlag {
-    fn from(f: InterruptEnableFlag) -> Self {
-        match f {
-            InterruptEnableFlag::VerticalBlanking => InterruptFlag::VerticalBlanking,
-            InterruptEnableFlag::LCDSTAT => InterruptFlag::LCDSTAT,
-            InterruptEnableFlag::Timer => InterruptFlag::Timer,
-            InterruptEnableFlag::Serial => InterruptFlag::Serial,
-            InterruptEnableFlag::Joypad => InterruptFlag::Joypad,
-        }
-    }
-}
-
-/// This mask represent the various interrupts that the program can enable.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
-#[repr(u8)]
-pub enum InterruptEnableFlag {
-    VerticalBlanking = 0b00000001,
-    LCDSTAT = 0b00000010,
-    Timer = 0b00000100,
-    Serial = 0b00001000,
-    Joypad = 0b00010000,
-}
-
-impl FlagMask for InterruptEnableFlag {
-    fn read_mask() -> u8 {
-        0xFF
-    }
-
-    fn write_mask() -> u8 {
-        0xFF
-    }
-}
-
-impl From<InterruptFlag> for InterruptEnableFlag {
-    fn from(f: InterruptFlag) -> Self {
-        match f {
-            InterruptFlag::VerticalBlanking => InterruptEnableFlag::VerticalBlanking,
-            InterruptFlag::LCDSTAT => InterruptEnableFlag::LCDSTAT,
-            InterruptFlag::Timer => InterruptEnableFlag::Timer,
-            InterruptFlag::Serial => InterruptEnableFlag::Serial,
-            InterruptFlag::Joypad => InterruptEnableFlag::Joypad,
-        }
     }
 }
 

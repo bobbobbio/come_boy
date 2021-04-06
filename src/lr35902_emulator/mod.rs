@@ -134,7 +134,7 @@ impl LR35902Emulator {
         self.program_counter = address;
     }
 
-    fn set_interrupts_enabled(&mut self, value: bool) {
+    pub fn set_interrupts_enabled(&mut self, value: bool) {
         self.interrupts_enabled = value;
     }
 
@@ -142,12 +142,13 @@ impl LR35902Emulator {
         self.interrupts_enabled
     }
 
-    pub fn interrupt<M: MemoryAccessor>(&mut self, memory_accessor: &mut M, address: u16) {
-        assert!(self.interrupts_enabled);
-        self.interrupts_enabled = false;
-
+    pub fn push_u16_onto_stack<M: MemoryAccessor>(
+        &mut self,
+        memory_accessor: &mut M,
+        address: u16,
+    ) {
         let mut ops = InstructionDispatchOps::new(self, memory_accessor);
-        Intel8080InstructionSet::call(&mut ops, address);
+        Intel8080InstructionSetOps::push_u16_onto_stack(&mut ops, address);
     }
 
     fn add_cycles(&mut self, cycles: u8) {
@@ -2386,6 +2387,15 @@ impl LR35902Emulator {
     pub fn run_one_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
         self.load_instruction(memory_accessor);
         self.execute_instruction(memory_accessor);
+    }
+
+    pub fn jump<M: MemoryAccessor>(&mut self, memory_accessor: &mut M, address: u16) {
+        let mut ops = InstructionDispatchOps::new(self, memory_accessor);
+        LR35902InstructionSet::jump(&mut ops, address)
+    }
+
+    pub fn push_frame(&mut self, address: u16) {
+        self.call_stack.push(address);
     }
 }
 
