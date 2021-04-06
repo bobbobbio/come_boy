@@ -2,7 +2,6 @@
 
 use crate::emulator_common::disassembler::Disassembler;
 use crate::emulator_common::Intel8080Register;
-use crate::game_boy_emulator::debugger::{fmt_lcdc, fmt_stat};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag, Result};
@@ -74,13 +73,8 @@ impl Debug for AbstractEmulatorRegisters {
         fmt_flags(self.flags, f)?;
         write!(f, "{}", le)?;
 
-        write!(f, "{}lcdc: ", sep)?;
-        fmt_lcdc(self.lcdc, f)?;
-        write!(f, "{}", le)?;
-
-        write!(f, "{}stat: ", sep)?;
-        fmt_stat(self.stat, f)?;
-        write!(f, "{}", le)?;
+        write!(f, "{}lcdc: 0x{:x},{}", sep, self.lcdc, le)?;
+        write!(f, "{}stat: 0x{:x},{}", sep, self.stat, le)?;
 
         write!(f, "{}scy: 0x{:x},{}", sep, self.scy, le)?;
         write!(f, "{}scx: 0x{:x},{}", sep, self.scx, le)?;

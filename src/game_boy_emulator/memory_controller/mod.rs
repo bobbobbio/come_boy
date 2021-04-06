@@ -2,10 +2,11 @@
 
 pub use self::memory_map::{GameBoyMemoryMap, GameBoyMemoryMapMut};
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+use enum_iterator::IntoEnumIterator;
 use serde_derive::{Deserialize, Serialize};
-use std::io;
 use std::marker::PhantomData;
 use std::ops::Range;
+use std::{fmt, io};
 
 #[macro_use]
 pub mod memory_map;
@@ -13,6 +14,12 @@ pub mod memory_map;
 #[derive(Default, Serialize, Deserialize)]
 pub struct GameBoyRegister {
     value: u8,
+}
+
+impl fmt::Debug for GameBoyRegister {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0x{:02x}", self.value)
+    }
 }
 
 impl MemoryMappedHardware for GameBoyRegister {
@@ -96,7 +103,7 @@ impl<T: FlagMask> GameBoyFlags<T> {
     }
 }
 
-impl<T: FlagMask> GameBoyFlags<T>
+impl<T> GameBoyFlags<T>
 where
     u8: From<T>,
 {
@@ -105,9 +112,8 @@ where
     }
 
     pub fn read_flag_value(&self, f: T) -> u8 {
-        let value = self.read_value();
         let mask = u8::from(f);
-        (value & mask) >> mask.trailing_zeros()
+        (self.value & mask) >> mask.trailing_zeros()
     }
 
     pub fn set_flag(&mut self, f: T, v: bool) {
@@ -115,15 +121,36 @@ where
     }
 
     pub fn set_flag_value(&mut self, f: T, v: u8) {
-        let value = self.read_value();
         let mask = u8::from(f);
         let v = (v << mask.trailing_zeros()) & mask;
-        self.value = (value & !mask) | v;
+        self.value = (self.value & !mask) | v;
+    }
+}
+
+impl<T> fmt::Debug for GameBoyFlags<T>
+where
+    T: IntoEnumIterator + fmt::Debug + Clone,
+    u8: From<T>,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut extra = vec![];
+        for flag in T::into_enum_iter() {
+            let value = self.read_flag_value(flag.clone());
+            let is_flag = u8::from(flag.clone()).count_ones() == 1;
+
+            if is_flag && value == 1 {
+                extra.push(format!("{:?}", flag));
+            } else if !is_flag {
+                extra.push(format!("{:?} = {}", flag, value));
+            }
+        }
+        write!(f, "0x{:02x}: [{}]", self.value, extra.join(", "))?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
-#[derive(enum_utils::ReprFrom)]
+#[derive(enum_utils::ReprFrom, IntoEnumIterator, Debug, Clone)]
 #[repr(u8)]
 enum TestMaskedValue {
     ReadWriteValue = 0b00000011,
@@ -144,6 +171,17 @@ impl FlagMask for TestMaskedValue {
     fn write_mask() -> u8 {
         Self::ReadWriteValue as u8 | Self::ReadWriteFlag as u8
     }
+}
+
+#[test]
+fn flags_debug_fmt() {
+    let mut f: GameBoyFlags<TestMaskedValue> = GameBoyFlags::new();
+    f.set_flag(TestMaskedValue::ReadWriteFlag, true);
+    f.set_flag_value(TestMaskedValue::ReadWriteValue, 2);
+    assert_eq!(
+        format!("{:?}", f),
+        "0x06: [ReadWriteValue = 2, ReadWriteFlag, ReadOnlyValue = 0]"
+    )
 }
 
 #[test]

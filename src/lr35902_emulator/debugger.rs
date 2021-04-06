@@ -89,37 +89,39 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
     fn wait_until_interrupt(&mut self) {}
 }
 
+struct Hex<T>(T);
+
+impl fmt::Debug for Hex<u8> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{:02x}", self.0)
+    }
+}
+
+impl fmt::Debug for Hex<u16> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "0x{:04x}", self.0)
+    }
+}
+
 impl fmt::Debug for LR35902Emulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(
-            f,
-            "B: {:x}, C: {:x}, D: {:x}, E: {:x}, H: {:x}, L: {:x}, A: {:x}",
-            self.read_register(Intel8080Register::B),
-            self.read_register(Intel8080Register::C),
-            self.read_register(Intel8080Register::D),
-            self.read_register(Intel8080Register::E),
-            self.read_register(Intel8080Register::H),
-            self.read_register(Intel8080Register::L),
-            self.read_register(Intel8080Register::A)
-        )?;
-        writeln!(
-            f,
-            "Zero: {}, Subtract: {}, HalfCarry: {}, Carry: {}",
-            self.read_flag(LR35902Flag::Zero),
-            self.read_flag(LR35902Flag::Subtract),
-            self.read_flag(LR35902Flag::HalfCarry),
-            self.read_flag(LR35902Flag::Carry)
-        )?;
-        write!(
-            f,
-            "PC: {:x}, SP: {:x}, M: {:x}, clock = {}",
-            self.read_program_counter(),
-            self.read_register_pair(Intel8080Register::SP),
-            self.read_register(Intel8080Register::M),
-            self.elapsed_cycles,
-        )?;
-
-        Ok(())
+        f.debug_struct("LR35902Emulator")
+            .field("A", &Hex(self.read_register(Intel8080Register::A)))
+            .field("B", &Hex(self.read_register(Intel8080Register::B)))
+            .field("C", &Hex(self.read_register(Intel8080Register::C)))
+            .field("D", &Hex(self.read_register(Intel8080Register::D)))
+            .field("E", &Hex(self.read_register(Intel8080Register::E)))
+            .field("H", &Hex(self.read_register(Intel8080Register::H)))
+            .field("L", &Hex(self.read_register(Intel8080Register::L)))
+            .field("Zero", &self.read_flag(LR35902Flag::Zero))
+            .field("Subtract", &self.read_flag(LR35902Flag::Subtract))
+            .field("HalfCarry", &self.read_flag(LR35902Flag::HalfCarry))
+            .field("Carry", &self.read_flag(LR35902Flag::Carry))
+            .field("PC", &Hex(self.read_program_counter()))
+            .field("SP", &Hex(self.read_register_pair(Intel8080Register::SP)))
+            .field("M", &Hex(self.read_register(Intel8080Register::M)))
+            .field("clock", &self.elapsed_cycles)
+            .finish()
     }
 }
 
@@ -143,7 +145,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
     }
 
     fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
-        writeln!(s, "{:?}", &self.emulator)
+        writeln!(s, "{:#?}", &self.emulator)
     }
 
     fn next(&mut self) {

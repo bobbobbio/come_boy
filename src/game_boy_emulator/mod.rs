@@ -13,15 +13,16 @@ use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, Renderer};
 use crate::util::{super_fast_hash, Scheduler};
+use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Read, Write};
-use std::mem;
 use std::ops::Range;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use std::{fmt, mem};
 
 pub use self::debugger::run_debugger;
 pub use self::disassembler::disassemble_game_boy_rom;
@@ -151,6 +152,12 @@ const INTERNAL_RAM_B: Range<u16> = Range {
 #[derive(Serialize, Deserialize, Default)]
 struct Divider(GameBoyRegister);
 
+impl fmt::Debug for Divider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
 impl Divider {
     fn set_state_post_bios(&mut self) {
         self.0.set_value(0xab);
@@ -172,7 +179,7 @@ impl MemoryMappedHardware for Divider {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 struct GameBoyRegisters {
     interrupt_flag: GameBoyFlags<InterruptFlag>,
     interrupt_enable: GameBoyFlags<InterruptEnableFlag>,
@@ -186,6 +193,12 @@ struct GameBoyRegisters {
 struct TimerControl {
     value: GameBoyFlags<TimerFlags>,
     timer_restart_requested: bool,
+}
+
+impl fmt::Debug for TimerControl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self.value)
+    }
 }
 
 impl TimerControl {
@@ -223,7 +236,17 @@ struct GameBoyTimer {
     running: bool,
 }
 
-#[derive(ReprFrom)]
+impl fmt::Debug for GameBoyTimer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("GameBoyTimer")
+            .field("counter", &self.counter)
+            .field("modulo", &self.modulo)
+            .field("control", &self.control)
+            .finish()
+    }
+}
+
+#[derive(Debug, Clone, Copy, ReprFrom, IntoEnumIterator)]
 #[repr(u8)]
 enum TimerFlags {
     Enabled = 0b00000100,
