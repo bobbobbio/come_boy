@@ -9,7 +9,9 @@ use crate::lr35902_emulator::tests::blargg::{
 pub(crate) fn run_blargg_test_rom(rom_path: &str, stop_address: u16) {
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(GamePak::new(&read_blargg_test_rom(rom_path), None));
-    run_emulator_until_pc(&mut e, stop_address);
+    run_emulator_until_pc(&mut e, |pc| pc == stop_address);
+
+    e.lcd_controller.background_display_data_1.release();
     assert_blargg_test_rom_success(&game_boy_memory_map!(&e));
 }
 
