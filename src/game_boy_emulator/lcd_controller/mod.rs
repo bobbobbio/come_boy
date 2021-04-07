@@ -545,7 +545,6 @@ impl<'a> LcdDotData<'a> {
 #[derive(Serialize, Deserialize)]
 enum LcdControllerEvent {
     AdvanceLy,
-    AfterMode1,
     Mode0,
     Mode1,
     Mode2,
@@ -557,7 +556,6 @@ impl LcdControllerEvent {
     fn deliver<R: Renderer>(self, controller: &mut LcdController, renderer: &mut R, time: u64) {
         match self {
             Self::AdvanceLy => controller.advance_ly(time),
-            Self::AfterMode1 => controller.after_mode_1(time),
             Self::Mode0 => controller.mode_0(time),
             Self::Mode1 => controller.mode_1(renderer, time),
             Self::Mode2 => controller.mode_2(time),
@@ -963,13 +961,6 @@ impl LcdController {
         self.scheduler
             .schedule(time + 456, LcdControllerEvent::AdvanceLy);
 
-        if (self.registers.ly.read_value() as i32) < SCREEN_HEIGHT
-            && self.registers.ly.read_value() > 0
-        {
-            self.oam_data.borrow();
-            self.unusable_memory.borrow();
-        }
-
         self.registers.stat.set_flag(LcdStatusFlag::LYMatch, false);
         self.scheduler
             .schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
@@ -1003,15 +994,7 @@ impl LcdController {
         }
 
         self.scheduler
-            .schedule(time + 4552, LcdControllerEvent::AfterMode1);
-    }
-
-    fn after_mode_1(&mut self, time: u64) {
-        self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
-        self.oam_data.borrow();
-        self.unusable_memory.borrow();
-
-        self.scheduler.schedule(time + 8, LcdControllerEvent::Mode2);
+            .schedule(time + 4560, LcdControllerEvent::Mode2);
     }
 
     fn enable(&mut self, time: u64) {
@@ -1025,11 +1008,11 @@ impl LcdController {
     fn disable(&mut self) {
         assert!(self.enabled);
 
-        self.character_data.release();
-        self.background_display_data_1.release();
-        self.background_display_data_2.release();
-        self.oam_data.release();
-        self.unusable_memory.release();
+        self.character_data.release_all();
+        self.background_display_data_1.release_all();
+        self.background_display_data_2.release_all();
+        self.oam_data.release_all();
+        self.unusable_memory.release_all();
 
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
         self.registers.ly.set_value(0);

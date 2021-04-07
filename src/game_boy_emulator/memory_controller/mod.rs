@@ -276,18 +276,18 @@ impl<T: MemoryMappedHardware + ?Sized> MemoryMappedHardware for Box<T> {
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct MemoryChunk {
     value: Vec<u8>,
-    borrowed: bool,
+    borrowed: u32,
 }
 
 impl MemoryMappedHardware for MemoryChunk {
     fn set_value(&mut self, address: u16, value: u8) {
-        if !self.borrowed {
+        if self.borrowed == 0 {
             self.value[address as usize] = value;
         }
     }
 
     fn read_value(&self, address: u16) -> u8 {
-        if self.borrowed {
+        if self.borrowed != 0 {
             0xFF
         } else {
             self.value[address as usize]
@@ -298,10 +298,7 @@ impl MemoryMappedHardware for MemoryChunk {
 impl MemoryChunk {
     pub fn new(value: Vec<u8>) -> MemoryChunk {
         assert!(value.len() > 0);
-        MemoryChunk {
-            value,
-            borrowed: false,
-        }
+        MemoryChunk { value, borrowed: 0 }
     }
 
     pub fn from_range(range: Range<u16>) -> MemoryChunk {
@@ -326,11 +323,15 @@ impl MemoryChunk {
     }
 
     pub fn borrow(&mut self) {
-        self.borrowed = true;
+        self.borrowed += 1;
     }
 
     pub fn release(&mut self) {
-        self.borrowed = false;
+        self.borrowed -= 1;
+    }
+
+    pub fn release_all(&mut self) {
+        self.borrowed = 0;
     }
 
     pub fn len(&self) -> u16 {
@@ -339,6 +340,10 @@ impl MemoryChunk {
 
     pub fn as_slice(&self) -> &[u8] {
         self.value.as_slice()
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [u8] {
+        self.value.as_mut_slice()
     }
 }
 

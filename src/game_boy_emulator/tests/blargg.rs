@@ -11,7 +11,7 @@ pub(crate) fn run_blargg_test_rom(rom_path: &str, stop_address: u16) {
     e.load_game_pak(GamePak::new(&read_blargg_test_rom(rom_path), None));
     run_emulator_until_pc(&mut e, |pc| pc == stop_address);
 
-    e.lcd_controller.background_display_data_1.release();
+    e.lcd_controller.background_display_data_1.release_all();
     assert_blargg_test_rom_success(&game_boy_memory_map!(&e));
 }
 

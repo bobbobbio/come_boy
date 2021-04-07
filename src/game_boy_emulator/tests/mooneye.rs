@@ -37,7 +37,7 @@ pub(crate) fn run_mooneye_test_rom(rom_path: &str) {
     run_emulator_until_pc(&mut e, |pc| pc == success_address || pc == fail_address);
 
     if e.cpu.read_program_counter() == fail_address {
-        e.lcd_controller.background_display_data_1.release();
+        e.lcd_controller.background_display_data_1.release_all();
         panic!("{}", read_screen_message(&game_boy_memory_map!(&e)));
     } else {
         assert_eq!(e.cpu.read_program_counter(), success_address);
