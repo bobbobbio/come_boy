@@ -23,57 +23,39 @@ fn assert_mooneye_test_rom_success<M: MemoryAccessor>(memory_accessor: &M) {
     }
 }
 
-pub(crate) fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
+fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
     read_test_rom("mooneye_test_roms", name)
 }
 
-pub(crate) fn run_mooneye_test_rom(e: &mut GameBoyEmulator, stop_address: u16) {
-    run_emulator_until_pc(e, stop_address);
-    assert_mooneye_test_rom_success(&game_boy_memory_map!(e));
+pub(crate) fn run_mooneye_test_rom(rom_path: &str, stop_address: u16) {
+    let mut e = GameBoyEmulator::new();
+    e.load_game_pak(GamePak::new(&read_mooneye_test_rom(rom_path), None));
+    run_emulator_until_pc(&mut e, stop_address);
+    assert_mooneye_test_rom_success(&game_boy_memory_map!(&e));
 }
 
 /// "Tests the DAA instruction with all possible input combinations"
 #[test]
 fn mooneye_test_rom_acceptance_instr_daa() {
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(GamePak::new(
-        &read_mooneye_test_rom("acceptance/instr/daa.gb"),
-        None,
-    ));
-    run_mooneye_test_rom(&mut e, 0x686e);
+    run_mooneye_test_rom("acceptance/instr/daa.gb", 0x686e);
 }
 
 /// "This test checks that bottom 4 bits of the F register always return 0"
 #[test]
 fn mooneye_test_rom_acceptance_bits_reg_f() {
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(GamePak::new(
-        &read_mooneye_test_rom("acceptance/bits/reg_f.gb"),
-        None,
-    ));
-    run_mooneye_test_rom(&mut e, 0x4b2e);
+    run_mooneye_test_rom("acceptance/bits/reg_f.gb", 0x4b2e);
 }
 
 /// "This test checks all unused bits in working $FFxx IO, and all unused $FFxx IO. Unused bits and
 /// unused IO all return 1s"
 #[test]
 fn mooneye_test_rom_acceptance_bits_unused_hwio_gs() {
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(GamePak::new(
-        &read_mooneye_test_rom("acceptance/bits/unused_hwio-GS.gb"),
-        None,
-    ));
-    run_mooneye_test_rom(&mut e, 0x486e);
+    run_mooneye_test_rom("acceptance/bits/unused_hwio-GS.gb", 0x486e);
 }
 
 /// "Tests what happens if the IE register is the target for one of the PC pushes during interrupt
 /// dispatch."
 #[test]
 fn mooneye_test_rom_acceptance_interrupts_ie_push() {
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(GamePak::new(
-        &read_mooneye_test_rom("acceptance/interrupts/ie_push.gb"),
-        None,
-    ));
-    run_mooneye_test_rom(&mut e, 0x486e);
+    run_mooneye_test_rom("acceptance/interrupts/ie_push.gb", 0x486e);
 }
