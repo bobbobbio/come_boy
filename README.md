@@ -25,9 +25,9 @@ which ones you want via `--features`. The `speedy2d` back-end is included by
 default.
 
 # Running Tests
-Run tests as follow. You only need to run `./download_test_roms` once.
+Run tests as follow. You only need to run `./library/download_test_roms` once.
 
-    ./download_test_roms
+    ./library/download_test_roms
     cargo test
 
 # Usage
