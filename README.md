@@ -1,8 +1,6 @@
 # come_boy
 
-Come boy is a gameboy emulator (DMG only) written in rust.
-
-Written by Remi Bernotavicius (remi@abort.cc)
+Come boy is a Game Boy emulator (currently DMG only).
 
 Currently in a pre-release state.  Runs some games, but many others do not work.
 
@@ -52,7 +50,9 @@ ARGS:
     <rom>
 ```
 
-Limited joypad support available. Use arrow keys + z, x, tab, enter.
+For input, keyboard or controller are supported.
+
+Keyboard controls are arrow keys, Z, X, tab, and enter.
 
 Limited save-state functionality. F2 to save a state, and F3 to load a state.
 Save states are stored in the current-working-directory as `save_state.bin`
@@ -175,7 +175,7 @@ emulator would need to be modified to emit the correct trace.
 # License
 MIT License
 
-Copyright (c) 2016-2019 Remi Bernotavicius
+Copyright (c) 2016-2021 Remi Bernotavicius
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
