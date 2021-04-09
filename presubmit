@@ -13,3 +13,6 @@ fi;
 
 cargo build --all-features --release
 cargo test --release
+
+pushd web
+wasm-pack build

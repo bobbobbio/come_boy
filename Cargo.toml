@@ -8,4 +8,5 @@ panic = "abort"
 members = [
     "library",
     "cli",
+    "web",
 ]
