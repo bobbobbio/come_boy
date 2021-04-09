@@ -10,3 +10,4 @@ crate-type = ["cdylib"]
 [dependencies]
 come_boy = { version = "*", path = "../library", default-features = false }
 wasm-bindgen = "*"
+console_error_panic_hook = "*"
