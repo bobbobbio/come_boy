@@ -3,7 +3,7 @@
 set -ex
 
 # Download the test roms
-$( dirname $0 )/download_test_roms
+$( dirname $0 )/library/download_test_roms
 
 CHANGES=$( git diff )
 if [ "$CHANGES" != "" ]; then

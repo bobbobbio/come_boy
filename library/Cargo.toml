@@ -1,0 +1,45 @@
+[package]
+name = "come_boy"
+version = "0.1.0"
+authors = ["Remi Bernotavicius <remi@.abort.cc>"]
+build = "build.rs"
+edition = "2018"
+repository = "https://github.com/bobbobbio/come_boy"
+homepage = "https://github.com/bobbobbio/come_boy"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+default = ["speedy2d"]
+
+[badges]
+travis-ci = { repository = "bobbobbio/come_boy" }
+
+[dependencies]
+bincode = "*"
+bmp = "*"
+byteorder = "*"
+crossbeam = "*"
+enum-iterator = "*"
+enum-utils = "*"
+gilrs = "*"
+sdl2 = { version = "0.32.*", optional = true }
+serde = "*"
+serde_derive = "*"
+speedy2d = { version = "*", optional = true }
+
+[dev-dependencies]
+tempfile = "*"
+
+[build-dependencies]
+heck = "*"
+proc-macro2 = "*"
+quote = "*"
+serde = "*"
+serde_derive = "*"
+serde_json = "*"
+
+[build-dependencies.syn]
+version = "*"
+features = ["full"]

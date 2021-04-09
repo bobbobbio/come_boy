@@ -1,0 +1,19 @@
+[package]
+name = "come_boy_cli"
+version = "0.1.0"
+authors = ["Remi Bernotavicius <remi@.abort.cc>"]
+edition = "2018"
+repository = "https://github.com/bobbobbio/come_boy"
+homepage = "https://github.com/bobbobbio/come_boy"
+
+[features]
+default = ["speedy2d"]
+speedy2d = ["come_boy/speedy2d"]
+sdl2 = ["come_boy/sdl2"]
+
+[dependencies]
+come_boy = { version = "*", path = "../library" }
+clap = "*"
+ctrlc = "*"
+structopt = "*"
+

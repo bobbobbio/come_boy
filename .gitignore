@@ -1,8 +1,8 @@
 target
-blargg_test_roms
-mooneye_test_roms
+library/blargg_test_roms
+library/mooneye_test_roms
 *.swp
 *.pyc
 Cargo.lock
 rusty-tags.*
-test/roms/*
+library/test/roms/*
