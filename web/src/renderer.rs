@@ -65,7 +65,7 @@ pub struct CanvasRenderer {
 
 pub const WIDTH: usize = 160;
 pub const HEIGHT: usize = 144;
-pub const PIXEL_SIZE: usize = 2;
+pub const PIXEL_SIZE: usize = 4;
 
 fn get_rendering_context(canvas: &web_sys::HtmlCanvasElement) -> WebGl2RenderingContext {
     canvas
