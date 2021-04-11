@@ -1,7 +1,8 @@
 // Copyright 2017 Remi Bernotavicius
 
 pub use self::game_pak::GamePak;
-use self::joypad::{ControllerJoyPad, JoyPad, PlaybackJoyPad, RecordingJoyPad};
+pub use self::joypad::ControllerJoyPad;
+use self::joypad::{JoyPad, PlaybackJoyPad, RecordingJoyPad};
 use self::lcd_controller::{LcdController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
@@ -40,7 +41,7 @@ mod sound_controller;
 mod tandem;
 
 /// This is how many ticks of the emulator we do before under-clocking and checking for input
-const SLEEP_INPUT_TICKS: u64 = 10_000;
+pub const SLEEP_INPUT_TICKS: u64 = 10_000;
 
 struct ModuloCounter {
     counter: u64,
@@ -88,7 +89,7 @@ impl Underclocker {
 }
 
 #[derive(Debug, Copy, Clone)]
-enum UserControl {
+pub enum UserControl {
     SaveStateLoaded,
     ScreenClosed,
 }
@@ -463,7 +464,7 @@ fn default_clock_speed_hz() -> u32 {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) struct GameBoyEmulator {
+pub struct GameBoyEmulator {
     cpu: LR35902Emulator,
     sound_controller: SoundController,
     lcd_controller: LcdController,
@@ -478,7 +479,7 @@ pub(crate) struct GameBoyEmulator {
     dma_transfer: Option<OamDmaTransfer>,
 
     #[serde(skip, default = "default_clock_speed_hz")]
-    clock_speed_hz: u32,
+    clock_speed_hz_: u32,
 
     #[serde(skip)]
     game_pak: Option<GamePak>,
@@ -490,7 +491,7 @@ pub(crate) struct GameBoyEmulator {
 }
 
 impl GameBoyEmulator {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut e = GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             lcd_controller: LcdController::new(),
@@ -502,7 +503,7 @@ impl GameBoyEmulator {
             scheduler: Scheduler::new(),
             timer: Default::default(),
             dma_transfer: None,
-            clock_speed_hz: default_clock_speed_hz(),
+            clock_speed_hz_: default_clock_speed_hz(),
             game_pak: None,
             joypad_key_events: vec![],
             joypad: None,
@@ -512,11 +513,11 @@ impl GameBoyEmulator {
         e
     }
 
-    fn plug_in_joy_pad<J: JoyPad + 'static>(&mut self, joypad: J) {
+    pub fn plug_in_joy_pad<J: JoyPad + 'static>(&mut self, joypad: J) {
         self.joypad = Some(Box::new(joypad) as Box<dyn JoyPad>)
     }
 
-    fn load_game_pak(&mut self, game_pak: GamePak) {
+    pub fn load_game_pak(&mut self, game_pak: GamePak) {
         println!("Loading {:?}", &game_pak);
         self.game_pak = Some(game_pak);
     }
@@ -544,7 +545,7 @@ impl GameBoyEmulator {
         self.timer.deliver_events(now);
     }
 
-    fn tick<R: Renderer>(&mut self, renderer: &mut R) {
+    pub fn tick<R: Renderer>(&mut self, renderer: &mut R) {
         self.cpu
             .load_instruction(&mut game_boy_memory_map_mut!(self));
 
@@ -569,7 +570,7 @@ impl GameBoyEmulator {
         self.handle_interrupts();
     }
 
-    fn read_key_events<R: Renderer>(
+    pub fn read_key_events<R: Renderer>(
         &mut self,
         renderer: &mut R,
     ) -> std::result::Result<(), UserControl> {
@@ -589,10 +590,10 @@ impl GameBoyEmulator {
                     return Err(UserControl::SaveStateLoaded);
                 }
                 Event::KeyDown(Keycode::F4) => {
-                    if self.clock_speed_hz == default_clock_speed_hz() {
-                        self.clock_speed_hz = u32::MAX;
+                    if self.clock_speed_hz_ == default_clock_speed_hz() {
+                        self.clock_speed_hz_ = u32::MAX;
                     } else {
-                        self.clock_speed_hz = default_clock_speed_hz();
+                        self.clock_speed_hz_ = default_clock_speed_hz();
                     }
                 }
                 Event::KeyDown(code) => self.joypad_key_events.push(KeyEvent::Down(code)),
@@ -754,6 +755,14 @@ impl GameBoyEmulator {
         self.timer.schedule_initial_events(now);
     }
 
+    pub fn elapsed_cycles(&self) -> u64 {
+        self.cpu.elapsed_cycles
+    }
+
+    pub fn clock_speed_hz(&self) -> u32 {
+        self.clock_speed_hz_
+    }
+
     fn run_inner<R: Renderer>(&mut self, renderer: &mut R) -> std::result::Result<(), UserControl> {
         let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles);
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
@@ -764,7 +773,7 @@ impl GameBoyEmulator {
             // We can't do this every tick because it is too slow. So instead so only every so
             // often.
             if sometimes.incr() {
-                underclocker.underclock(self.cpu.elapsed_cycles, self.clock_speed_hz);
+                underclocker.underclock(self.elapsed_cycles(), self.clock_speed_hz());
                 self.read_key_events(renderer)?;
             }
         }

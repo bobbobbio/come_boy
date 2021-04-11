@@ -9,5 +9,31 @@ crate-type = ["cdylib"]
 
 [dependencies]
 come_boy = { version = "*", path = "../library", default-features = false }
-wasm-bindgen = "*"
 console_error_panic_hook = "*"
+wasm-bindgen = "*"
+js-sys = "*"
+
+[dependencies.web-sys]
+version = "*"
+features = [
+  "Blob",
+  "Document",
+  "Element",
+  "Event",
+  "EventTarget",
+  "File",
+  "FileList",
+  "FileReader",
+  "HtmlCanvasElement",
+  "HtmlInputElement",
+  "KeyboardEvent",
+  "Performance",
+  "WebGl2RenderingContext",
+  "WebGlBuffer",
+  "WebGlProgram",
+  "WebGlShader",
+  "WebGlTexture",
+  "WebGlUniformLocation",
+  "WebGlVertexArrayObject",
+  "Window",
+]

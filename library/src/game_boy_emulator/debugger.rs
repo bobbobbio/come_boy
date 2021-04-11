@@ -55,8 +55,8 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
         self.emulator.tick(self.renderer);
         if self.sometimes.incr() {
             self.underclocker.underclock(
-                self.emulator.cpu.elapsed_cycles,
-                self.emulator.clock_speed_hz,
+                self.emulator.elapsed_cycles(),
+                self.emulator.clock_speed_hz(),
             );
             self.emulator.read_key_events(self.renderer).unwrap();
         }
