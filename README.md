@@ -10,6 +10,8 @@ Currently in a pre-release state.  Runs some games, but many others do not work.
 ![pokemon_red](/library/test/expectations/pokemon_red/100000000.bmp?raw=true "Pokemon Red")
 ![f1race](/library/test/expectations/f1race/80000000.bmp?raw=true "F-1 Race")
 
+You can find a live version of it on the web at http://remi.party/come_boy
+
 # Building
 Build like as follows.
 
