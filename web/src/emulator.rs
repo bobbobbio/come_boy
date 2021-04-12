@@ -19,14 +19,17 @@ pub struct Emulator {
     renderer: CanvasRenderer,
     emulator: GameBoyEmulator,
     last_tick: f64,
+    perf: web_sys::Performance,
 }
 
 impl Emulator {
     pub fn new(canvas: &web_sys::HtmlCanvasElement) -> Self {
+        let perf = performance();
         Self {
             renderer: CanvasRenderer::new(canvas),
             emulator: GameBoyEmulator::new(),
-            last_tick: performance().now(),
+            last_tick: perf.now(),
+            perf,
         }
     }
 
@@ -50,8 +53,6 @@ impl Emulator {
     }
 
     pub fn tick(&mut self) -> i32 {
-        let perf = performance();
-
         let start_cycles = self.emulator.elapsed_cycles();
 
         for _ in 0..SLEEP_INPUT_TICKS {
@@ -60,10 +61,15 @@ impl Emulator {
         self.emulator.read_key_events(&mut self.renderer).unwrap();
 
         let elapsed_cycles = self.emulator.elapsed_cycles() - start_cycles;
-        let delay = 1000.0 / self.emulator.clock_speed_hz() as f64;
+
+        // I can't figure out why, but the delay isn't being calculated correctly, I have to slow
+        // it down a bit to make it be the right speed....
+        let fudge = 1.6;
+
+        let delay = 1000.0 / self.emulator.clock_speed_hz() as f64 * fudge;
         let expected_time = elapsed_cycles as f64 * delay;
 
-        let now = perf.now();
+        let now = self.perf.now();
         let elapsed_time = now - self.last_tick;
         self.last_tick = now;
 
