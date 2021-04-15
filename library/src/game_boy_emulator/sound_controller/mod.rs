@@ -2,155 +2,125 @@
 
 use self::memory_map::{SoundControllerMemoryMap, SoundControllerMemoryMapMut};
 use crate::game_boy_emulator::memory_controller::{
-    FlagMask, GameBoyFlags, MemoryAccessor, MemoryMappedHardware,
+    FlagMask, GameBoyFlags, GameBoyRegister, GameBoyRegister16, MemoryAccessor,
+    MemoryMappedHardware,
 };
-use crate::game_boy_emulator::{GameBoyRegister, MemoryChunk};
+use crate::sound::SoundStream;
+use channel1::Channel1;
+use channel2::Channel2;
+use channel3::Channel3;
+use channel4::Channel4;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 
 #[macro_use]
 mod memory_map;
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
-#[repr(u8)]
-pub enum SweepFlag {
-    Time = 0b01110000,
-    IncreaseOrDecrease = 0b00001000,
-    Shift = 0b00000111,
+mod channel1;
+mod channel2;
+mod channel3;
+mod channel4;
+
+trait Channel: MemoryMappedHardware {
+    fn frequency_address() -> u16;
+    fn restart(&mut self, freq: &mut Frequency);
+    fn deliver_events<S: SoundStream>(
+        &mut self,
+        now: u64,
+        sound_stream: &mut S,
+        freq: &mut Frequency,
+    );
 }
 
-impl FlagMask for SweepFlag {
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[repr(u8)]
+enum ChannelHighByte {
+    Restart = 0b10000000,
+    CounterSelection = 0b01000000,
+    FrequencyHigh = 0b00000111,
+}
+
+impl FlagMask for ChannelHighByte {
     fn read_mask() -> u8 {
-        Self::Time as u8 | Self::IncreaseOrDecrease as u8 | Self::Shift as u8
+        Self::CounterSelection as u8
     }
 
     fn write_mask() -> u8 {
-        Self::Time as u8 | Self::IncreaseOrDecrease as u8 | Self::Shift as u8
+        Self::Restart as u8 | Self::CounterSelection as u8 | Self::FrequencyHigh as u8
     }
 }
+
+type Frequency = GameBoyRegister16;
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct ToneAndSweep {
-    pub sweep: GameBoyFlags<SweepFlag>,
-    pub sound_length: GameBoyRegister,
-    pub volume_envelope: GameBoyRegister,
-    pub frequency_low: GameBoyRegister,
-    pub frequency_high: GameBoyRegister,
+struct ChannelController<C> {
+    channel: C,
+    counter_selection: bool,
+    frequency: Frequency,
 }
 
-#[derive(Default, Serialize, Deserialize)]
-pub struct Tone {
-    pub sound_length: GameBoyRegister,
-    pub volume_envelope: GameBoyRegister,
-    pub frequency_low: GameBoyRegister,
-    pub frequency_high: GameBoyRegister,
-}
+impl<C: Channel> ChannelController<C> {
+    fn write_high_byte(&mut self, value: u8) {
+        let mut control = GameBoyFlags::<ChannelHighByte>::new();
+        MemoryMappedHardware::set_value(&mut control, 0, value);
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
-#[repr(u8)]
-pub enum EnabledFlag {
-    Enabled = 0b10000000,
-}
+        self.counter_selection = control.read_flag(ChannelHighByte::CounterSelection);
+        let freq_high = control.read_flag_value(ChannelHighByte::FrequencyHigh);
+        MemoryMappedHardware::set_value(&mut self.frequency, 1, freq_high);
 
-impl FlagMask for EnabledFlag {
-    fn read_mask() -> u8 {
-        Self::Enabled as u8
+        let restart = control.read_flag(ChannelHighByte::Restart);
+        if restart {
+            self.channel.restart(&mut self.frequency);
+        }
     }
 
-    fn write_mask() -> u8 {
-        Self::Enabled as u8
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
-#[repr(u8)]
-pub enum OutputLevel {
-    Level = 0b01100000,
-}
-
-impl FlagMask for OutputLevel {
-    fn read_mask() -> u8 {
-        Self::Level as u8
+    fn write_low_byte(&mut self, value: u8) {
+        MemoryMappedHardware::set_value(&mut self.frequency, 0, value);
     }
 
-    fn write_mask() -> u8 {
-        Self::Level as u8
+    fn read_high_byte(&self) -> u8 {
+        let mut control = GameBoyFlags::<ChannelHighByte>::new();
+        control.set_flag(ChannelHighByte::CounterSelection, self.counter_selection);
+        MemoryMappedHardware::read_value(&control, 0)
+    }
+
+    fn deliver_events<S: SoundStream>(&mut self, now: u64, sound_stream: &mut S) {
+        self.channel
+            .deliver_events(now, sound_stream, &mut self.frequency);
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct WaveOutput {
-    pub enabled: GameBoyFlags<EnabledFlag>,
-    pub sound_length: GameBoyRegister,
-    pub output_level: GameBoyFlags<OutputLevel>,
-    pub frequency_low: GameBoyRegister,
-    pub frequency_high: GameBoyRegister,
-    pub wave_pattern: MemoryChunk,
-}
+impl<C: Channel> MemoryMappedHardware for ChannelController<C> {
+    fn read_value(&self, address: u16) -> u8 {
+        if address == C::frequency_address() + 1 {
+            self.read_high_byte()
+        } else if address == C::frequency_address() {
+            0xFF
+        } else {
+            MemoryMappedHardware::read_value(&self.channel, address)
+        }
+    }
 
-impl Default for WaveOutput {
-    fn default() -> Self {
-        WaveOutput {
-            enabled: Default::default(),
-            sound_length: Default::default(),
-            output_level: Default::default(),
-            frequency_low: Default::default(),
-            frequency_high: Default::default(),
-            wave_pattern: MemoryChunk::from_range(0..0x10),
+    fn set_value(&mut self, address: u16, value: u8) {
+        if address == C::frequency_address() + 1 {
+            self.write_high_byte(value);
+        } else if address == C::frequency_address() {
+            self.write_low_byte(value);
+        } else {
+            MemoryMappedHardware::set_value(&mut self.channel, address, value)
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
-#[repr(u8)]
-pub enum SoundLength {
-    Length = 0b00111111,
-}
-
-impl FlagMask for SoundLength {
-    fn read_mask() -> u8 {
-        Self::Length as u8
-    }
-
-    fn write_mask() -> u8 {
-        Self::Length as u8
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
-#[repr(u8)]
-pub enum Counter {
-    Initial = 0b10000000,
-    Selection = 0b01000000,
-}
-
-impl FlagMask for Counter {
-    fn read_mask() -> u8 {
-        Self::Selection as u8
-    }
-
-    fn write_mask() -> u8 {
-        Self::Initial as u8 | Self::Selection as u8
-    }
-}
-
-#[derive(Default, Serialize, Deserialize)]
-pub struct Noise {
-    pub sound_length: GameBoyFlags<SoundLength>,
-    pub volume_envelope: GameBoyRegister,
-    pub polynomial_counter: GameBoyRegister,
-    pub counter: GameBoyFlags<Counter>,
-}
-
 #[derive(Default, Serialize, Deserialize)]
 pub struct SoundController {
-    pub channel1: ToneAndSweep,
-    pub channel2: Tone,
-    pub channel3: WaveOutput,
-    pub channel4: Noise,
-    pub channel_control: GameBoyRegister,
-    pub output_terminal: GameBoyRegister,
-    pub enabled: GameBoyRegister,
+    channel1: ChannelController<Channel1>,
+    channel2: ChannelController<Channel2>,
+    channel3: ChannelController<Channel3>,
+    channel4: Channel4,
+    channel_control: GameBoyRegister,
+    output_terminal: GameBoyRegister,
+    enabled: GameBoyRegister,
 }
 
 impl MemoryMappedHardware for SoundController {
@@ -175,23 +145,20 @@ impl MemoryMappedHardware for SoundController {
 
 impl SoundController {
     pub fn set_state_post_bios(&mut self) {
-        self.channel1.sweep.set_value(0x80);
-        self.channel1.sound_length.set_value(0xBF);
-        self.channel1.volume_envelope.set_value(0xF3);
-        self.channel1.frequency_low.set_value(0xFF);
-        self.channel1.frequency_high.set_value(0xBF);
+        self.channel1.channel.sweep.set_value(0x80);
+        self.channel1.channel.sound_length.set_value(0xBF);
+        self.channel1.channel.volume_envelope.set_value(0xF3);
+        self.channel1.frequency.set_value(0xBFFF);
 
-        self.channel2.sound_length.set_value(0x3F);
-        self.channel2.volume_envelope.set_value(0x00);
-        self.channel2.frequency_low.set_value(0xFF);
-        self.channel2.frequency_high.set_value(0xBF);
+        self.channel2.channel.sound_length.set_value(0x3F);
+        self.channel2.channel.volume_envelope.set_value(0x00);
+        self.channel2.frequency.set_value(0xBFFF);
 
-        self.channel3.enabled.set_value(0x7F);
-        self.channel3.sound_length.set_value(0xFF);
-        self.channel3.output_level.set_value(0x9F);
-        self.channel3.frequency_low.set_value(0xFF);
-        self.channel3.frequency_high.set_value(0xBF);
-        self.channel3.wave_pattern.clone_from_slice(&[
+        self.channel3.channel.enabled.set_value(0x7F);
+        self.channel3.channel.sound_length.set_value(0xFF);
+        self.channel3.channel.output_level.set_value(0x9F);
+        self.channel3.frequency.set_value(0xBFFF);
+        self.channel3.channel.wave_pattern.clone_from_slice(&[
             0x71, 0x72, 0xD5, 0x91, 0x58, 0xBB, 0x2A, 0xFA, 0xCF, 0x3C, 0x54, 0x75, 0x48, 0xCF,
             0x8F, 0xD9,
         ]);
@@ -216,7 +183,11 @@ impl SoundController {
         self.output_terminal.set_value(0x00);
 
         // Why does this happen?
-        self.channel1.sound_length.set_value(0x3F);
-        self.channel1.volume_envelope.set_value(0x00);
+        self.channel1.channel.sound_length.set_value(0x3F);
+        self.channel1.channel.volume_envelope.set_value(0x00);
+    }
+
+    pub fn deliver_events<S: SoundStream>(&mut self, now: u64, sound_stream: &mut S) {
+        self.channel1.deliver_events(now, sound_stream);
     }
 }

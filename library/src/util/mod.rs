@@ -141,9 +141,17 @@ struct SchedulerEntry<T> {
     event: T,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Scheduler<T> {
     timeline: VecDeque<SchedulerEntry<T>>,
+}
+
+impl<T> Default for Scheduler<T> {
+    fn default() -> Self {
+        Self {
+            timeline: VecDeque::new(),
+        }
+    }
 }
 
 impl<T> Scheduler<T> {

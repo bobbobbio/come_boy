@@ -13,6 +13,7 @@ use crate::emulator_common::disassembler::MemoryAccessor;
 use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, Renderer};
+use crate::sound::{NullSoundStream, SoundStream};
 use crate::util::{super_fast_hash, Scheduler};
 use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
@@ -458,7 +459,7 @@ impl OamDmaTransfer {
     }
 }
 
-fn default_clock_speed_hz() -> u32 {
+const fn default_clock_speed_hz() -> u32 {
     // GameBoy clock speed is about 4.19Mhz
     4_194_304
 }
@@ -536,31 +537,36 @@ impl GameBoyEmulator {
             .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
 
-    fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
+    fn deliver_events<R: Renderer, S: SoundStream>(
+        &mut self,
+        renderer: &mut R,
+        sound_stream: &mut S,
+        now: u64,
+    ) {
         while let Some((time, event)) = self.scheduler.poll(now) {
             event.deliver(self, time);
         }
 
         self.lcd_controller.deliver_events(renderer, now);
         self.timer.deliver_events(now);
+        self.sound_controller.deliver_events(now, sound_stream);
     }
 
-    pub fn tick<R: Renderer>(&mut self, renderer: &mut R) {
+    pub fn tick<R: Renderer, S: SoundStream>(&mut self, renderer: &mut R, sound_stream: &mut S) {
         self.cpu
             .load_instruction(&mut game_boy_memory_map_mut!(self));
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(renderer, now);
+        self.deliver_events(renderer, sound_stream, now);
 
         self.cpu
             .execute_instruction(&mut game_boy_memory_map_mut!(self));
 
+        let now = self.cpu.elapsed_cycles;
         self.timer.tick(now);
         self.lcd_controller.tick(now);
         self.execute_dma(now);
-
-        let now = self.cpu.elapsed_cycles;
-        self.deliver_events(renderer, now);
+        self.deliver_events(renderer, sound_stream, now);
 
         self.lcd_controller
             .schedule_interrupts(&mut self.registers.interrupt_flag);
@@ -763,12 +769,16 @@ impl GameBoyEmulator {
         self.clock_speed_hz_
     }
 
-    fn run_inner<R: Renderer>(&mut self, renderer: &mut R) -> std::result::Result<(), UserControl> {
+    fn run_inner<R: Renderer, S: SoundStream>(
+        &mut self,
+        renderer: &mut R,
+        sound_stream: &mut S,
+    ) -> std::result::Result<(), UserControl> {
         let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles);
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 
         while self.crashed().is_none() {
-            self.tick(renderer);
+            self.tick(renderer, sound_stream);
 
             // We can't do this every tick because it is too slow. So instead so only every so
             // often.
@@ -787,9 +797,17 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn run<R: Renderer, J: JoyPad + 'static>(&mut self, renderer: &mut R, joypad: J) {
+    fn run<R: Renderer, S: SoundStream, J: JoyPad + 'static>(
+        &mut self,
+        renderer: &mut R,
+        sound_stream: &mut S,
+        joypad: J,
+    ) {
         self.plug_in_joy_pad(joypad);
-        while std::matches!(self.run_inner(renderer), Err(UserControl::SaveStateLoaded)) {
+        while std::matches!(
+            self.run_inner(renderer, sound_stream),
+            Err(UserControl::SaveStateLoaded)
+        ) {
             if let Err(e) = self.load_state_from_file() {
                 println!("Failed to load state {:?}", e);
             }
@@ -888,8 +906,9 @@ fn initial_state_test() {
     assert_eq!(e.hash(), 1497694477);
 }
 
-pub fn run_emulator<R: Renderer>(
+pub fn run_emulator<R: Renderer, S: SoundStream>(
     renderer: &mut R,
+    sound_stream: &mut S,
     game_pak: GamePak,
     save_state: Option<Vec<u8>>,
 ) -> Result<()> {
@@ -900,7 +919,7 @@ pub fn run_emulator<R: Renderer>(
         e.load_state(&save_state[..])?;
     }
 
-    e.run(renderer, ControllerJoyPad::new());
+    e.run(renderer, sound_stream, ControllerJoyPad::new());
     Ok(())
 }
 
@@ -920,7 +939,7 @@ fn run_emulator_until<R: Renderer>(e: &mut GameBoyEmulator, renderer: &mut R, ti
             panic!("Emulator crashed: {}", c);
         }
 
-        e.tick(renderer);
+        e.tick(renderer, &mut NullSoundStream);
     }
 }
 
@@ -958,27 +977,31 @@ pub fn run_until_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P2: AsRef<Pat
     Ok(())
 }
 
-pub fn run_and_record_replay<R: Renderer>(
+pub fn run_and_record_replay<R: Renderer, S: SoundStream>(
     renderer: &mut R,
+    sound_stream: &mut S,
     game_pak: GamePak,
     output: &Path,
 ) -> Result<()> {
     let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run(renderer, joypad);
+
+    e.run(renderer, sound_stream, joypad);
     Ok(())
 }
 
-pub fn playback_replay<R: Renderer>(
+pub fn playback_replay<R: Renderer, S: SoundStream>(
     renderer: &mut R,
+    sound_stream: &mut S,
     game_pak: GamePak,
     input: &Path,
 ) -> Result<()> {
     let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
-    e.run(renderer, joypad);
+
+    e.run(renderer, sound_stream, joypad);
     Ok(())
 }
 
@@ -988,4 +1011,4 @@ pub fn print_replay(input: &Path) -> Result<()> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests;
+mod tests;

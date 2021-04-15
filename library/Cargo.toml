@@ -28,6 +28,7 @@ sdl2 = { version = "0.32.*", optional = true }
 serde = "*"
 serde_derive = "*"
 speedy2d = { version = "*", optional = true }
+cpal = "*"
 
 [dev-dependencies]
 tempfile = "*"

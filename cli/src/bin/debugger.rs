@@ -4,6 +4,7 @@ use bin_common::backend::BackendMap;
 use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
+use come_boy::sound::SoundStream;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
@@ -38,8 +39,8 @@ impl Frontend {
 }
 
 impl bin_common::frontend::Frontend for Frontend {
-    fn run<R: Renderer>(self, renderer: &mut R) {
-        game_boy_emulator::run_debugger(renderer, self.game_pak, &|| {
+    fn run<R: Renderer, S: SoundStream>(self, renderer: &mut R, sound_stream: &mut S) {
+        game_boy_emulator::run_debugger(renderer, sound_stream, self.game_pak, &|| {
             INTERRUPTED.swap(false, Ordering::Relaxed)
         });
     }

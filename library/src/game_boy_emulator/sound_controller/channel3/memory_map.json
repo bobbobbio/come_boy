@@ -1,0 +1,18 @@
+{
+    "0xFF1A": {
+        "field": "enabled",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1B": {
+        "field": "sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF1C": {
+        "field": "output_level",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF30..0xFF40": {
+        "field": "wave_pattern",
+        "mapping_type": "ReadWrite"
+    }
+}

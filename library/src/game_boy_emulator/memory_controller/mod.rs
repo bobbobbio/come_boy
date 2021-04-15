@@ -55,6 +55,61 @@ fn gameboy_register_read_write() {
     assert_eq!(register.read_value(), 12);
 }
 
+#[derive(Default, Serialize, Deserialize)]
+pub struct GameBoyRegister16 {
+    value: u16,
+}
+
+impl fmt::Debug for GameBoyRegister16 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "0x{:04x}", self.value)
+    }
+}
+
+impl MemoryMappedHardware for GameBoyRegister16 {
+    fn read_value(&self, address: u16) -> u8 {
+        match address {
+            0 => self.value as u8,
+            1 => (self.value >> 8) as u8,
+            a => panic!("address = {}", a),
+        }
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        self.value = match address {
+            0 => (self.value & 0xFF00) | value as u16,
+            1 => (self.value & 0x00FF) | ((value as u16) << 8),
+            a => panic!("address = {}", a),
+        };
+    }
+}
+
+impl GameBoyRegister16 {
+    pub fn read_value(&self) -> u16 {
+        self.value
+    }
+
+    pub fn set_value(&mut self, value: u16) {
+        self.value = value;
+    }
+}
+
+#[test]
+fn gameboy_register_16_read_write() {
+    let mut register = GameBoyRegister16::default();
+    register.set_value(0xabcd);
+    assert_eq!(register.read_value(), 0xabcd);
+
+    assert_eq!(MemoryMappedHardware::read_value(&register, 0), 0xcd);
+    assert_eq!(MemoryMappedHardware::read_value(&register, 1), 0xab);
+
+    MemoryMappedHardware::set_value(&mut register, 0, 0x12);
+    assert_eq!(MemoryMappedHardware::read_value(&register, 0), 0x12);
+
+    MemoryMappedHardware::set_value(&mut register, 1, 0x34);
+    assert_eq!(MemoryMappedHardware::read_value(&register, 1), 0x34);
+}
+
 pub trait FlagMask {
     fn read_mask() -> u8;
     fn write_mask() -> u8;

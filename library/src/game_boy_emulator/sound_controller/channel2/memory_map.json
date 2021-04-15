@@ -1,0 +1,10 @@
+{
+    "0xFF16": {
+        "field": "sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF17": {
+        "field": "volume_envelope",
+        "mapping_type": "ReadWrite"
+    }
+}

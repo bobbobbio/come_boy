@@ -88,14 +88,16 @@ impl<F: Frontend> BackendMap<F> {
 mod speedy2d {
     use super::{Backend, Frontend};
     use come_boy::rendering::{speedy, RenderingOptions};
+    use come_boy::sound::cpal::CpalSoundStream;
 
     pub(super) struct Speedy2dBackend;
 
     impl Backend for Speedy2dBackend {
         fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
             println!("Using speedy2d renderer");
+            let mut sound_stream = CpalSoundStream::new();
             speedy::run_loop(rendering_options, move |renderer| {
-                frontend.run(renderer);
+                frontend.run(renderer, &mut sound_stream);
             })
         }
     }
@@ -105,14 +107,16 @@ mod speedy2d {
 mod sdl2 {
     use super::{Backend, Frontend};
     use come_boy::rendering::{sdl2::Sdl2WindowRenderer, RenderingOptions};
+    use come_boy::sound::cpal::CpalSoundStream;
 
     pub(super) struct Sdl2Backend;
 
     impl Backend for Sdl2Backend {
         fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
             println!("Using sdl2 renderer");
+            let mut sound_stream = CpalSoundStream::new();
             let mut renderer = Sdl2WindowRenderer::new(rendering_options);
-            frontend.run(&mut renderer);
+            frontend.run(&mut renderer, &mut sound_stream);
             std::process::exit(0)
         }
     }

@@ -1275,5 +1275,20 @@ fn main() {
         "SoundController",
         "sound_controller",
     );
+    generate_memory_map(
+        "game_boy_emulator/sound_controller/channel1",
+        "Channel1",
+        "channel1",
+    );
+    generate_memory_map(
+        "game_boy_emulator/sound_controller/channel2",
+        "Channel2",
+        "channel2",
+    );
+    generate_memory_map(
+        "game_boy_emulator/sound_controller/channel3",
+        "Channel3",
+        "channel3",
+    );
     generate_rom_tests("test/roms", "test/expectations", "game_boy_emulator");
 }

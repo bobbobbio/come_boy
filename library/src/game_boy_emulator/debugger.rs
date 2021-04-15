@@ -7,6 +7,7 @@ use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::{GameBoyEmulator, ModuloCounter, Underclocker, SLEEP_INPUT_TICKS};
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
+use crate::sound::SoundStream;
 use std::io::{self, Result};
 use std::{fmt, str};
 
@@ -21,27 +22,29 @@ impl fmt::Debug for GameBoyEmulator {
     }
 }
 
-struct GameBoyDebugger<'a, R> {
+struct GameBoyDebugger<'a, R, S> {
     emulator: GameBoyEmulator,
     renderer: &'a mut R,
+    sound_stream: &'a mut S,
     underclocker: Underclocker,
     sometimes: ModuloCounter,
 }
 
-impl<'a, R: Renderer> GameBoyDebugger<'a, R> {
-    fn new(renderer: &'a mut R) -> Self {
+impl<'a, R: Renderer, S: SoundStream> GameBoyDebugger<'a, R, S> {
+    fn new(renderer: &'a mut R, sound_stream: &'a mut S) -> Self {
         let emulator = GameBoyEmulator::new();
         let underclocker = Underclocker::new(emulator.cpu.elapsed_cycles);
         Self {
             emulator,
             renderer,
+            sound_stream,
             underclocker,
             sometimes: ModuloCounter::new(SLEEP_INPUT_TICKS),
         }
     }
 }
 
-impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
+impl<'a, R: Renderer, S: SoundStream> DebuggerOps for GameBoyDebugger<'a, R, S> {
     fn read_memory(&self, address: u16) -> u8 {
         let memory_map = game_boy_memory_map!(&self.emulator);
         memory_map.read_memory(address)
@@ -52,7 +55,7 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
     }
 
     fn next(&mut self) {
-        self.emulator.tick(self.renderer);
+        self.emulator.tick(self.renderer, self.sound_stream);
         if self.sometimes.incr() {
             self.underclocker.underclock(
                 self.emulator.elapsed_cycles(),
@@ -94,12 +97,13 @@ impl<'a, R: Renderer> DebuggerOps for GameBoyDebugger<'a, R> {
     }
 }
 
-pub fn run_debugger<R: Renderer>(
+pub fn run_debugger<R: Renderer, S: SoundStream>(
     renderer: &mut R,
+    sound_stream: &mut S,
     game_pak: GamePak,
     is_interrupted: &dyn Fn() -> bool,
 ) {
-    let mut gameboy_debugger = GameBoyDebugger::new(renderer);
+    let mut gameboy_debugger = GameBoyDebugger::new(renderer, sound_stream);
     gameboy_debugger.emulator.load_game_pak(game_pak);
     gameboy_debugger
         .emulator

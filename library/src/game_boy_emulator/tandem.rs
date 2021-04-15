@@ -6,6 +6,7 @@ use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag, Result};
 use crate::rendering::NullRenderer;
+use crate::sound::NullSoundStream;
 use std::fmt::{self, Debug};
 use std::fs::File;
 use std::io::{Bytes, Read, Write};
@@ -271,7 +272,7 @@ fn compares_states() {
 
 impl AbstractEmulator for GameBoyEmulator {
     fn run_one(&mut self) {
-        self.tick(&mut NullRenderer);
+        self.tick(&mut NullRenderer, &mut NullSoundStream);
     }
 
     fn get_state(&self) -> Option<AbstractEmulatorState> {

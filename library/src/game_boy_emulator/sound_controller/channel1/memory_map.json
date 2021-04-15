@@ -1,0 +1,14 @@
+{
+    "0xFF10": {
+        "field": "sweep",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF11": {
+        "field": "sound_length",
+        "mapping_type": "ReadWrite"
+    },
+    "0xFF12": {
+        "field": "volume_envelope",
+        "mapping_type": "ReadWrite"
+    }
+}
