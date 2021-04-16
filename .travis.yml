@@ -5,6 +5,7 @@ addons:
   apt:
     packages:
       - libudev-dev
+      - libasound2-dev
 
 language: rust
 rust:
