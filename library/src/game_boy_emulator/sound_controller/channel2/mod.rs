@@ -5,31 +5,31 @@ use super::{Channel, Frequency};
 use crate::game_boy_emulator::memory_controller::{
     GameBoyRegister, MemoryAccessor, MemoryMappedHardware,
 };
-use crate::sound::SoundStream;
 use serde_derive::{Deserialize, Serialize};
 
 #[macro_use]
 mod memory_map;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Channel2 {
     pub sound_length: GameBoyRegister,
     pub volume_envelope: GameBoyRegister,
+    enabled: bool,
 }
 
 impl Channel for Channel2 {
-    fn frequency_address() -> u16 {
-        0xFF18
-    }
+    const FREQUENCY_ADDRESS: u16 = 0xFF18;
 
     fn restart(&mut self, _freq: &mut Frequency) {}
 
-    fn deliver_events<S: SoundStream>(
-        &mut self,
-        _now: u64,
-        _sound_stream: &mut S,
-        _freq: &mut Frequency,
-    ) {
+    fn deliver_events(&mut self, _now: u64, _freq: &mut Frequency, _using_length: bool) {}
+
+    fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    fn disable(&mut self) {
+        self.enabled = false;
     }
 }
 

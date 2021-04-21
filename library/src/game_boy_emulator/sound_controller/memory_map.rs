@@ -12,7 +12,6 @@ pub struct SoundControllerMemoryMapMut<'a> {
         &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub channel_control:
         &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
-    pub enabled: &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub output_terminal:
         &'a mut dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
 }
@@ -28,7 +27,6 @@ macro_rules! sound_controller_memory_map_mut {
             channel4_sound_length: &mut $f.channel4.sound_length,
             channel4_volume_envelope: &mut $f.channel4.volume_envelope,
             channel_control: &mut $f.channel_control,
-            enabled: &mut $f.enabled,
             output_terminal: &mut $f.output_terminal,
         }
     };
@@ -50,8 +48,6 @@ impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor
             self.channel_control.read_value(address - 65316u16)
         } else if address == 65317u16 {
             self.output_terminal.read_value(address - 65317u16)
-        } else if address == 65318u16 {
-            self.enabled.read_value(address - 65318u16)
         } else if address >= 65296u16 && address < 65301u16 {
             self.channel1.read_value(address - 0u16)
         } else if address >= 65302u16 && address < 65306u16 {
@@ -110,7 +106,6 @@ pub struct SoundControllerMemoryMap<'a> {
     pub channel4_volume_envelope:
         &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub channel_control: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
-    pub enabled: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
     pub output_terminal: &'a dyn crate::game_boy_emulator::memory_controller::MemoryMappedHardware,
 }
 #[macro_export]
@@ -125,7 +120,6 @@ macro_rules! sound_controller_memory_map {
             channel4_sound_length: &$f.channel4.sound_length,
             channel4_volume_envelope: &$f.channel4.volume_envelope,
             channel_control: &$f.channel_control,
-            enabled: &$f.enabled,
             output_terminal: &$f.output_terminal,
         }
     };
@@ -147,8 +141,6 @@ impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor
             self.channel_control.read_value(address - 65316u16)
         } else if address == 65317u16 {
             self.output_terminal.read_value(address - 65317u16)
-        } else if address == 65318u16 {
-            self.enabled.read_value(address - 65318u16)
         } else if address >= 65296u16 && address < 65301u16 {
             self.channel1.read_value(address - 0u16)
         } else if address >= 65302u16 && address < 65306u16 {

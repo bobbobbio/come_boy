@@ -17,6 +17,7 @@ impl fmt::Debug for GameBoyEmulator {
         writeln!(f, "{:#?}", self.registers)?;
         writeln!(f, "{:#?}", self.timer)?;
         write!(f, "{:#?}", self.lcd_controller.registers)?;
+        write!(f, "{:#?}", self.sound_controller)?;
 
         Ok(())
     }

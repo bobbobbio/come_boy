@@ -759,6 +759,7 @@ impl GameBoyEmulator {
 
         self.lcd_controller.schedule_initial_events(now);
         self.timer.schedule_initial_events(now);
+        self.sound_controller.schedule_initial_events(now);
     }
 
     pub fn elapsed_cycles(&self) -> u64 {

@@ -38,10 +38,6 @@
         "field": "output_terminal",
         "mapping_type": "ReadWrite"
     },
-    "0xFF26": {
-        "field": "enabled",
-        "mapping_type": "Read"
-    },
     "0xFF30..0xFF40": {
         "field": "channel3",
         "mapping_type": "ReadWrite",

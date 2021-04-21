@@ -1,10 +1,11 @@
 // Copyright 2021 Remi Bernotavicius
 
 use crate::game_boy_emulator::memory_controller::{FlagMask, GameBoyFlags, GameBoyRegister};
+use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
 #[repr(u8)]
 pub enum SoundLength {
     Length = 0b00111111,
@@ -20,7 +21,7 @@ impl FlagMask for SoundLength {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
 #[repr(u8)]
 pub enum Counter {
     Initial = 0b10000000,
@@ -37,10 +38,18 @@ impl FlagMask for Counter {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Channel4 {
     pub sound_length: GameBoyFlags<SoundLength>,
     pub volume_envelope: GameBoyRegister,
     pub polynomial_counter: GameBoyRegister,
     pub counter: GameBoyFlags<Counter>,
+}
+
+impl Channel4 {
+    pub fn enabled(&self) -> bool {
+        false
+    }
+
+    pub fn disable(&mut self) {}
 }

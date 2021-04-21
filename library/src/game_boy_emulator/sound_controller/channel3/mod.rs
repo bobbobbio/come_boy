@@ -5,14 +5,14 @@ use super::{Channel, Frequency};
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryAccessor, MemoryChunk, MemoryMappedHardware,
 };
-use crate::sound::SoundStream;
+use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 
 #[macro_use]
 mod memory_map;
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
 #[repr(u8)]
 pub enum EnabledFlag {
     Enabled = 0b10000000,
@@ -28,7 +28,7 @@ impl FlagMask for EnabledFlag {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
 #[repr(u8)]
 pub enum OutputLevel {
     Level = 0b01100000,
@@ -44,7 +44,7 @@ impl FlagMask for OutputLevel {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Channel3 {
     pub enabled: GameBoyFlags<EnabledFlag>,
     pub sound_length: GameBoyRegister,
@@ -64,19 +64,17 @@ impl Default for Channel3 {
 }
 
 impl Channel for Channel3 {
-    fn frequency_address() -> u16 {
-        0xFF1D
-    }
+    const FREQUENCY_ADDRESS: u16 = 0xFF1D;
 
     fn restart(&mut self, _freq: &mut Frequency) {}
 
-    fn deliver_events<S: SoundStream>(
-        &mut self,
-        _now: u64,
-        _sound_stream: &mut S,
-        _freq: &mut Frequency,
-    ) {
+    fn deliver_events(&mut self, _now: u64, _freq: &mut Frequency, _using_length: bool) {}
+
+    fn enabled(&self) -> bool {
+        false
     }
+
+    fn disable(&mut self) {}
 }
 
 impl MemoryMappedHardware for Channel3 {

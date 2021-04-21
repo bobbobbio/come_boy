@@ -31,4 +31,5 @@ function download_package {
 download_package blargg_test_roms $BLARGG_URL cpu_instrs
 download_package blargg_test_roms $BLARGG_URL instr_timing
 download_package blargg_test_roms $BLARGG_URL oam_bug
+download_package blargg_test_roms $BLARGG_URL dmg_sound
 download_package mooneye_test_roms $MOONEYE_URL mooneye-gb_hwtests

@@ -11,7 +11,7 @@ use std::{fmt, io};
 #[macro_use]
 pub mod memory_map;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct GameBoyRegister {
     value: u8,
 }
@@ -55,7 +55,7 @@ fn gameboy_register_read_write() {
     assert_eq!(register.read_value(), 12);
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct GameBoyRegister16 {
     value: u16,
 }
@@ -332,6 +332,12 @@ impl<T: MemoryMappedHardware + ?Sized> MemoryMappedHardware for Box<T> {
 pub struct MemoryChunk {
     value: Vec<u8>,
     borrowed: u32,
+}
+
+impl fmt::Debug for MemoryChunk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MemoryChunk")
+    }
 }
 
 impl MemoryMappedHardware for MemoryChunk {

@@ -2,6 +2,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::fmt;
 
 pub trait TwosComplement<T> {
     fn twos_complement(self) -> T;
@@ -144,6 +145,12 @@ struct SchedulerEntry<T> {
 #[derive(Serialize, Deserialize)]
 pub struct Scheduler<T> {
     timeline: VecDeque<SchedulerEntry<T>>,
+}
+
+impl<T> fmt::Debug for Scheduler<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Scheduler")
+    }
 }
 
 impl<T> Default for Scheduler<T> {
