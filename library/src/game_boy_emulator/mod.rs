@@ -61,31 +61,27 @@ impl ModuloCounter {
 }
 
 struct Underclocker {
-    last_cycles: u64,
-    last_instant: Instant,
+    start_cycles: u64,
+    start_instant: Instant,
 }
 
 impl Underclocker {
     fn new(now: u64) -> Self {
         Self {
-            last_cycles: now,
-            last_instant: Instant::now(),
+            start_cycles: now,
+            start_instant: Instant::now(),
         }
     }
 
     fn underclock(&mut self, now: u64, speed: u32) {
-        let elapsed_cycles = now - self.last_cycles;
+        let elapsed_cycles = now - self.start_cycles;
 
         let delay = Duration::from_secs(1) / speed;
-        let expected_time = (elapsed_cycles as u32) * delay;
+        let expected_elapsed = (elapsed_cycles as u32) * delay;
 
-        // If we didn't take long enough, sleep the difference.
-        if let Some(sleep_time) = expected_time.checked_sub(self.last_instant.elapsed()) {
+        if let Some(sleep_time) = expected_elapsed.checked_sub(self.start_instant.elapsed()) {
             std::thread::sleep(sleep_time);
         }
-
-        self.last_cycles = now;
-        self.last_instant = std::time::Instant::now();
     }
 }
 
