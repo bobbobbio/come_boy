@@ -1,6 +1,8 @@
 use super::renderer::CanvasRenderer;
 use super::window;
-use come_boy::game_boy_emulator::{ControllerJoyPad, GameBoyEmulator, GamePak, SLEEP_INPUT_TICKS};
+use come_boy::game_boy_emulator::{
+    ControllerJoyPad, GameBoyEmulator, GamePak, UserControl, SLEEP_INPUT_TICKS,
+};
 use come_boy::sound::NullSoundStream;
 
 fn performance() -> web_sys::Performance {
@@ -16,21 +18,49 @@ fn f64_saturating_sub(a: f64, b: f64) -> f64 {
     }
 }
 
+struct Underclocker {
+    start_cycles: u64,
+    start_time: f64,
+    speed: u32,
+    perf: web_sys::Performance,
+}
+
+impl Underclocker {
+    fn new(now: u64, speed: u32) -> Self {
+        let perf = performance();
+        Self {
+            start_cycles: now,
+            start_time: perf.now(),
+            speed,
+            perf,
+        }
+    }
+
+    fn get_delay(&mut self, now: u64) -> i32 {
+        let elapsed_cycles = now - self.start_cycles;
+
+        let delay = 1000.0 / self.speed as f64;
+        let expected_time = elapsed_cycles as f64 * delay;
+
+        let elapsed_time = self.perf.now() - self.start_time;
+        f64_saturating_sub(expected_time, elapsed_time) as i32
+    }
+}
+
 pub struct Emulator {
     renderer: CanvasRenderer,
     emulator: GameBoyEmulator,
-    last_tick: f64,
-    perf: web_sys::Performance,
+    underclocker: Underclocker,
 }
 
 impl Emulator {
     pub fn new(canvas: &web_sys::HtmlCanvasElement) -> Self {
-        let perf = performance();
+        let emulator = GameBoyEmulator::new();
+        let underclocker = Underclocker::new(emulator.elapsed_cycles(), emulator.clock_speed_hz());
         Self {
             renderer: CanvasRenderer::new(canvas),
-            emulator: GameBoyEmulator::new(),
-            last_tick: perf.now(),
-            perf,
+            emulator,
+            underclocker,
         }
     }
 
@@ -53,27 +83,25 @@ impl Emulator {
         self.renderer.render();
     }
 
-    pub fn tick(&mut self) -> i32 {
-        let start_cycles = self.emulator.elapsed_cycles();
+    fn read_key_events(&mut self) {
+        let res = self.emulator.read_key_events(&mut self.renderer);
+        match res {
+            Err(UserControl::SpeedChange) => {
+                self.underclocker = Underclocker::new(
+                    self.emulator.elapsed_cycles(),
+                    self.emulator.clock_speed_hz(),
+                );
+            }
+            _ => {}
+        }
+    }
 
+    pub fn tick(&mut self) -> i32 {
         for _ in 0..SLEEP_INPUT_TICKS {
             self.emulator.tick(&mut self.renderer, &mut NullSoundStream);
         }
-        self.emulator.read_key_events(&mut self.renderer).unwrap();
+        self.read_key_events();
 
-        let elapsed_cycles = self.emulator.elapsed_cycles() - start_cycles;
-
-        // I can't figure out why, but the delay isn't being calculated correctly, I have to slow
-        // it down a bit to make it be the right speed....
-        let fudge = 1.6;
-
-        let delay = 1000.0 / self.emulator.clock_speed_hz() as f64 * fudge;
-        let expected_time = elapsed_cycles as f64 * delay;
-
-        let now = self.perf.now();
-        let elapsed_time = now - self.last_tick;
-        self.last_tick = now;
-
-        f64_saturating_sub(expected_time, elapsed_time) as i32
+        self.underclocker.get_delay(self.emulator.elapsed_cycles())
     }
 }
