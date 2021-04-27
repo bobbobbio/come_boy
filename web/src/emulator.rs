@@ -1,7 +1,7 @@
 use super::renderer::CanvasRenderer;
 use super::window;
 use come_boy::game_boy_emulator::{ControllerJoyPad, GameBoyEmulator, GamePak, SLEEP_INPUT_TICKS};
-use come_boy::sound::cpal::CpalSoundStream;
+use come_boy::sound::NullSoundStream;
 
 fn performance() -> web_sys::Performance {
     window().performance().expect("performance to be available")
@@ -18,7 +18,6 @@ fn f64_saturating_sub(a: f64, b: f64) -> f64 {
 
 pub struct Emulator {
     renderer: CanvasRenderer,
-    sound_stream: CpalSoundStream,
     emulator: GameBoyEmulator,
     last_tick: f64,
     perf: web_sys::Performance,
@@ -29,7 +28,6 @@ impl Emulator {
         let perf = performance();
         Self {
             renderer: CanvasRenderer::new(canvas),
-            sound_stream: CpalSoundStream::new(),
             emulator: GameBoyEmulator::new(),
             last_tick: perf.now(),
             perf,
@@ -59,8 +57,7 @@ impl Emulator {
         let start_cycles = self.emulator.elapsed_cycles();
 
         for _ in 0..SLEEP_INPUT_TICKS {
-            self.emulator
-                .tick(&mut self.renderer, &mut self.sound_stream);
+            self.emulator.tick(&mut self.renderer, &mut NullSoundStream);
         }
         self.emulator.read_key_events(&mut self.renderer).unwrap();
 
