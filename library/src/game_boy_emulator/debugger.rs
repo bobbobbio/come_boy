@@ -34,7 +34,8 @@ struct GameBoyDebugger<'a, R, S> {
 impl<'a, R: Renderer, S: SoundStream> GameBoyDebugger<'a, R, S> {
     fn new(renderer: &'a mut R, sound_stream: &'a mut S) -> Self {
         let emulator = GameBoyEmulator::new();
-        let underclocker = Underclocker::new(emulator.cpu.elapsed_cycles);
+        let underclocker =
+            Underclocker::new(emulator.cpu.elapsed_cycles, emulator.clock_speed_hz());
         Self {
             emulator,
             renderer,
@@ -58,10 +59,7 @@ impl<'a, R: Renderer, S: SoundStream> DebuggerOps for GameBoyDebugger<'a, R, S> 
     fn next(&mut self) {
         self.emulator.tick(self.renderer, self.sound_stream);
         if self.sometimes.incr() {
-            self.underclocker.underclock(
-                self.emulator.elapsed_cycles(),
-                self.emulator.clock_speed_hz(),
-            );
+            self.underclocker.underclock(self.emulator.elapsed_cycles());
             self.emulator.read_key_events(self.renderer).unwrap();
         }
     }

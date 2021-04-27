@@ -63,20 +63,22 @@ impl ModuloCounter {
 struct Underclocker {
     start_cycles: u64,
     start_instant: Instant,
+    speed: u32,
 }
 
 impl Underclocker {
-    fn new(now: u64) -> Self {
+    fn new(now: u64, speed: u32) -> Self {
         Self {
             start_cycles: now,
             start_instant: Instant::now(),
+            speed,
         }
     }
 
-    fn underclock(&mut self, now: u64, speed: u32) {
+    fn underclock(&mut self, now: u64) {
         let elapsed_cycles = now - self.start_cycles;
 
-        let delay = Duration::from_secs(1) / speed;
+        let delay = Duration::from_secs(1) / self.speed;
         let expected_elapsed = (elapsed_cycles as u32) * delay;
 
         if let Some(sleep_time) = expected_elapsed.checked_sub(self.start_instant.elapsed()) {
@@ -89,6 +91,7 @@ impl Underclocker {
 pub enum UserControl {
     SaveStateLoaded,
     ScreenClosed,
+    SpeedChange,
 }
 
 #[derive(Debug)]
@@ -592,11 +595,12 @@ impl GameBoyEmulator {
                     return Err(UserControl::SaveStateLoaded);
                 }
                 Event::KeyDown(Keycode::F4) => {
-                    if self.clock_speed_hz_ == default_clock_speed_hz() {
+                    if self.clock_speed_hz() == default_clock_speed_hz() {
                         self.clock_speed_hz_ = u32::MAX;
                     } else {
                         self.clock_speed_hz_ = default_clock_speed_hz();
                     }
+                    return Err(UserControl::SpeedChange);
                 }
                 Event::KeyDown(code) => self.joypad_key_events.push(KeyEvent::Down(code)),
                 Event::KeyUp(code) => self.joypad_key_events.push(KeyEvent::Up(code)),
@@ -771,7 +775,7 @@ impl GameBoyEmulator {
         renderer: &mut R,
         sound_stream: &mut S,
     ) -> std::result::Result<(), UserControl> {
-        let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles);
+        let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, self.clock_speed_hz());
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 
         while self.crashed().is_none() {
@@ -780,7 +784,7 @@ impl GameBoyEmulator {
             // We can't do this every tick because it is too slow. So instead so only every so
             // often.
             if sometimes.incr() {
-                underclocker.underclock(self.elapsed_cycles(), self.clock_speed_hz());
+                underclocker.underclock(self.elapsed_cycles());
                 self.read_key_events(renderer)?;
             }
         }
@@ -801,12 +805,16 @@ impl GameBoyEmulator {
         joypad: J,
     ) {
         self.plug_in_joy_pad(joypad);
-        while std::matches!(
-            self.run_inner(renderer, sound_stream),
-            Err(UserControl::SaveStateLoaded)
-        ) {
-            if let Err(e) = self.load_state_from_file() {
-                println!("Failed to load state {:?}", e);
+        loop {
+            let res = self.run_inner(renderer, sound_stream);
+            match res {
+                Err(UserControl::SaveStateLoaded) => {
+                    if let Err(e) = self.load_state_from_file() {
+                        println!("Failed to load state {:?}", e);
+                    }
+                }
+                Err(UserControl::SpeedChange) => {}
+                _ => break,
             }
         }
     }
