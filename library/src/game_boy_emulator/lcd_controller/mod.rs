@@ -1008,11 +1008,18 @@ impl LcdController {
     fn disable(&mut self) {
         assert!(self.enabled);
 
-        self.character_data.release_all();
-        self.background_display_data_1.release_all();
-        self.background_display_data_2.release_all();
-        self.oam_data.release_all();
-        self.unusable_memory.release_all();
+        let mode = self.registers.stat.read_flag_value(LcdStatusFlag::Mode);
+
+        if mode == 0x2 || mode == 0x3 {
+            self.oam_data.release();
+            self.unusable_memory.release();
+        }
+
+        if mode == 0x3 {
+            self.character_data.release();
+            self.background_display_data_1.release();
+            self.background_display_data_2.release();
+        }
 
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
         self.registers.ly.set_value(0);

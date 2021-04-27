@@ -391,6 +391,7 @@ impl MemoryChunk {
         self.borrowed -= 1;
     }
 
+    #[cfg(test)]
     pub fn release_all(&mut self) {
         self.borrowed = 0;
     }
