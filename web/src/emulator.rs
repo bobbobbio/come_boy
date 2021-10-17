@@ -4,6 +4,7 @@ use come_boy::game_boy_emulator::{
     ControllerJoyPad, GameBoyEmulator, GamePak, UserControl, SLEEP_INPUT_TICKS,
 };
 use come_boy::sound::NullSoundStream;
+use come_boy::storage::PanicStorage;
 
 fn performance() -> web_sys::Performance {
     window().performance().expect("performance to be available")
@@ -84,7 +85,9 @@ impl Emulator {
     }
 
     fn read_key_events(&mut self) {
-        let res = self.emulator.read_key_events(&mut self.renderer);
+        let res = self
+            .emulator
+            .read_key_events(&mut self.renderer, &mut PanicStorage);
         match res {
             Err(UserControl::SpeedChange) => {
                 self.underclocker = Underclocker::new(

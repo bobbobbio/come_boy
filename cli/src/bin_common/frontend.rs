@@ -2,7 +2,13 @@
 
 use come_boy::rendering::Renderer;
 use come_boy::sound::SoundStream;
+use come_boy::storage::PersistentStorage;
 
 pub trait Frontend: Send {
-    fn run<R: Renderer, S: SoundStream>(self, renderer: &mut R, sound_stream: &mut S);
+    fn run(
+        self,
+        renderer: &mut impl Renderer,
+        sound_stream: &mut impl SoundStream,
+        storage: &mut impl PersistentStorage,
+    );
 }

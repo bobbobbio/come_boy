@@ -14,6 +14,7 @@ use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, Renderer};
 use crate::sound::{NullSoundStream, SoundStream};
+use crate::storage::{PanicStorage, PersistentStorage};
 use crate::util::{super_fast_hash, Scheduler};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
@@ -22,9 +23,7 @@ use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
-use std::fs::File;
-use std::io::{Read, Write};
-use std::path::Path;
+use std::io;
 use std::time::Instant;
 
 pub use self::debugger::run_debugger;
@@ -576,9 +575,10 @@ impl GameBoyEmulator {
         self.handle_interrupts();
     }
 
-    pub fn read_key_events<R: Renderer>(
+    pub fn read_key_events(
         &mut self,
-        renderer: &mut R,
+        renderer: &mut impl Renderer,
+        storage: &mut impl PersistentStorage,
     ) -> std::result::Result<(), UserControl> {
         use crate::rendering::Event;
 
@@ -588,7 +588,7 @@ impl GameBoyEmulator {
                     return Err(UserControl::ScreenClosed);
                 }
                 Event::KeyDown(Keycode::F2) => {
-                    if let Err(e) = self.save_state_to_file() {
+                    if let Err(e) = self.save_state_to_storage(storage) {
                         println!("Failed to create save state {:?}", e);
                     }
                 }
@@ -771,10 +771,11 @@ impl GameBoyEmulator {
         self.clock_speed_hz_
     }
 
-    fn run_inner<R: Renderer, S: SoundStream>(
+    fn run_inner(
         &mut self,
-        renderer: &mut R,
-        sound_stream: &mut S,
+        renderer: &mut impl Renderer,
+        sound_stream: &mut impl SoundStream,
+        storage: &mut impl PersistentStorage,
     ) -> std::result::Result<(), UserControl> {
         let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, self.clock_speed_hz());
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
@@ -786,7 +787,7 @@ impl GameBoyEmulator {
             // often.
             if sometimes.incr() {
                 underclocker.underclock(self.elapsed_cycles());
-                self.read_key_events(renderer)?;
+                self.read_key_events(renderer, storage)?;
             }
         }
 
@@ -799,18 +800,19 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn run<R: Renderer, S: SoundStream, J: JoyPad + 'static>(
+    fn run(
         &mut self,
-        renderer: &mut R,
-        sound_stream: &mut S,
-        joypad: J,
+        renderer: &mut impl Renderer,
+        sound_stream: &mut impl SoundStream,
+        storage: &mut impl PersistentStorage,
+        joypad: impl JoyPad + 'static,
     ) {
         self.plug_in_joy_pad(joypad);
         loop {
-            let res = self.run_inner(renderer, sound_stream);
+            let res = self.run_inner(renderer, sound_stream, storage);
             match res {
                 Err(UserControl::SaveStateLoaded) => {
-                    if let Err(e) = self.load_state_from_file() {
+                    if let Err(e) = self.load_state_from_storage(storage) {
                         println!("Failed to load state {:?}", e);
                     }
                 }
@@ -820,7 +822,7 @@ impl GameBoyEmulator {
         }
     }
 
-    fn write_memory(&self, w: &mut dyn Write) -> Result<()> {
+    fn write_memory(&self, w: &mut dyn io::Write) -> Result<()> {
         let memory_map = game_boy_memory_map!(self);
         let mut mem = [0u8; 0x10000];
         for i in 0..0x10000 {
@@ -872,19 +874,19 @@ impl GameBoyEmulator {
         return super_fast_hash(&mem[..]);
     }
 
-    fn save_state_to_file(&self) -> Result<()> {
-        let mut file = File::create("save_state.bin")?;
-        self.save_state(&mut file)?;
+    fn save_state_to_storage(&self, storage: &mut impl PersistentStorage) -> Result<()> {
+        let mut stream = storage.save("save_state.bin")?;
+        self.save_state(&mut stream)?;
         Ok(())
     }
 
-    fn load_state_from_file(&mut self) -> Result<()> {
-        let mut file = File::open("save_state.bin")?;
-        self.load_state(&mut file)?;
+    fn load_state_from_storage(&mut self, storage: &mut impl PersistentStorage) -> Result<()> {
+        let mut stream = storage.load("save_state.bin")?;
+        self.load_state(&mut stream)?;
         Ok(())
     }
 
-    fn load_state<R: Read>(&mut self, mut input: R) -> Result<()> {
+    fn load_state<R: io::Read>(&mut self, mut input: R) -> Result<()> {
         println!("Loading save state");
         let emulator: Self = bincode::deserialize_from(&mut input)?;
         let old_emulator = std::mem::replace(self, emulator);
@@ -895,7 +897,7 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn save_state<W: Write>(&self, mut writer: W) -> Result<()> {
+    fn save_state<W: io::Write>(&self, mut writer: W) -> Result<()> {
         println!("Saving state");
         bincode::serialize_into(&mut writer, self)?;
         self.game_pak.as_ref().unwrap().save_state(writer)?;
@@ -912,9 +914,10 @@ fn initial_state_test() {
     assert_eq!(e.hash(), 1497694477);
 }
 
-pub fn run_emulator<R: Renderer, S: SoundStream>(
-    renderer: &mut R,
-    sound_stream: &mut S,
+pub fn run_emulator(
+    renderer: &mut impl Renderer,
+    sound_stream: &mut impl SoundStream,
+    storage: &mut impl PersistentStorage,
     game_pak: GamePak,
     save_state: Option<Vec<u8>>,
 ) -> Result<()> {
@@ -925,12 +928,12 @@ pub fn run_emulator<R: Renderer, S: SoundStream>(
         e.load_state(&save_state[..])?;
     }
 
-    e.run(renderer, sound_stream, ControllerJoyPad::new());
+    e.run(renderer, sound_stream, storage, ControllerJoyPad::new());
     Ok(())
 }
 
-pub fn run_in_tandem_with<P: AsRef<Path> + Debug>(
-    other_emulator_path: P,
+pub fn run_in_tandem_with(
+    other_emulator_path: impl AsRef<std::path::Path> + Debug,
     game_pak: GamePak,
     pc_only: bool,
 ) -> Result<()> {
@@ -949,12 +952,12 @@ fn run_emulator_until<R: Renderer>(e: &mut GameBoyEmulator, renderer: &mut R, ti
     }
 }
 
-fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: AsRef<Path>>(
+fn run_emulator_until_and_take_screenshot(
     mut e: GameBoyEmulator,
-    renderer: &mut R,
-    joypad: Option<J>,
+    renderer: &mut impl Renderer,
+    joypad: Option<impl JoyPad + 'static>,
     ticks: u64,
-    output_path: P,
+    output_path: impl AsRef<std::path::Path>,
 ) {
     if let Some(joypad) = joypad {
         e.plug_in_joy_pad(joypad);
@@ -964,12 +967,12 @@ fn run_emulator_until_and_take_screenshot<R: Renderer, J: JoyPad + 'static, P: A
     renderer.save_buffer(output_path).unwrap();
 }
 
-pub fn run_until_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P2: AsRef<Path>>(
-    renderer: &mut R,
+pub fn run_until_and_take_screenshot(
+    renderer: &mut impl Renderer,
     game_pak: GamePak,
     ticks: u64,
-    replay_path: Option<P1>,
-    output_path: P2,
+    replay_path: Option<impl AsRef<std::path::Path>>,
+    output_path: impl AsRef<std::path::Path>,
 ) -> Result<()> {
     let joypad = if let Some(replay_path) = replay_path {
         Some(PlaybackJoyPad::new(game_pak.hash(), replay_path)?)
@@ -983,35 +986,36 @@ pub fn run_until_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P2: AsRef<Pat
     Ok(())
 }
 
-pub fn run_and_record_replay<R: Renderer, S: SoundStream>(
-    renderer: &mut R,
-    sound_stream: &mut S,
+pub fn run_and_record_replay(
+    renderer: &mut impl Renderer,
+    sound_stream: &mut impl SoundStream,
+    storage: &mut impl PersistentStorage,
     game_pak: GamePak,
-    output: &Path,
+    output: &std::path::Path,
 ) -> Result<()> {
     let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
 
-    e.run(renderer, sound_stream, joypad);
+    e.run(renderer, sound_stream, storage, joypad);
     Ok(())
 }
 
-pub fn playback_replay<R: Renderer, S: SoundStream>(
-    renderer: &mut R,
-    sound_stream: &mut S,
+pub fn playback_replay(
+    renderer: &mut impl Renderer,
+    sound_stream: &mut impl SoundStream,
     game_pak: GamePak,
-    input: &Path,
+    input: &std::path::Path,
 ) -> Result<()> {
     let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
     let mut e = GameBoyEmulator::new();
     e.load_game_pak(game_pak);
 
-    e.run(renderer, sound_stream, joypad);
+    e.run(renderer, sound_stream, &mut PanicStorage, joypad);
     Ok(())
 }
 
-pub fn print_replay(input: &Path) -> Result<()> {
+pub fn print_replay(input: &std::path::Path) -> Result<()> {
     joypad::print_replay(input)?;
     Ok(())
 }

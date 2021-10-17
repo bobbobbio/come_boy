@@ -5,6 +5,7 @@ use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
+use come_boy::storage::PersistentStorage;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -28,9 +29,20 @@ impl Frontend {
 }
 
 impl bin_common::frontend::Frontend for Frontend {
-    fn run<R: Renderer, S: SoundStream>(self, renderer: &mut R, sound_stream: &mut S) {
-        game_boy_emulator::run_emulator(renderer, sound_stream, self.game_pak, self.save_state)
-            .unwrap();
+    fn run(
+        self,
+        renderer: &mut impl Renderer,
+        sound_stream: &mut impl SoundStream,
+        storage: &mut impl PersistentStorage,
+    ) {
+        game_boy_emulator::run_emulator(
+            renderer,
+            sound_stream,
+            storage,
+            self.game_pak,
+            self.save_state,
+        )
+        .unwrap();
     }
 }
 

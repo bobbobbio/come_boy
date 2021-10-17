@@ -8,3 +8,4 @@ pub mod intel_8080_emulator;
 pub mod lr35902_emulator;
 pub mod rendering;
 pub mod sound;
+pub mod storage;
