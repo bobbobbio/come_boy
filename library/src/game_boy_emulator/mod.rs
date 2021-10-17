@@ -2,7 +2,7 @@
 
 pub use self::game_pak::GamePak;
 pub use self::joypad::ControllerJoyPad;
-use self::joypad::{JoyPad, PlaybackJoyPad, RecordingJoyPad};
+use self::joypad::JoyPad;
 use self::lcd_controller::{LcdController, OAM_DATA};
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
@@ -13,8 +13,8 @@ use crate::emulator_common::disassembler::MemoryAccessor;
 use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, Renderer};
-use crate::sound::{NullSoundStream, SoundStream};
-use crate::storage::{PanicStorage, PersistentStorage};
+use crate::sound::SoundStream;
+use crate::storage::PersistentStorage;
 use crate::util::{super_fast_hash, Scheduler};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
@@ -28,6 +28,7 @@ use std::time::Instant;
 
 pub use self::debugger::run_debugger;
 pub use self::disassembler::disassemble_game_boy_rom;
+pub use self::trampolines::*;
 
 #[macro_use]
 mod memory_controller;
@@ -40,6 +41,8 @@ mod joypad;
 mod lcd_controller;
 mod sound_controller;
 mod tandem;
+
+pub mod trampolines;
 
 /// This is how many ticks of the emulator we do before under-clocking and checking for input
 pub const SLEEP_INPUT_TICKS: u64 = 10_000;
@@ -912,112 +915,6 @@ fn initial_state_test() {
 
     // Lock down the initial state.
     assert_eq!(e.hash(), 1497694477);
-}
-
-pub fn run_emulator(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    storage: &mut impl PersistentStorage,
-    game_pak: GamePak,
-    save_state: Option<Vec<u8>>,
-) -> Result<()> {
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(game_pak);
-
-    if let Some(save_state) = save_state {
-        e.load_state(&save_state[..])?;
-    }
-
-    e.run(renderer, sound_stream, storage, ControllerJoyPad::new());
-    Ok(())
-}
-
-pub fn run_in_tandem_with(
-    other_emulator_path: impl AsRef<std::path::Path> + Debug,
-    game_pak: GamePak,
-    pc_only: bool,
-) -> Result<()> {
-    println!("loading {:?}", &other_emulator_path);
-
-    tandem::run(other_emulator_path, game_pak, pc_only)
-}
-
-fn run_emulator_until<R: Renderer>(e: &mut GameBoyEmulator, renderer: &mut R, ticks: u64) {
-    while e.cpu.elapsed_cycles < ticks {
-        if let Some(c) = e.crashed() {
-            panic!("Emulator crashed: {}", c);
-        }
-
-        e.tick(renderer, &mut NullSoundStream);
-    }
-}
-
-fn run_emulator_until_and_take_screenshot(
-    mut e: GameBoyEmulator,
-    renderer: &mut impl Renderer,
-    joypad: Option<impl JoyPad + 'static>,
-    ticks: u64,
-    output_path: impl AsRef<std::path::Path>,
-) {
-    if let Some(joypad) = joypad {
-        e.plug_in_joy_pad(joypad);
-    }
-    let ticks = e.cpu.elapsed_cycles + ticks;
-    run_emulator_until(&mut e, renderer, ticks);
-    renderer.save_buffer(output_path).unwrap();
-}
-
-pub fn run_until_and_take_screenshot(
-    renderer: &mut impl Renderer,
-    game_pak: GamePak,
-    ticks: u64,
-    replay_path: Option<impl AsRef<std::path::Path>>,
-    output_path: impl AsRef<std::path::Path>,
-) -> Result<()> {
-    let joypad = if let Some(replay_path) = replay_path {
-        Some(PlaybackJoyPad::new(game_pak.hash(), replay_path)?)
-    } else {
-        None
-    };
-
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(game_pak);
-    run_emulator_until_and_take_screenshot(e, renderer, joypad, ticks, output_path);
-    Ok(())
-}
-
-pub fn run_and_record_replay(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    storage: &mut impl PersistentStorage,
-    game_pak: GamePak,
-    output: &std::path::Path,
-) -> Result<()> {
-    let joypad = RecordingJoyPad::new(game_pak.title(), game_pak.hash(), output)?;
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(game_pak);
-
-    e.run(renderer, sound_stream, storage, joypad);
-    Ok(())
-}
-
-pub fn playback_replay(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    game_pak: GamePak,
-    input: &std::path::Path,
-) -> Result<()> {
-    let joypad = PlaybackJoyPad::new(game_pak.hash(), input)?;
-    let mut e = GameBoyEmulator::new();
-    e.load_game_pak(game_pak);
-
-    e.run(renderer, sound_stream, &mut PanicStorage, joypad);
-    Ok(())
-}
-
-pub fn print_replay(input: &std::path::Path) -> Result<()> {
-    joypad::print_replay(input)?;
-    Ok(())
 }
 
 #[cfg(test)]
