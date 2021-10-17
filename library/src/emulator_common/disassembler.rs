@@ -1,8 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
+use core::ops::Range;
+use core::str;
 use std::io::{self, Result};
-use std::ops::Range;
-use std::str;
 
 #[cfg(test)]
 use byteorder::ReadBytesExt;

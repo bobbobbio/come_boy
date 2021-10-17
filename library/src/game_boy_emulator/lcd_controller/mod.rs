@@ -50,11 +50,11 @@ use crate::game_boy_emulator::memory_controller::{
 use crate::game_boy_emulator::InterruptFlag;
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
+use core::ops::Range;
+use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
-use std::ops::Range;
-use std::{fmt, iter};
 
 /// The width of the screen in pixels
 const SCREEN_WIDTH: i32 = 160;

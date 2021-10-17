@@ -7,11 +7,11 @@ use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
 use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag, Result};
 use crate::rendering::NullRenderer;
 use crate::sound::NullSoundStream;
-use std::fmt::{self, Debug};
+use core::fmt::{self, Debug};
+use core::str;
 use std::fs::File;
 use std::io::{Bytes, Read, Write};
 use std::path::Path;
-use std::str;
 
 #[derive(Clone, Copy, Default, PartialEq)]
 struct AbstractEmulatorRegisters {

@@ -8,8 +8,8 @@ use crate::game_boy_emulator::{GameBoyEmulator, ModuloCounter, Underclocker, SLE
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
 use crate::sound::SoundStream;
+use core::{fmt, str};
 use std::io::{self, Result};
-use std::{fmt, str};
 
 impl fmt::Debug for GameBoyEmulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -3,8 +3,8 @@
 use crate::emulator_common::disassembler::{InstructionPrinter, InstructionPrinterFactory};
 use crate::emulator_common::Intel8080Register;
 pub use crate::lr35902_emulator::{LR35902Instruction, LR35902InstructionSet};
-use std::io::Result;
-use std::{io, mem};
+use core::mem;
+use std::io::{self, Result};
 
 pub struct RGBDSInstructionPrinter<'a> {
     stream_out: &'a mut dyn io::Write,

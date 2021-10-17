@@ -1,8 +1,8 @@
 // Copyright 2017 Remi Bernotavicius
 
+use core::fmt;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::VecDeque;
-use std::fmt;
 
 pub trait TwosComplement<T> {
     fn twos_complement(self) -> T;

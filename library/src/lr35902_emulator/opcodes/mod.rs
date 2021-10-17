@@ -1,7 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
+use core::mem;
 use std::io::{self, Result};
-use std::mem;
 
 use crate::emulator_common::disassembler::{
     Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,

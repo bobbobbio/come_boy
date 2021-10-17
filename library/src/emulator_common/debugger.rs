@@ -1,7 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
+use core::{fmt, num, result, str};
 use std::collections::HashSet;
-use std::{error, fmt, io, num, result, str};
+use std::{error, io};
 
 #[cfg(test)]
 use std::collections::HashMap;

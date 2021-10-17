@@ -2,14 +2,14 @@
 
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::util::super_fast_hash;
+use core::fmt;
+use core::ops::Range;
+use core::str;
 use serde_derive::{Deserialize, Serialize};
 use std::convert::TryInto;
-use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::ops::Range;
 use std::path::{Path, PathBuf};
-use std::str;
 
 #[derive(Clone, Serialize, Deserialize)]
 struct RomBank(#[serde(skip)] MemoryChunk);

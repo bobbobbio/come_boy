@@ -2,11 +2,12 @@
 
 pub use self::memory_map::{GameBoyMemoryMap, GameBoyMemoryMapMut};
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+use core::fmt;
+use core::marker::PhantomData;
+use core::ops::Range;
 use enum_iterator::IntoEnumIterator;
 use serde_derive::{Deserialize, Serialize};
-use std::marker::PhantomData;
-use std::ops::Range;
-use std::{fmt, io};
+use std::io;
 
 #[macro_use]
 pub mod memory_map;

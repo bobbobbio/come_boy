@@ -1,6 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
-use std::fmt;
+use core::fmt;
 use std::io::{self, Result};
 
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
