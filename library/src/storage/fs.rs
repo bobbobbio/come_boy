@@ -14,11 +14,11 @@ impl Fs {
 impl PersistentStorage for Fs {
     type Stream = fs::File;
 
-    fn save(&mut self, _key: &str) -> io::Result<Self::Stream> {
-        panic!("save called on FsStorage");
+    fn save(&mut self, key: &str) -> io::Result<Self::Stream> {
+        fs::OpenOptions::new().write(true).create(true).open(key)
     }
 
-    fn load(&mut self, _key: &str) -> io::Result<Self::Stream> {
-        panic!("load called on FsStorage");
+    fn load(&mut self, key: &str) -> io::Result<Self::Stream> {
+        fs::OpenOptions::new().read(true).open(key)
     }
 }
