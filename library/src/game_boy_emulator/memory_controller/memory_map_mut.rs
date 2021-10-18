@@ -1,6 +1,10 @@
 use super::GameBoyMemoryMapMut;
 use crate::game_boy_emulator::memory_controller::MemoryMappedHardware;
-impl<'a> crate::game_boy_emulator::memory_controller::MemoryAccessor for GameBoyMemoryMapMut<'a> {
+impl<'a, Storage> crate::game_boy_emulator::memory_controller::MemoryAccessor
+    for GameBoyMemoryMapMut<'a, Storage>
+where
+    Storage: crate::storage::PersistentStorage,
+{
     fn read_memory(&self, address: u16) -> u8 {
         if address == 65280u16 {
             MemoryMappedHardware::read_value(&self.joypad, address - 65280u16)

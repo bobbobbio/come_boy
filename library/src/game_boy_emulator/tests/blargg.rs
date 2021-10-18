@@ -9,7 +9,8 @@ use crate::lr35902_emulator::tests::blargg::{
 pub(crate) fn run_blargg_test_rom(rom_path: &str, stop_address: u16) {
     let mut ops = GameBoyOps::null();
     let mut e = GameBoyEmulator::new();
-    ops.load_game_pak(GamePak::new(&read_blargg_test_rom(rom_path), None));
+    let game_pak = GamePak::new(&read_blargg_test_rom(rom_path), &mut ops.storage, None).unwrap();
+    ops.load_game_pak(game_pak);
     run_emulator_until_pc(&mut e, &mut ops, |pc| pc == stop_address);
 
     e.bridge

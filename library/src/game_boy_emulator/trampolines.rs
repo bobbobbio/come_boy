@@ -7,13 +7,12 @@ use super::{
 use crate::rendering::Renderer;
 use crate::sound::{NullSoundStream, SoundStream};
 use crate::storage::{PanicStorage, PersistentStorage};
-use core::fmt::Debug;
 
-pub fn run_emulator(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    storage: &mut impl PersistentStorage,
-    game_pak: GamePak,
+pub fn run_emulator<Storage: PersistentStorage>(
+    renderer: impl Renderer,
+    sound_stream: impl SoundStream,
+    storage: Storage,
+    game_pak: GamePak<Storage>,
     save_state: Option<Vec<u8>>,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
@@ -31,14 +30,15 @@ pub fn run_emulator(
     Ok(())
 }
 
-pub fn run_in_tandem_with(
-    other_emulator_path: impl AsRef<std::path::Path> + Debug,
-    game_pak: GamePak,
+pub fn run_in_tandem_with<Storage: PersistentStorage>(
+    storage: Storage,
+    other_emulator_key: &str,
+    game_pak: GamePak<Storage>,
     pc_only: bool,
 ) -> Result<()> {
-    println!("loading {:?}", &other_emulator_path);
+    println!("loading {:?}", &other_emulator_key);
 
-    tandem::run(other_emulator_path, game_pak, pc_only)
+    tandem::run(storage, other_emulator_key, game_pak, pc_only)
 }
 
 pub(crate) fn run_emulator_until(
@@ -66,14 +66,15 @@ fn run_emulator_until_and_take_screenshot(
     ops.renderer.save_buffer(output_path).unwrap();
 }
 
-pub fn run_until_and_take_screenshot(
-    renderer: &mut impl Renderer,
-    game_pak: GamePak,
+pub fn run_until_and_take_screenshot<Storage: PersistentStorage>(
+    renderer: impl Renderer,
+    storage: Storage,
+    game_pak: GamePak<Storage>,
     ticks: u64,
     replay_path: Option<impl AsRef<std::path::Path>>,
     output_path: impl AsRef<std::path::Path>,
 ) -> Result<()> {
-    let mut ops = GameBoyOps::new(renderer, NullSoundStream, PanicStorage);
+    let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
 
     if let Some(replay_path) = replay_path {
         ops.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), replay_path)?);
@@ -85,11 +86,11 @@ pub fn run_until_and_take_screenshot(
     Ok(())
 }
 
-pub fn run_and_record_replay(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    storage: &mut impl PersistentStorage,
-    game_pak: GamePak,
+pub fn run_and_record_replay<Storage: PersistentStorage>(
+    renderer: impl Renderer,
+    sound_stream: impl SoundStream,
+    storage: Storage,
+    game_pak: GamePak<Storage>,
     output: &std::path::Path,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
@@ -107,9 +108,9 @@ pub fn run_and_record_replay(
 }
 
 pub fn playback_replay(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    game_pak: GamePak,
+    renderer: impl Renderer,
+    sound_stream: impl SoundStream,
+    game_pak: GamePak<PanicStorage>,
     input: &std::path::Path,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, PanicStorage);

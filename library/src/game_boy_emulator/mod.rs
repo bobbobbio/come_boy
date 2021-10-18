@@ -12,7 +12,7 @@ use self::sound_controller::SoundController;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, NullRenderer, Renderer};
 use crate::sound::{NullSoundStream, SoundStream};
-use crate::storage::{PanicStorage, PersistentStorage};
+use crate::storage::{OpenMode, PanicStorage, PersistentStorage};
 use crate::util::{super_fast_hash, Scheduler};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
@@ -440,7 +440,7 @@ impl OamDmaTransfer {
         }
     }
 
-    fn read(&mut self, memory_map: &GameBoyMemoryMap<'_>) {
+    fn read(&mut self, memory_map: &GameBoyMemoryMap<'_, impl PersistentStorage>) {
         self.value = memory_map.read_memory(self.src_current);
         self.src_current = self.src_current.wrapping_add(1);
     }
@@ -466,12 +466,12 @@ const fn default_clock_speed_hz() -> u32 {
     4_194_304
 }
 
-pub struct GameBoyOps<Renderer, SoundStream, Storage> {
+pub struct GameBoyOps<Renderer, SoundStream, Storage: PersistentStorage> {
     pub renderer: Renderer,
     pub sound_stream: SoundStream,
     pub storage: Storage,
     joypad: Option<Box<dyn JoyPad + 'static>>,
-    game_pak: Option<GamePak>,
+    game_pak: Option<GamePak<Storage>>,
     pub clock_speed_hz: u32,
 }
 
@@ -483,7 +483,7 @@ impl NullGameBoyOps {
     }
 }
 
-impl<Renderer, SoundStream, Storage> GameBoyOps<Renderer, SoundStream, Storage> {
+impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, SoundStream, Storage> {
     pub fn new(renderer: Renderer, sound_stream: SoundStream, storage: Storage) -> Self {
         Self {
             renderer,
@@ -495,7 +495,7 @@ impl<Renderer, SoundStream, Storage> GameBoyOps<Renderer, SoundStream, Storage> 
         }
     }
 
-    fn memory_map<'a>(&'a self, bridge: &'a Bridge) -> GameBoyMemoryMap<'a> {
+    fn memory_map<'a>(&'a self, bridge: &'a Bridge) -> GameBoyMemoryMap<'a, Storage> {
         GameBoyMemoryMap {
             game_pak: self.game_pak.as_ref(),
             joypad: self.joypad.as_ref().map(|j| &**j as &dyn JoyPad),
@@ -503,7 +503,10 @@ impl<Renderer, SoundStream, Storage> GameBoyOps<Renderer, SoundStream, Storage> 
         }
     }
 
-    fn memory_map_mut<'a>(&'a mut self, bridge: &'a mut Bridge) -> GameBoyMemoryMapMut<'a> {
+    fn memory_map_mut<'a>(
+        &'a mut self,
+        bridge: &'a mut Bridge,
+    ) -> GameBoyMemoryMapMut<'a, Storage> {
         GameBoyMemoryMapMut {
             game_pak: self.game_pak.as_mut(),
             joypad: self.joypad.as_mut().map(|j| &mut **j as &mut dyn JoyPad),
@@ -515,7 +518,7 @@ impl<Renderer, SoundStream, Storage> GameBoyOps<Renderer, SoundStream, Storage> 
         self.joypad = Some(Box::new(joypad));
     }
 
-    pub fn load_game_pak(&mut self, game_pak: GamePak) {
+    pub fn load_game_pak(&mut self, game_pak: GamePak<Storage>) {
         println!("Loading {:?}", &game_pak);
         self.game_pak = Some(game_pak);
     }
@@ -974,7 +977,7 @@ impl GameBoyEmulator {
         &self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) -> Result<()> {
-        let mut stream = ops.storage.save("save_state.bin")?;
+        let mut stream = ops.storage.open(OpenMode::Write, "save_state.bin")?;
         self.save_state(ops.game_pak.as_ref(), &mut stream)?;
         Ok(())
     }
@@ -983,14 +986,14 @@ impl GameBoyEmulator {
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) -> Result<()> {
-        let mut stream = ops.storage.load("save_state.bin")?;
+        let mut stream = ops.storage.open(OpenMode::Read, "save_state.bin")?;
         self.load_state(ops.game_pak.as_mut(), &mut stream)?;
         Ok(())
     }
 
     fn load_state<R: io::Read>(
         &mut self,
-        game_pak: Option<&mut GamePak>,
+        game_pak: Option<&mut GamePak<impl PersistentStorage>>,
         mut input: R,
     ) -> Result<()> {
         println!("Loading save state");
@@ -1004,7 +1007,11 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn save_state<W: io::Write>(&self, game_pak: Option<&GamePak>, mut writer: W) -> Result<()> {
+    fn save_state<W: io::Write>(
+        &self,
+        game_pak: Option<&GamePak<impl PersistentStorage>>,
+        mut writer: W,
+    ) -> Result<()> {
         println!("Saving state");
 
         bincode::serialize_into(&mut writer, self)?;

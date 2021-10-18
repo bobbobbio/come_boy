@@ -25,9 +25,9 @@ impl fmt::Debug for GameBoyEmulator {
     }
 }
 
-struct GameBoyDebugger<R, S, P> {
+struct GameBoyDebugger<Renderer, SoundStream, Storage: PersistentStorage> {
     emulator: GameBoyEmulator,
-    ops: GameBoyOps<R, S, P>,
+    ops: GameBoyOps<Renderer, SoundStream, Storage>,
     underclocker: Underclocker,
     sometimes: ModuloCounter,
 }
@@ -96,11 +96,11 @@ impl<R: Renderer, S: SoundStream, P: PersistentStorage> DebuggerOps for GameBoyD
     }
 }
 
-pub fn run_debugger(
-    renderer: &mut impl Renderer,
-    sound_stream: &mut impl SoundStream,
-    storage: &mut impl PersistentStorage,
-    game_pak: GamePak,
+pub fn run_debugger<Storage: PersistentStorage>(
+    renderer: impl Renderer,
+    sound_stream: impl SoundStream,
+    storage: Storage,
+    game_pak: GamePak<Storage>,
     is_interrupted: &dyn Fn() -> bool,
 ) {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);

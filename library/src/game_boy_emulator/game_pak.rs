@@ -1,32 +1,50 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
+use crate::storage::{OpenMode, PersistentStorage, StorageFile as _};
 use crate::util::super_fast_hash;
 use core::fmt;
 use core::ops::Range;
 use core::str;
 use serde_derive::{Deserialize, Serialize};
-use std::convert::TryInto;
-use std::fs::{File, OpenOptions};
-use std::io::{self, Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
+
+struct BankOps<Storage: PersistentStorage> {
+    sram_file: Option<Storage::File>,
+    rom_memory: Vec<MemoryChunk>,
+}
+
+trait MemoryMappedBank {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8;
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    );
+}
 
 #[derive(Clone, Serialize, Deserialize)]
-struct RomBank(#[serde(skip)] MemoryChunk);
+struct RomBank(usize);
 
 impl RomBank {
-    fn new(value: Vec<u8>) -> Self {
-        Self(MemoryChunk::new(value))
+    fn new(index: usize) -> Self {
+        Self(index)
     }
 }
 
-impl MemoryMappedHardware for RomBank {
-    fn read_value(&self, address: u16) -> u8 {
-        self.0.read_value(address)
+impl MemoryMappedBank for RomBank {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
+        ops.rom_memory[self.0].read_value(address)
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
-        self.0.set_value(address, value)
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
+        ops.rom_memory[self.0].set_value(address, value)
     }
 }
 
@@ -51,46 +69,29 @@ impl fmt::Debug for MemoryBankController {
     }
 }
 
-impl MemoryMappedHardware for MemoryBankController {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for MemoryBankController {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         match self {
-            Self::Zero(r) => r.read_value(address),
-            Self::One(r) => r.read_value(address),
-            Self::Two(r) => r.read_value(address),
-            Self::Three(r) => r.read_value(address),
-            Self::Five(r) => r.read_value(address),
+            Self::Zero(r) => r.read_bank_value(ops, address),
+            Self::One(r) => r.read_bank_value(ops, address),
+            Self::Two(r) => r.read_bank_value(ops, address),
+            Self::Three(r) => r.read_bank_value(ops, address),
+            Self::Five(r) => r.read_bank_value(ops, address),
         }
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         match self {
-            Self::Zero(r) => r.set_value(address, value),
-            Self::One(r) => r.set_value(address, value),
-            Self::Two(r) => r.set_value(address, value),
-            Self::Three(r) => r.set_value(address, value),
-            Self::Five(r) => r.set_value(address, value),
-        }
-    }
-}
-
-impl MemoryBankController {
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        match self {
-            Self::Zero(r) => r.reattach_banks(banks),
-            Self::One(r) => r.reattach_banks(banks),
-            Self::Two(r) => r.reattach_banks(banks),
-            Self::Three(r) => r.reattach_banks(banks),
-            Self::Five(r) => r.reattach_banks(banks),
-        }
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        match self {
-            Self::Zero(r) => r.into_banks(),
-            Self::One(r) => r.into_banks(),
-            Self::Two(r) => r.into_banks(),
-            Self::Three(r) => r.into_banks(),
-            Self::Five(r) => r.into_banks(),
+            Self::Zero(r) => r.set_bank_value(ops, address, value),
+            Self::One(r) => r.set_bank_value(ops, address, value),
+            Self::Two(r) => r.set_bank_value(ops, address, value),
+            Self::Three(r) => r.set_bank_value(ops, address, value),
+            Self::Five(r) => r.set_bank_value(ops, address, value),
         }
     }
 }
@@ -108,15 +109,8 @@ impl Into<MemoryBankController> for MemoryBankController0 {
 
 impl MemoryBankController0 {
     fn new(banks: Vec<RomBank>) -> Self {
+        assert_eq!(banks.len(), 2);
         MemoryBankController0 { banks }
-    }
-
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.banks = banks
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.banks
     }
 }
 
@@ -126,18 +120,24 @@ impl fmt::Debug for MemoryBankController0 {
     }
 }
 
-impl MemoryMappedHardware for MemoryBankController0 {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for MemoryBankController0 {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0x4000 {
-            self.banks[0].read_value(address)
+            self.banks[0].read_bank_value(ops, address)
         } else if address < 0x8000 {
-            self.banks[1].read_value(address - 0x4000)
+            self.banks[1].read_bank_value(ops, address - 0x4000)
         } else {
             0xFF
         }
     }
 
-    fn set_value(&mut self, _address: u16, _value: u8) {}
+    fn set_bank_value(
+        &mut self,
+        _ops: &mut BankOps<impl PersistentStorage>,
+        _address: u16,
+        _value: u8,
+    ) {
+    }
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
@@ -160,17 +160,7 @@ impl<T> SwitchableBank<T> {
     }
 }
 
-impl SwitchableBank<RomBank> {
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.banks = banks
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.banks
-    }
-}
-
-impl SwitchableBank<MemoryChunk> {
+impl SwitchableBank<SramChunk> {
     fn total_len(&self) -> usize {
         let mut len = 0;
         for b in &self.banks {
@@ -178,13 +168,26 @@ impl SwitchableBank<MemoryChunk> {
         }
         len
     }
+}
 
-    fn current_bank_offset(&self) -> usize {
-        let mut offset = 0;
-        for b in &self.banks[..self.current_bank] {
-            offset += b.len() as usize;
+impl<T: MemoryMappedBank> MemoryMappedBank for SwitchableBank<T> {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
+        if self.current_bank >= self.banks.len() {
+            0xFF
+        } else {
+            self.banks[self.current_bank].read_bank_value(ops, address)
         }
-        offset
+    }
+
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
+        if self.current_bank < self.banks.len() {
+            self.banks[self.current_bank].set_bank_value(ops, address, value);
+        }
     }
 }
 
@@ -226,20 +229,25 @@ impl Into<MemoryBankController> for MemoryBankController1 {
     }
 }
 
-impl MemoryMappedHardware for MemoryBankController1 {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for MemoryBankController1 {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0x4000 {
-            self.switchable_bank.banks[0].read_value(address)
+            self.switchable_bank.banks[0].read_bank_value(ops, address)
         } else if address < 0xA000 {
-            self.switchable_bank.read_value(address - 0x4000)
+            self.switchable_bank.read_bank_value(ops, address - 0x4000)
         } else if self.ram_enable {
-            self.ram.read_value(address - 0xA000)
+            self.ram.read_bank_value(ops, address - 0xA000)
         } else {
             0xFF
         }
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         if address < 0x2000 {
             // Enable RAM
             self.ram_enable = (value & 0x0F) == 0x0A;
@@ -268,7 +276,7 @@ impl MemoryMappedHardware for MemoryBankController1 {
         } else if address < 0xA000 {
             // nothing
         } else {
-            self.ram.set_value(address - 0xA000, value);
+            self.ram.set_bank_value(ops, address - 0xA000, value);
         }
     }
 }
@@ -300,14 +308,6 @@ impl MemoryBankController1 {
 
     fn update_ram_bank(&mut self) {
         self.ram.switch_bank(self.ram_bank_number);
-    }
-
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.switchable_bank.reattach_banks(banks)
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.switchable_bank.into_banks()
     }
 }
 
@@ -342,35 +342,32 @@ impl MemoryBankController3 {
             clock_ram_select: ClockOrRam::Ram,
         }
     }
-
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.inner.reattach_banks(banks)
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.inner.into_banks()
-    }
 }
 
-impl MemoryMappedHardware for MemoryBankController3 {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for MemoryBankController3 {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0xA000 {
-            self.inner.read_value(address)
+            self.inner.read_bank_value(ops, address)
         } else if address < 0xC000 {
             if self.clock_ram_select == ClockOrRam::Clock {
                 // Read current RTC register
                 0xFF
             } else {
-                self.inner.ram.read_value(address - 0xA000)
+                self.inner.ram.read_bank_value(ops, address - 0xA000)
             }
         } else {
-            self.inner.read_value(address)
+            self.inner.read_bank_value(ops, address)
         }
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         if address < 0x2000 {
-            self.inner.set_value(address, value);
+            self.inner.set_bank_value(ops, address, value);
         } else if address < 0x4000 {
             // Select ROM bank (lower 7 bits)
             self.inner.rom_bank_number &= !0x7F;
@@ -388,15 +385,15 @@ impl MemoryMappedHardware for MemoryBankController3 {
         } else if address < 0x8000 {
             // Latch clock data
         } else if address < 0xA000 {
-            self.inner.set_value(address, value);
+            self.inner.set_bank_value(ops, address, value);
         } else if address < 0xC000 {
             if self.clock_ram_select == ClockOrRam::Clock {
                 // Write to RTC register
             } else {
-                self.inner.ram.set_value(address - 0xA000, value);
+                self.inner.ram.set_bank_value(ops, address - 0xA000, value);
             }
         } else {
-            self.inner.set_value(address, value);
+            self.inner.set_bank_value(ops, address, value);
         }
     }
 }
@@ -407,18 +404,23 @@ enum InternalRam {
     NonVolatile(NonVolatileInternalRam),
 }
 
-impl MemoryMappedHardware for InternalRam {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for InternalRam {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         match self {
             Self::Volatile(r) => r.read_value(address),
-            Self::NonVolatile(r) => r.read_value(address),
+            Self::NonVolatile(r) => r.read_bank_value(ops, address),
         }
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         match self {
             Self::Volatile(r) => r.set_value(address, value),
-            Self::NonVolatile(r) => r.set_value(address, value),
+            Self::NonVolatile(r) => r.set_bank_value(ops, address, value),
         }
     }
 }
@@ -464,10 +466,7 @@ impl fmt::Debug for VolatileInternalRam {
 }
 
 #[derive(Serialize, Deserialize)]
-struct NonVolatileInternalRam {
-    memory: MemoryChunk,
-    file: Option<RamFile>,
-}
+struct NonVolatileInternalRam(SramChunk);
 
 impl Into<InternalRam> for NonVolatileInternalRam {
     fn into(self) -> InternalRam {
@@ -476,36 +475,28 @@ impl Into<InternalRam> for NonVolatileInternalRam {
 }
 
 impl NonVolatileInternalRam {
-    fn new(path: Option<PathBuf>) -> Self {
-        let mut file = path.map(|p| RamFile::new(p));
-
-        let memory = if let Some(file) = &mut file {
-            file.read_chunk(0..512)
-        } else {
-            MemoryChunk::from_range(0..512)
-        };
-
-        if let Some(file) = &mut file {
-            file.set_len(512);
-        }
-
-        Self { memory, file }
+    fn new(sram: Vec<SramChunk>) -> Self {
+        assert_eq!(sram.len(), 1);
+        Self(sram.into_iter().next().unwrap())
     }
 }
 
-impl MemoryMappedHardware for NonVolatileInternalRam {
-    fn read_value(&self, address: u16) -> u8 {
-        self.memory.read_value(address) | 0xF0
+impl MemoryMappedBank for NonVolatileInternalRam {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
+        self.0.read_bank_value(ops, address) | 0xF0
     }
-    fn set_value(&mut self, address: u16, value: u8) {
-        if address >= self.memory.len() {
+
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
+        if address >= self.0.len() {
             return;
         }
 
-        self.memory.set_value(address, value | 0xF0);
-        if let Some(file) = &mut self.file {
-            file.write(address as u64, value | 0xF0);
-        }
+        self.0.set_bank_value(ops, address, value | 0xF0);
     }
 }
 
@@ -552,30 +543,27 @@ impl MemoryBankController2 {
 
         self.switchable_bank.switch_bank(self.rom_bank_number);
     }
-
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.switchable_bank.reattach_banks(banks)
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.switchable_bank.into_banks()
-    }
 }
 
-impl MemoryMappedHardware for MemoryBankController2 {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for MemoryBankController2 {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0x4000 {
-            self.switchable_bank.banks[0].read_value(address)
+            self.switchable_bank.banks[0].read_bank_value(ops, address)
         } else if address < 0xA000 {
-            self.switchable_bank.read_value(address - 0x4000)
+            self.switchable_bank.read_bank_value(ops, address - 0x4000)
         } else if self.ram_enable {
-            self.internal_ram.read_value(address - 0xA000)
+            self.internal_ram.read_bank_value(ops, address - 0xA000)
         } else {
             0xFF
         }
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         if address < 0x2000 {
             if (address >> 8) & 0x01 == 0 {
                 self.ram_enable = (value & 0x0F) == 0x0A;
@@ -587,7 +575,8 @@ impl MemoryMappedHardware for MemoryBankController2 {
             }
         } else if address >= 0xA000 && address < 0xA200 {
             if self.ram_enable {
-                self.internal_ram.set_value(address - 0xA000, value);
+                self.internal_ram
+                    .set_bank_value(ops, address - 0xA000, value);
             }
         }
     }
@@ -616,25 +605,22 @@ impl MemoryBankController5 {
             inner: MemoryBankController1::new(banks, ram),
         }
     }
-
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.inner.reattach_banks(banks)
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.inner.into_banks()
-    }
 }
 
-impl MemoryMappedHardware for MemoryBankController5 {
-    fn read_value(&self, address: u16) -> u8 {
-        self.inner.read_value(address)
+impl MemoryMappedBank for MemoryBankController5 {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
+        self.inner.read_bank_value(ops, address)
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         if address < 0x2000 {
             // RAM Enable
-            self.inner.set_value(address, value);
+            self.inner.set_bank_value(ops, address, value);
         } else if address < 0x3000 {
             // Select ROM bank (lower 8 bits)
             self.inner.rom_bank_number &= !0xFF;
@@ -653,7 +639,7 @@ impl MemoryMappedHardware for MemoryBankController5 {
             // nothing
         } else {
             // Write to RAM
-            self.inner.set_value(address, value);
+            self.inner.set_bank_value(ops, address, value);
         }
     }
 }
@@ -675,20 +661,25 @@ impl fmt::Debug for CartridgeRam {
     }
 }
 
-impl MemoryMappedHardware for CartridgeRam {
-    fn read_value(&self, address: u16) -> u8 {
+impl MemoryMappedBank for CartridgeRam {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         match self {
             Self::No(r) => r.read_value(address),
             Self::Volatile(r) => r.read_value(address),
-            Self::NonVolatile(r) => r.read_value(address),
+            Self::NonVolatile(r) => r.read_bank_value(ops, address),
         }
     }
 
-    fn set_value(&mut self, address: u16, value: u8) {
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
         match self {
             Self::No(r) => r.set_value(address, value),
             Self::Volatile(r) => r.set_value(address, value),
-            Self::NonVolatile(r) => r.set_value(address, value),
+            Self::NonVolatile(r) => r.set_bank_value(ops, address, value),
         }
     }
 }
@@ -742,23 +733,8 @@ impl fmt::Debug for VolatileRam {
 }
 
 impl VolatileRam {
-    fn new(ram_size: u8) -> Self {
-        let ram = match ram_size {
-            0 => Vec::new(),
-            // 2kB 1 Bank
-            1 => vec![MemoryChunk::from_range(0..0x800)],
-            // 8kB 1 Bank
-            2 => vec![MemoryChunk::from_range(0..0x2000)],
-            // 8kB 4 Banks = 32kB
-            3 => vec![
-                MemoryChunk::from_range(0..0x2000),
-                MemoryChunk::from_range(0..0x2000),
-                MemoryChunk::from_range(0..0x2000),
-                MemoryChunk::from_range(0..0x2000),
-            ],
-            v => panic!("Unknown RAM size {}", v),
-        };
-        VolatileRam {
+    fn new(ram: Vec<MemoryChunk>) -> Self {
+        Self {
             switchable_bank: SwitchableBank::new(ram, 0),
         }
     }
@@ -772,80 +748,50 @@ impl MemoryMappedHardware for VolatileRam {
     fn read_value(&self, address: u16) -> u8 {
         self.switchable_bank.read_value(address)
     }
+
     fn set_value(&mut self, address: u16, value: u8) {
         self.switchable_bank.set_value(address, value);
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct RamFile {
-    path: PathBuf,
-    size: u64,
-
-    #[serde(skip)]
-    file: Option<File>,
+#[derive(Default, Serialize, Deserialize)]
+struct SramChunk {
+    offset: u64,
+    memory: MemoryChunk,
 }
 
-impl RamFile {
-    fn new(path: PathBuf) -> Self {
-        Self {
-            path,
-            size: 0,
-            file: None,
-        }
+impl SramChunk {
+    fn new(offset: u64, memory: MemoryChunk) -> Self {
+        Self { offset, memory }
     }
 
-    fn set_len(&mut self, len: u64) {
-        self.size = len;
+    fn len(&self) -> u16 {
+        self.memory.len()
+    }
+}
+
+impl MemoryMappedBank for SramChunk {
+    fn read_bank_value(&self, _ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
+        self.memory.read_value(address)
     }
 
-    fn maybe_open_file(&mut self) {
-        if self.file.is_some() {
-            return;
-        }
-
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .open(&self.path)
-            .ok();
-
-        if let Some(file) = file {
-            self.size = file.metadata().unwrap().len();
-            self.file = Some(file);
-        }
-    }
-
-    fn write(&mut self, offset: u64, value: u8) {
-        self.maybe_open_file();
-
-        if let Some(file) = &mut self.file {
-            file.set_len(self.size).unwrap();
-            file.seek(SeekFrom::Start(offset)).unwrap();
-            file.write(&[value]).unwrap();
-        }
-    }
-
-    fn read_chunk(&mut self, range: Range<u64>) -> MemoryChunk {
-        self.maybe_open_file();
-
-        let len: u16 = (range.end - range.start).try_into().unwrap();
-
-        if let Some(file) = &mut self.file {
-            file.seek(SeekFrom::Start(range.start)).unwrap();
-            MemoryChunk::from_reader(file, len as usize).unwrap_or(MemoryChunk::from_range(0..len))
-        } else {
-            MemoryChunk::from_range(0..len)
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
+        self.memory.set_value(address, value);
+        if let Some(file) = &mut ops.sram_file {
+            file.seek(SeekFrom::Start(self.offset + address as u64))
+                .unwrap();
+            file.write_all(&[value]).unwrap();
         }
     }
 }
 
 #[derive(Default, Serialize, Deserialize)]
-struct NonVolatileRam {
-    switchable_bank: SwitchableBank<MemoryChunk>,
-    file: Option<RamFile>,
-}
+struct NonVolatileRam(SwitchableBank<SramChunk>);
 
 impl Into<CartridgeRam> for NonVolatileRam {
     fn into(self) -> CartridgeRam {
@@ -860,83 +806,48 @@ impl fmt::Debug for NonVolatileRam {
 }
 
 impl NonVolatileRam {
-    fn new(ram_size: u8, path: Option<PathBuf>) -> Self {
-        let mut file = path.map(|p| RamFile::new(p));
-
-        let mut file_size = 0;
-        let mut chunk_factory = |size: u16| {
-            if let Some(file) = &mut file {
-                let chunk = file.read_chunk(file_size..(file_size + size as u64));
-                file_size += size as u64;
-                chunk
-            } else {
-                MemoryChunk::from_range(0..size)
-            }
-        };
-
-        let ram = match ram_size {
-            0 => Vec::new(),
-            // 2kB 1 Bank
-            1 => vec![chunk_factory(0x800)],
-            // 8kB 1 Bank
-            2 => vec![chunk_factory(0x2000)],
-            // 8kB 4 Banks = 32kB
-            3 => vec![
-                chunk_factory(0x2000),
-                chunk_factory(0x2000),
-                chunk_factory(0x2000),
-                chunk_factory(0x2000),
-            ],
-            v => panic!("Unknown RAM size {}", v),
-        };
-
-        if let Some(file) = &mut file {
-            file.set_len(file_size);
-        }
-
-        Self {
-            switchable_bank: SwitchableBank::new(ram, 0),
-            file,
-        }
+    fn new(ram: Vec<SramChunk>) -> Self {
+        Self(SwitchableBank::new(ram, 0))
     }
 }
 
-impl MemoryMappedHardware for NonVolatileRam {
-    fn read_value(&self, address: u16) -> u8 {
-        self.switchable_bank.read_value(address)
+impl MemoryMappedBank for NonVolatileRam {
+    fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
+        self.0.read_bank_value(ops, address)
     }
-    fn set_value(&mut self, address: u16, value: u8) {
-        if address as usize >= self.switchable_bank.total_len() {
+
+    fn set_bank_value(
+        &mut self,
+        ops: &mut BankOps<impl PersistentStorage>,
+        address: u16,
+        value: u8,
+    ) {
+        if address as usize >= self.0.total_len() {
             return;
         }
 
-        self.switchable_bank.set_value(address, value);
-
-        if let Some(file) = &mut self.file {
-            let offset = (self.switchable_bank.current_bank_offset() + address as usize) as u64;
-            file.write(offset, value);
-        }
+        self.0.set_bank_value(ops, address, value);
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct GamePak {
+pub struct GamePak<Storage: PersistentStorage> {
     title: String,
     hash: u32,
+    ops: BankOps<Storage>,
     mbc: MemoryBankController,
 }
 
-impl MemoryMappedHardware for GamePak {
+impl<Storage: PersistentStorage> MemoryMappedHardware for GamePak<Storage> {
     fn read_value(&self, address: u16) -> u8 {
-        self.mbc.read_value(address)
+        self.mbc.read_bank_value(&self.ops, address)
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        self.mbc.set_value(address, value);
+        self.mbc.set_bank_value(&mut self.ops, address, value);
     }
 }
 
-impl MemoryMappedHardware for &GamePak {
+impl<Storage: PersistentStorage> MemoryMappedHardware for &GamePak<Storage> {
     fn read_value(&self, address: u16) -> u8 {
         (*self).read_value(address)
     }
@@ -946,7 +857,7 @@ impl MemoryMappedHardware for &GamePak {
     }
 }
 
-impl MemoryMappedHardware for &mut GamePak {
+impl<Storage: PersistentStorage> MemoryMappedHardware for &mut GamePak<Storage> {
     fn read_value(&self, address: u16) -> u8 {
         (**self).read_value(address)
     }
@@ -965,7 +876,7 @@ const TITLE: Range<usize> = Range {
     end: 0x0144,
 };
 
-fn banks_from_rom(rom: &[u8]) -> Vec<RomBank> {
+fn banks_and_chunks_from_rom(rom: &[u8]) -> (Vec<RomBank>, Vec<MemoryChunk>) {
     let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
         n if n <= 0x08 => 2usize.pow(n as u32 + 1),
         0x52 => 72,
@@ -980,36 +891,99 @@ fn banks_from_rom(rom: &[u8]) -> Vec<RomBank> {
     );
 
     let mut banks = Vec::new();
+    let mut chunks = Vec::new();
     for b in 0..number_of_banks {
         let start = b * (BANK_SIZE as usize);
         let end = start + (BANK_SIZE as usize);
-        banks.push(RomBank::new(rom[start..end].to_vec()));
+        banks.push(RomBank::new(b));
+        chunks.push(MemoryChunk::new(rom[start..end].to_vec()));
     }
 
-    banks
+    (banks, chunks)
 }
 
-impl GamePak {
-    pub fn from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        let path: &Path = path.as_ref();
-        let mut rom_file = std::fs::File::open(path)?;
-        let mut rom: Vec<u8> = vec![];
-        rom_file.read_to_end(&mut rom)?;
-        Ok(GamePak::new(&rom, Some(path.with_extension("sav"))))
+#[derive(Copy, Clone)]
+struct RamDescription {
+    bank_size: u16,
+    number_of_banks: usize,
+}
+
+impl RamDescription {
+    fn from_bytes(ram_size: u8, controller: u8) -> Self {
+        if controller == 0x6 {
+            return Self {
+                bank_size: 512,
+                number_of_banks: 1,
+            };
+        }
+
+        match ram_size {
+            0 => Self {
+                bank_size: 0,
+                number_of_banks: 0,
+            },
+            // 2kB 1 Bank
+            1 => Self {
+                bank_size: 0x800,
+                number_of_banks: 1,
+            },
+            // 8kB 1 Bank
+            2 => Self {
+                bank_size: 0x2000,
+                number_of_banks: 1,
+            },
+            // 8kB 4 Banks = 32kB
+            3 => Self {
+                bank_size: 0x2000,
+                number_of_banks: 4,
+            },
+            v => panic!("Unknown RAM byte {:x}", v),
+        }
     }
 
-    pub fn from_path_without_sav<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        let path: &Path = path.as_ref();
-        let mut rom_file = std::fs::File::open(path)?;
-        let mut rom: Vec<u8> = vec![];
-        rom_file.read_to_end(&mut rom)?;
-        Ok(GamePak::new(&rom, None))
+    fn total_len(&self) -> u16 {
+        self.bank_size * self.number_of_banks as u16
     }
 
-    pub fn new(rom: &[u8], sram_path: Option<PathBuf>) -> Self {
+    fn into_ram(self) -> Vec<MemoryChunk> {
+        vec![MemoryChunk::from_range(0..self.bank_size); self.number_of_banks]
+    }
+
+    fn into_sram(self) -> Vec<SramChunk> {
+        self.into_ram()
+            .into_iter()
+            .enumerate()
+            .map(|(i, m)| SramChunk::new(i as u64 * self.bank_size as u64, m))
+            .collect()
+    }
+}
+
+fn load_sram_from_file(sram: &mut [SramChunk], file: &mut impl io::Read) -> io::Result<()> {
+    for chunk in sram {
+        file.read_exact(chunk.memory.as_mut_slice())?;
+    }
+    Ok(())
+}
+
+impl<Storage: PersistentStorage> GamePak<Storage> {
+    pub fn from_storage(storage: &mut Storage, key: &str) -> io::Result<Self> {
+        let mut rom_file = storage.open(OpenMode::Read, key)?;
+        let mut rom: Vec<u8> = vec![];
+        rom_file.read_to_end(&mut rom)?;
+        GamePak::new(&rom, storage, Some(&format!("{}.sav", key)))
+    }
+
+    pub fn from_storage_without_sav(storage: &mut Storage, key: &str) -> io::Result<Self> {
+        let mut rom_file = storage.open(OpenMode::Read, key)?;
+        let mut rom: Vec<u8> = vec![];
+        rom_file.read_to_end(&mut rom)?;
+        GamePak::new(&rom, storage, None)
+    }
+
+    pub fn new(rom: &[u8], storage: &mut Storage, sram_key: Option<&str>) -> io::Result<Self> {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
         let hash = super_fast_hash(rom);
-        let banks = banks_from_rom(rom);
+        let (rom_banks, rom_chunks) = banks_and_chunks_from_rom(rom);
 
         let title_slice = &rom[TITLE];
         let title_end = title_slice
@@ -1020,7 +994,17 @@ impl GamePak {
             .expect(&format!("Malformed title {:?}", title_slice))
             .into();
 
-        let ram_size = rom[RAM_SIZE_ADDRESS];
+        let mut sram_file = None;
+        let mut get_sram = |ram_descr: RamDescription| -> io::Result<Vec<SramChunk>> {
+            let mut sram = ram_descr.into_sram();
+            if let Some(sram_key) = sram_key {
+                let mut file = storage.open(OpenMode::ReadWrite, sram_key)?;
+                file.set_len(ram_descr.total_len() as u64)?;
+                load_sram_from_file(&mut sram, &mut file)?;
+                sram_file = Some(file);
+            }
+            Ok(sram)
+        };
 
         /*
          *  0x00  ROM ONLY
@@ -1053,30 +1037,37 @@ impl GamePak {
          *  0xFF  HuC1+RAM+BATTERY
          */
 
-        let mbc: MemoryBankController =
-            match rom[MBC_TYPE_ADDRESS] {
-                0x00 => {
-                    assert_eq!(banks.len(), 2);
-                    MemoryBankController0::new(banks).into()
-                }
-                0x01 => MemoryBankController1::new(banks, NoRam).into(),
-                0x02 => MemoryBankController1::new(banks, VolatileRam::new(ram_size)).into(),
-                0x03 => MemoryBankController1::new(banks, NonVolatileRam::new(ram_size, sram_path))
-                    .into(),
-                0x05 => MemoryBankController2::new(banks, VolatileInternalRam::new()).into(),
-                0x06 => {
-                    MemoryBankController2::new(banks, NonVolatileInternalRam::new(sram_path)).into()
-                }
-                0x11 => MemoryBankController3::new(banks, NoRam).into(),
-                0x12 => MemoryBankController3::new(banks, VolatileRam::new(ram_size)).into(),
-                0x13 => MemoryBankController3::new(banks, NonVolatileRam::new(ram_size, sram_path))
-                    .into(),
-                0x1b => MemoryBankController5::new(banks, NonVolatileRam::new(ram_size, sram_path))
-                    .into(),
-                v => panic!("Unknown Memory Bank Controller {:#x}", v),
-            };
+        let ram_descr = RamDescription::from_bytes(rom[RAM_SIZE_ADDRESS], rom[MBC_TYPE_ADDRESS]);
+        let vram = || VolatileRam::new(ram_descr.into_ram());
+        let viram = || VolatileInternalRam::new();
+        let nvram = |sram| NonVolatileRam::new(sram);
+        let nviram = |sram| NonVolatileInternalRam::new(sram);
 
-        GamePak { title, hash, mbc }
+        let mbc: MemoryBankController = match rom[MBC_TYPE_ADDRESS] {
+            0x00 => MemoryBankController0::new(rom_banks).into(),
+            0x01 => MemoryBankController1::new(rom_banks, NoRam).into(),
+            0x02 => MemoryBankController1::new(rom_banks, vram()).into(),
+            0x03 => MemoryBankController1::new(rom_banks, nvram(get_sram(ram_descr)?)).into(),
+            0x05 => MemoryBankController2::new(rom_banks, viram()).into(),
+            0x06 => MemoryBankController2::new(rom_banks, nviram(get_sram(ram_descr)?)).into(),
+            0x11 => MemoryBankController3::new(rom_banks, NoRam).into(),
+            0x12 => MemoryBankController3::new(rom_banks, vram()).into(),
+            0x13 => MemoryBankController3::new(rom_banks, nvram(get_sram(ram_descr)?)).into(),
+            0x1b => MemoryBankController5::new(rom_banks, nvram(get_sram(ram_descr)?)).into(),
+            v => panic!("Unknown Memory Bank Controller {:#x}", v),
+        };
+
+        let ops = BankOps {
+            sram_file,
+            rom_memory: rom_chunks,
+        };
+
+        Ok(GamePak {
+            ops,
+            title,
+            hash,
+            mbc,
+        })
     }
 
     pub fn title(&self) -> &str {
@@ -1087,29 +1078,22 @@ impl GamePak {
         self.hash
     }
 
-    pub fn save_state<W: std::io::Write>(&self, writer: W) -> super::Result<()> {
-        bincode::serialize_into(writer, self)?;
+    pub fn save_state<W: std::io::Write>(&self, mut writer: W) -> super::Result<()> {
+        bincode::serialize_into(&mut writer, &self.hash)?;
+        bincode::serialize_into(&mut writer, &self.mbc)?;
         Ok(())
     }
 
-    pub fn load_state<R: std::io::Read>(&mut self, reader: R) -> super::Result<()> {
-        let new: Self = bincode::deserialize_from(reader)?;
-        assert_eq!(self.hash, new.hash);
-        let old = std::mem::replace(self, new);
-        self.reattach_banks(old.into_banks());
+    pub fn load_state<R: std::io::Read>(&mut self, mut reader: R) -> super::Result<()> {
+        let hash: u32 = bincode::deserialize_from(&mut reader)?;
+        assert_eq!(self.hash, hash);
+
+        self.mbc = bincode::deserialize_from(&mut reader)?;
         Ok(())
-    }
-
-    fn into_banks(self) -> Vec<RomBank> {
-        self.mbc.into_banks()
-    }
-
-    fn reattach_banks(&mut self, banks: Vec<RomBank>) {
-        self.mbc.reattach_banks(banks)
     }
 }
 
-impl fmt::Debug for GamePak {
+impl<Storage: PersistentStorage> fmt::Debug for GamePak<Storage> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "GamePak({:?}, {:?})", self.title, self.mbc)
     }

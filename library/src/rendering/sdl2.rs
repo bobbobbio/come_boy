@@ -108,6 +108,7 @@ impl Renderer for Sdl2WindowRenderer {
             sdl2::pixels::PixelFormatEnum::ABGR8888,
         )
         .unwrap();
+        // XXX remi: This should use storage
         s.save_bmp(path)
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
         Ok(())

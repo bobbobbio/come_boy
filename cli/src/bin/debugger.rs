@@ -5,7 +5,7 @@ use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
-use come_boy::storage::PersistentStorage;
+use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
@@ -30,23 +30,19 @@ struct Options {
 }
 
 struct Frontend {
-    game_pak: GamePak,
+    fs: Fs,
+    game_pak: GamePak<Fs>,
 }
 
 impl Frontend {
-    fn new(game_pak: GamePak) -> Self {
-        Self { game_pak }
+    fn new(fs: Fs, game_pak: GamePak<Fs>) -> Self {
+        Self { fs, game_pak }
     }
 }
 
 impl bin_common::frontend::Frontend for Frontend {
-    fn run(
-        self,
-        renderer: &mut impl Renderer,
-        sound_stream: &mut impl SoundStream,
-        storage: &mut impl PersistentStorage,
-    ) {
-        game_boy_emulator::run_debugger(renderer, sound_stream, storage, self.game_pak, &|| {
+    fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
+        game_boy_emulator::run_debugger(renderer, sound_stream, self.fs, self.game_pak, &|| {
             INTERRUPTED.swap(false, Ordering::Relaxed)
         });
     }
@@ -61,7 +57,9 @@ fn main() -> Result<()> {
 
     let options = Options::from_args();
 
-    let game_pak = GamePak::from_path(&options.rom)?;
+    let mut fs = Fs::new(options.rom.parent());
+    let rom_key = Fs::path_to_key(&options.rom)?;
+    let game_pak = GamePak::from_storage(&mut fs, &rom_key)?;
 
     let rendering_options = RenderingOptions {
         scale: options.scale,
@@ -69,7 +67,7 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let backend_map = BackendMap::new(rendering_options, Frontend::new(game_pak));
+    let backend_map = BackendMap::new(rendering_options, Frontend::new(fs, game_pak));
     backend_map.run(&options.renderer)?;
     Ok(())
 }

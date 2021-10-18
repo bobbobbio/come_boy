@@ -6,23 +6,25 @@ use crate::game_boy_emulator::{
 };
 use crate::rendering::Renderer;
 use crate::sound::NullSoundStream;
-use crate::storage::PanicStorage;
+use crate::storage::{fs::Fs, PersistentStorage};
 use std::io;
 use std::path::Path;
 
 fn run_until_and_save_reload_and_take_screenshot(
     renderer: impl Renderer,
-    rom_path: &str,
+    storage: impl PersistentStorage,
+    rom_key: &str,
     ticks: u64,
     replay_path: Option<impl AsRef<Path>>,
     output_path: impl AsRef<Path>,
 ) -> Result<()> {
     use std::io::{Seek, SeekFrom};
 
-    let game_pak = GamePak::from_path_without_sav(rom_path)?;
+    let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
+    let game_pak = GamePak::from_storage_without_sav(&mut ops.storage, rom_key)?;
 
-    let mut ops = GameBoyOps::new(renderer, NullSoundStream, PanicStorage);
     let mut e = GameBoyEmulator::new();
+
     if let Some(replay_path) = replay_path {
         ops.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), replay_path)?);
     }
@@ -40,7 +42,7 @@ fn run_until_and_save_reload_and_take_screenshot(
     tmp_output.seek(SeekFrom::Start(0))?;
 
     // Reload the emulator from the save state
-    let game_pak = GamePak::from_path_without_sav(rom_path)?;
+    let game_pak = GamePak::from_storage_without_sav(&mut ops.storage, rom_key)?;
     ops.load_game_pak(game_pak);
 
     let mut e = GameBoyEmulator::new();
@@ -64,31 +66,29 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
 }
 
 fn run_and_take_screenshot(
-    rom_path: &str,
+    rom_path: &Path,
     ticks: u64,
     replay: Option<&str>,
     output: &std::path::Path,
 ) -> Result<()> {
-    let mut renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
-    run_until_and_take_screenshot(
-        &mut renderer,
-        GamePak::from_path_without_sav(rom_path)?,
-        ticks,
-        replay,
-        output,
-    )
-    .unwrap();
+    let mut fs = Fs::new(rom_path.parent());
+    let renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
+    let rom_key = Fs::path_to_key(rom_path)?;
+    let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
+    run_until_and_take_screenshot(renderer, fs, game_pak, ticks, replay, output).unwrap();
     Ok(())
 }
 
 fn run_and_save_reload_and_take_screenshot(
-    rom_path: &str,
+    rom_path: &Path,
     ticks: u64,
     replay: Option<&str>,
     output: &std::path::Path,
 ) -> Result<()> {
-    let mut renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
-    run_until_and_save_reload_and_take_screenshot(&mut renderer, rom_path, ticks, replay, output)
+    let renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
+    let fs = Fs::new(rom_path.parent());
+    let rom_key = Fs::path_to_key(rom_path)?;
+    run_until_and_save_reload_and_take_screenshot(renderer, fs, &rom_key, ticks, replay, output)
         .unwrap();
     Ok(())
 }
@@ -129,7 +129,7 @@ fn do_rom_test(
     );
 
     let tmp_output = tempfile::NamedTempFile::new()?;
-    run_and_take_screenshot(rom_path, ticks, replay, tmp_output.path())?;
+    run_and_take_screenshot(rom_path.as_ref(), ticks, replay, tmp_output.path())?;
     compare_screenshots(expectation_path, tmp_output.path())?;
     Ok(())
 }
@@ -147,7 +147,7 @@ fn do_save_state_rom_test(
     );
 
     let tmp_output = tempfile::NamedTempFile::new()?;
-    run_and_save_reload_and_take_screenshot(rom_path, ticks, replay, tmp_output.path())?;
+    run_and_save_reload_and_take_screenshot(rom_path.as_ref(), ticks, replay, tmp_output.path())?;
     compare_screenshots(expectation_path, tmp_output.path())?;
     Ok(())
 }

@@ -989,6 +989,7 @@ fn filter_write<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
 fn generate_memory_map_from_mapping(
     type_name: &str,
     generics: syn::Generics,
+    where_clause: Option<syn::WhereClause>,
     mapping: &BTreeMap<AddressRange, MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
@@ -1046,7 +1047,7 @@ fn generate_memory_map_from_mapping(
     quote!(
         use super::#name;
 
-        impl #generics #memory_controller::MemoryAccessor for #name #generics {
+        impl #generics #memory_controller::MemoryAccessor for #name #generics #where_clause {
             fn read_memory(&self, address: u16) -> u8 {
                 #(if #read_expr {
                     MemoryMappedHardware::read_value(&self.#read_field, address - #read_offset)
@@ -1069,7 +1070,13 @@ fn generate_memory_map_from_mapping(
     .into()
 }
 
-fn generate_memory_map(memory_map_path: &str, type_name: &str, generics_str: &str, mutable: bool) {
+fn generate_memory_map(
+    memory_map_path: &str,
+    type_name: &str,
+    generics_str: &str,
+    where_clause_str: &str,
+    mutable: bool,
+) {
     let memory_map_json = format!("src/{}/memory_map.json", memory_map_path);
     println!("cargo:rerun-if-changed={}", memory_map_json);
 
@@ -1086,9 +1093,14 @@ fn generate_memory_map(memory_map_path: &str, type_name: &str, generics_str: &st
     });
 
     let generics = syn::parse_str(generics_str).unwrap();
+    let where_clause = syn::parse_str(where_clause_str).unwrap();
 
     tokens.extend(generate_memory_map_from_mapping(
-        type_name, generics, &mapping, mutable,
+        type_name,
+        generics,
+        where_clause,
+        &mapping,
+        mutable,
     ));
 
     let file_name = format!("memory_map{}.rs", if mutable { "_mut" } else { "" });
@@ -1232,37 +1244,43 @@ fn main() {
     generate_memory_map(
         "game_boy_emulator/memory_controller",
         "GameBoyMemoryMap",
-        "<'a>",
+        "<'a, Storage>",
+        "where Storage: crate::storage::PersistentStorage",
         false,
     );
     generate_memory_map(
         "game_boy_emulator/memory_controller",
         "GameBoyMemoryMapMut",
-        "<'a>",
+        "<'a, Storage>",
+        "where Storage: crate::storage::PersistentStorage",
         true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller",
         "SoundController",
         "<>",
+        "",
         true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller/channel1",
         "Channel1",
         "<>",
+        "",
         true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller/channel2",
         "Channel2",
         "<>",
+        "",
         true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller/channel3",
         "Channel3",
         "<>",
+        "",
         true,
     );
     generate_rom_tests("test/roms", "test/expectations", "game_boy_emulator");

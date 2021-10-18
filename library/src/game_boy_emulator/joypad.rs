@@ -299,6 +299,7 @@ impl RecordingJoyPad {
         game_pak_hash: u32,
         output_path: P,
     ) -> Result<Self> {
+        // XXX remi: Should use storage instead
         let mut output_file = std::fs::File::create(output_path)?;
         let header = ReplayFileHeader {
             version: ReplayFileVersion::Version1,

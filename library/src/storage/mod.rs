@@ -4,35 +4,53 @@ use std::io;
 
 pub mod fs;
 
-pub trait PersistentStorage {
-    type Stream: io::Read + io::Write;
-
-    fn save(&mut self, key: &str) -> io::Result<Self::Stream>;
-    fn load(&mut self, key: &str) -> io::Result<Self::Stream>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpenMode {
+    Read,
+    Write,
+    ReadWrite,
 }
 
+pub trait StorageFile: io::Read + io::Write + io::Seek {
+    fn set_len(&mut self, len: u64) -> io::Result<()>;
+}
+
+pub trait PersistentStorage {
+    type File: StorageFile;
+
+    fn open(&mut self, mode: OpenMode, key: &str) -> io::Result<Self::File>;
+}
+
+#[derive(Default)]
 pub struct PanicStorage;
 
 impl PersistentStorage for PanicStorage {
-    type Stream = io::Cursor<Vec<u8>>;
+    type File = <fs::Fs as PersistentStorage>::File;
 
-    fn save(&mut self, _key: &str) -> io::Result<Self::Stream> {
-        panic!("save called on PanicStorage");
+    fn open(&mut self, _mode: OpenMode, _key: &str) -> io::Result<Self::File> {
+        panic!("open called on PanicStorage");
     }
+}
 
-    fn load(&mut self, _key: &str) -> io::Result<Self::Stream> {
-        panic!("load called on PanicStorage");
+#[derive(Default)]
+pub struct ReadOnly<Fs>(Fs);
+
+impl<Fs: PersistentStorage> PersistentStorage for ReadOnly<Fs> {
+    type File = Fs::File;
+
+    fn open(&mut self, mode: OpenMode, key: &str) -> io::Result<Self::File> {
+        if mode == OpenMode::Write || mode == OpenMode::ReadWrite {
+            panic!("tried to open for write on ReadOnly fs.");
+        } else {
+            self.0.open(mode, key)
+        }
     }
 }
 
 impl<T: PersistentStorage> PersistentStorage for &mut T {
-    type Stream = T::Stream;
+    type File = T::File;
 
-    fn save(&mut self, key: &str) -> io::Result<Self::Stream> {
-        (*self).save(key)
-    }
-
-    fn load(&mut self, key: &str) -> io::Result<Self::Stream> {
-        (*self).load(key)
+    fn open(&mut self, mode: OpenMode, key: &str) -> io::Result<Self::File> {
+        (*self).open(mode, key)
     }
 }

@@ -2,6 +2,7 @@
 
 use come_boy::game_boy_emulator::{self, GamePak, Result};
 use come_boy::rendering::bitmap::BitmapRenderer;
+use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -24,10 +25,13 @@ struct Options {
 fn main() -> Result<()> {
     let options = Options::from_args();
 
-    let mut renderer = BitmapRenderer::new(Default::default());
-    let game_pak = GamePak::from_path_without_sav(&options.rom)?;
+    let mut fs = Fs::new(options.rom.parent());
+    let rom_key = Fs::path_to_key(&options.rom)?;
+    let renderer = BitmapRenderer::new(Default::default());
+    let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
     game_boy_emulator::run_until_and_take_screenshot(
-        &mut renderer,
+        renderer,
+        fs,
         game_pak,
         options.ticks,
         options.replay,

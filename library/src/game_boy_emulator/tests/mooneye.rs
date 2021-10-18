@@ -34,7 +34,8 @@ pub(crate) fn run_mooneye_test_rom(rom_path: &str) {
 
     let mut ops = GameBoyOps::null();
     let mut e = GameBoyEmulator::new();
-    ops.load_game_pak(GamePak::new(&read_mooneye_test_rom(rom_path), None));
+    let game_pak = GamePak::new(&read_mooneye_test_rom(rom_path), &mut ops.storage, None).unwrap();
+    ops.load_game_pak(game_pak);
     run_emulator_until_pc(&mut e, &mut ops, |pc| {
         pc == success_address || pc == fail_address
     });

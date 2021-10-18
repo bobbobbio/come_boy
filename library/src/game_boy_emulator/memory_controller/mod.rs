@@ -4,24 +4,24 @@ use super::game_pak::GamePak;
 use super::joypad::JoyPad;
 use super::Bridge;
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+use crate::storage::PersistentStorage;
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::Range;
 use enum_iterator::IntoEnumIterator;
 use serde_derive::{Deserialize, Serialize};
-use std::io;
 
 mod memory_map;
 mod memory_map_mut;
 
-pub(crate) struct GameBoyMemoryMap<'a> {
-    pub game_pak: Option<&'a GamePak>,
+pub(crate) struct GameBoyMemoryMap<'a, Storage: PersistentStorage> {
+    pub game_pak: Option<&'a GamePak<Storage>>,
     pub joypad: Option<&'a dyn JoyPad>,
     pub bridge: &'a Bridge,
 }
 
-pub(crate) struct GameBoyMemoryMapMut<'a> {
-    pub game_pak: Option<&'a mut GamePak>,
+pub(crate) struct GameBoyMemoryMapMut<'a, Storage: PersistentStorage> {
+    pub game_pak: Option<&'a mut GamePak<Storage>>,
     pub joypad: Option<&'a mut dyn JoyPad>,
     pub bridge: &'a mut Bridge,
 }
@@ -381,13 +381,6 @@ impl MemoryChunk {
         let mut v = Vec::<u8>::new();
         v.resize(range.len(), 0);
         MemoryChunk::new(v)
-    }
-
-    pub fn from_reader<R: io::Read>(mut r: R, len: usize) -> io::Result<Self> {
-        let mut v = Vec::<u8>::new();
-        v.resize(len, 0);
-        r.read_exact(&mut v)?;
-        Ok(MemoryChunk::new(v))
     }
 
     pub fn clone_from_slice(&mut self, slice: &[u8]) {

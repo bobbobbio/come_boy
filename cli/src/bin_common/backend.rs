@@ -89,7 +89,6 @@ mod speedy2d {
     use super::{Backend, Frontend};
     use come_boy::rendering::{speedy, RenderingOptions};
     use come_boy::sound::cpal::CpalSoundStream;
-    use come_boy::storage::fs::Fs;
 
     pub(super) struct Speedy2dBackend;
 
@@ -98,8 +97,7 @@ mod speedy2d {
             println!("Using speedy2d renderer");
             speedy::run_loop(rendering_options, move |renderer| {
                 let mut sound_stream = CpalSoundStream::new();
-                let mut storage = Fs::new();
-                frontend.run(renderer, &mut sound_stream, &mut storage);
+                frontend.run(renderer, &mut sound_stream);
             })
         }
     }
@@ -110,7 +108,6 @@ mod sdl2 {
     use super::{Backend, Frontend};
     use come_boy::rendering::{sdl2::Sdl2WindowRenderer, RenderingOptions};
     use come_boy::sound::cpal::CpalSoundStream;
-    use come_boy::storage::fs::Fs;
 
     pub(super) struct Sdl2Backend;
 
@@ -119,8 +116,7 @@ mod sdl2 {
             println!("Using sdl2 renderer");
             let mut sound_stream = CpalSoundStream::new();
             let mut renderer = Sdl2WindowRenderer::new(rendering_options);
-            let mut storage = Fs::new();
-            frontend.run(&mut renderer, &mut sound_stream, &mut storage);
+            frontend.run(&mut renderer, &mut sound_stream);
             std::process::exit(0)
         }
     }

@@ -5,7 +5,7 @@ use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
-use come_boy::storage::PersistentStorage;
+use come_boy::storage::fs::Fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -15,13 +15,15 @@ use structopt::StructOpt;
 mod bin_common;
 
 struct Frontend {
-    game_pak: GamePak,
+    fs: Fs,
+    game_pak: GamePak<Fs>,
     save_state: Option<Vec<u8>>,
 }
 
 impl Frontend {
-    fn new(game_pak: GamePak, save_state: Option<Vec<u8>>) -> Self {
+    fn new(fs: Fs, game_pak: GamePak<Fs>, save_state: Option<Vec<u8>>) -> Self {
         Self {
+            fs,
             game_pak,
             save_state,
         }
@@ -29,16 +31,11 @@ impl Frontend {
 }
 
 impl bin_common::frontend::Frontend for Frontend {
-    fn run(
-        self,
-        renderer: &mut impl Renderer,
-        sound_stream: &mut impl SoundStream,
-        storage: &mut impl PersistentStorage,
-    ) {
+    fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         game_boy_emulator::run_emulator(
             renderer,
             sound_stream,
-            storage,
+            self.fs,
             self.game_pak,
             self.save_state,
         )
@@ -72,7 +69,9 @@ fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
 fn main() -> Result<()> {
     let options = Options::from_args();
 
-    let game_pak = GamePak::from_path(options.rom)?;
+    let mut fs = Fs::new(options.rom.parent());
+    let rom_key = Fs::path_to_key(&options.rom)?;
+    let game_pak = GamePak::from_storage(&mut fs, &rom_key)?;
     let save_state = options.save_state.map(read_save_state).transpose()?;
 
     let rendering_options = RenderingOptions {
@@ -80,7 +79,7 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let backend_map = BackendMap::new(rendering_options, Frontend::new(game_pak, save_state));
+    let backend_map = BackendMap::new(rendering_options, Frontend::new(fs, game_pak, save_state));
     backend_map.run(&options.renderer)?;
     Ok(())
 }

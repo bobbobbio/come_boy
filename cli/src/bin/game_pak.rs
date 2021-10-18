@@ -1,6 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use come_boy::game_boy_emulator::{GamePak, Result};
+use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -14,7 +15,9 @@ struct Options {
 fn main() -> Result<()> {
     let options = Options::from_args();
 
-    let game_pak = GamePak::from_path_without_sav(options.rom)?;
+    let mut fs = Fs::new(options.rom.parent());
+    let rom_key = Fs::path_to_key(&options.rom)?;
+    let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
     println!("{:?}", game_pak);
 
     Ok(())

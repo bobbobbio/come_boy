@@ -6,11 +6,12 @@ use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::{
     GameBoyEmulator, GameBoyOps, GamePak, LR35902Flag, NullGameBoyOps, Result,
 };
+use crate::rendering::NullRenderer;
+use crate::sound::NullSoundStream;
+use crate::storage::{OpenMode, PersistentStorage};
 use core::fmt::{self, Debug};
 use core::str;
-use std::fs::File;
 use std::io::{Bytes, Read, Write};
-use std::path::Path;
 
 #[derive(Clone, Copy, Default, PartialEq)]
 struct AbstractEmulatorRegisters {
@@ -501,15 +502,16 @@ fn print_memory_diff(a: &[u8], b: &[u8]) {
     print_hex(b, start, end, |addr| a[addr] != b[addr]);
 }
 
-pub fn run<P: AsRef<Path> + Debug>(
-    replay_file_path: P,
-    game_pak: GamePak,
+pub fn run<Storage: PersistentStorage>(
+    mut storage: Storage,
+    replay_file_path: &str,
+    game_pak: GamePak<Storage>,
     pc_only: bool,
 ) -> Result<()> {
-    let f = File::open(&replay_file_path)?;
-    let mut e1 = EmulatorReplayer::new(&f);
+    let f = storage.open(OpenMode::Read, replay_file_path)?;
+    let mut e1 = EmulatorReplayer::new(f);
 
-    let mut ops = GameBoyOps::null();
+    let mut ops = GameBoyOps::new(NullRenderer, NullSoundStream, storage);
     ops.load_game_pak(game_pak);
 
     let mut e2 = TandemGameBoyEmulator::new();

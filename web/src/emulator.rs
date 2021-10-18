@@ -76,7 +76,7 @@ impl Emulator {
 
     pub fn load_rom(&mut self, rom: &[u8]) {
         self.emulator = GameBoyEmulator::new();
-        let game_pak = GamePak::new(rom, None);
+        let game_pak = GamePak::new(rom, &mut self.ops.storage, None).unwrap();
         self.ops.load_game_pak(game_pak);
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
     }
