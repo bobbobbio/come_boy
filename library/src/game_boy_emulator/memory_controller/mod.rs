@@ -1,6 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
-pub use self::memory_map::{GameBoyMemoryMap, GameBoyMemoryMapMut};
+use super::game_pak::GamePak;
+use super::joypad::JoyPad;
+use super::Bridge;
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
 use core::fmt;
 use core::marker::PhantomData;
@@ -9,8 +11,20 @@ use enum_iterator::IntoEnumIterator;
 use serde_derive::{Deserialize, Serialize};
 use std::io;
 
-#[macro_use]
-pub mod memory_map;
+mod memory_map;
+mod memory_map_mut;
+
+pub(crate) struct GameBoyMemoryMap<'a> {
+    pub game_pak: Option<&'a GamePak>,
+    pub joypad: Option<&'a dyn JoyPad>,
+    pub bridge: &'a Bridge,
+}
+
+pub(crate) struct GameBoyMemoryMapMut<'a> {
+    pub game_pak: Option<&'a mut GamePak>,
+    pub joypad: Option<&'a mut dyn JoyPad>,
+    pub bridge: &'a mut Bridge,
+}
 
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct GameBoyRegister {

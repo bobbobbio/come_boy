@@ -2,50 +2,53 @@
 
 use crate::game_boy_emulator::{
     joypad::PlaybackJoyPad, run_emulator_until, run_until_and_take_screenshot, GameBoyEmulator,
-    GamePak, Result,
+    GameBoyOps, GamePak, Result,
 };
 use crate::rendering::Renderer;
+use crate::sound::NullSoundStream;
+use crate::storage::PanicStorage;
 use std::io;
 use std::path::Path;
 
-fn run_until_and_save_reload_and_take_screenshot<R: Renderer, P1: AsRef<Path>, P2: AsRef<Path>>(
-    renderer: &mut R,
+fn run_until_and_save_reload_and_take_screenshot(
+    renderer: impl Renderer,
     rom_path: &str,
     ticks: u64,
-    replay_path: Option<P1>,
-    output_path: P2,
+    replay_path: Option<impl AsRef<Path>>,
+    output_path: impl AsRef<Path>,
 ) -> Result<()> {
     use std::io::{Seek, SeekFrom};
 
     let game_pak = GamePak::from_path_without_sav(rom_path)?;
+
+    let mut ops = GameBoyOps::new(renderer, NullSoundStream, PanicStorage);
     let mut e = GameBoyEmulator::new();
     if let Some(replay_path) = replay_path {
-        e.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), replay_path)?);
+        ops.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), replay_path)?);
     }
-    e.load_game_pak(game_pak);
+    ops.load_game_pak(game_pak);
 
     // Run the emulator some amount of time less than requested
     let initial_ticks = e.cpu.elapsed_cycles;
     let final_ticks = initial_ticks + ticks;
     let stopping_point = final_ticks - 500_000;
-    run_emulator_until(&mut e, renderer, stopping_point);
+    run_emulator_until(&mut e, &mut ops, stopping_point);
 
     // Save a save state
     let mut tmp_output = tempfile::NamedTempFile::new()?;
-    e.save_state(tmp_output.as_file_mut())?;
+    e.save_state(ops.game_pak.as_ref(), tmp_output.as_file_mut())?;
     tmp_output.seek(SeekFrom::Start(0))?;
 
     // Reload the emulator from the save state
     let game_pak = GamePak::from_path_without_sav(rom_path)?;
-    let joypad = e.joypad;
+    ops.load_game_pak(game_pak);
+
     let mut e = GameBoyEmulator::new();
-    e.load_game_pak(game_pak);
-    e.load_state(tmp_output)?;
-    e.joypad = joypad;
+    e.load_state(ops.game_pak.as_mut(), tmp_output)?;
 
     // Run it the rest of the time
-    run_emulator_until(&mut e, renderer, final_ticks);
-    renderer.save_buffer(output_path).unwrap();
+    run_emulator_until(&mut e, &mut ops, final_ticks);
+    ops.renderer.save_buffer(output_path).unwrap();
 
     Ok(())
 }

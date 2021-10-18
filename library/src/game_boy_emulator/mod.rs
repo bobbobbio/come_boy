@@ -2,19 +2,17 @@
 
 pub use self::game_pak::GamePak;
 pub use self::joypad::ControllerJoyPad;
-use self::joypad::JoyPad;
+use self::joypad::{JoyPad, KeyEvent};
 use self::lcd_controller::{LcdController, OAM_DATA};
 use self::memory_controller::{
-    FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryChunk,
-    MemoryMappedHardware,
+    FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryAccessor,
+    MemoryChunk, MemoryMappedHardware,
 };
 use self::sound_controller::SoundController;
-use crate::emulator_common::disassembler::MemoryAccessor;
-use crate::game_boy_emulator::joypad::KeyEvent;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
-use crate::rendering::{Keycode, Renderer};
-use crate::sound::SoundStream;
-use crate::storage::PersistentStorage;
+use crate::rendering::{Keycode, NullRenderer, Renderer};
+use crate::sound::{NullSoundStream, SoundStream};
+use crate::storage::{PanicStorage, PersistentStorage};
 use crate::util::{super_fast_hash, Scheduler};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
@@ -30,15 +28,12 @@ pub use self::debugger::run_debugger;
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 
-#[macro_use]
-mod memory_controller;
-
 mod debugger;
-
 mod disassembler;
 mod game_pak;
 mod joypad;
 mod lcd_controller;
+mod memory_controller;
 mod sound_controller;
 mod tandem;
 
@@ -414,10 +409,15 @@ enum GameBoyEmulatorEvent {
 }
 
 impl GameBoyEmulatorEvent {
-    fn deliver(self, emulator: &mut GameBoyEmulator, time: u64) {
+    fn deliver(
+        self,
+        emulator: &mut GameBoyEmulator,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        time: u64,
+    ) {
         match self {
             Self::DividerTick => emulator.divider_tick(time),
-            Self::DriveJoypad => emulator.drive_joypad(time),
+            Self::DriveJoypad => emulator.drive_joypad(ops, time),
         }
     }
 }
@@ -440,7 +440,7 @@ impl OamDmaTransfer {
         }
     }
 
-    fn read(&mut self, memory_map: &GameBoyMemoryMap) {
+    fn read(&mut self, memory_map: &GameBoyMemoryMap<'_>) {
         self.value = memory_map.read_memory(self.src_current);
         self.src_current = self.src_current.wrapping_add(1);
     }
@@ -466,63 +466,108 @@ const fn default_clock_speed_hz() -> u32 {
     4_194_304
 }
 
+pub struct GameBoyOps<Renderer, SoundStream, Storage> {
+    pub renderer: Renderer,
+    pub sound_stream: SoundStream,
+    pub storage: Storage,
+    joypad: Option<Box<dyn JoyPad + 'static>>,
+    game_pak: Option<GamePak>,
+    pub clock_speed_hz: u32,
+}
+
+pub type NullGameBoyOps = GameBoyOps<NullRenderer, NullSoundStream, PanicStorage>;
+
+impl NullGameBoyOps {
+    fn null() -> Self {
+        Self::new(NullRenderer, NullSoundStream, PanicStorage)
+    }
+}
+
+impl<Renderer, SoundStream, Storage> GameBoyOps<Renderer, SoundStream, Storage> {
+    pub fn new(renderer: Renderer, sound_stream: SoundStream, storage: Storage) -> Self {
+        Self {
+            renderer,
+            sound_stream,
+            storage,
+            joypad: None,
+            game_pak: None,
+            clock_speed_hz: default_clock_speed_hz(),
+        }
+    }
+
+    fn memory_map<'a>(&'a self, bridge: &'a Bridge) -> GameBoyMemoryMap<'a> {
+        GameBoyMemoryMap {
+            game_pak: self.game_pak.as_ref(),
+            joypad: self.joypad.as_ref().map(|j| &**j as &dyn JoyPad),
+            bridge,
+        }
+    }
+
+    fn memory_map_mut<'a>(&'a mut self, bridge: &'a mut Bridge) -> GameBoyMemoryMapMut<'a> {
+        GameBoyMemoryMapMut {
+            game_pak: self.game_pak.as_mut(),
+            joypad: self.joypad.as_mut().map(|j| &mut **j as &mut dyn JoyPad),
+            bridge,
+        }
+    }
+
+    pub fn plug_in_joy_pad(&mut self, joypad: impl JoyPad + 'static) {
+        self.joypad = Some(Box::new(joypad));
+    }
+
+    pub fn load_game_pak(&mut self, game_pak: GamePak) {
+        println!("Loading {:?}", &game_pak);
+        self.game_pak = Some(game_pak);
+    }
+}
+
 #[derive(Serialize, Deserialize)]
-pub struct GameBoyEmulator {
-    cpu: LR35902Emulator,
+pub(crate) struct Bridge {
     sound_controller: SoundController,
     lcd_controller: LcdController,
     high_ram: MemoryChunk,
     internal_ram_a: MemoryChunk,
     internal_ram_b: MemoryChunk,
-
     registers: GameBoyRegisters,
-    scheduler: Scheduler<GameBoyEmulatorEvent>,
     timer: GameBoyTimer,
-
-    dma_transfer: Option<OamDmaTransfer>,
-
-    #[serde(skip, default = "default_clock_speed_hz")]
-    clock_speed_hz_: u32,
-
-    #[serde(skip)]
-    game_pak: Option<GamePak>,
-
-    joypad_key_events: Vec<KeyEvent>,
-
-    #[serde(skip)]
-    joypad: Option<Box<dyn JoyPad>>,
 }
 
-impl GameBoyEmulator {
-    pub fn new() -> Self {
-        let mut e = GameBoyEmulator {
-            cpu: LR35902Emulator::new(),
+impl Bridge {
+    fn new() -> Self {
+        Self {
             lcd_controller: LcdController::new(),
             sound_controller: Default::default(),
             high_ram: MemoryChunk::from_range(HIGH_RAM),
             internal_ram_a: MemoryChunk::from_range(INTERNAL_RAM_A),
             internal_ram_b: MemoryChunk::from_range(INTERNAL_RAM_B),
             registers: Default::default(),
-            scheduler: Scheduler::new(),
             timer: Default::default(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GameBoyEmulator {
+    cpu: LR35902Emulator,
+    bridge: Bridge,
+    scheduler: Scheduler<GameBoyEmulatorEvent>,
+    dma_transfer: Option<OamDmaTransfer>,
+    joypad_key_events: Vec<KeyEvent>,
+}
+
+impl GameBoyEmulator {
+    pub fn new() -> Self {
+        let mut e = GameBoyEmulator {
+            cpu: LR35902Emulator::new(),
+            bridge: Bridge::new(),
+
+            scheduler: Scheduler::new(),
             dma_transfer: None,
-            clock_speed_hz_: default_clock_speed_hz(),
-            game_pak: None,
             joypad_key_events: vec![],
-            joypad: None,
         };
         e.set_state_post_bios();
         e.schedule_initial_events();
         e
-    }
-
-    pub fn plug_in_joy_pad<J: JoyPad + 'static>(&mut self, joypad: J) {
-        self.joypad = Some(Box::new(joypad) as Box<dyn JoyPad>)
-    }
-
-    pub fn load_game_pak(&mut self, game_pak: GamePak) {
-        println!("Loading {:?}", &game_pak);
-        self.game_pak = Some(game_pak);
     }
 
     fn crashed(&self) -> Option<&String> {
@@ -534,64 +579,71 @@ impl GameBoyEmulator {
     }
 
     fn divider_tick(&mut self, time: u64) {
-        self.registers.divider.increment();
+        self.bridge.registers.divider.increment();
         self.scheduler
             .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
 
-    fn deliver_events<R: Renderer, S: SoundStream>(
+    fn deliver_events(
         &mut self,
-        renderer: &mut R,
-        sound_stream: &mut S,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         now: u64,
     ) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event.deliver(self, time);
+            event.deliver(self, ops, time);
         }
 
-        self.lcd_controller.deliver_events(renderer, now);
-        self.timer.deliver_events(now);
-        self.sound_controller.deliver_events(now, sound_stream);
+        self.bridge
+            .lcd_controller
+            .deliver_events(&mut ops.renderer, now);
+        self.bridge.timer.deliver_events(now);
+        self.bridge
+            .sound_controller
+            .deliver_events(now, &mut ops.sound_stream);
     }
 
-    pub fn tick<R: Renderer, S: SoundStream>(&mut self, renderer: &mut R, sound_stream: &mut S) {
+    pub fn tick(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) {
         self.cpu
-            .load_instruction(&mut game_boy_memory_map_mut!(self));
+            .load_instruction(&mut ops.memory_map_mut(&mut self.bridge));
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(renderer, sound_stream, now);
+        self.deliver_events(ops, now);
 
         self.cpu
-            .execute_instruction(&mut game_boy_memory_map_mut!(self));
+            .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge));
 
         let now = self.cpu.elapsed_cycles;
-        self.timer.tick(now);
-        self.lcd_controller.tick(now);
-        self.execute_dma(now);
-        self.deliver_events(renderer, sound_stream, now);
+        self.bridge.timer.tick(now);
+        self.bridge.lcd_controller.tick(now);
+        self.execute_dma(ops, now);
+        self.deliver_events(ops, now);
 
-        self.lcd_controller
-            .schedule_interrupts(&mut self.registers.interrupt_flag);
-        self.timer
-            .schedule_interrupts(&mut self.registers.interrupt_flag);
+        self.bridge
+            .lcd_controller
+            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
+        self.bridge
+            .timer
+            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
 
-        self.handle_interrupts();
+        self.handle_interrupts(ops);
     }
 
     pub fn read_key_events(
         &mut self,
-        renderer: &mut impl Renderer,
-        storage: &mut impl PersistentStorage,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) -> std::result::Result<(), UserControl> {
         use crate::rendering::Event;
 
-        for event in renderer.poll_events() {
+        for event in ops.renderer.poll_events() {
             match event {
                 Event::Quit { .. } => {
                     return Err(UserControl::ScreenClosed);
                 }
                 Event::KeyDown(Keycode::F2) => {
-                    if let Err(e) = self.save_state_to_storage(storage) {
+                    if let Err(e) = self.save_state_to_storage(ops) {
                         println!("Failed to create save state {:?}", e);
                     }
                 }
@@ -599,10 +651,10 @@ impl GameBoyEmulator {
                     return Err(UserControl::SaveStateLoaded);
                 }
                 Event::KeyDown(Keycode::F4) => {
-                    if self.clock_speed_hz() == default_clock_speed_hz() {
-                        self.clock_speed_hz_ = u32::MAX;
+                    if ops.clock_speed_hz == default_clock_speed_hz() {
+                        ops.clock_speed_hz = u32::MAX;
                     } else {
-                        self.clock_speed_hz_ = default_clock_speed_hz();
+                        ops.clock_speed_hz = default_clock_speed_hz();
                     }
                     return Err(UserControl::SpeedChange);
                 }
@@ -613,8 +665,12 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn drive_joypad(&mut self, time: u64) {
-        if let Some(joypad) = &mut self.joypad {
+    fn drive_joypad(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        time: u64,
+    ) {
+        if let Some(joypad) = &mut ops.joypad {
             joypad.tick(time, mem::take(&mut self.joypad_key_events));
         }
 
@@ -622,25 +678,29 @@ impl GameBoyEmulator {
             .schedule(time + 456, GameBoyEmulatorEvent::DriveJoypad);
     }
 
-    fn execute_dma(&mut self, now: u64) {
-        if let Some(mut address) = self.lcd_controller.registers.dma.take_request() {
+    fn execute_dma(
+        &mut self,
+        ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        now: u64,
+    ) {
+        if let Some(mut address) = self.bridge.lcd_controller.registers.dma.take_request() {
             // 0xE000 to 0xFFFF is mapped differently for DMA. It ends up just being the internal
             // ram repeated again. To account for this we just adjust the source address.
             if address >= INTERNAL_RAM_B.end {
                 address -= 0x2000;
             }
             self.dma_transfer = Some(OamDmaTransfer::new(address.., now));
-            self.lcd_controller.oam_data.borrow();
+            self.bridge.lcd_controller.oam_data.borrow();
         }
 
         if let Some(transfer) = self.dma_transfer.as_mut() {
             for _ in 0..transfer.bytes_to_transfer(now) {
-                transfer.read(&game_boy_memory_map!(self));
-                transfer.write(&mut self.lcd_controller.oam_data);
+                transfer.read(&ops.memory_map(&self.bridge));
+                transfer.write(&mut self.bridge.lcd_controller.oam_data);
 
                 if transfer.is_done() {
                     self.dma_transfer = None;
-                    self.lcd_controller.oam_data.release();
+                    self.bridge.lcd_controller.oam_data.release();
                     break;
                 }
             }
@@ -653,40 +713,67 @@ impl GameBoyEmulator {
     /// Before handling an interrupt we push the return address to the stack. If the high byte when
     /// writing that address overwrites the IE register (0xFFFF) the interrupt handling will
     /// short-circuit and jump to address 0x0000.
-    fn maybe_handle_ie_push_bug(&mut self, flag: InterruptFlag) -> bool {
+    fn maybe_handle_ie_push_bug(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        flag: InterruptFlag,
+    ) -> bool {
         let sp = self.cpu.read_register_pair(Intel8080Register::SP);
 
-        if sp == 0xFFFE && !self.registers.interrupt_enable.read_flag(flag.into()) {
-            self.cpu.jump(&mut game_boy_memory_map_mut!(self), 0x0000);
+        let flag_value = self
+            .bridge
+            .registers
+            .interrupt_enable
+            .read_flag(flag.into());
+
+        if sp == 0xFFFE && !flag_value {
+            let mut memory_map = ops.memory_map_mut(&mut self.bridge);
+            self.cpu.jump(&mut memory_map, 0x0000);
             true
         } else {
             false
         }
     }
 
-    fn deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) {
+    fn deliver_interrupt(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        flag: InterruptFlag,
+        address: u16,
+    ) {
         let pc = self.cpu.read_program_counter();
-        self.cpu
-            .push_u16_onto_stack(&mut game_boy_memory_map_mut!(self), pc);
 
-        if self.maybe_handle_ie_push_bug(flag) {
+        self.cpu
+            .push_u16_onto_stack(&mut ops.memory_map_mut(&mut self.bridge), pc);
+
+        if self.maybe_handle_ie_push_bug(ops, flag) {
             return;
         }
 
-        self.cpu.jump(&mut game_boy_memory_map_mut!(self), address);
+        self.cpu
+            .jump(&mut ops.memory_map_mut(&mut self.bridge), address);
         self.cpu.push_frame(address);
 
-        self.registers.interrupt_flag.set_flag(flag, false);
+        self.bridge.registers.interrupt_flag.set_flag(flag, false);
     }
 
-    fn maybe_deliver_interrupt(&mut self, flag: InterruptFlag, address: u16) -> bool {
-        let interrupt_flag_value = self.registers.interrupt_flag.read_flag(flag);
-        let interrupt_enable_value = self.registers.interrupt_enable.read_flag(flag.into());
+    fn maybe_deliver_interrupt(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        flag: InterruptFlag,
+        address: u16,
+    ) -> bool {
+        let interrupt_flag_value = self.bridge.registers.interrupt_flag.read_flag(flag);
+        let interrupt_enable_value = self
+            .bridge
+            .registers
+            .interrupt_enable
+            .read_flag(flag.into());
 
         if interrupt_flag_value && interrupt_enable_value {
             self.cpu.resume();
             if self.cpu.get_interrupts_enabled() {
-                self.deliver_interrupt(flag, address);
+                self.deliver_interrupt(ops, flag, address);
                 true
             } else {
                 false
@@ -696,11 +783,14 @@ impl GameBoyEmulator {
         }
     }
 
-    fn handle_interrupts(&mut self) {
+    fn handle_interrupts(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) {
         let mut interrupted = false;
 
         for &(flag, address) in &ALL_INTERRUPTS {
-            interrupted |= self.maybe_deliver_interrupt(flag, address);
+            interrupted |= self.maybe_deliver_interrupt(ops, flag, address);
         }
 
         if interrupted {
@@ -709,8 +799,8 @@ impl GameBoyEmulator {
     }
 
     fn set_state_post_bios(&mut self) {
-        self.sound_controller.set_state_post_bios();
-        self.lcd_controller.set_state_post_bios();
+        self.bridge.sound_controller.set_state_post_bios();
+        self.bridge.lcd_controller.set_state_post_bios();
 
         /*
          * After running the BIOS (the part of the gameboy that shows the logo) the cpu is left in
@@ -729,29 +819,35 @@ impl GameBoyEmulator {
         self.cpu.set_flag(LR35902Flag::Subtract, false);
         self.cpu.set_flag(LR35902Flag::Zero, true);
 
-        self.registers.serial_transfer_data.set_value(0x0);
-        self.registers.serial_transfer_control.set_value(0x7e);
+        self.bridge.registers.serial_transfer_data.set_value(0x0);
+        self.bridge
+            .registers
+            .serial_transfer_control
+            .set_value(0x7e);
 
-        self.registers.divider.set_state_post_bios();
-        self.timer.set_state_post_bios();
+        self.bridge.registers.divider.set_state_post_bios();
+        self.bridge.timer.set_state_post_bios();
 
-        self.registers.interrupt_flag.set_value(0xe1);
+        self.bridge.registers.interrupt_flag.set_value(0xe1);
 
         /* 10 - 26 Sound Controller */
 
         /* 40 - 4B LCD Controller */
 
         let high_ram = include_bytes!("assets/high_ram.bin");
-        self.high_ram.clone_from_slice(&high_ram[..]);
+        self.bridge.high_ram.clone_from_slice(&high_ram[..]);
 
         let internal_ram = include_bytes!("assets/internal_ram.bin");
 
         let split = (INTERNAL_RAM_A.end - INTERNAL_RAM_A.start) as usize;
-        self.internal_ram_a
+        self.bridge
+            .internal_ram_a
             .clone_from_slice(&internal_ram[0..split]);
-        self.internal_ram_b.clone_from_slice(&internal_ram[split..]);
+        self.bridge
+            .internal_ram_b
+            .clone_from_slice(&internal_ram[split..]);
 
-        self.registers.interrupt_enable.set_value(0x0);
+        self.bridge.registers.interrupt_enable.set_value(0x0);
     }
 
     fn schedule_initial_events(&mut self) {
@@ -761,36 +857,30 @@ impl GameBoyEmulator {
         self.scheduler
             .schedule(now + 456, GameBoyEmulatorEvent::DriveJoypad);
 
-        self.lcd_controller.schedule_initial_events(now);
-        self.timer.schedule_initial_events(now);
-        self.sound_controller.schedule_initial_events(now);
+        self.bridge.lcd_controller.schedule_initial_events(now);
+        self.bridge.timer.schedule_initial_events(now);
+        self.bridge.sound_controller.schedule_initial_events(now);
     }
 
     pub fn elapsed_cycles(&self) -> u64 {
         self.cpu.elapsed_cycles
     }
 
-    pub fn clock_speed_hz(&self) -> u32 {
-        self.clock_speed_hz_
-    }
-
     fn run_inner(
         &mut self,
-        renderer: &mut impl Renderer,
-        sound_stream: &mut impl SoundStream,
-        storage: &mut impl PersistentStorage,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) -> std::result::Result<(), UserControl> {
-        let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, self.clock_speed_hz());
+        let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, ops.clock_speed_hz);
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 
         while self.crashed().is_none() {
-            self.tick(renderer, sound_stream);
+            self.tick(ops);
 
             // We can't do this every tick because it is too slow. So instead so only every so
             // often.
             if sometimes.incr() {
                 underclocker.underclock(self.elapsed_cycles());
-                self.read_key_events(renderer, storage)?;
+                self.read_key_events(ops)?;
             }
         }
 
@@ -805,17 +895,13 @@ impl GameBoyEmulator {
 
     fn run(
         &mut self,
-        renderer: &mut impl Renderer,
-        sound_stream: &mut impl SoundStream,
-        storage: &mut impl PersistentStorage,
-        joypad: impl JoyPad + 'static,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) {
-        self.plug_in_joy_pad(joypad);
         loop {
-            let res = self.run_inner(renderer, sound_stream, storage);
+            let res = self.run_inner(ops);
             match res {
                 Err(UserControl::SaveStateLoaded) => {
-                    if let Err(e) = self.load_state_from_storage(storage) {
+                    if let Err(e) = self.load_state_from_storage(ops) {
                         println!("Failed to load state {:?}", e);
                     }
                 }
@@ -825,8 +911,12 @@ impl GameBoyEmulator {
         }
     }
 
-    fn write_memory(&self, w: &mut dyn io::Write) -> Result<()> {
-        let memory_map = game_boy_memory_map!(self);
+    fn write_memory(
+        &self,
+        ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        w: &mut dyn io::Write,
+    ) -> Result<()> {
+        let memory_map = ops.memory_map(&self.bridge);
         let mut mem = [0u8; 0x10000];
         for i in 0..0x10000 {
             mem[i] = memory_map.read_memory(i as u16);
@@ -836,8 +926,11 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    fn hash(&self) -> u32 {
-        let memory_map = game_boy_memory_map!(self);
+    fn hash(
+        &self,
+        ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) -> u32 {
+        let memory_map = ops.memory_map(&self.bridge);
         let mut mem = [0u8; 0x10000 + 15];
         for i in 0..0x10000 {
             mem[i] = memory_map.read_memory(i as u16);
@@ -877,44 +970,61 @@ impl GameBoyEmulator {
         return super_fast_hash(&mem[..]);
     }
 
-    fn save_state_to_storage(&self, storage: &mut impl PersistentStorage) -> Result<()> {
-        let mut stream = storage.save("save_state.bin")?;
-        self.save_state(&mut stream)?;
+    fn save_state_to_storage(
+        &self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) -> Result<()> {
+        let mut stream = ops.storage.save("save_state.bin")?;
+        self.save_state(ops.game_pak.as_ref(), &mut stream)?;
         Ok(())
     }
 
-    fn load_state_from_storage(&mut self, storage: &mut impl PersistentStorage) -> Result<()> {
-        let mut stream = storage.load("save_state.bin")?;
-        self.load_state(&mut stream)?;
+    fn load_state_from_storage(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) -> Result<()> {
+        let mut stream = ops.storage.load("save_state.bin")?;
+        self.load_state(ops.game_pak.as_mut(), &mut stream)?;
         Ok(())
     }
 
-    fn load_state<R: io::Read>(&mut self, mut input: R) -> Result<()> {
+    fn load_state<R: io::Read>(
+        &mut self,
+        game_pak: Option<&mut GamePak>,
+        mut input: R,
+    ) -> Result<()> {
         println!("Loading save state");
-        let emulator: Self = bincode::deserialize_from(&mut input)?;
-        let old_emulator = std::mem::replace(self, emulator);
-        let mut game_pak = old_emulator.game_pak.unwrap();
-        game_pak.load_state(&mut input)?;
-        self.game_pak = Some(game_pak);
-        self.joypad = old_emulator.joypad;
+
+        *self = bincode::deserialize_from(&mut input)?;
+
+        if let Some(game_pak) = game_pak {
+            game_pak.load_state(&mut input)?;
+        }
+
         Ok(())
     }
 
-    fn save_state<W: io::Write>(&self, mut writer: W) -> Result<()> {
+    fn save_state<W: io::Write>(&self, game_pak: Option<&GamePak>, mut writer: W) -> Result<()> {
         println!("Saving state");
+
         bincode::serialize_into(&mut writer, self)?;
-        self.game_pak.as_ref().unwrap().save_state(writer)?;
+
+        if let Some(game_pak) = game_pak {
+            game_pak.save_state(writer)?;
+        }
+
         Ok(())
     }
 }
 
 #[test]
 fn initial_state_test() {
-    let mut e = GameBoyEmulator::new();
-    e.plug_in_joy_pad(joypad::PlainJoyPad::new());
+    let mut ops = GameBoyOps::null();
+    let e = GameBoyEmulator::new();
+    ops.plug_in_joy_pad(joypad::PlainJoyPad::new());
 
     // Lock down the initial state.
-    assert_eq!(e.hash(), 1497694477);
+    assert_eq!(e.hash(&ops), 1497694477);
 }
 
 #[cfg(test)]

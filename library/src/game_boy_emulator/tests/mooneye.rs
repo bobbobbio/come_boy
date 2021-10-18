@@ -1,7 +1,7 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::run_emulator_until_pc;
-use crate::game_boy_emulator::{memory_controller::GameBoyMemoryMap, GameBoyEmulator, GamePak};
+use crate::game_boy_emulator::{GameBoyEmulator, GameBoyOps, GamePak};
 use crate::lr35902_emulator::tests::{read_screen_message, read_test_rom};
 use std::{fs, path::PathBuf};
 
@@ -32,13 +32,19 @@ pub(crate) fn run_mooneye_test_rom(rom_path: &str) {
     let success_address = get_mooneye_address(rom_path, "quit@success");
     let fail_address = get_mooneye_address(rom_path, "quit@failure");
 
+    let mut ops = GameBoyOps::null();
     let mut e = GameBoyEmulator::new();
-    e.load_game_pak(GamePak::new(&read_mooneye_test_rom(rom_path), None));
-    run_emulator_until_pc(&mut e, |pc| pc == success_address || pc == fail_address);
+    ops.load_game_pak(GamePak::new(&read_mooneye_test_rom(rom_path), None));
+    run_emulator_until_pc(&mut e, &mut ops, |pc| {
+        pc == success_address || pc == fail_address
+    });
 
     if e.cpu.read_program_counter() == fail_address {
-        e.lcd_controller.background_display_data_1.release_all();
-        panic!("{}", read_screen_message(&game_boy_memory_map!(&e)));
+        e.bridge
+            .lcd_controller
+            .background_display_data_1
+            .release_all();
+        panic!("{}", read_screen_message(&ops.memory_map(&e.bridge)));
     } else {
         assert_eq!(e.cpu.read_program_counter(), success_address);
     }

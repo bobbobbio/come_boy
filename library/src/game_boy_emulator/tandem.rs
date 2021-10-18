@@ -3,10 +3,9 @@
 use crate::emulator_common::disassembler::Disassembler;
 use crate::emulator_common::Intel8080Register;
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
-use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use crate::game_boy_emulator::{GameBoyEmulator, GamePak, LR35902Flag, Result};
-use crate::rendering::NullRenderer;
-use crate::sound::NullSoundStream;
+use crate::game_boy_emulator::{
+    GameBoyEmulator, GameBoyOps, GamePak, LR35902Flag, NullGameBoyOps, Result,
+};
 use core::fmt::{self, Debug};
 use core::str;
 use std::fs::File;
@@ -270,44 +269,63 @@ fn compares_states() {
     assert_eq!(b_state, Some(TEST_STATE3));
 }
 
-impl AbstractEmulator for GameBoyEmulator {
+struct TandemGameBoyEmulator {
+    ops: NullGameBoyOps,
+    emulator: GameBoyEmulator,
+}
+
+impl TandemGameBoyEmulator {
+    fn new() -> Self {
+        Self {
+            ops: GameBoyOps::null(),
+            emulator: GameBoyEmulator::new(),
+        }
+    }
+}
+
+impl AbstractEmulator for TandemGameBoyEmulator {
     fn run_one(&mut self) {
-        self.tick(&mut NullRenderer, &mut NullSoundStream);
+        self.emulator.tick(&mut self.ops);
     }
 
     fn get_state(&self) -> Option<AbstractEmulatorState> {
+        let hash = self.emulator.hash(&self.ops);
+
+        let cpu = &self.emulator.cpu;
+        let lcd_controller = &self.emulator.bridge.lcd_controller;
+
         Some(AbstractEmulatorState {
             registers: AbstractEmulatorRegisters {
-                pc: self.cpu.read_program_counter(),
-                sp: self.cpu.read_register_pair(Intel8080Register::SP),
-                a: self.cpu.read_register(Intel8080Register::A),
-                b: self.cpu.read_register(Intel8080Register::B),
-                c: self.cpu.read_register(Intel8080Register::C),
-                d: self.cpu.read_register(Intel8080Register::D),
-                e: self.cpu.read_register(Intel8080Register::E),
-                h: self.cpu.read_register(Intel8080Register::H),
-                l: self.cpu.read_register(Intel8080Register::L),
-                flags: self.cpu.read_register(Intel8080Register::FLAGS),
-                lcdc: self.lcd_controller.registers.lcdc.read_value(),
-                stat: self.lcd_controller.registers.stat.read_value(),
-                scy: self.lcd_controller.registers.scy.read_value(),
-                scx: self.lcd_controller.registers.scx.read_value(),
-                ly: self.lcd_controller.registers.ly.read_value(),
-                lyc: self.lcd_controller.registers.lyc.read_value(),
-                dma: self.lcd_controller.registers.dma.read_value(),
-                bgp: self.lcd_controller.registers.bgp.read_value(),
-                obp0: self.lcd_controller.registers.obp0.read_value(),
-                obp1: self.lcd_controller.registers.obp1.read_value(),
-                wy: self.lcd_controller.registers.wy.read_value(),
-                wx: self.lcd_controller.registers.wx.read_value(),
+                pc: cpu.read_program_counter(),
+                sp: cpu.read_register_pair(Intel8080Register::SP),
+                a: cpu.read_register(Intel8080Register::A),
+                b: cpu.read_register(Intel8080Register::B),
+                c: cpu.read_register(Intel8080Register::C),
+                d: cpu.read_register(Intel8080Register::D),
+                e: cpu.read_register(Intel8080Register::E),
+                h: cpu.read_register(Intel8080Register::H),
+                l: cpu.read_register(Intel8080Register::L),
+                flags: cpu.read_register(Intel8080Register::FLAGS),
+                lcdc: lcd_controller.registers.lcdc.read_value(),
+                stat: lcd_controller.registers.stat.read_value(),
+                scy: lcd_controller.registers.scy.read_value(),
+                scx: lcd_controller.registers.scx.read_value(),
+                ly: lcd_controller.registers.ly.read_value(),
+                lyc: lcd_controller.registers.lyc.read_value(),
+                dma: lcd_controller.registers.dma.read_value(),
+                bgp: lcd_controller.registers.bgp.read_value(),
+                obp0: lcd_controller.registers.obp0.read_value(),
+                obp1: lcd_controller.registers.obp1.read_value(),
+                wy: lcd_controller.registers.wy.read_value(),
+                wx: lcd_controller.registers.wx.read_value(),
             },
-            clock: self.cpu.elapsed_cycles,
-            hash: self.hash(),
+            clock: cpu.elapsed_cycles,
+            hash,
         })
     }
 
     fn write_memory(&self, w: &mut dyn Write) -> Result<()> {
-        self.write_memory(w)?;
+        self.emulator.write_memory(&self.ops, w)?;
         Ok(())
     }
 }
@@ -491,8 +509,10 @@ pub fn run<P: AsRef<Path> + Debug>(
     let f = File::open(&replay_file_path)?;
     let mut e1 = EmulatorReplayer::new(&f);
 
-    let mut e2 = GameBoyEmulator::new();
-    e2.load_game_pak(game_pak);
+    let mut ops = GameBoyOps::null();
+    ops.load_game_pak(game_pak);
+
+    let mut e2 = TandemGameBoyEmulator::new();
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);
 
@@ -505,9 +525,9 @@ pub fn run<P: AsRef<Path> + Debug>(
     println!();
 
     let mut buffer = vec![];
-    let memory_map = game_boy_memory_map!(e2);
+    let memory_map = ops.memory_map(&e2.emulator.bridge);
     let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
-    dis.index = e2.cpu.read_program_counter();
+    dis.index = e2.emulator.cpu.read_program_counter();
     dis.disassemble_multiple().unwrap();
     println!("{}", str::from_utf8(&buffer).unwrap());
 

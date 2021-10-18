@@ -1,7 +1,7 @@
 use super::renderer::CanvasRenderer;
 use super::window;
 use come_boy::game_boy_emulator::{
-    ControllerJoyPad, GameBoyEmulator, GamePak, UserControl, SLEEP_INPUT_TICKS,
+    ControllerJoyPad, GameBoyEmulator, GameBoyOps, GamePak, UserControl, SLEEP_INPUT_TICKS,
 };
 use come_boy::sound::NullSoundStream;
 use come_boy::storage::PanicStorage;
@@ -49,51 +49,48 @@ impl Underclocker {
 }
 
 pub struct Emulator {
-    renderer: CanvasRenderer,
     emulator: GameBoyEmulator,
+    ops: GameBoyOps<CanvasRenderer, NullSoundStream, PanicStorage>,
     underclocker: Underclocker,
 }
 
 impl Emulator {
     pub fn new(canvas: &web_sys::HtmlCanvasElement) -> Self {
         let emulator = GameBoyEmulator::new();
-        let underclocker = Underclocker::new(emulator.elapsed_cycles(), emulator.clock_speed_hz());
+        let ops = GameBoyOps::new(CanvasRenderer::new(canvas), NullSoundStream, PanicStorage);
+        let underclocker = Underclocker::new(emulator.elapsed_cycles(), ops.clock_speed_hz);
         Self {
-            renderer: CanvasRenderer::new(canvas),
             emulator,
+            ops,
             underclocker,
         }
     }
 
     pub fn on_key_down(&mut self, code: &str) {
-        self.renderer.on_key_down(code);
+        self.ops.renderer.on_key_down(code);
     }
 
     pub fn on_key_up(&mut self, code: &str) {
-        self.renderer.on_key_up(code);
+        self.ops.renderer.on_key_up(code);
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
         self.emulator = GameBoyEmulator::new();
         let game_pak = GamePak::new(rom, None);
-        self.emulator.load_game_pak(game_pak);
-        self.emulator.plug_in_joy_pad(ControllerJoyPad::new());
+        self.ops.load_game_pak(game_pak);
+        self.ops.plug_in_joy_pad(ControllerJoyPad::new());
     }
 
     pub fn render(&self) {
-        self.renderer.render();
+        self.ops.renderer.render();
     }
 
     fn read_key_events(&mut self) {
-        let res = self
-            .emulator
-            .read_key_events(&mut self.renderer, &mut PanicStorage);
+        let res = self.emulator.read_key_events(&mut self.ops);
         match res {
             Err(UserControl::SpeedChange) => {
-                self.underclocker = Underclocker::new(
-                    self.emulator.elapsed_cycles(),
-                    self.emulator.clock_speed_hz(),
-                );
+                self.underclocker =
+                    Underclocker::new(self.emulator.elapsed_cycles(), self.ops.clock_speed_hz);
             }
             _ => {}
         }
@@ -101,7 +98,7 @@ impl Emulator {
 
     pub fn tick(&mut self) -> i32 {
         for _ in 0..SLEEP_INPUT_TICKS {
-            self.emulator.tick(&mut self.renderer, &mut NullSoundStream);
+            self.emulator.tick(&mut self.ops);
         }
         self.read_key_events();
 

@@ -12,7 +12,6 @@ use std::fmt::{self, Display};
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
-use std::iter;
 use std::num::ParseIntError;
 use std::ops::Range;
 use std::path::Path;
@@ -988,41 +987,12 @@ fn filter_write<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
 }
 
 fn generate_memory_map_from_mapping(
-    camel_name: &'static str,
-    snake_name: &'static str,
+    type_name: &str,
+    generics: syn::Generics,
     mapping: &BTreeMap<AddressRange, MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
-    let values: BTreeSet<String> = mapping.values().map(|v| v.field.clone()).collect();
-
-    let src_path: &Vec<syn::Expr> = &values
-        .iter()
-        .map(|v| syn::parse_str(v.as_ref()).unwrap())
-        .collect();
-    let field_name: &Vec<Ident> = &values
-        .iter()
-        .map(|v| Ident::new(&v.replace(".", "_"), Span::call_site()))
-        .collect();
-
-    let name: Ident = if mutable {
-        syn::Ident::new(&format!("{}MemoryMapMut", camel_name), Span::call_site())
-    } else {
-        syn::Ident::new(&format!("{}MemoryMap", camel_name), Span::call_site())
-    };
-
-    let macro_name: Ident = if mutable {
-        syn::Ident::new(&format!("{}_memory_map_mut", snake_name), Span::call_site())
-    } else {
-        syn::Ident::new(&format!("{}_memory_map", snake_name), Span::call_site())
-    };
-
-    let maybe_mut_a = iter::once(if mutable {
-        Some(syn::token::Mut(Span::call_site()))
-    } else {
-        None
-    })
-    .cycle();
-    let maybe_mut_b = maybe_mut_a.clone();
+    let name: Ident = syn::Ident::new(&format!("{}", type_name), Span::call_site());
 
     let expr: &Vec<(syn::Expr, MappingType)> = &mapping
         .iter()
@@ -1048,14 +1018,9 @@ fn generate_memory_map_from_mapping(
         })
         .collect();
 
-    let selected_field: &Vec<(Ident, MappingType)> = &mapping
+    let selected_field: &Vec<(syn::Expr, MappingType)> = &mapping
         .values()
-        .map(|v| {
-            (
-                Ident::new(&v.field.replace(".", "_"), Span::call_site()),
-                v.mapping_type,
-            )
-        })
+        .map(|v| (syn::parse_str(&v.field).unwrap(), v.mapping_type))
         .collect();
 
     let read_expr = expr.iter().filter_map(filter_read);
@@ -1068,7 +1033,7 @@ fn generate_memory_map_from_mapping(
     let set_memory_body: syn::Expr = if mutable {
         syn::parse_quote!(
             #(if #set_expr {
-                self.#set_field.set_value(address - #set_offset, value)
+                MemoryMappedHardware::set_value(&mut self.#set_field, address - #set_offset, value)
             }) else *
         )
     } else {
@@ -1077,26 +1042,14 @@ fn generate_memory_map_from_mapping(
 
     let memory_controller: syn::Path =
         syn::parse_quote!(crate::game_boy_emulator::memory_controller);
-    let memory_controller_iter = iter::repeat(memory_controller.clone());
 
     quote!(
-        pub struct #name<'a> {
-            #(pub #field_name: &'a #maybe_mut_a dyn #memory_controller_iter::MemoryMappedHardware,)*
-        }
+        use super::#name;
 
-        #[macro_export]
-        macro_rules! #macro_name {
-            ($f:expr) => {
-                #name {
-                    #(#field_name: & #maybe_mut_b $f.#src_path,)*
-                }
-            };
-        }
-
-        impl<'a> #memory_controller::MemoryAccessor for #name<'a> {
+        impl #generics #memory_controller::MemoryAccessor for #name #generics {
             fn read_memory(&self, address: u16) -> u8 {
                 #(if #read_expr {
-                    self.#read_field.read_value(address - #read_offset)
+                    MemoryMappedHardware::read_value(&self.#read_field, address - #read_offset)
                 }) else *
                 else {
                     0xFF
@@ -1116,7 +1069,7 @@ fn generate_memory_map_from_mapping(
     .into()
 }
 
-fn generate_memory_map(memory_map_path: &str, camel_name: &'static str, snake_name: &'static str) {
+fn generate_memory_map(memory_map_path: &str, type_name: &str, generics_str: &str, mutable: bool) {
     let memory_map_json = format!("src/{}/memory_map.json", memory_map_path);
     println!("cargo:rerun-if-changed={}", memory_map_json);
 
@@ -1127,14 +1080,21 @@ fn generate_memory_map(memory_map_path: &str, camel_name: &'static str, snake_na
         .map(|(k, v)| (k.parse().unwrap(), v))
         .collect();
 
-    let output_file = &format!("src/{}/memory_map.rs", memory_map_path);
+    let mut tokens = TokenStream::new();
+    tokens.extend(quote! {
+        use crate::game_boy_emulator::memory_controller::MemoryMappedHardware;
+    });
+
+    let generics = syn::parse_str(generics_str).unwrap();
+
+    tokens.extend(generate_memory_map_from_mapping(
+        type_name, generics, &mapping, mutable,
+    ));
+
+    let file_name = format!("memory_map{}.rs", if mutable { "_mut" } else { "" });
+    let output_file = &format!("src/{}/{}", memory_map_path, file_name);
     let mut out = File::create(output_file).unwrap();
-
-    for &mutable in &[true, false] {
-        let tokens = generate_memory_map_from_mapping(camel_name, snake_name, &mapping, mutable);
-        write!(out, "{}", tokens).unwrap();
-    }
-
+    write!(out, "{}", tokens).unwrap();
     out.flush().unwrap();
 
     Command::new("rustfmt").arg(output_file).status().ok();
@@ -1269,26 +1229,41 @@ fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
 fn main() {
     generate_opcodes("intel_8080_emulator/opcodes", "Intel8080");
     generate_opcodes("lr35902_emulator/opcodes", "LR35902");
-    generate_memory_map("game_boy_emulator/memory_controller", "GameBoy", "game_boy");
+    generate_memory_map(
+        "game_boy_emulator/memory_controller",
+        "GameBoyMemoryMap",
+        "<'a>",
+        false,
+    );
+    generate_memory_map(
+        "game_boy_emulator/memory_controller",
+        "GameBoyMemoryMapMut",
+        "<'a>",
+        true,
+    );
     generate_memory_map(
         "game_boy_emulator/sound_controller",
         "SoundController",
-        "sound_controller",
+        "<>",
+        true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller/channel1",
         "Channel1",
-        "channel1",
+        "<>",
+        true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller/channel2",
         "Channel2",
-        "channel2",
+        "<>",
+        true,
     );
     generate_memory_map(
         "game_boy_emulator/sound_controller/channel3",
         "Channel3",
-        "channel3",
+        "<>",
+        true,
     );
     generate_rom_tests("test/roms", "test/expectations", "game_boy_emulator");
 }

@@ -3,8 +3,9 @@ use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::game_pak::GamePak;
 use crate::game_boy_emulator::joypad::PlainJoyPad;
-use crate::game_boy_emulator::memory_controller::GameBoyMemoryMap;
-use crate::game_boy_emulator::{GameBoyEmulator, ModuloCounter, Underclocker, SLEEP_INPUT_TICKS};
+use crate::game_boy_emulator::{
+    GameBoyEmulator, GameBoyOps, ModuloCounter, Underclocker, SLEEP_INPUT_TICKS,
+};
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
 use crate::sound::SoundStream;
@@ -15,46 +16,40 @@ use std::io::{self, Result};
 impl fmt::Debug for GameBoyEmulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         writeln!(f, "{:#?}", self.cpu)?;
-        writeln!(f, "{:#?}", self.registers)?;
-        writeln!(f, "{:#?}", self.timer)?;
-        write!(f, "{:#?}", self.lcd_controller.registers)?;
-        write!(f, "{:#?}", self.sound_controller)?;
+        writeln!(f, "{:#?}", self.bridge.registers)?;
+        writeln!(f, "{:#?}", self.bridge.timer)?;
+        write!(f, "{:#?}", self.bridge.lcd_controller.registers)?;
+        write!(f, "{:#?}", self.bridge.sound_controller)?;
 
         Ok(())
     }
 }
 
-struct GameBoyDebugger<'a, R, S, P> {
+struct GameBoyDebugger<R, S, P> {
     emulator: GameBoyEmulator,
-    renderer: &'a mut R,
-    sound_stream: &'a mut S,
-    storage: &'a mut P,
+    ops: GameBoyOps<R, S, P>,
     underclocker: Underclocker,
     sometimes: ModuloCounter,
 }
 
-impl<'a, R: Renderer, S: SoundStream, P: PersistentStorage> GameBoyDebugger<'a, R, S, P> {
-    fn new(renderer: &'a mut R, sound_stream: &'a mut S, storage: &'a mut P) -> Self {
+impl<R: Renderer, S: SoundStream, P: PersistentStorage> GameBoyDebugger<R, S, P> {
+    fn new(ops: GameBoyOps<R, S, P>) -> Self {
         let emulator = GameBoyEmulator::new();
-        let underclocker =
-            Underclocker::new(emulator.cpu.elapsed_cycles, emulator.clock_speed_hz());
+        let underclocker = Underclocker::new(emulator.cpu.elapsed_cycles, ops.clock_speed_hz);
         Self {
             emulator,
-            renderer,
-            sound_stream,
-            storage,
+            ops,
             underclocker,
             sometimes: ModuloCounter::new(SLEEP_INPUT_TICKS),
         }
     }
 }
 
-impl<'a, R: Renderer, S: SoundStream, P: PersistentStorage> DebuggerOps
-    for GameBoyDebugger<'a, R, S, P>
-{
+impl<R: Renderer, S: SoundStream, P: PersistentStorage> DebuggerOps for GameBoyDebugger<R, S, P> {
     fn read_memory(&self, address: u16) -> u8 {
-        let memory_map = game_boy_memory_map!(&self.emulator);
-        memory_map.read_memory(address)
+        self.ops
+            .memory_map(&self.emulator.bridge)
+            .read_memory(address)
     }
 
     fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
@@ -62,17 +57,15 @@ impl<'a, R: Renderer, S: SoundStream, P: PersistentStorage> DebuggerOps
     }
 
     fn next(&mut self) {
-        self.emulator.tick(self.renderer, self.sound_stream);
+        self.emulator.tick(&mut self.ops);
         if self.sometimes.incr() {
             self.underclocker.underclock(self.emulator.elapsed_cycles());
-            self.emulator
-                .read_key_events(self.renderer, self.storage)
-                .unwrap();
+            self.emulator.read_key_events(&mut self.ops).unwrap();
         }
     }
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
-        let mut memory_map = game_boy_memory_map!(self.emulator);
+        let mut memory_map = self.ops.memory_map(&self.emulator.bridge);
         let mut d = LR35902Debugger::new(&mut self.emulator.cpu, &mut memory_map);
         d.simulate_next(instruction);
     }
@@ -91,7 +84,7 @@ impl<'a, R: Renderer, S: SoundStream, P: PersistentStorage> DebuggerOps
 
     fn disassemble(&mut self, address: u16, f: &mut dyn io::Write) -> Result<()> {
         let mut buffer = vec![];
-        let memory_map = game_boy_memory_map!(&self.emulator);
+        let memory_map = self.ops.memory_map(&self.emulator.bridge);
         let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
         dis.index = address;
         dis.disassemble_multiple().unwrap();
@@ -110,11 +103,11 @@ pub fn run_debugger(
     game_pak: GamePak,
     is_interrupted: &dyn Fn() -> bool,
 ) {
-    let mut gameboy_debugger = GameBoyDebugger::new(renderer, sound_stream, storage);
-    gameboy_debugger.emulator.load_game_pak(game_pak);
-    gameboy_debugger
-        .emulator
-        .plug_in_joy_pad(PlainJoyPad::new());
+    let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
+    ops.plug_in_joy_pad(PlainJoyPad::new());
+    ops.load_game_pak(game_pak);
+
+    let mut gameboy_debugger = GameBoyDebugger::new(ops);
 
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();

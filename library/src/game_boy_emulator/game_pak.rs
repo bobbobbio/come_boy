@@ -936,6 +936,26 @@ impl MemoryMappedHardware for GamePak {
     }
 }
 
+impl MemoryMappedHardware for &GamePak {
+    fn read_value(&self, address: u16) -> u8 {
+        (*self).read_value(address)
+    }
+
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        panic!("can't set_value on &GamePak")
+    }
+}
+
+impl MemoryMappedHardware for &mut GamePak {
+    fn read_value(&self, address: u16) -> u8 {
+        (**self).read_value(address)
+    }
+
+    fn set_value(&mut self, address: u16, value: u8) {
+        (**self).set_value(address, value)
+    }
+}
+
 const BANK_SIZE: u16 = 0x4000;
 const MBC_TYPE_ADDRESS: usize = 0x0147;
 const ROM_SIZE_ADDRESS: usize = 0x0148;

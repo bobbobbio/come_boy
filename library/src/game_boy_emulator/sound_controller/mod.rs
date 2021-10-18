@@ -1,6 +1,5 @@
 // Copyright 2018 Remi Bernotavicius
 
-use self::memory_map::{SoundControllerMemoryMap, SoundControllerMemoryMapMut};
 use crate::game_boy_emulator::default_clock_speed_hz;
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, GameBoyRegister16, MemoryAccessor,
@@ -16,13 +15,11 @@ use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
-#[macro_use]
-mod memory_map;
-
 mod channel1;
 mod channel2;
 mod channel3;
 mod channel4;
+mod memory_map_mut;
 
 trait Channel: MemoryMappedHardware {
     const FREQUENCY_ADDRESS: u16;
@@ -212,8 +209,7 @@ impl MemoryMappedHardware for SoundController {
         if address == 0xFF26 {
             self.read_enable_value()
         } else {
-            let memory_map = sound_controller_memory_map!(self);
-            memory_map.read_memory(address)
+            self.read_memory(address)
         }
     }
 
@@ -221,8 +217,7 @@ impl MemoryMappedHardware for SoundController {
         if address == 0xFF2 {
             self.set_enable_value(value);
         } else {
-            let mut memory_map = sound_controller_memory_map_mut!(self);
-            memory_map.set_memory(address, value);
+            self.set_memory(address, value);
         }
     }
 }

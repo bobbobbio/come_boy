@@ -19,3 +19,17 @@ impl SoundStream for NullSoundStream {
         13_1072
     }
 }
+
+impl<T: SoundStream> SoundStream for &mut T {
+    fn play_sample(&mut self, data: &[f32]) {
+        (**self).play_sample(data)
+    }
+
+    fn channels(&self) -> u16 {
+        (**self).channels()
+    }
+
+    fn sample_rate(&self) -> u32 {
+        (**self).sample_rate()
+    }
+}

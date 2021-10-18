@@ -5,15 +5,15 @@
         "full_address": true
     },
     "0x8000..0x9800": {
-        "field": "lcd_controller.character_data",
+        "field": "bridge.lcd_controller.character_data",
         "mapping_type": "ReadWrite"
     },
     "0x9800..0x9C00": {
-        "field": "lcd_controller.background_display_data_1",
+        "field": "bridge.lcd_controller.background_display_data_1",
         "mapping_type": "ReadWrite"
     },
     "0x9C00..0xA000": {
-        "field": "lcd_controller.background_display_data_2",
+        "field": "bridge.lcd_controller.background_display_data_2",
         "mapping_type": "ReadWrite"
     },
     "0xA000..0xC000": {
@@ -22,23 +22,23 @@
         "full_address": true
     },
     "0xC000..0xDE00": {
-        "field": "internal_ram_a",
+        "field": "bridge.internal_ram_a",
         "mapping_type": "ReadWrite"
     },
     "0xDE00..0xE000": {
-        "field": "internal_ram_b",
+        "field": "bridge.internal_ram_b",
         "mapping_type": "ReadWrite"
     },
     "0xE000..0xFE00": {
-        "field": "internal_ram_a",
+        "field": "bridge.internal_ram_a",
         "mapping_type": "ReadWrite"
     },
     "0xFE00..0xFEA0": {
-        "field": "lcd_controller.oam_data",
+        "field": "bridge.lcd_controller.oam_data",
         "mapping_type": "ReadWrite"
     },
     "0xFEA0..0xFF00": {
-        "field": "lcd_controller.unusable_memory",
+        "field": "bridge.lcd_controller.unusable_memory",
         "mapping_type": "ReadWrite"
     },
     "0xFF00": {
@@ -46,92 +46,92 @@
         "mapping_type": "ReadWrite"
     },
     "0xFF01": {
-        "field": "registers.serial_transfer_data",
+        "field": "bridge.registers.serial_transfer_data",
         "mapping_type": "ReadWrite"
     },
     "0xFF02": {
-        "field": "registers.serial_transfer_control",
+        "field": "bridge.registers.serial_transfer_control",
         "mapping_type": "Read"
     },
     "0xFF04": {
-        "field": "registers.divider",
+        "field": "bridge.registers.divider",
         "mapping_type": "ReadWrite"
     },
     "0xFF05": {
-        "field": "timer.counter",
+        "field": "bridge.timer.counter",
         "mapping_type": "ReadWrite"
     },
     "0xFF06": {
-        "field": "timer.modulo",
+        "field": "bridge.timer.modulo",
         "mapping_type": "ReadWrite"
     },
     "0xFF07": {
-        "field": "timer.control",
+        "field": "bridge.timer.control",
         "mapping_type": "ReadWrite"
     },
     "0xFF0F": {
-        "field": "registers.interrupt_flag",
+        "field": "bridge.registers.interrupt_flag",
         "mapping_type": "ReadWrite"
     },
     "0xFF10..0xFF40": {
-        "field": "sound_controller",
+        "field": "bridge.sound_controller",
         "mapping_type": "ReadWrite",
         "full_address": true
     },
     "0xFF40": {
-        "field": "lcd_controller.registers.lcdc",
+        "field": "bridge.lcd_controller.registers.lcdc",
         "mapping_type": "ReadWrite"
     },
     "0xFF41": {
-        "field": "lcd_controller.registers.stat",
+        "field": "bridge.lcd_controller.registers.stat",
         "mapping_type": "ReadWrite"
     },
     "0xFF42": {
-        "field": "lcd_controller.registers.scy",
+        "field": "bridge.lcd_controller.registers.scy",
         "mapping_type": "ReadWrite"
     },
     "0xFF43": {
-        "field": "lcd_controller.registers.scx",
+        "field": "bridge.lcd_controller.registers.scx",
         "mapping_type": "ReadWrite"
     },
     "0xFF44": {
-        "field": "lcd_controller.registers.ly",
+        "field": "bridge.lcd_controller.registers.ly",
         "mapping_type": "ReadWrite"
     },
     "0xFF45": {
-        "field": "lcd_controller.registers.lyc",
+        "field": "bridge.lcd_controller.registers.lyc",
         "mapping_type": "ReadWrite"
     },
     "0xFF46": {
-        "field": "lcd_controller.registers.dma",
+        "field": "bridge.lcd_controller.registers.dma",
         "mapping_type": "ReadWrite"
     },
     "0xFF47": {
-        "field": "lcd_controller.registers.bgp",
+        "field": "bridge.lcd_controller.registers.bgp",
         "mapping_type": "ReadWrite"
     },
     "0xFF48": {
-        "field": "lcd_controller.registers.obp0",
+        "field": "bridge.lcd_controller.registers.obp0",
         "mapping_type": "ReadWrite"
     },
     "0xFF49": {
-        "field": "lcd_controller.registers.obp1",
+        "field": "bridge.lcd_controller.registers.obp1",
         "mapping_type": "ReadWrite"
     },
     "0xFF4A": {
-        "field": "lcd_controller.registers.wy",
+        "field": "bridge.lcd_controller.registers.wy",
         "mapping_type": "ReadWrite"
     },
     "0xFF4B": {
-        "field": "lcd_controller.registers.wx",
+        "field": "bridge.lcd_controller.registers.wx",
         "mapping_type": "ReadWrite"
     },
     "0xFF80..0xFFFF": {
-        "field": "high_ram",
+        "field": "bridge.high_ram",
         "mapping_type": "ReadWrite"
     },
     "0xFFFF": {
-        "field": "registers.interrupt_enable",
+        "field": "bridge.registers.interrupt_enable",
         "mapping_type": "ReadWrite"
     }
 }

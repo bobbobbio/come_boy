@@ -2,6 +2,8 @@
 
 use std::io;
 
+pub mod fs;
+
 pub trait PersistentStorage {
     type Stream: io::Read + io::Write;
 
@@ -23,4 +25,14 @@ impl PersistentStorage for PanicStorage {
     }
 }
 
-pub mod fs;
+impl<T: PersistentStorage> PersistentStorage for &mut T {
+    type Stream = T::Stream;
+
+    fn save(&mut self, key: &str) -> io::Result<Self::Stream> {
+        (*self).save(key)
+    }
+
+    fn load(&mut self, key: &str) -> io::Result<Self::Stream> {
+        (*self).load(key)
+    }
+}

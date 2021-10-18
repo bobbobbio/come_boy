@@ -66,6 +66,26 @@ impl Color for () {
     fn new(_: u8, _: u8, _: u8) {}
 }
 
+impl<T: Renderer> Renderer for &mut T {
+    type Color = T::Color;
+
+    fn poll_events(&mut self) -> Vec<Event> {
+        (**self).poll_events()
+    }
+
+    fn save_buffer<P: AsRef<Path>>(&self, p: P) -> io::Result<()> {
+        (**self).save_buffer(p)
+    }
+
+    fn color_pixel(&mut self, x: i32, y: i32, c: Self::Color) {
+        (**self).color_pixel(x, y, c)
+    }
+
+    fn present(&mut self) {
+        (**self).present()
+    }
+}
+
 pub struct RenderingOptions {
     pub window_title: String,
     pub scale: u32,
