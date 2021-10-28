@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 use crate::emulator_common::Intel8080Register;
+use crate::io;
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
 use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::{Deserialize, Serialize};
-use std::io;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LR35902Instruction {
     AddImmediateToAccumulator {

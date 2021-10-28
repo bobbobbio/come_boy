@@ -1,8 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
+use crate::io::{self, Result};
 use core::ops::Range;
 use core::str;
-use std::io::{self, Result};
 
 #[cfg(test)]
 use byteorder::ReadBytesExt;

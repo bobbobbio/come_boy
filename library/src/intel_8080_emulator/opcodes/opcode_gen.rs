@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 use crate::emulator_common::Intel8080Register;
 use crate::intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
+use crate::io;
 use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::{Deserialize, Serialize};
-use std::io;
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Intel8080Instruction {
     AddImmediateToAccumulator {

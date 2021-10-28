@@ -1,8 +1,8 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::{Color, Event, Renderer, RenderingOptions};
+use crate::io;
 use bmp::{Image, Pixel};
-use std::io;
 use std::path::Path;
 
 pub struct BitmapRenderer {

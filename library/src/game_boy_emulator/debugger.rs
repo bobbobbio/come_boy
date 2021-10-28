@@ -6,12 +6,12 @@ use crate::game_boy_emulator::joypad::PlainJoyPad;
 use crate::game_boy_emulator::{
     GameBoyEmulator, GameBoyOps, ModuloCounter, Underclocker, SLEEP_INPUT_TICKS,
 };
+use crate::io::{self, Result};
 use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
 use crate::sound::SoundStream;
 use crate::storage::PersistentStorage;
 use core::{fmt, str};
-use std::io::{self, Result};
 
 impl fmt::Debug for GameBoyEmulator {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -1,9 +1,9 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::memory_controller::MemoryMappedHardware;
+use crate::io::{self, Seek as _, SeekFrom};
 use crate::rendering::Keycode;
 use serde_derive::{Deserialize, Serialize};
-use std::io::{Seek, SeekFrom};
 use std::path::Path;
 
 pub trait JoyPad: MemoryMappedHardware {
@@ -258,14 +258,14 @@ impl JoyPad for PlainJoyPad {
 
 #[derive(Debug)]
 pub enum ReplayError {
-    Io(std::io::Error),
+    Io(io::Error),
     DecodingError(bincode::Error),
 }
 
 type Result<T> = std::result::Result<T, ReplayError>;
 
-impl From<std::io::Error> for ReplayError {
-    fn from(e: std::io::Error) -> Self {
+impl From<io::Error> for ReplayError {
+    fn from(e: io::Error) -> Self {
         Self::Io(e)
     }
 }

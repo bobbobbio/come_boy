@@ -1,13 +1,13 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::{Color, Event, Keycode, Renderer, RenderingOptions};
+use crate::io;
 use speedy2d::{
     image::{ImageDataType, ImageSmoothingMode},
     shape::Rectangle,
     window::{KeyScancode, VirtualKeyCode, WindowHandler, WindowHelper},
     Graphics2D, Window,
 };
-use std::io;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};

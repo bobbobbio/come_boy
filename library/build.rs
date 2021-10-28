@@ -569,7 +569,7 @@ impl OpcodeGenerator {
             use byteorder::{ReadBytesExt, LittleEndian};
             use crate::emulator_common::Intel8080Register;
             use crate::#(#use_path)::*::#printer_name;
-            use std::io;
+            use crate::io;
             use serde_derive::{Serialize, Deserialize};
         ));
     }

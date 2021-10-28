@@ -6,12 +6,12 @@ use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::{
     GameBoyEmulator, GameBoyOps, GamePak, LR35902Flag, NullGameBoyOps, Result,
 };
+use crate::io::{Bytes, Read, Write};
 use crate::rendering::NullRenderer;
 use crate::sound::NullSoundStream;
 use crate::storage::{OpenMode, PersistentStorage};
 use core::fmt::{self, Debug};
 use core::str;
-use std::io::{Bytes, Read, Write};
 
 #[derive(Clone, Copy, Default, PartialEq)]
 struct AbstractEmulatorRegisters {

@@ -1,7 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
+use crate::io;
 use serde_derive::{Deserialize, Serialize};
-use std::io;
 use std::path::Path;
 
 #[cfg(feature = "sdl2")]

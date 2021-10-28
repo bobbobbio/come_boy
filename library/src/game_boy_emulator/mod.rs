@@ -9,6 +9,7 @@ use self::memory_controller::{
     MemoryChunk, MemoryMappedHardware,
 };
 use self::sound_controller::SoundController;
+use crate::io;
 use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, NullRenderer, Renderer};
 use crate::sound::{NullSoundStream, SoundStream};
@@ -21,7 +22,6 @@ use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use enum_utils::ReprFrom;
 use serde_derive::{Deserialize, Serialize};
-use std::io;
 use std::time::Instant;
 
 pub use self::debugger::run_debugger;
@@ -94,15 +94,15 @@ pub enum UserControl {
 
 #[derive(Debug)]
 pub enum Error {
-    Io(std::io::Error),
+    Io(io::Error),
     Replay(joypad::ReplayError),
     Serde(bincode::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-impl From<std::io::Error> for Error {
-    fn from(e: std::io::Error) -> Self {
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Self {
         Self::Io(e)
     }
 }

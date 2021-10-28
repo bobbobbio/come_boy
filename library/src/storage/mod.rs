@@ -1,6 +1,6 @@
 // copyright 2021 Remi Bernotavicius
 
-use std::io;
+use crate::io;
 
 pub mod fs;
 

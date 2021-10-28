@@ -1,8 +1,8 @@
 // Copyright 2021 Remi Bernotavicius
 
 use crate::emulator_common::disassembler::{MemoryAccessor, MemoryIterator};
+use crate::io::Read;
 use std::fs::File;
-use std::io::Read;
 
 pub mod blargg;
 

@@ -4,10 +4,10 @@ use crate::game_boy_emulator::{
     joypad::PlaybackJoyPad, run_emulator_until, run_until_and_take_screenshot, GameBoyEmulator,
     GameBoyOps, GamePak, Result,
 };
+use crate::io;
 use crate::rendering::Renderer;
 use crate::sound::NullSoundStream;
 use crate::storage::{fs::Fs, PersistentStorage};
-use std::io;
 use std::path::Path;
 
 fn run_until_and_save_reload_and_take_screenshot(

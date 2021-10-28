@@ -1,7 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::{Color, Event, Keycode, Renderer, RenderingOptions};
-use std::io;
+use crate::io;
 use std::path::Path;
 
 impl From<sdl2::keyboard::Keycode> for Keycode {

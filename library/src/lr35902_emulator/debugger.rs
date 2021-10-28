@@ -1,7 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
+use crate::io::{self, Result};
 use core::fmt;
-use std::io::{self, Result};
 
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use crate::emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};

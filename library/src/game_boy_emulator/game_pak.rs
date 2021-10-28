@@ -1,13 +1,13 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
+use crate::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
 use crate::storage::{OpenMode, PersistentStorage, StorageFile as _};
 use crate::util::super_fast_hash;
 use core::fmt;
 use core::ops::Range;
 use core::str;
 use serde_derive::{Deserialize, Serialize};
-use std::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
 
 struct BankOps<Storage: PersistentStorage> {
     sram_file: Option<Storage::File>,
@@ -1078,13 +1078,13 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
         self.hash
     }
 
-    pub fn save_state<W: std::io::Write>(&self, mut writer: W) -> super::Result<()> {
+    pub fn save_state<W: io::Write>(&self, mut writer: W) -> super::Result<()> {
         bincode::serialize_into(&mut writer, &self.hash)?;
         bincode::serialize_into(&mut writer, &self.mbc)?;
         Ok(())
     }
 
-    pub fn load_state<R: std::io::Read>(&mut self, mut reader: R) -> super::Result<()> {
+    pub fn load_state<R: io::Read>(&mut self, mut reader: R) -> super::Result<()> {
         let hash: u32 = bincode::deserialize_from(&mut reader)?;
         assert_eq!(self.hash, hash);
 

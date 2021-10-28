@@ -3058,13 +3058,10 @@ impl<'a> Intel8080Emulator<'a> {
  */
 
 #[cfg(test)]
-use std::fs::File;
+use std::{fs::File, str};
 
 #[cfg(test)]
-use std::io::{self, Read};
-
-#[cfg(test)]
-use std::str;
+use crate::io::{self, Read};
 
 #[cfg(test)]
 fn console_print(e: &mut Intel8080Emulator, stream: &mut dyn io::Write) {
