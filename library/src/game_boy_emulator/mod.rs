@@ -95,7 +95,7 @@ pub enum UserControl {
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),
-    Replay(joypad::ReplayError),
+    Replay(joypad::replay::Error),
     Serde(bincode::Error),
 }
 
@@ -107,8 +107,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<joypad::ReplayError> for Error {
-    fn from(e: joypad::ReplayError) -> Self {
+impl From<joypad::replay::Error> for Error {
+    fn from(e: joypad::replay::Error) -> Self {
         Self::Replay(e)
     }
 }

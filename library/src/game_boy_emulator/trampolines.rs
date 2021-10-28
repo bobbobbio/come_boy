@@ -124,6 +124,6 @@ pub fn playback_replay(
 }
 
 pub fn print_replay(input: &std::path::Path) -> Result<()> {
-    joypad::print_replay(input)?;
+    joypad::replay::print(input)?;
     Ok(())
 }
