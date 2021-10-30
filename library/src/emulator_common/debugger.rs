@@ -1,20 +1,20 @@
 // Copyright 2018 Remi Bernotavicius
 
 use core::{fmt, num, result, str};
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::{error, io};
 
 #[cfg(test)]
 use std::collections::HashMap;
 
 pub struct SimulatedInstruction {
-    memory_changed: HashSet<u16>,
+    memory_changed: BTreeSet<u16>,
 }
 
 impl SimulatedInstruction {
     fn new() -> SimulatedInstruction {
         SimulatedInstruction {
-            memory_changed: HashSet::new(),
+            memory_changed: BTreeSet::new(),
         }
     }
 
@@ -437,7 +437,7 @@ struct TestDebuggerOps {
     current_address: u16,
     memory: HashMap<u16, u8>,
     crash_message: Option<String>,
-    memory_changed: HashSet<u16>,
+    memory_changed: BTreeSet<u16>,
     call_stack: Vec<u16>,
 }
 
@@ -448,7 +448,7 @@ impl TestDebuggerOps {
             current_address: 0,
             memory: HashMap::new(),
             crash_message: None,
-            memory_changed: HashSet::new(),
+            memory_changed: BTreeSet::new(),
             call_stack: Vec::new(),
         }
     }
