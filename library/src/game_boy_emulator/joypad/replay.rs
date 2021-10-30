@@ -13,7 +13,7 @@ pub enum Error {
     DecodingError(bincode::Error),
 }
 
-type Result<T> = std::result::Result<T, Error>;
+type Result<T> = core::result::Result<T, Error>;
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {

@@ -99,7 +99,7 @@ pub enum Error {
     Serde(bincode::Error),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self {
@@ -637,7 +637,7 @@ impl GameBoyEmulator {
     pub fn read_key_events(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
-    ) -> std::result::Result<(), UserControl> {
+    ) -> core::result::Result<(), UserControl> {
         use crate::rendering::Event;
 
         for event in ops.renderer.poll_events() {
@@ -872,7 +872,7 @@ impl GameBoyEmulator {
     fn run_inner(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
-    ) -> std::result::Result<(), UserControl> {
+    ) -> core::result::Result<(), UserControl> {
         let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, ops.clock_speed_hz);
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 

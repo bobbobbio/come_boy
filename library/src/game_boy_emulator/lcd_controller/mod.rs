@@ -203,7 +203,9 @@ pub struct LcdControllerRegisters {
 
 /// Tiles and objects (sprites) pixels are described using these values. The actual color they
 /// represent depends on the palette.
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, Serialize, Deserialize, IntoEnumIterator)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, IntoPrimitive, Serialize, Deserialize, IntoEnumIterator,
+)]
 #[repr(u8)]
 pub enum LcdColor {
     Color3 = 0b11000000,
@@ -432,7 +434,7 @@ impl LcdObject {
 }
 
 struct LcdObjectIterator<'a> {
-    chunk_iterator: iter::Peekable<std::slice::Iter<'a, u8>>,
+    chunk_iterator: iter::Peekable<core::slice::Iter<'a, u8>>,
 }
 
 impl<'a> Iterator for LcdObjectIterator<'a> {
