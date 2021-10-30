@@ -1,8 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
+use crate::io;
 use core::{fmt, num, result, str};
 use std::collections::BTreeSet;
-use std::{error, io};
 
 #[cfg(test)]
 use std::collections::HashMap;
@@ -43,16 +43,6 @@ struct ParseError {
 impl ParseError {
     fn new(message: String) -> Self {
         ParseError { message }
-    }
-}
-
-impl error::Error for ParseError {
-    fn description(&self) -> &str {
-        &self.message
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
     }
 }
 
