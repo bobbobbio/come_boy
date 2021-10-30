@@ -5,12 +5,12 @@ use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryAccessor, MemoryChunk, MemoryMappedHardware,
 };
 use enum_iterator::IntoEnumIterator;
-use enum_utils::ReprFrom;
+use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
 mod memory_map_mut;
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum EnabledFlag {
     Enabled = 0b10000000,
@@ -26,7 +26,7 @@ impl FlagMask for EnabledFlag {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum OutputLevel {
     Level = 0b01100000,

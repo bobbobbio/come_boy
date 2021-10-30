@@ -220,7 +220,7 @@ where
 }
 
 #[cfg(test)]
-#[derive(enum_utils::ReprFrom, IntoEnumIterator, Debug, Clone)]
+#[derive(num_enum::IntoPrimitive, IntoEnumIterator, Debug, Clone)]
 #[repr(u8)]
 enum TestMaskedValue {
     ReadWriteValue = 0b00000011,

@@ -11,7 +11,7 @@ use channel1::Channel1;
 use channel2::Channel2;
 use channel3::Channel3;
 use channel4::Channel4;
-use enum_utils::ReprFrom;
+use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 use std::fmt;
 
@@ -30,7 +30,7 @@ trait Channel: MemoryMappedHardware {
     fn disable(&mut self);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
 #[repr(u8)]
 enum ChannelHighByte {
     Restart = 0b10000000,
@@ -180,7 +180,7 @@ pub struct SoundController {
     enabled: bool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
 #[repr(u8)]
 enum SoundEnable {
     All = 0b10000000,

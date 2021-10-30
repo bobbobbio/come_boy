@@ -7,12 +7,12 @@ use crate::game_boy_emulator::memory_controller::{
 };
 use crate::util::{Scheduler, TwosComplement};
 use enum_iterator::IntoEnumIterator;
-use enum_utils::ReprFrom;
+use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
 mod memory_map_mut;
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum SweepFlag {
     Time = 0b01110000,
@@ -160,7 +160,7 @@ enum Channel1Event {
     LengthTick,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
 #[repr(u8)]
 enum LengthAndWaveDuty {
     WavePatternDuty = 0b11000000,

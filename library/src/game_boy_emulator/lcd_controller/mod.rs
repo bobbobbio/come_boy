@@ -53,7 +53,7 @@ use crate::util::Scheduler;
 use core::ops::Range;
 use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;
-use enum_utils::ReprFrom;
+use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
 /// The width of the screen in pixels
@@ -203,7 +203,7 @@ pub struct LcdControllerRegisters {
 
 /// Tiles and objects (sprites) pixels are described using these values. The actual color they
 /// represent depends on the palette.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, Serialize, Deserialize, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, Serialize, Deserialize, IntoEnumIterator)]
 #[repr(u8)]
 pub enum LcdColor {
     Color3 = 0b11000000,
@@ -241,7 +241,7 @@ fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
 }
 
 /// This is a mask for the LCDC (LCD control) register.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum LcdControlFlag {
     /// Controls whether the LCD is on and the PPU is running.
@@ -284,7 +284,7 @@ impl FlagMask for LcdControlFlag {
 }
 
 /// This is a mask for the STAT register.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum LcdStatusFlag {
     /// Enable interrupt when LCY == LY. (0 = disable, 1 = enable)
@@ -333,7 +333,7 @@ struct LcdObject {
 }
 
 /// Mask for LcdObject flags.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
 #[repr(u8)]
 enum LcdObjectAttributeFlag {
     /// Controls whether the object is displayed in front or behind the background and window.

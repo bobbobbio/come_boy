@@ -20,15 +20,15 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 bincode = "*"
 bmp = "*"
 byteorder = "*"
+cpal = "*"
 crossbeam = "*"
 enum-iterator = "*"
-enum-utils = "*"
 gilrs = "*"
+num_enum = "*"
 sdl2 = { version = "0.32.*", optional = true }
 serde = "*"
 serde_derive = "*"
 speedy2d = { version = "*", optional = true }
-cpal = "*"
 
 [dev-dependencies]
 tempfile = "*"

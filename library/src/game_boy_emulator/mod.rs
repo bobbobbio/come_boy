@@ -20,7 +20,7 @@ use core::ops::{Range, RangeFrom};
 use core::time::Duration;
 use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
-use enum_utils::ReprFrom;
+use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 use std::time::Instant;
 
@@ -136,7 +136,7 @@ const ALL_INTERRUPTS: [(InterruptFlag, u16); 5] = [
 ];
 
 /// This mask represents the various interrupts the LcdController handles.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum InterruptFlag {
     VerticalBlanking = 0b00000001,
@@ -177,7 +177,7 @@ impl From<InterruptEnableFlag> for InterruptFlag {
 }
 
 /// This mask represent the various interrupts that the program can enable.
-#[derive(Debug, Clone, Copy, PartialEq, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum InterruptEnableFlag {
     VerticalBlanking = 0b00000001,
@@ -321,7 +321,7 @@ impl fmt::Debug for GameBoyTimer {
     }
 }
 
-#[derive(Debug, Clone, Copy, ReprFrom, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 enum TimerFlags {
     Enabled = 0b00000100,
