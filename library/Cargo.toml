@@ -11,7 +11,7 @@ homepage = "https://github.com/bobbobbio/come_boy"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["speedy2d"]
+default = ["gilrs", "speedy2d"]
 
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }
@@ -23,7 +23,7 @@ byteorder = "*"
 cpal = "*"
 crossbeam = "*"
 enum-iterator = "*"
-gilrs = "*"
+gilrs = { version = "*", optional = true }
 num_enum = "*"
 sdl2 = { version = "0.32.*", optional = true }
 serde = "*"

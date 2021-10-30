@@ -12,6 +12,11 @@ if [ "$CHANGES" != "" ]; then
 fi;
 
 cargo build --all-features --release
+
+pushd library
+cargo build --no-default-features
+popd
+
 cargo test --release
 
 pushd web
