@@ -96,7 +96,7 @@ pub enum UserControl {
 pub enum Error {
     Io(io::Error),
     Replay(joypad::replay::Error),
-    Serde(bincode::Error),
+    Serde(crate::codec::Error),
 }
 
 pub type Result<T> = core::result::Result<T, Error>;
@@ -113,8 +113,8 @@ impl From<joypad::replay::Error> for Error {
     }
 }
 
-impl From<bincode::Error> for Error {
-    fn from(e: bincode::Error) -> Self {
+impl From<crate::codec::Error> for Error {
+    fn from(e: crate::codec::Error) -> Self {
         Self::Serde(e)
     }
 }
@@ -998,7 +998,7 @@ impl GameBoyEmulator {
     ) -> Result<()> {
         println!("Loading save state");
 
-        *self = bincode::deserialize_from(&mut input)?;
+        *self = crate::codec::deserialize_from(&mut input)?;
 
         if let Some(game_pak) = game_pak {
             game_pak.load_state(&mut input)?;
@@ -1014,7 +1014,7 @@ impl GameBoyEmulator {
     ) -> Result<()> {
         println!("Saving state");
 
-        bincode::serialize_into(&mut writer, self)?;
+        crate::codec::serialize_into(&mut writer, self)?;
 
         if let Some(game_pak) = game_pak {
             game_pak.save_state(writer)?;

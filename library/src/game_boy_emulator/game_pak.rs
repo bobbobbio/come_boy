@@ -1079,16 +1079,16 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
     }
 
     pub fn save_state<W: io::Write>(&self, mut writer: W) -> super::Result<()> {
-        bincode::serialize_into(&mut writer, &self.hash)?;
-        bincode::serialize_into(&mut writer, &self.mbc)?;
+        crate::codec::serialize_into(&mut writer, &self.hash)?;
+        crate::codec::serialize_into(&mut writer, &self.mbc)?;
         Ok(())
     }
 
     pub fn load_state<R: io::Read>(&mut self, mut reader: R) -> super::Result<()> {
-        let hash: u32 = bincode::deserialize_from(&mut reader)?;
+        let hash: u32 = crate::codec::deserialize_from(&mut reader)?;
         assert_eq!(self.hash, hash);
 
-        self.mbc = bincode::deserialize_from(&mut reader)?;
+        self.mbc = crate::codec::deserialize_from(&mut reader)?;
         Ok(())
     }
 }

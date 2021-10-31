@@ -10,7 +10,7 @@ use std::path::Path;
 #[derive(Debug)]
 pub enum Error {
     Io(io::Error),
-    DecodingError(bincode::Error),
+    DecodingError(crate::codec::Error),
 }
 
 type Result<T> = core::result::Result<T, Error>;
@@ -21,8 +21,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<bincode::Error> for Error {
-    fn from(e: bincode::Error) -> Self {
+impl From<crate::codec::Error> for Error {
+    fn from(e: crate::codec::Error) -> Self {
         Self::DecodingError(e)
     }
 }
@@ -57,7 +57,7 @@ impl RecordingJoyPad {
             game_pak_title: game_pak_title.into(),
             game_pak_hash,
         };
-        bincode::serialize_into(&mut output_file, &header)?;
+        crate::codec::serialize_into(&mut output_file, &header)?;
 
         Ok(Self {
             output_file,
@@ -83,7 +83,7 @@ impl JoyPad for RecordingJoyPad {
 
         if entry.button_events.len() > 0 {
             // XXX ignoring error.
-            bincode::serialize_into(&mut self.output_file, &entry).ok();
+            crate::codec::serialize_into(&mut self.output_file, &entry).ok();
 
             self.inner.respond_to_events(entry.button_events);
         }
@@ -109,14 +109,14 @@ pub struct PlaybackJoyPad {
 impl PlaybackJoyPad {
     pub fn new<P: AsRef<Path>>(game_pak_hash: u32, input_path: P) -> Result<Self> {
         let mut input_file = std::fs::File::open(input_path)?;
-        let header: ReplayFileHeader = bincode::deserialize_from(&mut input_file)?;
+        let header: ReplayFileHeader = crate::codec::deserialize_from(&mut input_file)?;
         if header.game_pak_hash != game_pak_hash {
             println!(
                 "Warning, replay hash mismatch. Replay recorded for {:?}",
                 header.game_pak_title
             );
         }
-        let current_entry = Some(bincode::deserialize_from(&mut input_file)?);
+        let current_entry = Some(crate::codec::deserialize_from(&mut input_file)?);
         Ok(Self {
             input_file,
             current_entry,
@@ -130,7 +130,7 @@ impl JoyPad for PlaybackJoyPad {
         while self.current_entry.is_some() && now >= self.current_entry.as_ref().unwrap().time {
             let current_entry = self.current_entry.take().unwrap();
             self.inner.respond_to_events(current_entry.button_events);
-            self.current_entry = bincode::deserialize_from(&mut self.input_file).ok();
+            self.current_entry = crate::codec::deserialize_from(&mut self.input_file).ok();
         }
     }
 }
@@ -147,12 +147,12 @@ impl MemoryMappedHardware for PlaybackJoyPad {
 
 pub fn print<P: AsRef<Path>>(file_path: P) -> Result<()> {
     let mut f = std::fs::File::open(file_path)?;
-    let header: ReplayFileHeader = bincode::deserialize_from(&mut f)?;
+    let header: ReplayFileHeader = crate::codec::deserialize_from(&mut f)?;
     println!("{:#?}", header);
 
     let len = f.metadata()?.len();
     while f.seek(SeekFrom::Current(0))? < len {
-        let entry: ReplayFileEntry = bincode::deserialize_from(&mut f)?;
+        let entry: ReplayFileEntry = crate::codec::deserialize_from(&mut f)?;
         println!("{:#?}", entry);
     }
     Ok(())
