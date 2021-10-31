@@ -92,6 +92,8 @@ impl bin_common::frontend::Frontend for PlaybackFrontend {
 }
 
 fn main() -> Result<()> {
+    simple_logger::SimpleLogger::new().init().unwrap();
+
     let options = Options::from_args();
     match options {
         Options::Record {

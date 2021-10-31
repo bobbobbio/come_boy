@@ -63,7 +63,7 @@ impl CpalSoundStream {
         let data_fn = move |data_out: &mut [f32], _: &cpal::OutputCallbackInfo| {
             their_sample.lock().unwrap().fill(data_out);
         };
-        let error_fn = |err| eprintln!("audio stream error: {}", err);
+        let error_fn = |err| log::error!("audio stream error: {}", err);
         let stream = device
             .build_output_stream(&config.into(), data_fn, error_fn)
             .unwrap();

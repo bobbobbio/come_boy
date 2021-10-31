@@ -29,6 +29,7 @@ cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "*"
 gilrs = { version = "*", optional = true }
+log = { version = "*", default_features = false }
 num_enum = "*"
 sdl2 = { version = "0.32.*", optional = true }
 serde = "*"

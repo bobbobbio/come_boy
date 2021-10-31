@@ -6,7 +6,7 @@ use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::{
     GameBoyEmulator, GameBoyOps, GamePak, LR35902Flag, NullGameBoyOps, Result,
 };
-use crate::io::{Bytes, Read, Write};
+use crate::io::{self, Bytes, Read, Write};
 use crate::rendering::NullRenderer;
 use crate::sound::NullSoundStream;
 use crate::storage::{OpenMode, PersistentStorage};
@@ -456,7 +456,36 @@ fn emulator_replayer() {
     );
 }
 
-fn print_memory_diff(a: &[u8], b: &[u8]) {
+fn print_hex<F: FnMut(usize) -> bool>(
+    out: &mut impl Write,
+    memory: &[u8],
+    start: usize,
+    end: usize,
+    mut color: F,
+) -> io::Result<()> {
+    for line in 0..((end - start) / 16) {
+        let line_start = start + line * 16;
+        let line_range = line_start..(line_start + 16);
+        write!(out, "{:04x}:", line_start)?;
+        for addr in line_range.clone() {
+            if addr & 0xF == 0x8 {
+                write!(out, " ")?;
+            }
+            write!(out, " ")?;
+            if color(addr) {
+                write!(out, "\u{001b}[31m")?;
+            }
+            write!(out, "{:02x}", memory[addr])?;
+            if color(addr) {
+                write!(out, "\u{001b}[0m")?;
+            }
+        }
+        writeln!(out)?;
+    }
+    Ok(())
+}
+
+fn print_memory_diff(out: &mut impl Write, a: &[u8], b: &[u8]) -> io::Result<()> {
     // Find the address where the differences start and end
     let iter = a.iter().zip(b.iter()).enumerate();
     let start = iter
@@ -473,36 +502,20 @@ fn print_memory_diff(a: &[u8], b: &[u8]) {
     let start = start - (start % 16);
     let end = end + if end % 16 == 0 { 0 } else { 16 - end % 16 };
 
-    fn print_hex<F: FnMut(usize) -> bool>(memory: &[u8], start: usize, end: usize, mut color: F) {
-        for line in 0..((end - start) / 16) {
-            let line_start = start + line * 16;
-            let line_range = line_start..(line_start + 16);
-            print!("{:04x}:", line_start);
-            for addr in line_range.clone() {
-                if addr & 0xF == 0x8 {
-                    print!(" ");
-                }
-                print!(" ");
-                if color(addr) {
-                    print!("\u{001b}[31m");
-                }
-                print!("{:02x}", memory[addr]);
-                if color(addr) {
-                    print!("\u{001b}[0m");
-                }
-            }
-            println!();
-        }
-    }
+    print_hex(out, a, start, end, |addr| a[addr] != b[addr])?;
 
-    print_hex(a, start, end, |addr| a[addr] != b[addr]);
+    writeln!(
+        out,
+        "======================================================"
+    )?;
 
-    println!("======================================================");
+    print_hex(out, b, start, end, |addr| a[addr] != b[addr])?;
 
-    print_hex(b, start, end, |addr| a[addr] != b[addr]);
+    Ok(())
 }
 
 pub fn run<Storage: PersistentStorage>(
+    out: &mut impl Write,
     mut storage: Storage,
     replay_file_path: &str,
     game_pak: GamePak<Storage>,
@@ -518,22 +531,22 @@ pub fn run<Storage: PersistentStorage>(
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);
 
-    println!("differed after {} runs", runs);
-    println!("Replay from path {:?}:", &replay_file_path);
-    println!("{:#?}", a);
-    println!("Comeboy:");
-    println!("{:#?}", b);
+    writeln!(out, "differed after {} runs", runs)?;
+    writeln!(out, "Replay from path {:?}:", &replay_file_path)?;
+    writeln!(out, "{:#?}", a)?;
+    writeln!(out, "Comeboy:")?;
+    writeln!(out, "{:#?}", b)?;
 
-    println!();
+    writeln!(out)?;
 
     let mut buffer = vec![];
     let memory_map = ops.memory_map(&e2.emulator.bridge);
     let mut dis = Disassembler::new(&memory_map, RGBDSInstructionPrinterFactory, &mut buffer);
     dis.index = e2.emulator.cpu.read_program_counter();
     dis.disassemble_multiple().unwrap();
-    println!("{}", str::from_utf8(&buffer).unwrap());
+    writeln!(out, "{}", str::from_utf8(&buffer).unwrap())?;
 
-    println!();
+    writeln!(out)?;
 
     let mut memory_a = vec![];
     e1.write_memory(&mut memory_a).unwrap();
@@ -541,6 +554,7 @@ pub fn run<Storage: PersistentStorage>(
     let mut memory_b = vec![];
     e2.write_memory(&mut memory_b).unwrap();
 
-    print_memory_diff(&memory_a[..], &memory_b[..]);
+    print_memory_diff(out, &memory_a[..], &memory_b[..])?;
+
     Ok(())
 }

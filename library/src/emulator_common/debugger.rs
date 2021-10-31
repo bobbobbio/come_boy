@@ -69,13 +69,13 @@ pub struct Debugger<'a> {
     breakpoint: Option<u16>,
     watchpoint: Option<u16>,
     logging: bool,
-    input: &'a mut dyn io::BufRead,
+    input: &'a mut dyn Iterator<Item = io::Result<String>>,
     out: &'a mut dyn io::Write,
 }
 
 impl<'a> Debugger<'a> {
     pub fn new(
-        input: &'a mut dyn io::BufRead,
+        input: &'a mut dyn Iterator<Item = io::Result<String>>,
         out: &'a mut dyn io::Write,
         emulator: &'a mut dyn DebuggerOps,
     ) -> Debugger<'a> {
@@ -398,20 +398,16 @@ impl<'a> Debugger<'a> {
         write!(self.out, "(debugger) ").unwrap();
         self.out.flush().unwrap();
 
-        let mut buffer = String::new();
-        self.input.read_line(&mut buffer).unwrap();
+        if let Some(res) = self.input.next() {
+            let command = res.unwrap();
 
-        // If we got EOF, cleanly exit
-        if buffer.len() == 0 {
+            if let Err(e) = self.dispatch_command(&command, is_interrupted) {
+                write!(self.out, "Error: {}\n", &e.message).unwrap();
+            }
+        } else {
+            // If we got EOF, cleanly exit
             self.exit();
-            return;
         }
-
-        let command = &buffer[0..buffer.len() - 1];
-
-        if let Err(e) = self.dispatch_command(command, is_interrupted) {
-            write!(self.out, "Error: {}\n", &e.message).unwrap();
-        };
     }
 
     pub fn run(&mut self, is_interrupted: &dyn Fn() -> bool) {
@@ -493,10 +489,10 @@ impl DebuggerOps for TestDebuggerOps {
 #[cfg(test)]
 fn run_debugger_test_with_ops(ops: &mut dyn DebuggerOps, input: &[&str], expected_output: &str) {
     let mut output_bytes = vec![];
-    let input_str = input.join("\n") + "\n";
-    let mut input_bytes = input_str.as_bytes();
+    let mut input_iter = input.iter().map(|l| Ok(l.to_string()));
+    println!("{:?}", input);
     {
-        let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, ops);
+        let mut debugger = Debugger::new(&mut input_iter, &mut output_bytes, ops);
         debugger.run(&|| false);
     }
 
@@ -513,9 +509,9 @@ fn run_debugger_test(input: &[&str], expected_output: &str) {
 fn debugger_interrupt() {
     let mut test_ops = TestDebuggerOps::new();
     let mut output_bytes = vec![];
-    let mut input_bytes = "run\n".as_bytes();
+    let mut input_iter = std::iter::once(Ok("run".to_string()));
     {
-        let mut debugger = Debugger::new(&mut input_bytes, &mut output_bytes, &mut test_ops);
+        let mut debugger = Debugger::new(&mut input_iter, &mut output_bytes, &mut test_ops);
         debugger.run(&|| true);
     }
 

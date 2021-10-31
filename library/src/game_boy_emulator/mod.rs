@@ -24,7 +24,6 @@ use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 use std::time::Instant;
 
-pub use self::debugger::run_debugger;
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 
@@ -519,7 +518,7 @@ impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, Sou
     }
 
     pub fn load_game_pak(&mut self, game_pak: GamePak<Storage>) {
-        println!("Loading {:?}", &game_pak);
+        log::info!("Loading {:?}", &game_pak);
         self.game_pak = Some(game_pak);
     }
 }
@@ -647,7 +646,7 @@ impl GameBoyEmulator {
                 }
                 Event::KeyDown(Keycode::F2) => {
                     if let Err(e) = self.save_state_to_storage(ops) {
-                        println!("Failed to create save state {:?}", e);
+                        log::info!("Failed to create save state {:?}", e);
                     }
                 }
                 Event::KeyDown(Keycode::F3) => {
@@ -888,7 +887,7 @@ impl GameBoyEmulator {
         }
 
         if self.cpu.crashed() {
-            println!(
+            log::info!(
                 "Emulator crashed: {}",
                 self.cpu.crash_message.as_ref().unwrap()
             );
@@ -905,7 +904,7 @@ impl GameBoyEmulator {
             match res {
                 Err(UserControl::SaveStateLoaded) => {
                     if let Err(e) = self.load_state_from_storage(ops) {
-                        println!("Failed to load state {:?}", e);
+                        log::info!("Failed to load state {:?}", e);
                     }
                 }
                 Err(UserControl::SpeedChange) => {}
@@ -996,7 +995,7 @@ impl GameBoyEmulator {
         game_pak: Option<&mut GamePak<impl PersistentStorage>>,
         mut input: R,
     ) -> Result<()> {
-        println!("Loading save state");
+        log::info!("Loading save state");
 
         *self = crate::codec::deserialize_from(&mut input)?;
 
@@ -1012,7 +1011,7 @@ impl GameBoyEmulator {
         game_pak: Option<&GamePak<impl PersistentStorage>>,
         mut writer: W,
     ) -> Result<()> {
-        println!("Saving state");
+        log::info!("Saving state");
 
         crate::codec::serialize_into(&mut writer, self)?;
 

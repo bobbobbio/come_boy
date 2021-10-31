@@ -103,6 +103,8 @@ pub fn run_debugger<Storage: PersistentStorage>(
     game_pak: GamePak<Storage>,
     is_interrupted: &dyn Fn() -> bool,
 ) {
+    use std::io::BufRead as _;
+
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
     ops.plug_in_joy_pad(PlainJoyPad::new());
     ops.load_game_pak(game_pak);
@@ -111,8 +113,9 @@ pub fn run_debugger<Storage: PersistentStorage>(
 
     let stdin = &mut io::stdin();
     let stdin_locked = &mut stdin.lock();
+    let mut input_lines = stdin_locked.lines();
     let stdout = &mut io::stdout();
 
-    let mut debugger = Debugger::new(stdin_locked, stdout, &mut gameboy_debugger);
+    let mut debugger = Debugger::new(&mut input_lines, stdout, &mut gameboy_debugger);
     debugger.run(is_interrupted);
 }

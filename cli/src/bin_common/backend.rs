@@ -94,7 +94,7 @@ mod speedy2d {
 
     impl Backend for Speedy2dBackend {
         fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
-            println!("Using speedy2d renderer");
+            log::info!("Using speedy2d renderer");
             speedy::run_loop(rendering_options, move |renderer| {
                 let mut sound_stream = CpalSoundStream::new();
                 frontend.run(renderer, &mut sound_stream);
@@ -113,7 +113,7 @@ mod sdl2 {
 
     impl Backend for Sdl2Backend {
         fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
-            println!("Using sdl2 renderer");
+            log::info!("Using sdl2 renderer");
             let mut sound_stream = CpalSoundStream::new();
             let mut renderer = Sdl2WindowRenderer::new(rendering_options);
             frontend.run(&mut renderer, &mut sound_stream);

@@ -1,9 +1,11 @@
 // copyright 2021 Remi Bernotavicius
 
+pub use super::debugger::run_debugger;
 use super::joypad::{PlaybackJoyPad, RecordingJoyPad};
 use super::{
     game_pak::GamePak, joypad, tandem, ControllerJoyPad, GameBoyEmulator, GameBoyOps, Result,
 };
+use crate::io;
 use crate::rendering::Renderer;
 use crate::sound::{NullSoundStream, SoundStream};
 use crate::storage::{PanicStorage, PersistentStorage};
@@ -31,14 +33,15 @@ pub fn run_emulator<Storage: PersistentStorage>(
 }
 
 pub fn run_in_tandem_with<Storage: PersistentStorage>(
+    out: &mut impl io::Write,
     storage: Storage,
     other_emulator_key: &str,
     game_pak: GamePak<Storage>,
     pc_only: bool,
 ) -> Result<()> {
-    println!("loading {:?}", &other_emulator_key);
+    log::info!("loading {:?}", &other_emulator_key);
 
-    tandem::run(storage, other_emulator_key, game_pak, pc_only)
+    tandem::run(out, storage, other_emulator_key, game_pak, pc_only)
 }
 
 pub(crate) fn run_emulator_until(

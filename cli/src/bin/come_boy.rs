@@ -67,6 +67,8 @@ fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
 }
 
 fn main() -> Result<()> {
+    simple_logger::SimpleLogger::new().init().unwrap();
+
     let options = Options::from_args();
 
     let mut fs = Fs::new(options.rom.parent());

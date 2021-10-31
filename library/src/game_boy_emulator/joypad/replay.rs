@@ -111,7 +111,7 @@ impl PlaybackJoyPad {
         let mut input_file = std::fs::File::open(input_path)?;
         let header: ReplayFileHeader = crate::codec::deserialize_from(&mut input_file)?;
         if header.game_pak_hash != game_pak_hash {
-            println!(
+            log::warn!(
                 "Warning, replay hash mismatch. Replay recorded for {:?}",
                 header.game_pak_title
             );

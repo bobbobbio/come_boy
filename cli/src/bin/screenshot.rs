@@ -23,6 +23,8 @@ struct Options {
 }
 
 fn main() -> Result<()> {
+    simple_logger::SimpleLogger::new().init().unwrap();
+
     let options = Options::from_args();
 
     let mut fs = Fs::new(options.rom.parent());

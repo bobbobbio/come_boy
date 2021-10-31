@@ -20,12 +20,15 @@ struct Options {
 }
 
 fn main() -> Result<()> {
+    simple_logger::SimpleLogger::new().init().unwrap();
+
     let options = Options::from_args();
 
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;
     let game_pak = GamePak::from_storage(&mut fs, &rom_key)?;
     game_boy_emulator::run_in_tandem_with(
+        &mut std::io::stdout().lock(),
         fs,
         options.emulator_trace.to_str().unwrap(),
         game_pak,

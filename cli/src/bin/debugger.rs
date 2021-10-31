@@ -53,6 +53,7 @@ fn set_up_signal_handler() {
 }
 
 fn main() -> Result<()> {
+    simple_logger::SimpleLogger::new().init().unwrap();
     set_up_signal_handler();
 
     let options = Options::from_args();
