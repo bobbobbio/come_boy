@@ -131,7 +131,7 @@ fn main() -> Result<()> {
             Ok(())
         }
         Options::Print { input } => {
-            game_boy_emulator::print_replay(&input)?;
+            print!("{}", game_boy_emulator::print_replay(&input)?);
             Ok(())
         }
     }

@@ -3,7 +3,7 @@
 use super::{
     button_events_from_key_events, ButtonEvent, JoyPad, KeyEvent, MemoryMappedHardware, PlainJoyPad,
 };
-use crate::io::{self, Seek as _, SeekFrom};
+use crate::io::{self, Write as _};
 use serde_derive::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -145,15 +145,15 @@ impl MemoryMappedHardware for PlaybackJoyPad {
     }
 }
 
-pub fn print<P: AsRef<Path>>(file_path: P) -> Result<()> {
-    let mut f = std::fs::File::open(file_path)?;
-    let header: ReplayFileHeader = crate::codec::deserialize_from(&mut f)?;
-    println!("{:#?}", header);
+pub fn print(mut input: impl io::Read) -> Result<String> {
+    let mut out = vec![];
 
-    let len = f.metadata()?.len();
-    while f.seek(SeekFrom::Current(0))? < len {
-        let entry: ReplayFileEntry = crate::codec::deserialize_from(&mut f)?;
-        println!("{:#?}", entry);
+    let header: ReplayFileHeader = crate::codec::deserialize_from(&mut input)?;
+    writeln!(&mut out, "{:#?}", header)?;
+
+    while let Ok(entry) = crate::codec::deserialize_from::<_, ReplayFileEntry>(&mut input) {
+        write!(&mut out, "{:#?}", entry)?;
     }
-    Ok(())
+
+    Ok(String::from_utf8(out).unwrap())
 }

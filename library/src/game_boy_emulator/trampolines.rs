@@ -126,7 +126,7 @@ pub fn playback_replay(
     Ok(())
 }
 
-pub fn print_replay(input: &std::path::Path) -> Result<()> {
-    joypad::replay::print(input)?;
-    Ok(())
+pub fn print_replay(input: &std::path::Path) -> Result<String> {
+    let mut f = std::fs::File::open(input)?;
+    Ok(joypad::replay::print(&mut f)?)
 }
