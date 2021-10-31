@@ -8,7 +8,7 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
-come_boy = {default-features = false, features = ["gilrs"], path = "../library", version = "*"}
+come_boy = {default-features = false, features = ["game-pad"], path = "../library", version = "*"}
 console_error_panic_hook = "*"
 wasm-bindgen = "*"
 js-sys = "*"

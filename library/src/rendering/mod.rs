@@ -4,13 +4,13 @@ use crate::io;
 use serde_derive::{Deserialize, Serialize};
 use std::path::Path;
 
-#[cfg(feature = "sdl2")]
+#[cfg(feature = "sdl2-renderer")]
 pub mod sdl2;
 
-#[cfg(feature = "speedy2d")]
+#[cfg(feature = "speedy2d-renderer")]
 pub mod speedy;
 
-#[cfg(feature = "bmp")]
+#[cfg(feature = "bitmap-renderer")]
 pub mod bitmap;
 
 #[derive(Serialize, Deserialize, Clone, Copy)]

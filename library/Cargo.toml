@@ -11,7 +11,12 @@ homepage = "https://github.com/bobbobbio/come_boy"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["bmp", "gilrs", "speedy2d"]
+default = ["bitmap-renderer", "game-pad", "speedy2d-renderer", "sound"]
+game-pad = ["gilrs"]
+bitmap-renderer = ["bmp"]
+speedy2d-renderer = ["speedy2d", "crossbeam"]
+sdl2-renderer = ["sdl2"]
+sound = ["cpal"]
 
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }
@@ -20,8 +25,8 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 bincode = "*"
 bmp = { version = "*", optional = true }
 byteorder = "*"
-cpal = "*"
-crossbeam = "*"
+cpal = { version = "*", optional = true }
+crossbeam = { version = "*", optional = true }
 enum-iterator = "*"
 gilrs = { version = "*", optional = true }
 num_enum = "*"

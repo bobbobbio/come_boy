@@ -7,9 +7,10 @@ repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 
 [features]
-default = ["speedy2d"]
-speedy2d = ["come_boy/speedy2d"]
-sdl2 = ["come_boy/sdl2"]
+default = ["speedy2d-renderer", "sound"]
+speedy2d-renderer = ["come_boy/speedy2d-renderer"]
+sdl2-renderer = ["come_boy/sdl2-renderer"]
+sound = ["come_boy/sound"]
 
 [dependencies]
 come_boy = { version = "*", path = "../library" }

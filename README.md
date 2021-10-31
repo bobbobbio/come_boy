@@ -20,9 +20,9 @@ Build like as follows.
 If you want a usable emulator, pass the `--release` flag, as the debug build is
 too slow.
 
-The project has two rendering back-ends. `sdl2` and `speedy2d`. You can select
-which ones you want via `--features`. The `speedy2d` back-end is included by
-default.
+The project has two rendering back-ends. `sdl2-renderer` and
+`speedy2d-renderer`. You can select which ones you want via `--features`. The
+`speedy2d-renderer` back-end is included by default.
 
 # Running Tests
 Run tests as follow. You only need to run `./library/download_test_roms` once.

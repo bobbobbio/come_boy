@@ -1,5 +1,6 @@
 // Copyright 2021 Remi Bernotavicius
 
+#[cfg(feature = "sound")]
 pub mod cpal;
 
 pub trait SoundStream {

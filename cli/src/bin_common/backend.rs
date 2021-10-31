@@ -40,12 +40,12 @@ impl<F: Frontend> BackendMap<F> {
             rendering_options,
         };
 
-        #[cfg(feature = "speedy2d")]
+        #[cfg(feature = "speedy2d-renderer")]
         map.add("speedy2d", |m| {
             m.run_backend(self::speedy2d::Speedy2dBackend)
         });
 
-        #[cfg(feature = "sdl2")]
+        #[cfg(feature = "sdl2-renderer")]
         map.add("sdl2", |m| m.run_backend(self::sdl2::Sdl2Backend));
 
         map
@@ -84,7 +84,7 @@ impl<F: Frontend> BackendMap<F> {
     }
 }
 
-#[cfg(feature = "speedy2d")]
+#[cfg(feature = "speedy2d-renderer")]
 mod speedy2d {
     use super::{Backend, Frontend};
     use come_boy::rendering::{speedy, RenderingOptions};
@@ -103,7 +103,7 @@ mod speedy2d {
     }
 }
 
-#[cfg(feature = "sdl2")]
+#[cfg(feature = "sdl2-renderer")]
 mod sdl2 {
     use super::{Backend, Frontend};
     use come_boy::rendering::{sdl2::Sdl2WindowRenderer, RenderingOptions};
