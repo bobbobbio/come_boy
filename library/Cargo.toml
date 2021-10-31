@@ -11,14 +11,14 @@ homepage = "https://github.com/bobbobbio/come_boy"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["gilrs", "speedy2d"]
+default = ["bmp", "gilrs", "speedy2d"]
 
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }
 
 [dependencies]
 bincode = "*"
-bmp = "*"
+bmp = { version = "*", optional = true }
 byteorder = "*"
 cpal = "*"
 crossbeam = "*"

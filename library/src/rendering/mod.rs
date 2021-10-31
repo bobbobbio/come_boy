@@ -10,6 +10,7 @@ pub mod sdl2;
 #[cfg(feature = "speedy2d")]
 pub mod speedy;
 
+#[cfg(feature = "bmp")]
 pub mod bitmap;
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
