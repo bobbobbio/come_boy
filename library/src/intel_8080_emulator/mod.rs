@@ -2,7 +2,7 @@
 
 pub mod opcodes;
 
-use std::collections::HashMap;
+use crate::collections::HashMap;
 
 use crate::emulator_common::Intel8080Register;
 pub use crate::intel_8080_emulator::opcodes::{

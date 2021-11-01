@@ -11,9 +11,9 @@ use channel1::Channel1;
 use channel2::Channel2;
 use channel3::Channel3;
 use channel4::Channel4;
+use core::fmt;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
-use std::fmt;
 
 mod channel1;
 mod channel2;

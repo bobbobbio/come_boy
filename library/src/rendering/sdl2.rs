@@ -2,7 +2,6 @@
 
 use super::{Color, Event, Keycode, Renderer, RenderingOptions};
 use crate::io;
-use std::path::Path;
 
 impl From<sdl2::keyboard::Keycode> for Keycode {
     fn from(keycode: sdl2::keyboard::Keycode) -> Self {

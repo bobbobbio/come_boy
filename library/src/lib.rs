@@ -10,4 +10,5 @@ pub mod storage;
 mod util;
 
 use ::bincode as codec;
+use std::collections;
 use std::io;

@@ -1,8 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
+use crate::collections::BTreeSet;
 use crate::io;
 use core::{fmt, num, result, str};
-use std::collections::BTreeSet;
 
 #[cfg(test)]
 use std::collections::HashMap;
