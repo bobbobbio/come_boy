@@ -17,15 +17,14 @@ use crate::storage::{OpenMode, PanicStorage, PersistentStorage};
 use crate::util::{super_fast_hash, Scheduler};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
-use core::time::Duration;
 use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
-use std::time::Instant;
 
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
+pub use self::underclocker::*;
 
 mod debugger;
 mod disassembler;
@@ -33,10 +32,19 @@ mod game_pak;
 mod joypad;
 mod lcd_controller;
 mod memory_controller;
+mod runner;
 mod sound_controller;
 mod tandem;
+mod underclocker;
 
 pub mod trampolines;
+
+#[derive(Debug, Copy, Clone)]
+pub enum UserControl {
+    SaveStateLoaded,
+    ScreenClosed,
+    SpeedChange,
+}
 
 /// This is how many ticks of the emulator we do before under-clocking and checking for input
 pub const SLEEP_INPUT_TICKS: u64 = 10_000;
@@ -55,40 +63,6 @@ impl ModuloCounter {
         self.counter = self.counter.wrapping_add(1);
         self.counter % self.every == 0
     }
-}
-
-struct Underclocker {
-    start_cycles: u64,
-    start_instant: Instant,
-    speed: u32,
-}
-
-impl Underclocker {
-    fn new(now: u64, speed: u32) -> Self {
-        Self {
-            start_cycles: now,
-            start_instant: Instant::now(),
-            speed,
-        }
-    }
-
-    fn underclock(&mut self, now: u64) {
-        let elapsed_cycles = now - self.start_cycles;
-
-        let delay = Duration::from_secs(1) / self.speed;
-        let expected_elapsed = (elapsed_cycles as u32) * delay;
-
-        if let Some(sleep_time) = expected_elapsed.checked_sub(self.start_instant.elapsed()) {
-            std::thread::sleep(sleep_time);
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum UserControl {
-    SaveStateLoaded,
-    ScreenClosed,
-    SpeedChange,
 }
 
 #[derive(Debug)]
@@ -866,51 +840,6 @@ impl GameBoyEmulator {
 
     pub fn elapsed_cycles(&self) -> u64 {
         self.cpu.elapsed_cycles
-    }
-
-    fn run_inner(
-        &mut self,
-        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
-    ) -> core::result::Result<(), UserControl> {
-        let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, ops.clock_speed_hz);
-        let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
-
-        while self.crashed().is_none() {
-            self.tick(ops);
-
-            // We can't do this every tick because it is too slow. So instead so only every so
-            // often.
-            if sometimes.incr() {
-                underclocker.underclock(self.elapsed_cycles());
-                self.read_key_events(ops)?;
-            }
-        }
-
-        if self.cpu.crashed() {
-            log::info!(
-                "Emulator crashed: {}",
-                self.cpu.crash_message.as_ref().unwrap()
-            );
-        }
-        Ok(())
-    }
-
-    fn run(
-        &mut self,
-        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
-    ) {
-        loop {
-            let res = self.run_inner(ops);
-            match res {
-                Err(UserControl::SaveStateLoaded) => {
-                    if let Err(e) = self.load_state_from_storage(ops) {
-                        log::info!("Failed to load state {:?}", e);
-                    }
-                }
-                Err(UserControl::SpeedChange) => {}
-                _ => break,
-            }
-        }
     }
 
     fn write_memory(
