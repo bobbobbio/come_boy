@@ -19,7 +19,12 @@ impl Fs {
     }
 
     pub fn path_to_key(path: &Path) -> io::Result<String> {
-        Ok(path.canonicalize()?.to_str().unwrap().to_owned())
+        let path_out = if let Some(parent) = path.parent() {
+            parent.canonicalize()?.join(path.file_name().unwrap())
+        } else {
+            path.canonicalize()?
+        };
+        Ok(path_out.to_str().unwrap().to_owned())
     }
 }
 
@@ -37,6 +42,8 @@ impl PersistentStorage for Fs {
         if !path.is_absolute() {
             path = self.working_dir.join(key);
         }
+
+        println!("opening path {:?}", &path);
 
         match mode {
             OpenMode::Read => fs::OpenOptions::new().read(true).open(path),

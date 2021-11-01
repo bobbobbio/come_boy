@@ -7,27 +7,29 @@ use crate::game_boy_emulator::{
 use crate::io;
 use crate::rendering::Renderer;
 use crate::sound::NullSoundStream;
-use crate::storage::{fs::Fs, PersistentStorage};
+use crate::storage::{fs::Fs, OpenMode, PersistentStorage};
 use std::path::Path;
 
 fn run_until_and_save_reload_and_take_screenshot(
     renderer: impl Renderer,
-    storage: impl PersistentStorage,
+    storage: impl PersistentStorage + 'static,
     rom_key: &str,
     ticks: u64,
-    replay_path: Option<impl AsRef<Path>>,
-    output_path: impl AsRef<Path>,
+    replay_key: Option<&str>,
+    output_key: &str,
 ) -> Result<()> {
     use std::io::{Seek, SeekFrom};
 
     let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
     let game_pak = GamePak::from_storage_without_sav(&mut ops.storage, rom_key)?;
 
+    if let Some(replay_key) = replay_key {
+        let joy_pad = PlaybackJoyPad::new(&mut ops.storage, game_pak.hash(), replay_key)?;
+        ops.plug_in_joy_pad(joy_pad);
+    }
+
     let mut e = GameBoyEmulator::new();
 
-    if let Some(replay_path) = replay_path {
-        ops.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), replay_path)?);
-    }
     ops.load_game_pak(game_pak);
 
     // Run the emulator some amount of time less than requested
@@ -50,7 +52,8 @@ fn run_until_and_save_reload_and_take_screenshot(
 
     // Run it the rest of the time
     run_emulator_until(&mut e, &mut ops, final_ticks);
-    ops.renderer.save_buffer(output_path).unwrap();
+    let mut file = ops.storage.open(OpenMode::Write, output_key)?;
+    ops.renderer.save_buffer(&mut file).unwrap();
 
     Ok(())
 }
@@ -68,28 +71,55 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
 fn run_and_take_screenshot(
     rom_path: &Path,
     ticks: u64,
-    replay: Option<&str>,
-    output: &std::path::Path,
+    replay: Option<&Path>,
+    output: &Path,
 ) -> Result<()> {
     let mut fs = Fs::new(rom_path.parent());
     let renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
     let rom_key = Fs::path_to_key(rom_path)?;
     let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
-    run_until_and_take_screenshot(renderer, fs, game_pak, ticks, replay, output).unwrap();
+    let replay_key = if let Some(replay) = replay {
+        Some(Fs::path_to_key(replay)?)
+    } else {
+        None
+    };
+    let output_key = Fs::path_to_key(output)?;
+    run_until_and_take_screenshot(
+        renderer,
+        fs,
+        game_pak,
+        ticks,
+        replay_key.as_ref().map(|k| k.as_str()),
+        &output_key,
+    )
+    .unwrap();
     Ok(())
 }
 
 fn run_and_save_reload_and_take_screenshot(
     rom_path: &Path,
     ticks: u64,
-    replay: Option<&str>,
+    replay: Option<&Path>,
     output: &std::path::Path,
 ) -> Result<()> {
     let renderer = crate::rendering::bitmap::BitmapRenderer::new(Default::default());
     let fs = Fs::new(rom_path.parent());
     let rom_key = Fs::path_to_key(rom_path)?;
-    run_until_and_save_reload_and_take_screenshot(renderer, fs, &rom_key, ticks, replay, output)
-        .unwrap();
+    let output_key = Fs::path_to_key(output)?;
+    let replay_key = if let Some(replay) = replay {
+        Some(Fs::path_to_key(replay)?)
+    } else {
+        None
+    };
+    run_until_and_save_reload_and_take_screenshot(
+        renderer,
+        fs,
+        &rom_key,
+        ticks,
+        replay_key.as_ref().map(|k| k.as_str()),
+        &output_key,
+    )
+    .unwrap();
     Ok(())
 }
 
@@ -129,7 +159,12 @@ fn do_rom_test(
     );
 
     let tmp_output = tempfile::NamedTempFile::new()?;
-    run_and_take_screenshot(rom_path.as_ref(), ticks, replay, tmp_output.path())?;
+    run_and_take_screenshot(
+        rom_path.as_ref(),
+        ticks,
+        replay.map(|p| p.as_ref()),
+        tmp_output.path(),
+    )?;
     compare_screenshots(expectation_path, tmp_output.path())?;
     Ok(())
 }
@@ -147,7 +182,12 @@ fn do_save_state_rom_test(
     );
 
     let tmp_output = tempfile::NamedTempFile::new()?;
-    run_and_save_reload_and_take_screenshot(rom_path.as_ref(), ticks, replay, tmp_output.path())?;
+    run_and_save_reload_and_take_screenshot(
+        rom_path.as_ref(),
+        ticks,
+        replay.map(|p| p.as_ref()),
+        tmp_output.path(),
+    )?;
     compare_screenshots(expectation_path, tmp_output.path())?;
     Ok(())
 }
