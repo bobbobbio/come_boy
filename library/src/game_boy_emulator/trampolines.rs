@@ -8,7 +8,7 @@ use super::{
 use crate::io;
 use crate::rendering::Renderer;
 use crate::sound::{NullSoundStream, SoundStream};
-use crate::storage::{PanicStorage, PersistentStorage};
+use crate::storage::PersistentStorage;
 
 pub fn run_emulator<Storage: PersistentStorage>(
     renderer: impl Renderer,
@@ -69,39 +69,46 @@ fn run_emulator_until_and_take_screenshot(
     ops.renderer.save_buffer(output_path).unwrap();
 }
 
-pub fn run_until_and_take_screenshot<Storage: PersistentStorage>(
+pub fn run_until_and_take_screenshot<Storage: PersistentStorage + 'static>(
     renderer: impl Renderer,
-    storage: Storage,
+    mut storage: Storage,
     game_pak: GamePak<Storage>,
     ticks: u64,
-    replay_path: Option<impl AsRef<std::path::Path>>,
-    output_path: impl AsRef<std::path::Path>,
+    replay_key: Option<&str>,
+    output_key: &str,
 ) -> Result<()> {
-    let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
+    let mut joy_pad = None;
+    if let Some(replay_key) = replay_key {
+        joy_pad = Some(PlaybackJoyPad::new(
+            &mut storage,
+            game_pak.hash(),
+            replay_key,
+        )?);
+    }
 
-    if let Some(replay_path) = replay_path {
-        ops.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), replay_path)?);
+    let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
+    if let Some(joy_pad) = joy_pad {
+        ops.plug_in_joy_pad(joy_pad);
     }
     ops.load_game_pak(game_pak);
 
     let e = GameBoyEmulator::new();
-    run_emulator_until_and_take_screenshot(e, &mut ops, ticks, output_path);
+    run_emulator_until_and_take_screenshot(e, &mut ops, ticks, output_key);
     Ok(())
 }
 
-pub fn run_and_record_replay<Storage: PersistentStorage>(
+pub fn run_and_record_replay<Storage: PersistentStorage + 'static>(
+    mut storage: Storage,
     renderer: impl Renderer,
     sound_stream: impl SoundStream,
-    storage: Storage,
     game_pak: GamePak<Storage>,
-    output: &std::path::Path,
+    output_key: &str,
 ) -> Result<()> {
+    let joy_pad =
+        RecordingJoyPad::new(&mut storage, game_pak.title(), game_pak.hash(), output_key)?;
+
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
-    ops.plug_in_joy_pad(RecordingJoyPad::new(
-        game_pak.title(),
-        game_pak.hash(),
-        output,
-    )?);
+    ops.plug_in_joy_pad(joy_pad);
     ops.load_game_pak(game_pak);
 
     let mut e = GameBoyEmulator::new();
@@ -110,14 +117,17 @@ pub fn run_and_record_replay<Storage: PersistentStorage>(
     Ok(())
 }
 
-pub fn playback_replay(
+pub fn playback_replay<Storage: PersistentStorage + 'static>(
+    mut storage: Storage,
     renderer: impl Renderer,
     sound_stream: impl SoundStream,
-    game_pak: GamePak<PanicStorage>,
-    input: &std::path::Path,
+    game_pak: GamePak<Storage>,
+    input_key: &str,
 ) -> Result<()> {
-    let mut ops = GameBoyOps::new(renderer, sound_stream, PanicStorage);
-    ops.plug_in_joy_pad(PlaybackJoyPad::new(game_pak.hash(), input)?);
+    let joy_pad = PlaybackJoyPad::new(&mut storage, game_pak.hash(), input_key)?;
+
+    let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
+    ops.plug_in_joy_pad(joy_pad);
     ops.load_game_pak(game_pak);
 
     let mut e = GameBoyEmulator::new();

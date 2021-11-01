@@ -29,6 +29,13 @@ fn main() -> Result<()> {
 
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;
+    let replay_key = if let Some(replay) = &options.replay {
+        Some(Fs::path_to_key(replay)?)
+    } else {
+        None
+    };
+    let output_key = Fs::path_to_key(&options.output)?;
+
     let renderer = BitmapRenderer::new(Default::default());
     let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
     game_boy_emulator::run_until_and_take_screenshot(
@@ -36,8 +43,8 @@ fn main() -> Result<()> {
         fs,
         game_pak,
         options.ticks,
-        options.replay,
-        options.output,
+        replay_key.as_ref().map(|s| s.as_str()),
+        &output_key,
     )?;
 
     Ok(())

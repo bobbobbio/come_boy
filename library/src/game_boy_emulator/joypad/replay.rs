@@ -4,8 +4,8 @@ use super::{
     button_events_from_key_events, ButtonEvent, JoyPad, KeyEvent, MemoryMappedHardware, PlainJoyPad,
 };
 use crate::io::{self, Write as _};
+use crate::storage::{OpenMode, PersistentStorage};
 use serde_derive::{Deserialize, Serialize};
-use std::path::Path;
 
 #[derive(Debug)]
 pub enum Error {
@@ -39,19 +39,19 @@ struct ReplayFileHeader {
     game_pak_hash: u32,
 }
 
-pub struct RecordingJoyPad {
-    output_file: std::fs::File,
+pub struct RecordingJoyPad<Storage: PersistentStorage> {
+    output_file: Storage::File,
     inner: PlainJoyPad,
 }
 
-impl RecordingJoyPad {
-    pub fn new<P: AsRef<Path>>(
+impl<Storage: PersistentStorage> RecordingJoyPad<Storage> {
+    pub fn new(
+        storage: &mut Storage,
         game_pak_title: &str,
         game_pak_hash: u32,
-        output_path: P,
+        output_key: &str,
     ) -> Result<Self> {
-        // XXX remi: Should use storage instead
-        let mut output_file = std::fs::File::create(output_path)?;
+        let mut output_file = storage.open(OpenMode::Write, output_key)?;
         let header = ReplayFileHeader {
             version: ReplayFileVersion::Version1,
             game_pak_title: game_pak_title.into(),
@@ -72,7 +72,7 @@ struct ReplayFileEntry {
     button_events: Vec<ButtonEvent>,
 }
 
-impl JoyPad for RecordingJoyPad {
+impl<Storage: PersistentStorage> JoyPad for RecordingJoyPad<Storage> {
     fn tick(&mut self, now: u64, key_events: Vec<KeyEvent>) {
         let button_events = button_events_from_key_events(key_events);
         let button_events = self.inner.filter_events(button_events);
@@ -90,7 +90,7 @@ impl JoyPad for RecordingJoyPad {
     }
 }
 
-impl MemoryMappedHardware for RecordingJoyPad {
+impl<Storage: PersistentStorage> MemoryMappedHardware for RecordingJoyPad<Storage> {
     fn read_value(&self, address: u16) -> u8 {
         self.inner.read_value(address)
     }
@@ -100,15 +100,15 @@ impl MemoryMappedHardware for RecordingJoyPad {
     }
 }
 
-pub struct PlaybackJoyPad {
-    input_file: std::fs::File,
+pub struct PlaybackJoyPad<Storage: PersistentStorage> {
+    input_file: Storage::File,
     current_entry: Option<ReplayFileEntry>,
     inner: PlainJoyPad,
 }
 
-impl PlaybackJoyPad {
-    pub fn new<P: AsRef<Path>>(game_pak_hash: u32, input_path: P) -> Result<Self> {
-        let mut input_file = std::fs::File::open(input_path)?;
+impl<Storage: PersistentStorage> PlaybackJoyPad<Storage> {
+    pub fn new(storage: &mut Storage, game_pak_hash: u32, input_key: &str) -> Result<Self> {
+        let mut input_file = storage.open(OpenMode::Read, input_key)?;
         let header: ReplayFileHeader = crate::codec::deserialize_from(&mut input_file)?;
         if header.game_pak_hash != game_pak_hash {
             log::warn!(
@@ -125,7 +125,7 @@ impl PlaybackJoyPad {
     }
 }
 
-impl JoyPad for PlaybackJoyPad {
+impl<Storage: PersistentStorage> JoyPad for PlaybackJoyPad<Storage> {
     fn tick(&mut self, now: u64, _key_events: Vec<KeyEvent>) {
         while self.current_entry.is_some() && now >= self.current_entry.as_ref().unwrap().time {
             let current_entry = self.current_entry.take().unwrap();
@@ -135,7 +135,7 @@ impl JoyPad for PlaybackJoyPad {
     }
 }
 
-impl MemoryMappedHardware for PlaybackJoyPad {
+impl<Storage: PersistentStorage> MemoryMappedHardware for PlaybackJoyPad<Storage> {
     fn read_value(&self, address: u16) -> u8 {
         self.inner.read_value(address)
     }

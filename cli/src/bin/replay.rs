@@ -4,7 +4,7 @@ use bin_common::{backend::BackendMap, Result};
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
-use come_boy::storage::{fs::Fs, PanicStorage};
+use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
@@ -47,11 +47,11 @@ enum Options {
 struct RecordFrontend {
     fs: Fs,
     game_pak: GamePak<Fs>,
-    output: PathBuf,
+    output: String,
 }
 
 impl RecordFrontend {
-    fn new(fs: Fs, game_pak: GamePak<Fs>, output: PathBuf) -> Self {
+    fn new(fs: Fs, game_pak: GamePak<Fs>, output: String) -> Self {
         Self {
             fs,
             game_pak,
@@ -63,9 +63,9 @@ impl RecordFrontend {
 impl bin_common::frontend::Frontend for RecordFrontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         game_boy_emulator::run_and_record_replay(
+            self.fs,
             renderer,
             sound_stream,
-            self.fs,
             self.game_pak,
             &self.output,
         )
@@ -74,20 +74,31 @@ impl bin_common::frontend::Frontend for RecordFrontend {
 }
 
 struct PlaybackFrontend {
-    game_pak: GamePak<PanicStorage>,
-    input: PathBuf,
+    game_pak: GamePak<Fs>,
+    input: String,
+    fs: Fs,
 }
 
 impl PlaybackFrontend {
-    fn new(game_pak: GamePak<PanicStorage>, input: PathBuf) -> Self {
-        Self { game_pak, input }
+    fn new(fs: Fs, game_pak: GamePak<Fs>, input: String) -> Self {
+        Self {
+            fs,
+            game_pak,
+            input,
+        }
     }
 }
 
 impl bin_common::frontend::Frontend for PlaybackFrontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
-        game_boy_emulator::playback_replay(renderer, sound_stream, self.game_pak, &self.input)
-            .unwrap()
+        game_boy_emulator::playback_replay(
+            self.fs,
+            renderer,
+            sound_stream,
+            self.game_pak,
+            &self.input,
+        )
+        .unwrap()
     }
 }
 
@@ -108,8 +119,11 @@ fn main() -> Result<()> {
                 scale,
                 ..Default::default()
             };
-            let backend_map =
-                BackendMap::new(rendering_options, RecordFrontend::new(fs, game_pak, output));
+            let output_key = Fs::path_to_key(&output)?;
+            let backend_map = BackendMap::new(
+                rendering_options,
+                RecordFrontend::new(fs, game_pak, output_key),
+            );
             backend_map.run(&renderer)?;
             Ok(())
         }
@@ -119,14 +133,18 @@ fn main() -> Result<()> {
             scale,
             renderer,
         } => {
+            let mut fs = Fs::new(rom.parent());
             let rom_key = Fs::path_to_key(&rom)?;
-            let game_pak = GamePak::from_storage_without_sav(&mut PanicStorage, &rom_key)?;
+            let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
             let rendering_options = RenderingOptions {
                 scale,
                 ..Default::default()
             };
-            let backend_map =
-                BackendMap::new(rendering_options, PlaybackFrontend::new(game_pak, input));
+            let input_key = Fs::path_to_key(&input)?;
+            let backend_map = BackendMap::new(
+                rendering_options,
+                PlaybackFrontend::new(fs, game_pak, input_key),
+            );
             backend_map.run(&renderer)?;
             Ok(())
         }
