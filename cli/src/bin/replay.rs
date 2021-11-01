@@ -149,7 +149,8 @@ fn main() -> Result<()> {
             Ok(())
         }
         Options::Print { input } => {
-            print!("{}", game_boy_emulator::print_replay(&input)?);
+            let file = std::fs::File::open(input)?;
+            print!("{}", game_boy_emulator::print_replay(file)?);
             Ok(())
         }
     }

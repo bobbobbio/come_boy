@@ -136,7 +136,6 @@ pub fn playback_replay<Storage: PersistentStorage + 'static>(
     Ok(())
 }
 
-pub fn print_replay(input: &std::path::Path) -> Result<String> {
-    let mut f = std::fs::File::open(input)?;
-    Ok(joypad::replay::print(&mut f)?)
+pub fn print_replay(r: impl io::Read) -> Result<String> {
+    Ok(joypad::replay::print(r)?)
 }
