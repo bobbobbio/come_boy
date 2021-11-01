@@ -77,19 +77,11 @@ pub fn run_until_and_take_screenshot<Storage: PersistentStorage + 'static>(
     replay_key: Option<&str>,
     output_key: &str,
 ) -> Result<()> {
-    let mut joy_pad = None;
-    if let Some(replay_key) = replay_key {
-        joy_pad = Some(PlaybackJoyPad::new(
-            &mut storage,
-            game_pak.hash(),
-            replay_key,
-        )?);
-    }
-
     let output_file = storage.open(OpenMode::Write, output_key)?;
 
     let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
-    if let Some(joy_pad) = joy_pad {
+    if let Some(replay_key) = replay_key {
+        let joy_pad = PlaybackJoyPad::new(&mut ops.storage, game_pak.hash(), replay_key)?;
         ops.plug_in_joy_pad(joy_pad);
     }
     ops.load_game_pak(game_pak);
