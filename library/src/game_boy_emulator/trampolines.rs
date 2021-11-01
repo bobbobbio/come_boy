@@ -8,7 +8,7 @@ use super::{
 use crate::io;
 use crate::rendering::Renderer;
 use crate::sound::{NullSoundStream, SoundStream};
-use crate::storage::PersistentStorage;
+use crate::storage::{OpenMode, PersistentStorage};
 
 pub fn run_emulator<Storage: PersistentStorage>(
     renderer: impl Renderer,
@@ -62,11 +62,11 @@ fn run_emulator_until_and_take_screenshot(
     mut e: GameBoyEmulator,
     ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ticks: u64,
-    output_path: impl AsRef<std::path::Path>,
+    output_stream: impl io::Write,
 ) {
     let ticks = e.cpu.elapsed_cycles + ticks;
     run_emulator_until(&mut e, ops, ticks);
-    ops.renderer.save_buffer(output_path).unwrap();
+    ops.renderer.save_buffer(output_stream).unwrap();
 }
 
 pub fn run_until_and_take_screenshot<Storage: PersistentStorage + 'static>(
@@ -86,6 +86,8 @@ pub fn run_until_and_take_screenshot<Storage: PersistentStorage + 'static>(
         )?);
     }
 
+    let output_file = storage.open(OpenMode::Write, output_key)?;
+
     let mut ops = GameBoyOps::new(renderer, NullSoundStream, storage);
     if let Some(joy_pad) = joy_pad {
         ops.plug_in_joy_pad(joy_pad);
@@ -93,7 +95,7 @@ pub fn run_until_and_take_screenshot<Storage: PersistentStorage + 'static>(
     ops.load_game_pak(game_pak);
 
     let e = GameBoyEmulator::new();
-    run_emulator_until_and_take_screenshot(e, &mut ops, ticks, output_key);
+    run_emulator_until_and_take_screenshot(e, &mut ops, ticks, output_file);
     Ok(())
 }
 

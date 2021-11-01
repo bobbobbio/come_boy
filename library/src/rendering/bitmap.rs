@@ -3,7 +3,6 @@
 use super::{Color, Event, Renderer, RenderingOptions};
 use crate::io;
 use bmp::{Image, Pixel};
-use std::path::Path;
 
 pub struct BitmapRenderer {
     front: Image,
@@ -34,8 +33,8 @@ impl Renderer for BitmapRenderer {
         vec![]
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
-        self.front.save(path)?;
+    fn save_buffer(&self, mut w: impl io::Write) -> io::Result<()> {
+        self.front.to_writer(&mut w)?;
         Ok(())
     }
 

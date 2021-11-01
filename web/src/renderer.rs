@@ -315,7 +315,7 @@ impl Renderer for CanvasRenderer {
         mem::take(&mut self.keyboard_events)
     }
 
-    fn save_buffer<P: AsRef<std::path::Path>>(&self, _: P) -> io::Result<()> {
+    fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {
         unimplemented!()
     }
 

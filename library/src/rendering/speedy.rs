@@ -9,7 +9,6 @@ use speedy2d::{
     Graphics2D, Window,
 };
 use std::ops::Deref;
-use std::path::Path;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
@@ -173,7 +172,7 @@ impl Renderer for SpeedyRenderer {
         events
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, _path: P) -> io::Result<()> {
+    fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {
         unimplemented!()
     }
 

@@ -95,22 +95,27 @@ impl Renderer for Sdl2WindowRenderer {
         events
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
+    fn save_buffer(&self, mut w: impl io::Write) -> io::Result<()> {
         let mut pixels = self
             .canvas
             .read_pixels(None, sdl2::pixels::PixelFormatEnum::ABGR8888)
             .unwrap();
+        const BIT_DEPTH: u32 = 4;
         let s = sdl2::surface::Surface::from_data(
             &mut pixels,
             160 * self.scale,
             140 * self.scale,
-            160 * self.scale * 4,
+            160 * self.scale * BIT_DEPTH,
             sdl2::pixels::PixelFormatEnum::ABGR8888,
         )
         .unwrap();
-        // XXX remi: This should use storage
-        s.save_bmp(path)
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        let mut buf = vec![0; (160 * 140 * self.scale * BIT_DEPTH) as usize];
+        let mut rw_ops = sdl2::rwops::RWops::from_bytes_mut(&mut buf).unwrap();
+        s.save_bmp_rw(&mut rw_ops).unwrap();
+        drop(rw_ops);
+        w.write_all(&buf)?;
+
         Ok(())
     }
 

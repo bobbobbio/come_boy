@@ -2,7 +2,6 @@
 
 use crate::io;
 use serde_derive::{Deserialize, Serialize};
-use std::path::Path;
 
 #[cfg(feature = "sdl2-renderer")]
 pub mod sdl2;
@@ -43,7 +42,7 @@ pub trait Color {
 pub trait Renderer {
     type Color: Color;
     fn poll_events(&mut self) -> Vec<Event>;
-    fn save_buffer<P: AsRef<Path>>(&self, path: P) -> io::Result<()>;
+    fn save_buffer(&self, w: impl io::Write) -> io::Result<()>;
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color);
     fn present(&mut self);
 }
@@ -56,7 +55,7 @@ impl Renderer for NullRenderer {
     fn poll_events(&mut self) -> Vec<Event> {
         vec![]
     }
-    fn save_buffer<P: AsRef<Path>>(&self, _: P) -> io::Result<()> {
+    fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {
         Ok(())
     }
     fn color_pixel(&mut self, _: i32, _: i32, _: Self::Color) {}
@@ -74,7 +73,7 @@ impl<T: Renderer> Renderer for &mut T {
         (**self).poll_events()
     }
 
-    fn save_buffer<P: AsRef<Path>>(&self, p: P) -> io::Result<()> {
+    fn save_buffer(&self, p: impl io::Write) -> io::Result<()> {
         (**self).save_buffer(p)
     }
 
