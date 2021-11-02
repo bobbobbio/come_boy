@@ -58,11 +58,14 @@ pub fn create_disassembler<'a>(
     Disassembler::new(ma, LR35902InstructionPrinterFactory, stream_out)
 }
 
-pub fn disassemble_lr35902_rom(rom: &[u8], include_opcodes: bool) -> Result<()> {
-    let stdout = &mut io::stdout();
+pub fn disassemble_lr35902_rom(
+    rom: &[u8],
+    include_opcodes: bool,
+    mut output: impl io::Write,
+) -> Result<()> {
     let mut ma = SimpleMemoryAccessor::new();
     ma.memory[0..rom.len()].clone_from_slice(rom);
-    let mut disassembler = create_disassembler(&ma, stdout);
+    let mut disassembler = create_disassembler(&ma, &mut output);
     disassembler.disassemble(0u16..rom.len() as u16, include_opcodes)
 }
 

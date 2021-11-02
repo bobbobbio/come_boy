@@ -51,11 +51,14 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
     }
 }
 
-pub fn disassemble_8080_rom(rom: &[u8], include_opcodes: bool) -> Result<()> {
-    let stdout = &mut io::stdout();
+pub fn disassemble_8080_rom(
+    rom: &[u8],
+    include_opcodes: bool,
+    mut output: impl io::Write,
+) -> Result<()> {
     let mut ma = SimpleMemoryAccessor::new();
     ma.memory[0..rom.len()].clone_from_slice(rom);
-    let mut disassembler = Disassembler::new(&ma, Intel8080InstructionPrinterFactory, stdout);
+    let mut disassembler = Disassembler::new(&ma, Intel8080InstructionPrinterFactory, &mut output);
     disassembler.disassemble(0u16..rom.len() as u16, include_opcodes)
 }
 

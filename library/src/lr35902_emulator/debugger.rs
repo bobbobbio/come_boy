@@ -191,20 +191,19 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
     }
 }
 
-pub fn run_debugger(rom: &[u8], is_interrupted: &dyn Fn() -> bool) {
-    use std::io::BufRead as _;
+pub fn run_debugger(
+    rom: &[u8],
+    mut input: impl Iterator<Item = io::Result<String>>,
+    mut output: impl io::Write,
 
+    is_interrupted: &dyn Fn() -> bool,
+) {
     let mut ma = SimpleMemoryAccessor::new();
     ma.memory[0..rom.len()].clone_from_slice(rom);
 
     let mut e = LR35902Emulator::new();
     let mut d = LR35902Debugger::new(&mut e, &mut ma);
 
-    let stdin = &mut io::stdin();
-    let stdin_locked = &mut stdin.lock();
-    let mut input_lines = stdin_locked.lines();
-    let stdout = &mut io::stdout();
-
-    let mut debugger = Debugger::new(&mut input_lines, stdout, &mut d);
+    let mut debugger = Debugger::new(&mut input, &mut output, &mut d);
     debugger.run(is_interrupted);
 }

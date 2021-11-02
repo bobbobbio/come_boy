@@ -6,6 +6,7 @@ use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
 use come_boy::storage::fs::Fs;
+use std::io::{self, BufRead as _};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
@@ -42,9 +43,20 @@ impl Frontend {
 
 impl bin_common::frontend::Frontend for Frontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
-        game_boy_emulator::run_debugger(renderer, sound_stream, self.fs, self.game_pak, &|| {
-            INTERRUPTED.swap(false, Ordering::Relaxed)
-        });
+        let stdin = &mut io::stdin();
+        let stdin_locked = &mut stdin.lock();
+        let input = stdin_locked.lines();
+        let output = &mut io::stdout();
+
+        game_boy_emulator::run_debugger(
+            renderer,
+            sound_stream,
+            self.fs,
+            self.game_pak,
+            input,
+            output,
+            &|| INTERRUPTED.swap(false, Ordering::Relaxed),
+        );
     }
 }
 

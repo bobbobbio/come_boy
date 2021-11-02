@@ -101,21 +101,16 @@ pub fn run_debugger<Storage: PersistentStorage>(
     sound_stream: impl SoundStream,
     storage: Storage,
     game_pak: GamePak<Storage>,
+    mut input: impl Iterator<Item = io::Result<String>>,
+    mut output: impl io::Write,
     is_interrupted: &dyn Fn() -> bool,
 ) {
-    use std::io::BufRead as _;
-
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
     ops.plug_in_joy_pad(PlainJoyPad::new());
     ops.load_game_pak(game_pak);
 
     let mut gameboy_debugger = GameBoyDebugger::new(ops);
 
-    let stdin = &mut io::stdin();
-    let stdin_locked = &mut stdin.lock();
-    let mut input_lines = stdin_locked.lines();
-    let stdout = &mut io::stdout();
-
-    let mut debugger = Debugger::new(&mut input_lines, stdout, &mut gameboy_debugger);
+    let mut debugger = Debugger::new(&mut input, &mut output, &mut gameboy_debugger);
     debugger.run(is_interrupted);
 }

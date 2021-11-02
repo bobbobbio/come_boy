@@ -68,10 +68,13 @@ impl<'a> MemoryAccessor for ROMAccessor<'a> {
     }
 }
 
-pub fn disassemble_game_boy_rom(rom: &[u8], include_opcodes: bool) -> Result<()> {
-    let stdout = &mut io::stdout();
+pub fn disassemble_game_boy_rom(
+    rom: &[u8],
+    include_opcodes: bool,
+    mut output: impl io::Write,
+) -> Result<()> {
     let ma = ROMAccessor::new(rom);
-    let mut disassembler = create_disassembler(&ma, stdout);
+    let mut disassembler = create_disassembler(&ma, &mut output);
     disassembler.disassemble(0..rom.len() as u16, include_opcodes)
 }
 
