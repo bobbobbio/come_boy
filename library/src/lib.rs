@@ -10,5 +10,6 @@ pub mod storage;
 mod util;
 
 use ::bincode as codec;
+use ::byteorder as bytes;
 use std::collections;
 use std::io;

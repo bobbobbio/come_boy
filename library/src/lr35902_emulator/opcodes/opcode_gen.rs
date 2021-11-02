@@ -1,8 +1,8 @@
 #![allow(dead_code)]
+use crate::bytes::{LittleEndian, ReadBytesExt};
 use crate::emulator_common::Intel8080Register;
 use crate::io;
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
-use byteorder::{LittleEndian, ReadBytesExt};
 use serde_derive::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LR35902Instruction {

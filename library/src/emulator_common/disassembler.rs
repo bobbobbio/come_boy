@@ -5,7 +5,7 @@ use core::ops::Range;
 use core::str;
 
 #[cfg(test)]
-use byteorder::ReadBytesExt;
+use crate::bytes::ReadBytesExt;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MemoryDescription {

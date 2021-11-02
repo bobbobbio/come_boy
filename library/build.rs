@@ -566,7 +566,7 @@ impl OpcodeGenerator {
         let use_path = &self.use_path;
         let printer_name = &self.printer_name;
         tokens.extend(quote!(
-            use byteorder::{ReadBytesExt, LittleEndian};
+            use crate::bytes::{ReadBytesExt, LittleEndian};
             use crate::emulator_common::Intel8080Register;
             use crate::#(#use_path)::*::#printer_name;
             use crate::io;
