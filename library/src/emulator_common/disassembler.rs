@@ -1,6 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
 use crate::io::{self, Result};
+use alloc::{format, string::String, vec, vec::Vec};
 use core::ops::Range;
 use core::str;
 

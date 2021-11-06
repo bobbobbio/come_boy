@@ -50,6 +50,7 @@ use crate::game_boy_emulator::memory_controller::{
 use crate::game_boy_emulator::InterruptFlag;
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
+use alloc::{vec::Vec};
 use core::ops::Range;
 use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;

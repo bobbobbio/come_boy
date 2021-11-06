@@ -3,13 +3,14 @@
 pub mod opcodes;
 
 use crate::collections::HashMap;
-
 use crate::emulator_common::Intel8080Register;
+use crate::util::TwosComplement;
+use alloc::{vec::Vec};
+
 pub use crate::intel_8080_emulator::opcodes::{
     disassemble_8080_rom, Intel8080Instruction, Intel8080InstructionPrinterFactory,
     Intel8080InstructionSet,
 };
-use crate::util::TwosComplement;
 
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;

@@ -4,6 +4,7 @@ use super::{
     button_events_from_key_events, ButtonCode, ButtonEvent, ButtonState, JoyPad, JoypadFlag,
     KeyEvent, MemoryMappedHardware,
 };
+use alloc::{vec::Vec};
 
 #[derive(Clone, Copy, PartialEq)]
 enum KeyBank {

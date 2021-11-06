@@ -1,6 +1,10 @@
 // copyright 2021 Remi Bernotavicius
 
 use super::{OpenMode, PersistentStorage, StorageFile};
+use alloc::{
+    borrow::ToOwned,
+    string::{String},
+};
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -42,8 +46,6 @@ impl PersistentStorage for Fs {
         if !path.is_absolute() {
             path = self.working_dir.join(key);
         }
-
-        println!("opening path {:?}", &path);
 
         match mode {
             OpenMode::Read => fs::OpenOptions::new().read(true).open(path),

@@ -2,6 +2,7 @@
 
 use super::{Color, Event, Keycode, Renderer, RenderingOptions};
 use crate::io;
+use alloc::{vec, vec::Vec};
 use speedy2d::{
     image::{ImageDataType, ImageSmoothingMode},
     shape::Rectangle,

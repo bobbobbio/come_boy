@@ -15,6 +15,7 @@ use crate::rendering::{Keycode, NullRenderer, Renderer};
 use crate::sound::{NullSoundStream, SoundStream};
 use crate::storage::{OpenMode, PanicStorage, PersistentStorage};
 use crate::util::{super_fast_hash, Scheduler};
+use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
 use core::{fmt, mem};

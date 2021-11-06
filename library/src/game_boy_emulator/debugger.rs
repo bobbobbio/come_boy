@@ -1,3 +1,4 @@
+// copyright 2021 Remi Bernotavicius
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
@@ -11,6 +12,7 @@ use crate::lr35902_emulator::debugger::LR35902Debugger;
 use crate::rendering::Renderer;
 use crate::sound::SoundStream;
 use crate::storage::PersistentStorage;
+use alloc::{string::String, vec, vec::Vec};
 use core::{fmt, str};
 
 impl fmt::Debug for GameBoyEmulator {

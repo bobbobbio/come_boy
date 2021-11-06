@@ -2,6 +2,11 @@
 
 use crate::collections::BTreeSet;
 use crate::io;
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::{fmt, num, result, str};
 
 pub struct SimulatedInstruction {

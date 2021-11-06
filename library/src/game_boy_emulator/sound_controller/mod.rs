@@ -7,6 +7,7 @@ use crate::game_boy_emulator::memory_controller::{
 };
 use crate::sound::SoundStream;
 use crate::util::Scheduler;
+use alloc::vec;
 use channel1::Channel1;
 use channel2::Channel2;
 use channel3::Channel3;

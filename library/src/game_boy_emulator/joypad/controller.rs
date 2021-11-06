@@ -1,6 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use super::{button_events_from_key_events, JoyPad, KeyEvent, MemoryMappedHardware, PlainJoyPad};
+use alloc::{vec, vec::Vec};
 
 pub struct ControllerJoyPad {
     inner: PlainJoyPad,

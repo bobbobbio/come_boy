@@ -10,6 +10,7 @@ use crate::io::{self, Bytes, Read, Write};
 use crate::rendering::NullRenderer;
 use crate::sound::NullSoundStream;
 use crate::storage::{OpenMode, PersistentStorage};
+use alloc::vec;
 use core::fmt::{self, Debug};
 use core::str;
 

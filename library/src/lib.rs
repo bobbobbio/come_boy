@@ -1,4 +1,9 @@
-// Copyright 2017 Remi Bernotavicius
+// Copyright 2021 Remi Bernotavicius
+
+#![cfg_attr(not(test), no_std)]
+
+extern crate alloc;
+extern crate std;
 
 mod emulator_common;
 pub mod game_boy_emulator;

@@ -4,6 +4,7 @@ use crate::intel_8080_emulator::{
     Intel8080Flag, Intel8080InstructionSet, Intel8080InstructionSetOps,
 };
 use crate::util::TwosComplement;
+use alloc::{format, string::String, vec::Vec};
 use serde_derive::{Deserialize, Serialize};
 
 pub use crate::emulator_common::disassembler::{

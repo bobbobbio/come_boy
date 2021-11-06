@@ -2,6 +2,7 @@
 
 use super::{Color, Event, Renderer, RenderingOptions};
 use crate::io;
+use alloc::{vec, vec::Vec};
 use bmp::{Image, Pixel};
 
 pub struct BitmapRenderer {

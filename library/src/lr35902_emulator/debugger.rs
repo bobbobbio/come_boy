@@ -1,13 +1,13 @@
 // Copyright 2017 Remi Bernotavicius
 
-use crate::io::{self, Result};
-use core::fmt;
-
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
 use crate::emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};
 use crate::emulator_common::Intel8080Register;
+use crate::io::{self, Result};
 use crate::lr35902_emulator::opcodes::LR35902Instruction;
 use crate::lr35902_emulator::{LR35902Emulator, LR35902Flag, LR35902InstructionSetOps};
+use alloc::{string::String, vec::Vec};
+use core::fmt;
 
 struct SimulatedInstructionLR35902<'a, M: MemoryAccessor> {
     emulator: &'a LR35902Emulator,

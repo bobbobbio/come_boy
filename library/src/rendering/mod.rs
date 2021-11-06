@@ -1,6 +1,7 @@
 // Copyright 2019 Remi Bernotavicius
 
 use crate::io;
+use alloc::{string::String, vec, vec::Vec};
 use serde_derive::{Deserialize, Serialize};
 
 #[cfg(feature = "sdl2-renderer")]

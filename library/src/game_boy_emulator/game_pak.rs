@@ -4,6 +4,7 @@ use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
 use crate::storage::{OpenMode, PersistentStorage, StorageFile as _};
 use crate::util::super_fast_hash;
+use alloc::{format, string::String, vec, vec::Vec};
 use core::fmt;
 use core::ops::Range;
 use core::str;

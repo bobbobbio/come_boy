@@ -5,6 +5,7 @@ use super::joypad::JoyPad;
 use super::Bridge;
 pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
 use crate::storage::PersistentStorage;
+use alloc::{boxed::Box, format, vec, vec::Vec};
 use core::fmt;
 use core::marker::PhantomData;
 use core::ops::Range;

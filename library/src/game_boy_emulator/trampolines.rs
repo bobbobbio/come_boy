@@ -9,6 +9,7 @@ use crate::io;
 use crate::rendering::Renderer;
 use crate::sound::{NullSoundStream, SoundStream};
 use crate::storage::{OpenMode, PersistentStorage};
+use alloc::{string::String, vec::Vec};
 
 pub fn run_emulator<Storage: PersistentStorage>(
     renderer: impl Renderer,

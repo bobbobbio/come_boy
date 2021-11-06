@@ -2,6 +2,7 @@
 
 use super::{Color, Event, Keycode, Renderer, RenderingOptions};
 use crate::io;
+use alloc::{vec, vec::Vec};
 
 impl From<sdl2::keyboard::Keycode> for Keycode {
     fn from(keycode: sdl2::keyboard::Keycode) -> Self {

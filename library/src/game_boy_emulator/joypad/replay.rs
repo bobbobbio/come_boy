@@ -5,6 +5,7 @@ use super::{
 };
 use crate::io::{self, Write as _};
 use crate::storage::{OpenMode, PersistentStorage};
+use alloc::{string::String, vec, vec::Vec};
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug)]

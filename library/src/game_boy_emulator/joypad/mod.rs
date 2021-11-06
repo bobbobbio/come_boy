@@ -2,6 +2,7 @@
 
 use super::memory_controller::MemoryMappedHardware;
 use crate::rendering::Keycode;
+use alloc::{vec, vec::Vec};
 use serde_derive::{Deserialize, Serialize};
 
 pub use controller::ControllerJoyPad;
