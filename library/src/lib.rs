@@ -5,6 +5,7 @@
 extern crate alloc;
 extern crate std;
 
+mod bytes;
 mod emulator_common;
 pub mod game_boy_emulator;
 pub mod intel_8080_emulator;
@@ -15,5 +16,4 @@ pub mod storage;
 mod util;
 
 use ::bincode as codec;
-use ::byteorder as bytes;
 use std::io;
