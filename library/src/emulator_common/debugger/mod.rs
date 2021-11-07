@@ -1,7 +1,7 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::collections::BTreeSet;
 use crate::io;
+use alloc::collections::BTreeSet;
 use alloc::{
     format,
     string::{String, ToString},

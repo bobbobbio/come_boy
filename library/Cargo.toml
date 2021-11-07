@@ -11,12 +11,13 @@ homepage = "https://github.com/bobbobbio/come_boy"
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["bitmap-renderer", "game-pad", "speedy2d-renderer", "sound"]
+default = ["bitmap-renderer", "game-pad", "speedy2d-renderer", "std", "sound"]
 game-pad = ["gilrs"]
 bitmap-renderer = ["bmp"]
 speedy2d-renderer = ["speedy2d", "crossbeam"]
 sdl2-renderer = ["sdl2"]
 sound = ["cpal"]
+std = []
 
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }

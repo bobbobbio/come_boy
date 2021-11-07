@@ -2,10 +2,10 @@
 
 pub mod opcodes;
 
-use crate::collections::HashMap;
 use crate::emulator_common::Intel8080Register;
 use crate::util::TwosComplement;
-use alloc::{vec::Vec};
+use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 
 pub use crate::intel_8080_emulator::opcodes::{
     disassemble_8080_rom, Intel8080Instruction, Intel8080InstructionPrinterFactory,
@@ -304,7 +304,7 @@ pub struct Intel8080Emulator<'a> {
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16,
     interrupts_enabled: bool,
-    call_table: HashMap<u16, &'a mut dyn FnMut(&mut Intel8080Emulator)>,
+    call_table: BTreeMap<u16, &'a mut dyn FnMut(&mut Intel8080Emulator)>,
     call_stack: Vec<u16>,
 }
 
@@ -315,7 +315,7 @@ impl<'a> Intel8080Emulator<'a> {
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
-            call_table: HashMap::new(),
+            call_table: BTreeMap::new(),
             call_stack: Vec::new(),
         };
 

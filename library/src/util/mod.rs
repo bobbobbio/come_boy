@@ -1,6 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
-use crate::collections::VecDeque;
+use alloc::collections::VecDeque;
 use core::fmt;
 use serde_derive::{Deserialize, Serialize};
 
