@@ -21,11 +21,41 @@ pub trait PersistentStorage {
     fn open(&mut self, mode: OpenMode, key: &str) -> io::Result<Self::File>;
 }
 
+pub struct PanicFile;
+
+impl StorageFile for PanicFile {
+    fn set_len(&mut self, _len: u64) -> io::Result<()> {
+        unreachable!()
+    }
+}
+
+impl io::Seek for PanicFile {
+    fn seek(&mut self, _pos: io::SeekFrom) -> io::Result<u64> {
+        unreachable!()
+    }
+}
+
+impl io::Write for PanicFile {
+    fn write(&mut self, _buf: &[u8]) -> io::Result<usize> {
+        unreachable!()
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        unreachable!()
+    }
+}
+
+impl io::Read for PanicFile {
+    fn read(&mut self, _buf: &mut [u8]) -> io::Result<usize> {
+        unreachable!()
+    }
+}
+
 #[derive(Default)]
 pub struct PanicStorage;
 
 impl PersistentStorage for PanicStorage {
-    type File = <fs::Fs as PersistentStorage>::File;
+    type File = PanicFile;
 
     fn open(&mut self, _mode: OpenMode, _key: &str) -> io::Result<Self::File> {
         panic!("open called on PanicStorage");
