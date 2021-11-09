@@ -8,6 +8,7 @@
 use super::io::{self, Result};
 use serde::{de::DeserializeOwned, Serialize};
 
+#[derive(Debug)]
 pub struct Error;
 
 pub fn serialize_into<W, T: ?Sized>(_writer: W, _value: &T) -> Result<()>

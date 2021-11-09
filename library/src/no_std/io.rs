@@ -4,7 +4,7 @@
 
 //! This module provides re-implementations of things from std::io for building without std
 
-use alloc::string::String;
+use alloc::{string::String, vec::Vec};
 use core::cmp;
 
 #[derive(Debug)]
@@ -41,6 +41,30 @@ pub trait Read {
         } else {
             Ok(())
         }
+    }
+
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
+        let start = buf.len();
+        let mut i = start;
+        loop {
+            if i >= buf.len() {
+                buf.resize(buf.len() + 1024, 0);
+            }
+
+            match self.read(&mut buf[i..]) {
+                Ok(0) => break,
+                Ok(n) => {
+                    assert!(n <= buf.len());
+                    i += n;
+                }
+                Err(e) => {
+                    buf.resize(i, 0);
+                    return Err(e);
+                }
+            }
+        }
+        buf.resize(i, 0);
+        Ok(i - start)
     }
 }
 
@@ -142,6 +166,22 @@ impl<T: Write + ?Sized> Write for alloc::boxed::Box<T> {
 
     fn flush(&mut self) -> Result<()> {
         (**self).flush()
+    }
+}
+
+impl Write for Vec<u8> {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        self.extend_from_slice(buf);
+        Ok(buf.len())
+    }
+
+    fn write_all(&mut self, buf: &[u8]) -> Result<()> {
+        self.extend_from_slice(buf);
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        Ok(())
     }
 }
 

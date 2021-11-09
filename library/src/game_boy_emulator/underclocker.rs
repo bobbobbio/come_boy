@@ -24,7 +24,7 @@ impl Underclocker {
         let expected_elapsed = (elapsed_cycles as u32) * delay;
 
         if let Some(sleep_time) = expected_elapsed.checked_sub(self.start_instant.elapsed()) {
-            std::thread::sleep(sleep_time);
+            crate::sleep(sleep_time);
         }
     }
 }

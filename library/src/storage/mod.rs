@@ -2,6 +2,7 @@
 
 use crate::io;
 
+#[cfg(feature = "std")]
 pub mod fs;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -3,6 +3,8 @@
 #![cfg_attr(not(test), no_std)]
 
 extern crate alloc;
+
+#[cfg(feature = "std")]
 extern crate std;
 
 mod bytes;
@@ -16,7 +18,11 @@ pub mod sound;
 pub mod storage;
 mod util;
 
+#[cfg(feature = "std")]
 use ::{
     bincode as codec,
-    std::{io, time::Instant},
+    std::{io, thread::sleep, time::Instant},
 };
+
+#[cfg(not(feature = "std"))]
+use no_std::*;
