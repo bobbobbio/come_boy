@@ -1,6 +1,6 @@
 // copyright 2021 Remi Bernotavicius
+use crate::Instant;
 use core::time::Duration;
-use std::time::Instant;
 
 pub struct Underclocker {
     start_cycles: u64,
