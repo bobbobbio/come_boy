@@ -6,7 +6,8 @@ panic = "abort"
 
 [workspace]
 members = [
-    "library",
     "cli",
+    "library",
+    "pico",
     "web",
 ]
