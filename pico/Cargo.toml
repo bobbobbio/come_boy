@@ -1,6 +1,7 @@
 [package]
 name = "come_boy_pico"
 version = "0.1.0"
+build = "build.rs"
 authors = ["Remi Bernotavicius <remi@abort.cc>"]
 edition = "2018"
 
@@ -15,3 +16,6 @@ default = []
 [dependencies]
 come_boy = {default-features = false, path = "../library", version = "*"}
 panic-halt = { version = "*", optional = true }
+
+[build-dependencies]
+bindgen = "*"
