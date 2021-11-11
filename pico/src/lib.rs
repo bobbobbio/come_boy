@@ -2,7 +2,7 @@
 
 #![no_std]
 
-#[cfg(feature = "panic-halt")]
+#[cfg(not(test))]
 use panic_halt as _;
 
 #[no_mangle]

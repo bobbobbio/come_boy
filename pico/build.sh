@@ -20,7 +20,6 @@ pushd pico
 git submodule update --init
 cargo build \
     --target thumbv6m-none-eabi \
-    --features panic-halt \
     --release \
     --package come_boy_pico
 
