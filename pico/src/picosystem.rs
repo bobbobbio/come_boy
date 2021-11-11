@@ -7,5 +7,7 @@
 #![allow(non_upper_case_globals)]
 
 type c_uchar = u8;
+type c_char = i8;
+type c_int = i32;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
