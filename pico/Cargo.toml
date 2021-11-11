@@ -13,7 +13,6 @@ crate-type = ["staticlib"]
 [dependencies]
 come_boy = {default-features = false, path = "../library", version = "*"}
 panic-halt = "*"
-libc = "*"
 
 [build-dependencies]
 bindgen = "*"
