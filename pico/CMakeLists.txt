@@ -16,7 +16,6 @@ include(picosystem/libraries/picosystem.cmake REQUIRED)
 picosystem_executable(
     come_boy
     src/main.cpp
-    src/picosystem.cpp
 )
 
 pixel_double(come_boy)
