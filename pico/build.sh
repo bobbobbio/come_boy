@@ -21,6 +21,7 @@ git submodule update --init
 cargo build \
     --target thumbv6m-none-eabi \
     --release \
+    --no-default-features \
     --package come_boy_pico
 
 popd

@@ -4,7 +4,7 @@ use super::{
     button_events_from_key_events, ButtonCode, ButtonEvent, ButtonState, JoyPad, JoypadFlag,
     KeyEvent, MemoryMappedHardware,
 };
-use alloc::{vec::Vec};
+use alloc::vec::Vec;
 
 #[derive(Clone, Copy, PartialEq)]
 enum KeyBank {
@@ -131,7 +131,7 @@ impl PlainJoyPad {
             .collect()
     }
 
-    pub(super) fn respond_to_events(&mut self, button_events: Vec<ButtonEvent>) {
+    pub fn respond_to_events(&mut self, button_events: Vec<ButtonEvent>) {
         for event in button_events {
             match event {
                 ButtonEvent::Up(c) => *self.get_state(c) = ButtonState::NotPressed,

@@ -19,7 +19,6 @@ picosystem_executable(
     src/picosystem.cpp
 )
 
-pixel_double(come_boy)
 disable_startup_logo(come_boy)
 target_link_libraries(
     come_boy ${CMAKE_SOURCE_DIR}/../target/thumbv6m-none-eabi/release/libcome_boy_pico.a

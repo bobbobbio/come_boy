@@ -19,10 +19,10 @@ pub mod storage;
 mod util;
 
 #[cfg(feature = "std")]
-use ::{
+pub use ::{
     bincode as codec,
     std::{io, thread::sleep, time::Instant},
 };
 
 #[cfg(not(feature = "std"))]
-use no_std::*;
+pub use no_std::*;

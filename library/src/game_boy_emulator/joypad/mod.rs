@@ -50,7 +50,7 @@ pub enum KeyEvent {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
-enum ButtonCode {
+pub enum ButtonCode {
     A,
     B,
     Start,
@@ -62,7 +62,7 @@ enum ButtonCode {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-enum ButtonEvent {
+pub enum ButtonEvent {
     Down(ButtonCode),
     Up(ButtonCode),
 }

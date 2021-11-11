@@ -8,11 +8,15 @@ edition = "2018"
 [lib]
 crate-type = ["staticlib"]
 
+[features]
+default = ["std"]
+std = []
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-come_boy = {default-features = false, path = "../library", version = "*"}
-panic-halt = "*"
+come_boy = {default_features = false, features = [], path = "../library", version = "*"}
+enum-iterator = "*"
 
 [build-dependencies]
 bindgen = "*"

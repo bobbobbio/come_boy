@@ -984,6 +984,7 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
     pub fn new(rom: &[u8], storage: &mut Storage, sram_key: Option<&str>) -> io::Result<Self> {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
         let hash = super_fast_hash(rom);
+
         let (rom_banks, rom_chunks) = banks_and_chunks_from_rom(rom);
 
         let title_slice = &rom[TITLE];

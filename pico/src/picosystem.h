@@ -1,5 +1,10 @@
+#include <stdbool.h>
+
 void
-pen(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
+pen(unsigned char r, unsigned char g, unsigned char b);
+
+void
+blend_copy(void);
 
 void
 clear(void);
@@ -11,7 +16,16 @@ void
 vline(int x, int y, int l);
 
 void
-clear(void);
+text(const char *c, int x, int y);
 
 void
-text(const char *c, int x, int y);
+pixel(int x, int y);
+
+void
+wait_vsync(void);
+
+void
+flip(void);
+
+bool
+button(unsigned b);

@@ -4,9 +4,10 @@ pub use self::game_pak::GamePak;
 pub use self::joypad::ControllerJoyPad;
 use self::joypad::{JoyPad, KeyEvent};
 use self::lcd_controller::{LcdController, OAM_DATA};
+pub use self::memory_controller::MemoryMappedHardware;
 use self::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyMemoryMap, GameBoyMemoryMapMut, GameBoyRegister, MemoryAccessor,
-    MemoryChunk, MemoryMappedHardware,
+    MemoryChunk,
 };
 use self::sound_controller::SoundController;
 use crate::io;
@@ -30,7 +31,7 @@ pub use self::underclocker::*;
 mod debugger;
 mod disassembler;
 mod game_pak;
-mod joypad;
+pub mod joypad;
 mod lcd_controller;
 mod memory_controller;
 mod runner;

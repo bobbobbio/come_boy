@@ -5,29 +5,55 @@
 
 extern crate alloc;
 
+#[cfg(feature = "std")]
+extern crate std;
+
 mod allocator;
+mod emulator;
 mod graphics;
+mod joypad;
 mod picosystem;
 
-use graphics::{Color, Graphics};
+#[cfg(not(feature = "std"))]
+mod panic;
 
-#[cfg(not(test))]
-use panic_halt as _;
+use core::cell::UnsafeCell;
+use emulator::Emulator;
+
+struct SingleThreadedGlobal<T> {
+    payload: UnsafeCell<T>,
+}
+
+impl<T> SingleThreadedGlobal<T> {
+    /// safety: Must only be used on single-threaded machine
+    const unsafe fn new(payload: T) -> Self {
+        Self {
+            payload: UnsafeCell::new(payload),
+        }
+    }
+
+    /// safety: Must only be one caller at a time
+    unsafe fn get_mut(&self) -> &mut T {
+        &mut *self.payload.get()
+    }
+}
+
+unsafe impl<T> Sync for SingleThreadedGlobal<T> {}
+
+static EMULATOR: SingleThreadedGlobal<Option<Emulator>> =
+    unsafe { SingleThreadedGlobal::new(None) };
 
 #[no_mangle]
-pub extern "C" fn init() {}
+pub extern "C" fn init() {
+    *unsafe { EMULATOR.get_mut() } = Some(Emulator::new());
+}
 
 #[no_mangle]
-pub extern "C" fn update(_tick: u32) {}
+pub extern "C" fn update(_tick: u32) {
+    unsafe { EMULATOR.get_mut() }.as_mut().unwrap().update();
+}
 
 #[no_mangle]
 pub extern "C" fn draw(_tick: u32) {
-    let graphics = Graphics::new();
-
-    graphics.set_pen(Color::rgba(10, 12, 0, 15));
-    graphics.clear();
-    graphics.set_pen(Color::rgba(0, 0, 0, 4));
-
-    graphics.hline(2, 12, 116);
-    graphics.text("hello there");
+    unsafe { EMULATOR.get_mut() }.as_mut().unwrap().draw();
 }
