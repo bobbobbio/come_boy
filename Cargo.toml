@@ -1,10 +1,15 @@
 [profile.release]
 opt-level = 3
 debug = true
+panic = "abort"
 lto = "thin"
+
+[profile.dev]
+debug = true
 panic = "abort"
 
 [workspace]
+resolver = "2"
 members = [
     "cli",
     "library",

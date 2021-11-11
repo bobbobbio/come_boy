@@ -21,3 +21,6 @@ cargo test --release
 
 pushd web
 wasm-pack build
+popd
+
+./pico/build.sh

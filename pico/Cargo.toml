@@ -5,9 +5,13 @@ authors = ["Remi Bernotavicius <remi@abort.cc>"]
 edition = "2018"
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["staticlib"]
+
+[features]
+default = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 come_boy = {default-features = false, path = "../library", version = "*"}
+panic-halt = { version = "*", optional = true }
