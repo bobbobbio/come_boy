@@ -1,6 +1,9 @@
 // copyright 2021 Remi Bernotavicius
 
 #![no_std]
+#![feature(default_alloc_error_handler)]
+
+mod picosystem;
 
 #[cfg(not(test))]
 use panic_halt as _;
