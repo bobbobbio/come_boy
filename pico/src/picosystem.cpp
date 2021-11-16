@@ -63,4 +63,11 @@ extern "C" {
   {
       return picosystem::button(b);
   }
+
+  struct buffer *
+  target_buffer(void)
+  {
+      return (struct buffer *)picosystem::_dt;
+  }
+
 }

@@ -4,41 +4,59 @@ use crate::picosystem;
 use alloc::vec;
 use alloc::vec::Vec;
 
+const SCREEN_WIDTH: usize = 240;
+const SCREEN_HEIGHT: usize = 240;
+
 #[derive(Clone, Copy)]
-pub struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-}
+pub struct Color(u16);
 
 impl Color {
+    #[inline(always)]
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
+        const fn conv(v: u8) -> u16 {
+            ((v as u32) * 100 / 255 * 0xF / 100) as u16
+        }
+        Self(conv(r) | conv(b) << 8 | conv(g) << 12)
+    }
+
+    fn r(&self) -> u8 {
+        (self.0 & 0xF) as u8
+    }
+
+    fn g(&self) -> u8 {
+        ((self.0 >> 12) & 0xF) as u8
+    }
+
+    fn b(&self) -> u8 {
+        ((self.0 >> 8) & 0xF) as u8
     }
 }
 
 impl come_boy::rendering::Color for Color {
+    #[inline(always)]
     fn new(r: u8, g: u8, b: u8) -> Self {
-        fn conv(v: u8) -> u8 {
-            ((v as u32) * 100 / 255 * 0xF / 100) as u8
-        }
-        Self::rgb(conv(r), conv(g), conv(b))
+        Self::rgb(r, g, b)
     }
 }
 
 pub struct Graphics {
     pub dirty: bool,
+    target_buffer: *mut picosystem::buffer,
 }
 
 #[allow(dead_code)]
 impl Graphics {
-    pub const fn new() -> Self {
-        Self { dirty: false }
+    pub fn new() -> Self {
+        let target_buffer = unsafe { picosystem::target_buffer() };
+        Self {
+            dirty: false,
+            target_buffer,
+        }
     }
 
     #[inline(always)]
     pub fn set_pen(&self, color: Color) {
-        unsafe { picosystem::pen(color.r, color.g, color.b) }
+        unsafe { picosystem::pen(color.r(), color.g(), color.b()) }
     }
 
     pub fn blend_copy(&self) {
@@ -83,12 +101,14 @@ impl come_boy::rendering::Renderer for Graphics {
 
     #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
-        if x < 0 || x >= 240 || y < 0 || y >= 240 {
+        if x < 0 || x >= SCREEN_WIDTH as i32 || y < 0 || y >= SCREEN_HEIGHT as i32 {
             return;
         }
-
-        self.set_pen(color);
-        self.pixel(x, y);
+        let buffer = unsafe { &*self.target_buffer };
+        let color_data = buffer.data as *mut u16;
+        let color_data =
+            unsafe { color_data.offset(SCREEN_WIDTH as isize * (y as isize) + x as isize) };
+        unsafe { color_data.write(color.0) };
     }
 
     fn present(&mut self) {
