@@ -36,6 +36,7 @@ impl Graphics {
         Self { dirty: false }
     }
 
+    #[inline(always)]
     pub fn set_pen(&self, color: Color) {
         unsafe { picosystem::pen(color.r, color.g, color.b) }
     }
@@ -44,14 +45,17 @@ impl Graphics {
         unsafe { picosystem::blend_copy() };
     }
 
+    #[inline(always)]
     pub fn clear(&self) {
         unsafe { picosystem::clear() };
     }
 
+    #[inline(always)]
     pub fn hline(&self, x: i32, y: i32, l: i32) {
         unsafe { picosystem::hline(x, y, l) }
     }
 
+    #[inline(always)]
     pub fn pixel(&self, x: i32, y: i32) {
         unsafe { picosystem::pixel(x, y) }
     }
@@ -77,6 +81,7 @@ impl come_boy::rendering::Renderer for Graphics {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
         if x < 0 || x >= 240 || y < 0 || y >= 240 {
             return;

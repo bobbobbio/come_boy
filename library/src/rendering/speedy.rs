@@ -177,6 +177,7 @@ impl Renderer for SpeedyRenderer {
         unimplemented!()
     }
 
+    #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
         assert!(x < self.width as i32, "x = {} > {}", x, self.width);
         assert!(y < self.height as i32, "y = {} > {}", y, self.height);
@@ -191,6 +192,5 @@ impl Renderer for SpeedyRenderer {
 
     fn present(&mut self) {
         self.screen_buffer.swap(&mut self.back_buffer);
-        self.back_buffer.fill(u8::MAX);
     }
 }
