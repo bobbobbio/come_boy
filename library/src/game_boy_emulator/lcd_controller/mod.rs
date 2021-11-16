@@ -50,7 +50,7 @@ use crate::game_boy_emulator::memory_controller::{
 use crate::game_boy_emulator::InterruptFlag;
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
-use alloc::{vec::Vec};
+use alloc::vec::Vec;
 use core::ops::Range;
 use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;
@@ -748,9 +748,9 @@ impl LcdController {
             return;
         }
 
-        let iter = match area_selection {
-            false => self.background_display_data_1.as_slice().iter(),
-            true => self.background_display_data_2.as_slice().iter(),
+        let bg_data_slice = match area_selection {
+            false => self.background_display_data_1.as_slice(),
+            true => self.background_display_data_2.as_slice(),
         };
 
         let tile_space_line_height =
@@ -768,8 +768,9 @@ impl LcdController {
         };
         assert!(tile_y >= 0);
 
-        let iter = iter
-            .skip(tile_y as usize * CHARACTER_AREA_SIZE as usize)
+        let start_index = tile_y as usize * CHARACTER_AREA_SIZE as usize;
+        let iter = (&bg_data_slice[start_index..])
+            .iter()
             .take(CHARACTER_AREA_SIZE as usize)
             .enumerate();
 
