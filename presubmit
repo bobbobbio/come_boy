@@ -25,3 +25,5 @@ wasm-pack build
 popd
 
 ./pico/build.sh
+
+cargo clippy

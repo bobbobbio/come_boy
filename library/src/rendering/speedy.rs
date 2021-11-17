@@ -25,7 +25,7 @@ struct ScreenBuffer {
 }
 
 impl ScreenBuffer {
-    fn buffer<'a>(&'a self) -> impl Deref<Target = Vec<u8>> + 'a {
+    fn buffer(&self) -> impl Deref<Target = Vec<u8>> + '_ {
         self.buffer.lock().unwrap()
     }
 

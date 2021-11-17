@@ -443,7 +443,7 @@ impl<'a> Iterator for LcdObjectIterator<'a> {
 
     fn next(&mut self) -> Option<LcdObject> {
         if self.chunk_iterator.peek() == None {
-            return None;
+            None
         } else {
             let y = *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE * 2;
             let x = *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE;
@@ -493,6 +493,7 @@ impl<'a> LcdDotData<'a> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_line(
         &self,
         line: &mut ScanLine,
@@ -709,8 +710,8 @@ impl LcdController {
     }
 
     fn get_scroll_origin_relative_to_lcd(&self) -> (i32, i32) {
-        let mut x = self.registers.scx.read_value() as i32 * -1;
-        let mut y = self.registers.scy.read_value() as i32 * -1;
+        let mut x = -(self.registers.scx.read_value() as i32);
+        let mut y = -(self.registers.scy.read_value() as i32);
 
         /*
          * This supports the behavior of the background wrapping
@@ -723,14 +724,14 @@ impl LcdController {
             y += 256;
         }
 
-        return (x, y);
+        (x, y)
     }
 
     fn get_window_origin_relative_to_lcd(&self) -> (i32, i32) {
         let x = self.registers.wx.read_value() as i32 - 7;
         let y = self.registers.wy.read_value() as i32;
 
-        return (x, y);
+        (x, y)
     }
 
     fn draw_tiles(

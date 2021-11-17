@@ -27,7 +27,7 @@ impl SimulatedInstruction {
 
 pub trait DebuggerOps {
     fn read_memory(&self, address: u16) -> u8;
-    fn format<'a>(&self, _: &mut dyn io::Write) -> io::Result<()>;
+    fn format(&self, _: &mut dyn io::Write) -> io::Result<()>;
     fn next(&mut self);
     fn simulate_next(&mut self, _: &mut SimulatedInstruction);
     fn read_program_counter(&self) -> u16;
@@ -82,14 +82,14 @@ impl<'a> Debugger<'a> {
         emulator: &'a mut dyn DebuggerOps,
     ) -> Debugger<'a> {
         Debugger {
-            emulator: emulator,
+            emulator,
             running: false,
             last_command: String::new(),
             breakpoint: None,
             watchpoint: None,
             logging: false,
-            input: input,
-            out: out,
+            input,
+            out,
         }
     }
 
@@ -114,7 +114,7 @@ impl<'a> Debugger<'a> {
             }
         }
 
-        return true;
+        true
     }
 
     fn check_for_breakpoint_crash_or_interrupt(
@@ -138,7 +138,7 @@ impl<'a> Debugger<'a> {
             writeln!(self.out, "Interrupted").unwrap();
             return false;
         }
-        return true;
+        true
     }
 
     fn next(&mut self, times: usize) {
@@ -240,7 +240,7 @@ impl<'a> Debugger<'a> {
         let mut frames = self.emulator.read_call_stack();
         frames.push(self.emulator.read_program_counter());
         for (n, address) in frames.into_iter().rev().enumerate() {
-            write!(self.out, "#{} 0x{:02x}\n", n, address).unwrap();
+            writeln!(self.out, "#{} 0x{:02x}", n, address).unwrap();
         }
     }
 
@@ -383,7 +383,7 @@ impl<'a> Debugger<'a> {
 
     fn dispatch_command(&mut self, command: &str, is_interrupted: &dyn Fn() -> bool) -> Result<()> {
         let mut command: String = command.into();
-        if command == "" {
+        if command.is_empty() {
             command = self.last_command.clone();
         }
 
@@ -404,7 +404,7 @@ impl<'a> Debugger<'a> {
             let command = res.unwrap();
 
             if let Err(e) = self.dispatch_command(&command, is_interrupted) {
-                write!(self.out, "Error: {}\n", &e.message).unwrap();
+                writeln!(self.out, "Error: {}", &e.message).unwrap();
             }
         } else {
             // If we got EOF, cleanly exit

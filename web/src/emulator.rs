@@ -87,12 +87,9 @@ impl Emulator {
 
     fn read_key_events(&mut self) {
         let res = self.emulator.read_key_events(&mut self.ops);
-        match res {
-            Err(UserControl::SpeedChange) => {
-                self.underclocker =
-                    Underclocker::new(self.emulator.elapsed_cycles(), self.ops.clock_speed_hz);
-            }
-            _ => {}
+        if let Err(UserControl::SpeedChange) = res {
+            self.underclocker =
+                Underclocker::new(self.emulator.elapsed_cycles(), self.ops.clock_speed_hz);
         }
     }
 

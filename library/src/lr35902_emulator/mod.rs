@@ -51,6 +51,12 @@ pub struct LR35902Emulator {
     instr: Option<LR35902Instruction>,
 }
 
+impl Default for LR35902Emulator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LR35902Emulator {
     pub fn new() -> LR35902Emulator {
         let mut e = LR35902Emulator {
@@ -67,7 +73,7 @@ impl LR35902Emulator {
         e.set_register_pair(Intel8080Register::SP, 0xFFFE);
         e.set_program_counter(ROM_ADDRESS as u16);
 
-        return e;
+        e
     }
 
     pub fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
@@ -206,7 +212,7 @@ pub trait LR35902InstructionSetOps {
         );
         self.set_flag(LR35902Flag::Subtract, false);
 
-        return new_value;
+        new_value
     }
 
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, ovalue_b: u8) -> u8 {
@@ -218,7 +224,7 @@ pub trait LR35902InstructionSetOps {
         self.set_flag(LR35902Flag::HalfCarry, new_value & 0x0F > (value_a & 0x0F));
         self.set_flag(LR35902Flag::Carry, value_a < ovalue_b);
 
-        return new_value;
+        new_value
     }
 
     fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8 {
@@ -226,7 +232,7 @@ pub trait LR35902InstructionSetOps {
         self.set_flag(LR35902Flag::Zero, new_value == 0);
         self.set_flag(LR35902Flag::HalfCarry, value_b & 0x0F > (value_a & 0x0F));
         self.set_flag(LR35902Flag::Subtract, true);
-        return new_value;
+        new_value
     }
 
     fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8 {
@@ -235,7 +241,7 @@ pub trait LR35902InstructionSetOps {
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::Carry, false);
         self.set_flag(LR35902Flag::HalfCarry, true);
-        return new_value;
+        new_value
     }
 
     fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8 {
@@ -244,7 +250,7 @@ pub trait LR35902InstructionSetOps {
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::Carry, false);
         self.set_flag(LR35902Flag::HalfCarry, false);
-        return new_value;
+        new_value
     }
 
     fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8 {
@@ -253,7 +259,7 @@ pub trait LR35902InstructionSetOps {
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::Carry, false);
         self.set_flag(LR35902Flag::HalfCarry, false);
-        return new_value;
+        new_value
     }
 
     fn perform_signed_double_add(&mut self, value_a: u16, value_b: u8) -> u16 {
@@ -271,7 +277,7 @@ pub trait LR35902InstructionSetOps {
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::Zero, false);
 
-        return new_value;
+        new_value
     }
 
     fn wait_until_interrupt(&mut self);
@@ -2379,7 +2385,6 @@ impl LR35902Emulator {
         match self.instr.take() {
             Some(res) => {
                 self.run_lr35902_instruction(res, memory_accessor);
-                return;
             }
             None => self.crash_from_unkown_opcode(),
         };

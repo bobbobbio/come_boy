@@ -1,10 +1,7 @@
 // copyright 2021 Remi Bernotavicius
 
 use super::{OpenMode, PersistentStorage, StorageFile};
-use alloc::{
-    borrow::ToOwned,
-    string::{String},
-};
+use alloc::{borrow::ToOwned, string::String};
 use std::{
     fs, io,
     path::{Path, PathBuf},
@@ -18,7 +15,7 @@ pub struct Fs {
 impl Fs {
     pub fn new(working_dir: Option<&Path>) -> Self {
         Self {
-            working_dir: working_dir.unwrap_or(Path::new("./")).to_owned(),
+            working_dir: working_dir.unwrap_or_else(|| Path::new("./")).to_owned(),
         }
     }
 

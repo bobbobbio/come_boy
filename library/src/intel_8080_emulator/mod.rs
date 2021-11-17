@@ -174,7 +174,7 @@ pub trait Intel8080InstructionSetOps {
             value_b & 0x0F > 0x0F - (value_a & 0x0F),
         );
 
-        return new_value;
+        new_value
     }
 
     fn add_to_register(&mut self, register: Intel8080Register, value: u8, update_carry: bool) {
@@ -194,7 +194,7 @@ pub trait Intel8080InstructionSetOps {
         );
         self.set_flag(Intel8080Flag::Carry, value_a < ovalue_b);
 
-        return new_value;
+        new_value
     }
 
     fn subtract_from_register_using_twos_complement(
@@ -214,7 +214,7 @@ pub trait Intel8080InstructionSetOps {
             Intel8080Flag::AuxiliaryCarry,
             value_b & 0x0F > (value_a & 0x0F),
         );
-        return new_value;
+        new_value
     }
 
     fn subtract_from_register(&mut self, register: Intel8080Register, value: u8) {
@@ -228,7 +228,7 @@ pub trait Intel8080InstructionSetOps {
         self.update_flags_for_new_value(new_value);
         self.set_flag(Intel8080Flag::Carry, false);
         self.set_flag(Intel8080Flag::AuxiliaryCarry, false);
-        return new_value;
+        new_value
     }
 
     fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8 {
@@ -236,7 +236,7 @@ pub trait Intel8080InstructionSetOps {
         self.update_flags_for_new_value(new_value);
         self.set_flag(Intel8080Flag::Carry, false);
         self.set_flag(Intel8080Flag::AuxiliaryCarry, false);
-        return new_value;
+        new_value
     }
 
     fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8 {
@@ -244,17 +244,17 @@ pub trait Intel8080InstructionSetOps {
         self.update_flags_for_new_value(new_value);
         self.set_flag(Intel8080Flag::Carry, false);
         self.set_flag(Intel8080Flag::AuxiliaryCarry, false);
-        return new_value;
+        new_value
     }
 
     fn perform_rotate_left(&mut self, value: u8) -> u8 {
         self.set_flag(Intel8080Flag::Carry, value & (1u8 << 7) != 0);
-        return value.rotate_left(1);
+        value.rotate_left(1)
     }
 
     fn perform_rotate_right(&mut self, value: u8) -> u8 {
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
-        return value.rotate_right(1);
+        value.rotate_right(1)
     }
 
     fn perform_rotate_left_through_carry(&mut self, value: u8) -> u8 {
@@ -264,7 +264,7 @@ pub trait Intel8080InstructionSetOps {
             0
         };
         self.set_flag(Intel8080Flag::Carry, (value & (1u8 << 7)) != 0);
-        return (value << 1) | carry;
+        (value << 1) | carry
     }
 
     fn perform_rotate_right_through_carry(&mut self, value: u8) -> u8 {
@@ -274,7 +274,7 @@ pub trait Intel8080InstructionSetOps {
             0
         };
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
-        return (value >> 1) | (carry << 7);
+        (value >> 1) | (carry << 7)
     }
 
     fn push_u16_onto_stack(&mut self, data: u16) {
@@ -308,18 +308,22 @@ pub struct Intel8080Emulator<'a> {
     call_stack: Vec<u16>,
 }
 
+impl<'a> Default for Intel8080Emulator<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'a> Intel8080Emulator<'a> {
     pub fn new() -> Intel8080Emulator<'a> {
-        let emu = Intel8080Emulator {
+        Self {
             main_memory: [0; MAX_ADDRESS + 1],
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
             interrupts_enabled: true,
             call_table: BTreeMap::new(),
             call_stack: Vec::new(),
-        };
-
-        return emu;
+        }
     }
 
     #[cfg(test)]
@@ -418,13 +422,10 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         self.program_counter = address;
 
         let lookup = self.call_table.remove(&address);
-        match lookup {
-            Some(func) => {
-                func(self);
-                self.call_table.insert(address, func);
-                self.return_unconditionally();
-            }
-            None => (),
+        if let Some(func) = lookup {
+            func(self);
+            self.call_table.insert(address, func);
+            self.return_unconditionally();
         }
     }
 

@@ -94,7 +94,7 @@ fn set_up_input(emulator: Rc<RefCell<Emulator>>) {
         event.prevent_default();
     }) as Box<dyn FnMut(_)>);
 
-    let their_emulator = emulator.clone();
+    let their_emulator = emulator;
     let on_key_up = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
         their_emulator.borrow_mut().on_key_up(&event.code());
         event.prevent_default();

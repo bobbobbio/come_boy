@@ -25,10 +25,10 @@ pub struct LR35902InstructionPrinterFactory;
 impl<'a> InstructionPrinterFactory<'a> for LR35902InstructionPrinterFactory {
     type Output = LR35902InstructionPrinter<'a>;
     fn new(&self, stream_out: &'a mut dyn io::Write) -> LR35902InstructionPrinter<'a> {
-        return LR35902InstructionPrinter {
-            stream_out: stream_out,
+        LR35902InstructionPrinter {
+            stream_out,
             error: Ok(()),
-        };
+        }
     }
 }
 

@@ -43,7 +43,7 @@ fn main() -> Result<()> {
         fs,
         game_pak,
         options.ticks,
-        replay_key.as_ref().map(|s| s.as_str()),
+        replay_key.as_deref(),
         &output_key,
     )?;
 

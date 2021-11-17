@@ -374,7 +374,7 @@ impl MemoryMappedHardware for MemoryChunk {
 
 impl MemoryChunk {
     pub fn new(value: Vec<u8>) -> MemoryChunk {
-        assert!(value.len() > 0);
+        assert!(!value.is_empty());
         MemoryChunk { value, borrowed: 0 }
     }
 

@@ -231,6 +231,7 @@ pub enum LR35902Instruction {
     },
 }
 impl LR35902Instruction {
+    #[allow(clippy::unnecessary_cast)]
     pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
         let opcode = stream.read_u8()?;
         Ok(match opcode {

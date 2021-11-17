@@ -144,7 +144,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
         self.memory_accessor.read_memory(address)
     }
 
-    fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
+    fn format(&self, s: &mut dyn io::Write) -> Result<()> {
         writeln!(s, "{:#?}", &self.emulator)
     }
 
@@ -156,17 +156,10 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
         let pc = self.read_program_counter();
         let maybe_instr =
             LR35902Instruction::from_reader(MemoryStream::new(self.memory_accessor, pc)).unwrap();
-        match maybe_instr {
-            Some(res) => {
-                let mut wrapping_instruction = SimulatedInstructionLR35902::new(
-                    self.emulator,
-                    self.memory_accessor,
-                    instruction,
-                );
-                res.dispatch(&mut wrapping_instruction);
-                return;
-            }
-            None => {}
+        if let Some(res) = maybe_instr {
+            let mut wrapping_instruction =
+                SimulatedInstructionLR35902::new(self.emulator, self.memory_accessor, instruction);
+            res.dispatch(&mut wrapping_instruction);
         }
     }
 

@@ -26,10 +26,10 @@ pub struct Intel8080InstructionPrinterFactory;
 impl<'a> InstructionPrinterFactory<'a> for Intel8080InstructionPrinterFactory {
     type Output = Intel8080InstructionPrinter<'a>;
     fn new(&self, stream_out: &'a mut dyn io::Write) -> Intel8080InstructionPrinter<'a> {
-        return Intel8080InstructionPrinter {
-            stream_out: stream_out,
+        Intel8080InstructionPrinter {
+            stream_out,
             error: Ok(()),
-        };
+        }
     }
 }
 

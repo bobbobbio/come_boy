@@ -23,7 +23,7 @@ impl<'a> ROMAccessor<'a> {
         // XXX: Can't yet disassemble things bigger than this.
         assert!(rom.len() < 0xFFFF);
 
-        return ROMAccessor { rom: rom };
+        Self { rom }
     }
 }
 
@@ -40,7 +40,7 @@ impl<'a> MemoryAccessor for ROMAccessor<'a> {
             // Nintendo Logo
             0x0104 => MemoryDescription::Data(48),
             // Game Name / Designation
-            0x0134 => MemoryDescription::ASCII(15),
+            0x0134 => MemoryDescription::Ascii(15),
             // Color Compatibility Byte
             0x0143 => MemoryDescription::Data(1),
             // New Licensee Code

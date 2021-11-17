@@ -52,7 +52,7 @@ impl MemoryMappedHardware for PlainJoyPad {
         };
 
         // When a bank is selected, or a button is pressed, the bit is unset;
-        (0xFF & !select) & !buttons
+        !select & !buttons
     }
 
     fn set_value(&mut self, _: u16, value: u8) {
@@ -123,10 +123,10 @@ impl PlainJoyPad {
     pub(super) fn filter_events(&mut self, button_events: Vec<ButtonEvent>) -> Vec<ButtonEvent> {
         button_events
             .into_iter()
-            .filter_map(|e| match e {
-                ButtonEvent::Up(c) if *self.get_state(c) == ButtonState::Pressed => Some(e),
-                ButtonEvent::Down(c) if *self.get_state(c) == ButtonState::NotPressed => Some(e),
-                _ => None,
+            .filter(|e| match e {
+                ButtonEvent::Up(c) if *self.get_state(*c) == ButtonState::Pressed => true,
+                ButtonEvent::Down(c) if *self.get_state(*c) == ButtonState::NotPressed => true,
+                _ => false,
             })
             .collect()
     }

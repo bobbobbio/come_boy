@@ -533,6 +533,12 @@ pub struct GameBoyEmulator {
     joypad_key_events: Vec<KeyEvent>,
 }
 
+impl Default for GameBoyEmulator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GameBoyEmulator {
     pub fn new() -> Self {
         let mut e = GameBoyEmulator {
@@ -584,8 +590,7 @@ impl GameBoyEmulator {
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) {
-        self.cpu
-            .load_instruction(&mut ops.memory_map_mut(&mut self.bridge));
+        self.cpu.load_instruction(&ops.memory_map(&self.bridge));
 
         let now = self.cpu.elapsed_cycles;
         self.deliver_events(ops, now);
@@ -851,11 +856,11 @@ impl GameBoyEmulator {
     ) -> Result<()> {
         let memory_map = ops.memory_map(&self.bridge);
         let mut mem = [0u8; 0x10000];
-        for i in 0..0x10000 {
-            mem[i] = memory_map.read_memory(i as u16);
+        for (i, item) in mem.iter_mut().enumerate() {
+            *item = memory_map.read_memory(i as u16);
         }
 
-        w.write(&mem)?;
+        w.write_all(&mem)?;
         Ok(())
     }
 
@@ -865,11 +870,11 @@ impl GameBoyEmulator {
     ) -> u32 {
         let memory_map = ops.memory_map(&self.bridge);
         let mut mem = [0u8; 0x10000 + 15];
-        for i in 0..0x10000 {
-            mem[i] = memory_map.read_memory(i as u16);
+        for (i, item) in mem.iter_mut().enumerate().take(0x10000) {
+            *item = memory_map.read_memory(i as u16);
         }
 
-        mem[0x10000 + 0] = self.cpu.read_register(Intel8080Register::A);
+        mem[0x10000] = self.cpu.read_register(Intel8080Register::A);
         mem[0x10000 + 1] = self.cpu.read_register(Intel8080Register::B);
         mem[0x10000 + 2] = self.cpu.read_register(Intel8080Register::C);
         mem[0x10000 + 3] = self.cpu.read_register(Intel8080Register::D);
@@ -900,7 +905,7 @@ impl GameBoyEmulator {
         } else {
             0
         };
-        return super_fast_hash(&mem[..]);
+        super_fast_hash(&mem[..])
     }
 
     fn save_state_to_storage(

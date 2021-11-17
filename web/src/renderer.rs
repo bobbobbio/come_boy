@@ -94,7 +94,7 @@ fn set_rectangle(context: &WebGl2RenderingContext, x: f32, y: f32, width: f32, h
 
 fn set_up_context(context: &WebGl2RenderingContext, texture: &WebGlTexture) {
     let vert_shader = compile_shader(
-        &context,
+        context,
         WebGl2RenderingContext::VERTEX_SHADER,
         r#"# version 300 es
         // an attribute is an input (in) to a vertex shader.
@@ -130,7 +130,7 @@ fn set_up_context(context: &WebGl2RenderingContext, texture: &WebGlTexture) {
     )
     .unwrap();
     let frag_shader = compile_shader(
-        &context,
+        context,
         WebGl2RenderingContext::FRAGMENT_SHADER,
         r#"# version 300 es
         // fragment shaders don't have a default precision so we need
@@ -153,7 +153,7 @@ fn set_up_context(context: &WebGl2RenderingContext, texture: &WebGlTexture) {
     )
     .unwrap();
 
-    let program = link_program(&context, &vert_shader, &frag_shader).unwrap();
+    let program = link_program(context, &vert_shader, &frag_shader).unwrap();
 
     let position_attribute_location: u32 = context
         .get_attrib_location(&program, "a_position")
@@ -246,7 +246,7 @@ fn set_up_context(context: &WebGl2RenderingContext, texture: &WebGlTexture) {
     context.uniform1i(Some(&image_location), 0);
 
     context.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&position_buffer));
-    set_rectangle(&context, 0.0, 0.0, width, height);
+    set_rectangle(context, 0.0, 0.0, width, height);
 }
 
 fn keycode_from_native_code(code: &str) -> Keycode {

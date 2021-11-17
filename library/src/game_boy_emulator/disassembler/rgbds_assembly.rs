@@ -18,11 +18,11 @@ pub struct RGBDSInstructionPrinterFactory;
 impl<'a> InstructionPrinterFactory<'a> for RGBDSInstructionPrinterFactory {
     type Output = RGBDSInstructionPrinter<'a>;
     fn new(&self, stream_out: &'a mut dyn io::Write) -> RGBDSInstructionPrinter<'a> {
-        return RGBDSInstructionPrinter {
-            stream_out: stream_out,
+        RGBDSInstructionPrinter {
+            stream_out,
             error: Ok(()),
             address: 0,
-        };
+        }
     }
 }
 
@@ -403,7 +403,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} ${:04X}", "jr", a);
     }
     fn store_accumulator_one_byte(&mut self) {
-        self.error = write!(self.stream_out, "{:04} {}", "ld", "[$FF00+c],a");
+        self.error = write!(self.stream_out, "{:04} [$FF00+c],a", "ld");
     }
     fn set_carry(&mut self) {
         self.error = write!(self.stream_out, "scf");
@@ -415,7 +415,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} ${:04X}", "call", address1);
     }
     fn return_if_no_carry(&mut self) {
-        self.error = write!(self.stream_out, "{:04} {}", "ret", "nc");
+        self.error = write!(self.stream_out, "{:04} nc", "ret");
     }
     fn call_if_zero(&mut self, address1: u16) {
         self.error = write!(self.stream_out, "{:04} z,${:04X}", "call", address1);

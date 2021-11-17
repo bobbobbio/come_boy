@@ -1,11 +1,7 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::SoundStream;
-use alloc::{
-    borrow::ToOwned,
-    vec,
-    vec::Vec,
-};
+use alloc::{borrow::ToOwned, vec, vec::Vec};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Stream;
 use std::sync::{Arc, Mutex};
@@ -53,6 +49,12 @@ pub struct CpalSoundStream {
     _stream: Stream,
     sample_rate: u32,
     channels: u16,
+}
+
+impl Default for CpalSoundStream {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CpalSoundStream {

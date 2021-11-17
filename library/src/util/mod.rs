@@ -90,7 +90,7 @@ fn super_fast_hash_iter(data: &[u8], mut hash: u32) -> u32 {
     hash ^= hash << 25;
     hash = hash.wrapping_add(hash >> 6);
 
-    return hash;
+    hash
 }
 
 pub fn super_fast_hash(data: &[u8]) -> u32 {

@@ -33,6 +33,7 @@ impl<T> SingleThreadedGlobal<T> {
     }
 
     /// safety: Must only be one caller at a time
+    #[allow(clippy::mut_from_ref)]
     unsafe fn get_mut(&self) -> &mut T {
         &mut *self.payload.get()
     }

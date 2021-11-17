@@ -153,6 +153,7 @@ impl MemoryMappedHardware for Sweep {
     }
 }
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Serialize, Deserialize)]
 enum Channel1Event {
     FrequencyTick,

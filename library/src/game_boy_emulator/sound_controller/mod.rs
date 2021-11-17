@@ -297,8 +297,8 @@ impl SoundController {
 
         let waveform = self.channel1.channel.waveform();
         let mut sample = vec![0.0; 8 * elong];
-        for i in 0..sample.len() {
-            sample[i] = ((waveform >> (i / elong)) & 0x1) as f32;
+        for (i, item) in sample.iter_mut().enumerate() {
+            *item = ((waveform >> (i / elong)) & 0x1) as f32;
         }
         sound_stream.play_sample(&sample[..]);
 

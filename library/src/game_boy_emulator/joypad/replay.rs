@@ -82,7 +82,7 @@ impl<Storage: PersistentStorage> JoyPad for RecordingJoyPad<Storage> {
             button_events,
         };
 
-        if entry.button_events.len() > 0 {
+        if !entry.button_events.is_empty() {
             // XXX ignoring error.
             crate::codec::serialize_into(&mut self.output_file, &entry).ok();
 

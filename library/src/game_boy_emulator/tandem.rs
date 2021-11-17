@@ -137,7 +137,7 @@ fn compare_emulators<A: AbstractEmulator, B: AbstractEmulator>(
         b_state = b.get_state();
     }
 
-    return (a_state, b_state, runs);
+    (a_state, b_state, runs)
 }
 
 #[cfg(test)]
@@ -350,7 +350,7 @@ impl<T: Read> EmulatorReplayer<T> {
         // We must have an initial state
         assert!(er.state.is_some());
 
-        return er;
+        er
     }
 }
 
@@ -423,7 +423,7 @@ impl<R: Read> AbstractEmulator for EmulatorReplayer<R> {
     }
 
     fn write_memory(&self, w: &mut dyn Write) -> Result<()> {
-        w.write(&self.memory)?;
+        w.write_all(&self.memory)?;
         Ok(())
     }
 }

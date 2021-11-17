@@ -12,7 +12,7 @@ use crate::bytes::ReadBytesExt;
 pub enum MemoryDescription {
     Instruction,
     Data(u16),
-    ASCII(u16),
+    Ascii(u16),
 }
 
 pub trait MemoryAccessor {
@@ -24,7 +24,7 @@ pub trait MemoryAccessor {
             return self.read_memory(address) as u16;
         }
 
-        return (self.read_memory(address + 1) as u16) << 8 | (self.read_memory(address) as u16);
+        (self.read_memory(address + 1) as u16) << 8 | (self.read_memory(address) as u16)
     }
 
     fn set_memory_u16(&mut self, address: u16, value: u16) {
@@ -47,17 +47,17 @@ pub struct MemoryStream<'a> {
 
 impl<'a> MemoryStream<'a> {
     pub fn new(memory_accessor: &'a dyn MemoryAccessor, index: u16) -> MemoryStream<'a> {
-        return MemoryStream {
-            memory_accessor: memory_accessor,
-            index: index,
-        };
+        Self {
+            memory_accessor,
+            index,
+        }
     }
 }
 
 impl<'a> io::Read for MemoryStream<'a> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        for i in 0..buf.len() {
-            buf[i] = self.memory_accessor.read_memory(self.index + (i as u16));
+        for (i, item) in buf.iter_mut().enumerate() {
+            *item = self.memory_accessor.read_memory(self.index + (i as u16));
         }
         self.index += buf.len() as u16;
 
@@ -78,9 +78,9 @@ impl<'a> Iterator for MemoryIterator<'a> {
         if self.current_address < self.ending_address {
             let mem = self.memory_accessor.read_memory(self.current_address);
             self.current_address += 1;
-            return Some(mem);
+            Some(mem)
         } else {
-            return None;
+            None
         }
     }
 }
@@ -88,11 +88,11 @@ impl<'a> Iterator for MemoryIterator<'a> {
 impl<'a> MemoryIterator<'a> {
     pub fn new(memory_accessor: &'a dyn MemoryAccessor, range: Range<u16>) -> MemoryIterator {
         assert!(range.start <= range.end);
-        return MemoryIterator {
-            memory_accessor: memory_accessor,
+        Self {
+            memory_accessor,
             current_address: range.start,
             ending_address: range.end,
-        };
+        }
     }
 }
 
@@ -100,17 +100,23 @@ pub struct SimpleMemoryAccessor {
     pub memory: [u8; 0x10000],
 }
 
+impl Default for SimpleMemoryAccessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimpleMemoryAccessor {
-    pub fn new() -> SimpleMemoryAccessor {
-        return SimpleMemoryAccessor {
-            memory: [0u8; 0x10000],
-        };
+    pub fn new() -> Self {
+        Self {
+            memory: [0; 0x10000],
+        }
     }
 }
 
 impl MemoryAccessor for SimpleMemoryAccessor {
     fn read_memory(&self, address: u16) -> u8 {
-        return self.memory[address as usize];
+        self.memory[address as usize]
     }
 
     fn set_memory(&mut self, address: u16, value: u8) {
@@ -118,7 +124,7 @@ impl MemoryAccessor for SimpleMemoryAccessor {
     }
 
     fn describe_address(&self, _address: u16) -> MemoryDescription {
-        return MemoryDescription::Instruction;
+        MemoryDescription::Instruction
     }
 }
 
@@ -168,12 +174,12 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         opcode_printer_factory: PF,
         stream_out: &'a mut dyn io::Write,
     ) -> Disassembler<'a, PF> {
-        return Disassembler {
+        Self {
             index: 0,
-            memory_accessor: memory_accessor,
-            opcode_printer_factory: opcode_printer_factory,
-            stream_out: stream_out,
-        };
+            memory_accessor,
+            opcode_printer_factory,
+            stream_out,
+        }
     }
 
     fn display_data(&mut self, data: &[u8], include_opcodes: bool, mut index: u16) -> Result<()> {
@@ -229,7 +235,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         match self.memory_accessor.describe_address(self.index) {
             MemoryDescription::Instruction => self.disassemble_one_instruction(include_opcodes),
             MemoryDescription::Data(len) => self.disassemble_data(len, include_opcodes),
-            MemoryDescription::ASCII(len) => self.disassemble_ascii(len, include_opcodes),
+            MemoryDescription::Ascii(len) => self.disassemble_ascii(len, include_opcodes),
         }
     }
 
@@ -319,7 +325,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         self.index = range.start;
         while self.index < range.end {
             self.disassemble_one(include_opcodes)?;
-            writeln!(self.stream_out, "")?;
+            writeln!(self.stream_out)?;
         }
         Ok(())
     }

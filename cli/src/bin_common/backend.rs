@@ -78,7 +78,7 @@ impl<F: Frontend> BackendMap<F> {
         let f = self
             .map
             .remove(&renderer_name)
-            .ok_or(Error::UnknownRenderer(renderer_name.into()))?;
+            .ok_or(Error::UnknownRenderer(renderer_name))?;
         f(self);
         Ok(())
     }

@@ -9,6 +9,12 @@ pub struct ControllerJoyPad {
     gilrs: gilrs::Gilrs,
 }
 
+impl Default for ControllerJoyPad {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ControllerJoyPad {
     pub fn new() -> Self {
         Self {

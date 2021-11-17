@@ -249,11 +249,11 @@ impl FromStr for OpcodeCode {
         let mut num = u32::from_str_radix(&s[2..], 16)?;
         while num != 0 {
             output.code.push((num & 0xFF) as u8);
-            num = num >> 8;
+            num >>= 8;
         }
         output.code.reverse();
 
-        if output.code.len() == 0 {
+        if output.code.is_empty() {
             output.code.push(0);
         }
 
@@ -382,14 +382,11 @@ impl OpcodeDispatchTreeNode {
         if depth == opcode.code.len() - 1 {
             assert!(self.opcode.is_none());
             self.opcode = Some(opcode);
-            return true;
+            true
         } else {
             let next_code = opcode.code.subcode(depth + 1);
-            match self.children.get_mut(&next_code) {
-                Some(n) => {
-                    return n.add_opcode(depth + 1, opcode);
-                }
-                _ => {}
+            if let Some(n) = self.children.get_mut(&next_code) {
+                return n.add_opcode(depth + 1, opcode);
             }
             let mut child = OpcodeDispatchTreeNode::new(
                 next_code.clone(),
@@ -398,7 +395,7 @@ impl OpcodeDispatchTreeNode {
             );
             child.add_opcode(depth + 1, opcode);
             self.children.insert(next_code, child);
-            return true;
+            true
         }
     }
 
@@ -533,7 +530,7 @@ impl OpcodeGenerator {
 
             functions.insert(new_function.name.clone(), new_function.clone());
 
-            return new_function;
+            new_function
         });
         let enum_name = Ident::new(
             &format!("{}Instruction", instruction_set_name),
@@ -736,6 +733,7 @@ impl OpcodeGenerator {
             }
 
             impl #enum_name {
+                #[allow(clippy::unnecessary_cast)]
                 pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
                     let opcode = stream.read_u8()?;
                     Ok(match opcode {
@@ -851,7 +849,7 @@ fn generate_opcode_rs(
     instruction_set_name: &'static str,
     opcodes_json: BTreeMap<String, OpcodeOnDisk>,
 ) {
-    let use_path = opcodes_path.split("/").map(Into::into).collect();
+    let use_path = opcodes_path.split('/').map(Into::into).collect();
     let mut tokens = TokenStream::new();
     tokens.extend(quote! {
         #![allow(dead_code)]
@@ -942,7 +940,7 @@ impl std::str::FromStr for AddressRange {
         let mut parts = s.split("..");
         let start = parts
             .next()
-            .ok_or(ParseAddressRangeError::new("Missing start of range".into()))?;
+            .ok_or_else(|| ParseAddressRangeError::new("Missing start of range".into()))?;
         if let Some(end) = parts.next() {
             Ok(AddressRange::Range {
                 start: parse_hex(start)?,
@@ -962,7 +960,6 @@ enum MappingType {
 }
 
 #[derive(Deserialize)]
-#[allow(dead_code)]
 struct MemoryMapping {
     field: String,
     mapping_type: MappingType,
@@ -993,7 +990,7 @@ fn generate_memory_map_from_mapping(
     mapping: &BTreeMap<AddressRange, MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
-    let name: Ident = syn::Ident::new(&format!("{}", type_name), Span::call_site());
+    let name: Ident = syn::Ident::new(&type_name.to_string(), Span::call_site());
 
     let expr: &Vec<(syn::Expr, MappingType)> = &mapping
         .iter()
@@ -1001,7 +998,7 @@ fn generate_memory_map_from_mapping(
             (
                 match k {
                     AddressRange::Range { start, end } if *start > 0 => {
-                        syn::parse_quote!(address >= #start && address < #end)
+                        syn::parse_quote!((#start..#end).contains(&address))
                     }
                     AddressRange::Range { start: _, end } => syn::parse_quote!(address < #end),
                     AddressRange::Exact(address) => syn::parse_quote!(address == #address),
@@ -1048,6 +1045,7 @@ fn generate_memory_map_from_mapping(
         use super::#name;
 
         impl #generics #memory_controller::MemoryAccessor for #name #generics #where_clause {
+            #[allow(clippy::identity_op, clippy::if_same_then_else)]
             fn read_memory(&self, address: u16) -> u8 {
                 #(if #read_expr {
                     MemoryMappedHardware::read_value(&self.#read_field, address - #read_offset)
@@ -1057,7 +1055,7 @@ fn generate_memory_map_from_mapping(
                 }
             }
 
-            #[allow(unused_variables)]
+            #[allow(unused_variables, clippy::identity_op, clippy::if_same_then_else)]
             fn set_memory(&mut self, address: u16, value: u8) {
                 #set_memory_body
             }
@@ -1067,7 +1065,6 @@ fn generate_memory_map_from_mapping(
             }
         }
     )
-    .into()
 }
 
 fn generate_memory_map(
@@ -1125,11 +1122,10 @@ fn game_pak_title(path: &Path) -> String {
     let title_slice = &rom[TITLE];
     let title_end = title_slice
         .iter()
-        .position(|&c| c == '\0' as u8)
+        .position(|&c| c == b'\0')
         .unwrap_or(title_slice.len());
     let title: &str = str::from_utf8(&title_slice[..title_end])
-        .expect(&format!("Malformed title {:?}", title_slice))
-        .into();
+        .unwrap_or_else(|_| panic!("Malformed title {:?}", title_slice));
     title.into()
 }
 
@@ -1181,7 +1177,7 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
 
             let stem = expectation_path.file_stem().unwrap().to_str().unwrap();
 
-            let mut stem_parts = stem.split("_");
+            let mut stem_parts = stem.split('_');
             let ticks: u64 = stem_parts.next().unwrap().parse().unwrap();
             let replay = stem_parts
                 .next()

@@ -102,9 +102,9 @@ struct MemoryBankController0 {
     banks: Vec<RomBank>,
 }
 
-impl Into<MemoryBankController> for MemoryBankController0 {
-    fn into(self) -> MemoryBankController {
-        MemoryBankController::Zero(self)
+impl From<MemoryBankController0> for MemoryBankController {
+    fn from(c: MemoryBankController0) -> Self {
+        Self::Zero(c)
     }
 }
 
@@ -224,9 +224,9 @@ struct MemoryBankController1 {
     ram: CartridgeRam,
 }
 
-impl Into<MemoryBankController> for MemoryBankController1 {
-    fn into(self) -> MemoryBankController {
-        MemoryBankController::One(self)
+impl From<MemoryBankController1> for MemoryBankController {
+    fn from(c: MemoryBankController1) -> Self {
+        Self::One(c)
     }
 }
 
@@ -324,9 +324,9 @@ struct MemoryBankController3 {
     clock_ram_select: ClockOrRam,
 }
 
-impl Into<MemoryBankController> for MemoryBankController3 {
-    fn into(self) -> MemoryBankController {
-        MemoryBankController::Three(self)
+impl From<MemoryBankController3> for MemoryBankController {
+    fn from(c: MemoryBankController3) -> Self {
+        Self::Three(c)
     }
 }
 
@@ -438,9 +438,9 @@ impl fmt::Debug for InternalRam {
 #[derive(Serialize, Deserialize)]
 struct VolatileInternalRam(MemoryChunk);
 
-impl Into<InternalRam> for VolatileInternalRam {
-    fn into(self) -> InternalRam {
-        InternalRam::Volatile(self)
+impl From<VolatileInternalRam> for InternalRam {
+    fn from(c: VolatileInternalRam) -> Self {
+        Self::Volatile(c)
     }
 }
 
@@ -469,9 +469,9 @@ impl fmt::Debug for VolatileInternalRam {
 #[derive(Serialize, Deserialize)]
 struct NonVolatileInternalRam(SramChunk);
 
-impl Into<InternalRam> for NonVolatileInternalRam {
-    fn into(self) -> InternalRam {
-        InternalRam::NonVolatile(self)
+impl From<NonVolatileInternalRam> for InternalRam {
+    fn from(c: NonVolatileInternalRam) -> Self {
+        Self::NonVolatile(c)
     }
 }
 
@@ -515,9 +515,9 @@ struct MemoryBankController2 {
     switchable_bank: SwitchableBank<RomBank>,
 }
 
-impl Into<MemoryBankController> for MemoryBankController2 {
-    fn into(self) -> MemoryBankController {
-        MemoryBankController::Two(self)
+impl From<MemoryBankController2> for MemoryBankController {
+    fn from(c: MemoryBankController2) -> Self {
+        Self::Two(c)
     }
 }
 
@@ -574,11 +574,9 @@ impl MemoryMappedBank for MemoryBankController2 {
                 self.rom_bank_number = (value & 0x0F) as usize;
                 self.update_rom_bank();
             }
-        } else if address >= 0xA000 && address < 0xA200 {
-            if self.ram_enable {
-                self.internal_ram
-                    .set_bank_value(ops, address - 0xA000, value);
-            }
+        } else if (0xA000..0xA200).contains(&address) && self.ram_enable {
+            self.internal_ram
+                .set_bank_value(ops, address - 0xA000, value);
         }
     }
 }
@@ -588,9 +586,9 @@ struct MemoryBankController5 {
     inner: MemoryBankController1,
 }
 
-impl Into<MemoryBankController> for MemoryBankController5 {
-    fn into(self) -> MemoryBankController {
-        MemoryBankController::Five(self)
+impl From<MemoryBankController5> for MemoryBankController {
+    fn from(c: MemoryBankController5) -> Self {
+        Self::Five(c)
     }
 }
 
@@ -687,9 +685,8 @@ impl MemoryMappedBank for CartridgeRam {
 
 impl CartridgeRam {
     fn switch_bank(&mut self, bank: usize) {
-        match self {
-            Self::Volatile(r) => r.switch_bank(bank),
-            _ => (),
+        if let Self::Volatile(r) = self {
+            r.switch_bank(bank);
         }
     }
 }
@@ -697,9 +694,9 @@ impl CartridgeRam {
 #[derive(Clone, Serialize, Deserialize)]
 struct NoRam;
 
-impl Into<CartridgeRam> for NoRam {
-    fn into(self) -> CartridgeRam {
-        CartridgeRam::No(self)
+impl From<NoRam> for CartridgeRam {
+    fn from(c: NoRam) -> Self {
+        Self::No(c)
     }
 }
 
@@ -721,9 +718,9 @@ struct VolatileRam {
     switchable_bank: SwitchableBank<MemoryChunk>,
 }
 
-impl Into<CartridgeRam> for VolatileRam {
-    fn into(self) -> CartridgeRam {
-        CartridgeRam::Volatile(self)
+impl From<VolatileRam> for CartridgeRam {
+    fn from(c: VolatileRam) -> Self {
+        Self::Volatile(c)
     }
 }
 
@@ -794,9 +791,9 @@ impl MemoryMappedBank for SramChunk {
 #[derive(Default, Serialize, Deserialize)]
 struct NonVolatileRam(SwitchableBank<SramChunk>);
 
-impl Into<CartridgeRam> for NonVolatileRam {
-    fn into(self) -> CartridgeRam {
-        CartridgeRam::NonVolatile(self)
+impl From<NonVolatileRam> for CartridgeRam {
+    fn from(c: NonVolatileRam) -> Self {
+        Self::NonVolatile(c)
     }
 }
 
@@ -990,10 +987,10 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
         let title_slice = &rom[TITLE];
         let title_end = title_slice
             .iter()
-            .position(|&c| c == '\0' as u8)
+            .position(|&c| c == b'\0')
             .unwrap_or(title_slice.len());
         let title = str::from_utf8(&title_slice[..title_end])
-            .expect(&format!("Malformed title {:?}", title_slice))
+            .unwrap_or_else(|_| panic!("Malformed title {:?}", title_slice))
             .into();
 
         let mut sram_file = None;
@@ -1041,9 +1038,9 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
 
         let ram_descr = RamDescription::from_bytes(rom[RAM_SIZE_ADDRESS], rom[MBC_TYPE_ADDRESS]);
         let vram = || VolatileRam::new(ram_descr.into_ram());
-        let viram = || VolatileInternalRam::new();
-        let nvram = |sram| NonVolatileRam::new(sram);
-        let nviram = |sram| NonVolatileInternalRam::new(sram);
+        let viram = VolatileInternalRam::new;
+        let nvram = NonVolatileRam::new;
+        let nviram = NonVolatileInternalRam::new;
 
         let mbc: MemoryBankController = match rom[MBC_TYPE_ADDRESS] {
             0x00 => MemoryBankController0::new(rom_banks).into(),

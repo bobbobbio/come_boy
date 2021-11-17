@@ -54,7 +54,7 @@ impl<R: Renderer, S: SoundStream, P: PersistentStorage> DebuggerOps for GameBoyD
             .read_memory(address)
     }
 
-    fn format<'b>(&self, s: &'b mut dyn io::Write) -> Result<()> {
+    fn format(&self, s: &mut dyn io::Write) -> Result<()> {
         write!(s, "{:?}", &self.emulator)
     }
 

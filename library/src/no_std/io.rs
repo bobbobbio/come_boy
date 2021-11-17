@@ -89,12 +89,10 @@ impl<R: Read> core::iter::Iterator for Bytes<R> {
 
     fn next(&mut self) -> Option<Result<u8>> {
         let mut byte = 0;
-        loop {
-            return match self.inner.read(core::slice::from_mut(&mut byte)) {
-                Ok(0) => None,
-                Ok(..) => Some(Ok(byte)),
-                Err(e) => Some(Err(e)),
-            };
+        match self.inner.read(core::slice::from_mut(&mut byte)) {
+            Ok(0) => None,
+            Ok(..) => Some(Ok(byte)),
+            Err(e) => Some(Err(e)),
         }
     }
 }
