@@ -405,6 +405,7 @@ impl LcdObject {
         }
     }
 
+    #[inline(always)]
     fn draw_line(
         &self,
         line: &mut ScanLine,
@@ -493,6 +494,7 @@ impl<'a> LcdDotData<'a> {
         }
     }
 
+    #[inline(always)]
     #[allow(clippy::too_many_arguments)]
     fn draw_line(
         &self,
