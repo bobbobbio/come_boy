@@ -772,10 +772,8 @@ impl LcdController {
         assert!(tile_y >= 0);
 
         let start_index = tile_y as usize * CHARACTER_AREA_SIZE as usize;
-        let iter = (&bg_data_slice[start_index..])
-            .iter()
-            .take(CHARACTER_AREA_SIZE as usize)
-            .enumerate();
+        let end_index = start_index + CHARACTER_AREA_SIZE as usize;
+        let iter = (&bg_data_slice[start_index..end_index]).iter().enumerate();
 
         for (tile_x, character_code) in iter {
             let character_data = Self::read_dot_data(
