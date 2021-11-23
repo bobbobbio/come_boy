@@ -40,13 +40,27 @@ pub trait MemoryAccessor {
     fn describe_address(&self, address: u16) -> MemoryDescription;
 }
 
-pub struct MemoryStream<'a> {
-    memory_accessor: &'a dyn MemoryAccessor,
+impl MemoryAccessor for &dyn MemoryAccessor {
+    fn read_memory(&self, address: u16) -> u8 {
+        (*self).read_memory(address)
+    }
+
+    fn set_memory(&mut self, _address: u16, _value: u8) {
+        panic!()
+    }
+
+    fn describe_address(&self, address: u16) -> MemoryDescription {
+        (*self).describe_address(address)
+    }
+}
+
+pub struct MemoryStream<'a, M> {
+    memory_accessor: &'a M,
     index: u16,
 }
 
-impl<'a> MemoryStream<'a> {
-    pub fn new(memory_accessor: &'a dyn MemoryAccessor, index: u16) -> MemoryStream<'a> {
+impl<'a, M> MemoryStream<'a, M> {
+    pub fn new(memory_accessor: &'a M, index: u16) -> Self {
         Self {
             memory_accessor,
             index,
@@ -54,7 +68,7 @@ impl<'a> MemoryStream<'a> {
     }
 }
 
-impl<'a> io::Read for MemoryStream<'a> {
+impl<'a, M: MemoryAccessor> io::Read for MemoryStream<'a, M> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         for (i, item) in buf.iter_mut().enumerate() {
             *item = self.memory_accessor.read_memory(self.index + (i as u16));
@@ -280,7 +294,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let printed;
         {
             let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
-            let stream = MemoryStream::new(self.memory_accessor, self.index);
+            let stream = MemoryStream::new(&self.memory_accessor, self.index);
             printed = match opcode_printer.get_instruction(stream)? {
                 Some(res) => {
                     for i in 0..res.size() {
