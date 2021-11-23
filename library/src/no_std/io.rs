@@ -184,6 +184,7 @@ impl Write for Vec<u8> {
 }
 
 impl Read for &[u8] {
+    #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let amt = cmp::min(buf.len(), self.len());
         let (a, b) = self.split_at(amt);
@@ -198,6 +199,7 @@ impl Read for &[u8] {
         Ok(amt)
     }
 
+    #[inline(always)]
     fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
         if buf.len() > self.len() {
             return Err(Error::UnexpectedEof("failed to fill whole buffer".into()));
@@ -212,6 +214,14 @@ impl Read for &[u8] {
 
         *self = b;
         Ok(())
+    }
+
+    #[inline(always)]
+    fn read_to_end(&mut self, buf: &mut Vec<u8>) -> Result<usize> {
+        buf.extend_from_slice(*self);
+        let len = self.len();
+        *self = &self[len..];
+        Ok(len)
     }
 }
 
