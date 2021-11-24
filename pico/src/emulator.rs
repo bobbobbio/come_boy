@@ -7,7 +7,7 @@ use come_boy::game_boy_emulator::{GameBoyEmulator, GameBoyOps};
 use come_boy::sound::NullSoundStream;
 use come_boy::storage::PanicStorage;
 
-const ROM: &'static [u8] = include_bytes!("../rom.bin");
+const ROM: &[u8] = include_bytes!("../rom.bin");
 
 pub struct Emulator {
     game_boy: GameBoyEmulator,

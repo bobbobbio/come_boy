@@ -26,4 +26,4 @@ popd
 
 ./pico/build.sh
 
-cargo clippy
+cargo clippy -- --deny "warnings"
