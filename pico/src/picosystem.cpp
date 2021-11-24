@@ -16,18 +16,6 @@ extern "C" {
   }
 
   void
-  hline(int x, int y, int l)
-  {
-      picosystem::hline(x, y, l);
-  }
-
-  void
-  vline(int x, int y, int l)
-  {
-      picosystem::vline(x, y, l);
-  }
-
-  void
   clear(void)
   {
       picosystem::clear();
@@ -38,12 +26,6 @@ extern "C" {
   {
       std::string msg(c);
       picosystem::text(msg, x, y, 240);
-  }
-
-  void
-  pixel(int x, int y)
-  {
-      picosystem::pixel(x, y);
   }
 
   void

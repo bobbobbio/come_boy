@@ -2,9 +2,12 @@
 
 use crate::graphics::Graphics;
 use crate::joypad::PicoJoyPad;
+use come_boy::game_boy_emulator::GamePak;
 use come_boy::game_boy_emulator::{GameBoyEmulator, GameBoyOps};
 use come_boy::sound::NullSoundStream;
 use come_boy::storage::PanicStorage;
+
+const ROM: &'static [u8] = include_bytes!("../rom.bin");
 
 pub struct Emulator {
     game_boy: GameBoyEmulator,
@@ -16,13 +19,8 @@ impl Emulator {
         let mut ops = GameBoyOps::new(Graphics::new(), NullSoundStream, PanicStorage);
         ops.renderer.blend_copy();
 
-        /*
-         * uncomment to load ROM
-        use come_boy::game_boy_emulator::GamePak;
-        const ROM: &'static [u8] = include_bytes!("../../library/test/roms/tetris.gb");
         let game_pak = GamePak::new(ROM, &mut ops.storage, None).unwrap();
         ops.load_game_pak(game_pak);
-        */
 
         ops.plug_in_joy_pad(PicoJoyPad::new());
 

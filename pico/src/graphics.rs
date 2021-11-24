@@ -68,16 +68,6 @@ impl Graphics {
         unsafe { picosystem::clear() };
     }
 
-    #[inline(always)]
-    pub fn hline(&self, x: i32, y: i32, l: i32) {
-        unsafe { picosystem::hline(x, y, l) }
-    }
-
-    #[inline(always)]
-    pub fn pixel(&self, x: i32, y: i32) {
-        unsafe { picosystem::pixel(x, y) }
-    }
-
     pub fn text(&self, msg: &str) {
         assert!(msg.is_ascii());
 

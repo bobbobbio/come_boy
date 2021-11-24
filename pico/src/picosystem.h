@@ -11,16 +11,7 @@ void
 clear(void);
 
 void
-hline(int x, int y, int l);
-
-void
-vline(int x, int y, int l);
-
-void
 text(const char *c, int x, int y);
-
-void
-pixel(int x, int y);
 
 void
 wait_vsync(void);
