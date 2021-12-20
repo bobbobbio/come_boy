@@ -7,7 +7,7 @@ use crate::game_boy_emulator::memory_controller::{
 };
 use crate::sound::SoundStream;
 use crate::util::Scheduler;
-use alloc::vec;
+use alloc::vec::Vec;
 use channel1::Channel1;
 use channel2::Channel2;
 use channel3::Channel3;
@@ -179,6 +179,9 @@ pub struct SoundController {
     output_terminal: GameBoyRegister,
     scheduler: Scheduler<SoundControllerEvent>,
     enabled: bool,
+
+    #[serde(skip)]
+    mixer_buffer: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
@@ -296,13 +299,14 @@ impl SoundController {
         let elong = ((sample_rate_hz / freq_hz) as usize) * num_channels as usize;
 
         let waveform = self.channel1.channel.waveform();
-        let mut sample = vec![0.0; 8 * elong];
-        for (i, item) in sample.iter_mut().enumerate() {
+        self.mixer_buffer.resize(8 * elong, 0.0);
+        for (i, item) in self.mixer_buffer.iter_mut().enumerate() {
             *item = ((waveform >> (i / elong)) & 0x1) as f32;
         }
-        sound_stream.play_sample(&sample[..]);
+        sound_stream.play_sample(&self.mixer_buffer[..]);
 
         let period = default_clock_speed_hz() / freq_hz;
+
         self.scheduler
             .schedule(now + period as u64, SoundControllerEvent::MixerTick);
     }
