@@ -990,7 +990,7 @@ fn generate_memory_map_from_mapping(
     mapping: &BTreeMap<AddressRange, MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
-    let name: Ident = syn::Ident::new(&type_name.to_string(), Span::call_site());
+    let name: Ident = syn::Ident::new(type_name, Span::call_site());
 
     let expr: &Vec<(syn::Expr, MappingType)> = &mapping
         .iter()
@@ -1148,7 +1148,7 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
         let game_pak_title = game_pak_title(&rom_path);
         println!("Identified ROM as \"{}\"", game_pak_title);
 
-        let game_pak_title = game_pak_title.to_lowercase().replace(" ", "_");
+        let game_pak_title = game_pak_title.to_lowercase().replace(' ', "_");
         let expectations_path: std::path::PathBuf =
             format!("{}/{}/", expectations_path, game_pak_title).into();
         println!(
