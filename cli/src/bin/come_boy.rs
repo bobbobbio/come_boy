@@ -4,7 +4,7 @@ use bin_common::backend::BackendMap;
 use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
-use come_boy::sound::SoundStream;
+use come_boy::sound::{NullSoundStream, SoundStream};
 use come_boy::storage::fs::Fs;
 use std::fs::File;
 use std::io::Read;
@@ -16,22 +16,27 @@ mod bin_common;
 
 struct Frontend {
     fs: Fs,
+    disable_sound: bool,
     game_pak: GamePak<Fs>,
     save_state: Option<Vec<u8>>,
 }
 
 impl Frontend {
-    fn new(fs: Fs, game_pak: GamePak<Fs>, save_state: Option<Vec<u8>>) -> Self {
+    fn new(
+        fs: Fs,
+        disable_sound: bool,
+        game_pak: GamePak<Fs>,
+        save_state: Option<Vec<u8>>,
+    ) -> Self {
         Self {
             fs,
+            disable_sound,
             game_pak,
             save_state,
         }
     }
-}
 
-impl bin_common::frontend::Frontend for Frontend {
-    fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
+    fn run_inner(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         game_boy_emulator::run_emulator(
             renderer,
             sound_stream,
@@ -40,6 +45,16 @@ impl bin_common::frontend::Frontend for Frontend {
             self.save_state,
         )
         .unwrap();
+    }
+}
+
+impl bin_common::frontend::Frontend for Frontend {
+    fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
+        if self.disable_sound {
+            self.run_inner(renderer, &mut NullSoundStream);
+        } else {
+            self.run_inner(renderer, sound_stream);
+        }
     }
 }
 
@@ -57,6 +72,9 @@ struct Options {
 
     #[structopt(long = "save-state", parse(from_os_str))]
     save_state: Option<PathBuf>,
+
+    #[structopt(long = "disable-sound")]
+    disable_sound: bool,
 }
 
 fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
@@ -81,7 +99,8 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let backend_map = BackendMap::new(rendering_options, Frontend::new(fs, game_pak, save_state));
+    let front_end = Frontend::new(fs, options.disable_sound, game_pak, save_state);
+    let backend_map = BackendMap::new(rendering_options, front_end);
     backend_map.run(&options.renderer)?;
     Ok(())
 }
