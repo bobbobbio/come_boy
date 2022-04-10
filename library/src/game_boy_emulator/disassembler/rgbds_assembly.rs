@@ -17,7 +17,7 @@ pub struct RGBDSInstructionPrinterFactory;
 
 impl<'a> InstructionPrinterFactory<'a> for RGBDSInstructionPrinterFactory {
     type Output = RGBDSInstructionPrinter<'a>;
-    fn new(&self, stream_out: &'a mut dyn io::Write) -> RGBDSInstructionPrinter<'a> {
+    fn create(&self, stream_out: &'a mut dyn io::Write) -> RGBDSInstructionPrinter<'a> {
         RGBDSInstructionPrinter {
             stream_out,
             error: Ok(()),

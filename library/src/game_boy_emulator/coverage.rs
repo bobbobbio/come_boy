@@ -52,7 +52,7 @@ pub fn display(rom: &[u8], input: impl io::Read, mut output: impl io::Write) -> 
     )?;
 
     while index < rom.len() as u16 {
-        let count = data.address_to_count.get(&index).map(|v| *v).unwrap_or(0);
+        let count = data.address_to_count.get(&index).copied().unwrap_or(0);
         write!(&mut output, "{:010} times ", count)?;
 
         let mut disassembler = disassembler::create_disassembler(&ma, &mut output);

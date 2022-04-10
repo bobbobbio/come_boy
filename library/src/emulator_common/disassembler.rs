@@ -164,7 +164,7 @@ pub trait InstructionPrinter<'a> {
 
 pub trait InstructionPrinterFactory<'a> {
     type Output: InstructionPrinter<'a>;
-    fn new(&self, _: &'a mut dyn io::Write) -> Self::Output;
+    fn create(&self, _: &'a mut dyn io::Write) -> Self::Output;
 }
 
 /*  ____  _                                  _     _
@@ -293,7 +293,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let mut instr = vec![];
         let printed;
         {
-            let mut opcode_printer = self.opcode_printer_factory.new(&mut printed_instr);
+            let mut opcode_printer = self.opcode_printer_factory.create(&mut printed_instr);
             let stream = MemoryStream::new(&self.memory_accessor, self.index);
             printed = match opcode_printer.get_instruction(stream)? {
                 Some(res) => {
@@ -398,7 +398,7 @@ struct TestInstructionPrinterFactory;
 #[cfg(test)]
 impl<'a> InstructionPrinterFactory<'a> for TestInstructionPrinterFactory {
     type Output = TestInstructionPrinter<'a>;
-    fn new(&self, stream_out: &'a mut dyn io::Write) -> TestInstructionPrinter<'a> {
+    fn create(&self, stream_out: &'a mut dyn io::Write) -> TestInstructionPrinter<'a> {
         return TestInstructionPrinter {
             stream_out: stream_out,
         };
