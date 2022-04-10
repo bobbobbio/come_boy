@@ -169,6 +169,15 @@ enum SoundControllerEvent {
     MixerTick,
 }
 
+#[derive(Default)]
+struct MixerBuffer(Vec<f32>);
+
+impl fmt::Debug for MixerBuffer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "MixerBuffer")
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct SoundController {
     channel1: ChannelController<Channel1>,
@@ -181,7 +190,7 @@ pub struct SoundController {
     enabled: bool,
 
     #[serde(skip)]
-    mixer_buffer: Vec<f32>,
+    mixer_buffer: MixerBuffer,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
@@ -299,11 +308,11 @@ impl SoundController {
         let elong = ((sample_rate_hz / freq_hz) as usize) * num_channels as usize;
 
         let waveform = self.channel1.channel.waveform();
-        self.mixer_buffer.resize(8 * elong, 0.0);
-        for (i, item) in self.mixer_buffer.iter_mut().enumerate() {
+        self.mixer_buffer.0.resize(8 * elong, 0.0);
+        for (i, item) in self.mixer_buffer.0.iter_mut().enumerate() {
             *item = ((waveform >> (i / elong)) & 0x1) as f32;
         }
-        sound_stream.play_sample(&self.mixer_buffer[..]);
+        sound_stream.play_sample(&self.mixer_buffer.0[..]);
 
         let period = default_clock_speed_hz() / freq_hz;
 

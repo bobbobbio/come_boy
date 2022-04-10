@@ -16,6 +16,7 @@ pub mod bitmap;
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum Keycode {
     Down,
+    Escape,
     F2,
     F3,
     F4,

@@ -28,6 +28,7 @@ pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 pub use self::underclocker::*;
 
+mod coverage;
 mod debugger;
 mod disassembler;
 mod game_pak;
@@ -69,6 +70,7 @@ impl ModuloCounter {
 
 #[derive(Debug)]
 pub enum Error {
+    Coverage(coverage::Error),
     Io(io::Error),
     Replay(joypad::replay::Error),
     Serde(crate::codec::Error),
@@ -85,6 +87,12 @@ impl From<io::Error> for Error {
 impl From<joypad::replay::Error> for Error {
     fn from(e: joypad::replay::Error) -> Self {
         Self::Replay(e)
+    }
+}
+
+impl From<coverage::Error> for Error {
+    fn from(e: coverage::Error) -> Self {
+        Self::Coverage(e)
     }
 }
 
@@ -622,7 +630,7 @@ impl GameBoyEmulator {
 
         for event in ops.renderer.poll_events() {
             match event {
-                Event::Quit { .. } => {
+                Event::Quit { .. } | Event::KeyDown(Keycode::Escape) => {
                     return Err(UserControl::ScreenClosed);
                 }
                 Event::KeyDown(Keycode::F2) => {

@@ -54,7 +54,8 @@ ARGS:
 
 For input, keyboard or controller are supported.
 
-Keyboard controls are arrow keys, Z, X, tab, and enter.
+Keyboard controls are arrow keys, Z, X, tab, and enter. Escape makes the
+emulator exit.
 
 Limited save-state functionality. F2 to save a state, and F3 to load a state.
 Save states are stored in the current-working-directory as `save_state.bin`

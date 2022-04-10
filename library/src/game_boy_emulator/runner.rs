@@ -5,12 +5,17 @@ impl GameBoyEmulator {
     fn run_inner(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        observer: &mut impl FnMut(&Self),
     ) -> core::result::Result<(), UserControl> {
         let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, ops.clock_speed_hz);
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 
+        observer(self);
+
         while self.crashed().is_none() {
             self.tick(ops);
+
+            observer(self);
 
             // We can't do this every tick because it is too slow. So instead so only every so
             // often.
@@ -29,12 +34,13 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    pub(crate) fn run(
+    pub(crate) fn run_with_observer(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        mut observer: impl FnMut(&Self),
     ) {
         loop {
-            let res = self.run_inner(ops);
+            let res = self.run_inner(ops, &mut observer);
             match res {
                 Err(UserControl::SaveStateLoaded) => {
                     if let Err(e) = self.load_state_from_storage(ops) {
@@ -45,5 +51,12 @@ impl GameBoyEmulator {
                 _ => break,
             }
         }
+    }
+
+    pub(crate) fn run(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) {
+        self.run_with_observer(ops, |_| {})
     }
 }

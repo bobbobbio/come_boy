@@ -1,5 +1,6 @@
 // copyright 2021 Remi Bernotavicius
 
+use super::coverage::{self, CoverageData};
 pub use super::debugger::run_debugger;
 use super::joypad::{PlaybackJoyPad, RecordingJoyPad};
 use super::{
@@ -133,4 +134,32 @@ pub fn playback_replay<Storage: PersistentStorage + 'static>(
 
 pub fn print_replay(r: impl io::Read) -> Result<String> {
     Ok(joypad::replay::print(r)?)
+}
+
+pub fn run_with_coverage<Storage: PersistentStorage + 'static>(
+    storage: Storage,
+    renderer: impl Renderer,
+    sound_stream: impl SoundStream,
+    game_pak: GamePak<Storage>,
+    output_key: &str,
+) -> Result<()> {
+    let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
+    ops.plug_in_joy_pad(ControllerJoyPad::new());
+    ops.load_game_pak(game_pak);
+
+    let mut e = GameBoyEmulator::new();
+
+    let mut coverage_data = CoverageData::new();
+
+    e.run_with_observer(&mut ops, |e| coverage_data.sample(e));
+
+    log::info!("Writing coverage data to {:?}", output_key);
+    let mut output_file = ops.storage.open(OpenMode::Write, output_key)?;
+    crate::codec::serialize_into(&mut output_file, &coverage_data)?;
+
+    Ok(())
+}
+
+pub fn display_coverage(rom: &[u8], input: impl io::Read, output: impl io::Write) -> Result<()> {
+    Ok(coverage::display(rom, input, output)?)
 }

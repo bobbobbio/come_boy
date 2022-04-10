@@ -62,6 +62,7 @@ impl SpeedyWindowHandler {
 fn keycode_translate(keycode: VirtualKeyCode) -> Keycode {
     match keycode {
         VirtualKeyCode::Down => Keycode::Down,
+        VirtualKeyCode::Escape => Keycode::Escape,
         VirtualKeyCode::Left => Keycode::Left,
         VirtualKeyCode::Return => Keycode::Return,
         VirtualKeyCode::Right => Keycode::Right,
@@ -142,7 +143,10 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
     };
 
     crossbeam::scope(|scope| {
-        scope.spawn(|_| body(&mut renderer));
+        scope.spawn(|_| {
+            body(&mut renderer);
+            std::process::exit(0);
+        });
         window.run_loop(handler)
     })
     .unwrap()

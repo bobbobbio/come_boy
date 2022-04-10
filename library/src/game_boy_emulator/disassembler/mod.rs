@@ -14,12 +14,12 @@ pub fn create_disassembler<'a>(
     Disassembler::new(memory_accessor, RGBDSInstructionPrinterFactory, stream_out)
 }
 
-struct ROMAccessor<'a> {
+pub struct ROMAccessor<'a> {
     rom: &'a [u8],
 }
 
 impl<'a> ROMAccessor<'a> {
-    fn new(rom: &'a [u8]) -> ROMAccessor<'a> {
+    pub fn new(rom: &'a [u8]) -> ROMAccessor<'a> {
         // XXX: Can't yet disassemble things bigger than this.
         assert!(rom.len() < 0xFFFF);
 

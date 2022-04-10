@@ -9,6 +9,7 @@ impl From<sdl2::keyboard::Keycode> for Keycode {
         use sdl2::keyboard::Keycode::*;
         match keycode {
             Down => Self::Down,
+            Escape => Self::Escape,
             Left => Self::Left,
             Return => Self::Return,
             Right => Self::Right,

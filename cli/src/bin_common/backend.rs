@@ -98,6 +98,7 @@ mod speedy2d {
             speedy::run_loop(rendering_options, move |renderer| {
                 let mut sound_stream = CpalSoundStream::new();
                 frontend.run(renderer, &mut sound_stream);
+                log::info!("Exiting...");
             })
         }
     }
@@ -117,6 +118,7 @@ mod sdl2 {
             let mut sound_stream = CpalSoundStream::new();
             let mut renderer = Sdl2WindowRenderer::new(rendering_options);
             frontend.run(&mut renderer, &mut sound_stream);
+            log::info!("Exiting...");
             std::process::exit(0)
         }
     }
