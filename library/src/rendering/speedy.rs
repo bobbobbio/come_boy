@@ -41,6 +41,7 @@ struct SpeedyWindowHandler {
     height: usize,
     scale: usize,
     events: Sender<Event>,
+    done: Receiver<()>,
 }
 
 impl SpeedyWindowHandler {
@@ -62,7 +63,6 @@ impl SpeedyWindowHandler {
 fn keycode_translate(keycode: VirtualKeyCode) -> Keycode {
     match keycode {
         VirtualKeyCode::Down => Keycode::Down,
-        VirtualKeyCode::Escape => Keycode::Escape,
         VirtualKeyCode::Left => Keycode::Left,
         VirtualKeyCode::Return => Keycode::Return,
         VirtualKeyCode::Right => Keycode::Right,
@@ -108,6 +108,19 @@ impl WindowHandler for SpeedyWindowHandler {
     }
 }
 
+impl Drop for SpeedyWindowHandler {
+    fn drop(&mut self) {
+        self.events.send(Event::Quit).unwrap();
+        self.done.recv().unwrap();
+    }
+}
+
+impl Drop for SpeedyRenderer {
+    fn drop(&mut self) {
+        self.done.send(()).unwrap();
+    }
+}
+
 pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions, body: F) -> ! {
     let RenderingOptions {
         window_title,
@@ -124,14 +137,16 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
         buffer: Arc::new(Mutex::new(base_buffer.clone())),
     };
 
-    let (sender, receiver) = channel();
+    let (events_input, events_output) = channel();
+    let (done_input, done_output) = channel();
 
     let mut renderer = SpeedyRenderer {
         screen_buffer: screen_buffer.clone(),
         back_buffer: base_buffer,
         width: width as usize,
         height: height as usize,
-        events: receiver,
+        events: events_output,
+        done: done_input,
     };
 
     let handler = SpeedyWindowHandler {
@@ -139,13 +154,14 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
         width: width as usize,
         height: height as usize,
         scale: scale as usize,
-        events: sender,
+        events: events_input,
+        done: done_output,
     };
 
     crossbeam::scope(|scope| {
-        scope.spawn(|_| {
+        scope.spawn(move |_| {
             body(&mut renderer);
-            std::process::exit(0);
+            drop(renderer);
         });
         window.run_loop(handler)
     })
@@ -164,6 +180,7 @@ pub struct SpeedyRenderer {
     width: usize,
     height: usize,
     events: Receiver<Event>,
+    done: Sender<()>,
 }
 
 impl Renderer for SpeedyRenderer {

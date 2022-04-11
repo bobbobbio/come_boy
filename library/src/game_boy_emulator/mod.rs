@@ -630,7 +630,7 @@ impl GameBoyEmulator {
 
         for event in ops.renderer.poll_events() {
             match event {
-                Event::Quit { .. } | Event::KeyDown(Keycode::Escape) => {
+                Event::Quit { .. } => {
                     return Err(UserControl::ScreenClosed);
                 }
                 Event::KeyDown(Keycode::F2) => {
