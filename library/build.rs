@@ -2,7 +2,7 @@
 
 #![recursion_limit = "128"]
 
-use heck::{CamelCase, SnakeCase};
+use heck::{ToPascalCase as _, ToSnakeCase as _};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use serde_derive::Deserialize;
@@ -330,7 +330,7 @@ impl Opcode {
         F: FnMut(String, Vec<OpcodeParameterType>) -> OpcodeFunction,
     {
         let description = on_disk.description.to_snake_case();
-        let camel_name = on_disk.description.to_camel_case();
+        let camel_name = on_disk.description.to_pascal_case();
         let enum_args: Vec<OpcodeArgument> =
             on_disk.args.iter().map(|e| e.parse().unwrap()).collect();
         let function = function_factory(
