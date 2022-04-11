@@ -9,7 +9,7 @@ use serde_derive::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt::{self, Display};
-use std::fs::File;
+use std::fs::{DirEntry, File};
 use std::io::Read;
 use std::io::Write;
 use std::num::ParseIntError;
@@ -1129,6 +1129,15 @@ fn game_pak_title(path: &Path) -> String {
     title.into()
 }
 
+fn stable_read_dir(path: impl AsRef<Path>) -> Vec<DirEntry> {
+    let mut entries = std::fs::read_dir(path)
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    entries.sort_by(|a, b| a.path().partial_cmp(&b.path()).unwrap());
+    entries
+}
+
 fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: &mut TokenStream) {
     let roms_path: std::path::PathBuf = rom_path.into();
     println!("Looking in {} for ROMs", roms_path.to_string_lossy());
@@ -1139,13 +1148,7 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
         return;
     }
 
-    let mut entries = std::fs::read_dir(roms_path)
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    entries.sort_by(|a, b| a.path().partial_cmp(&b.path()).unwrap());
-
-    for rom_entry in entries {
+    for rom_entry in stable_read_dir(roms_path) {
         let rom_path = rom_entry.path();
         println!("Found ROM {}", rom_path.to_string_lossy());
         println!("cargo:rerun-if-changed={}", rom_path.to_string_lossy());
@@ -1170,8 +1173,7 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
             continue;
         }
 
-        for expectation_entry in std::fs::read_dir(expectations_path).unwrap() {
-            let expectation_entry = expectation_entry.unwrap();
+        for expectation_entry in stable_read_dir(expectations_path) {
             let expectation_path = expectation_entry.path();
 
             if expectation_path.extension().unwrap_or_default() != "bmp" {
