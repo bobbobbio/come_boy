@@ -48,6 +48,8 @@ impl<F: Frontend> BackendMap<F> {
         #[cfg(feature = "sdl2-renderer")]
         map.add("sdl2", |m| m.run_backend(self::sdl2::Sdl2Backend));
 
+        map.add("null", |m| m.run_backend(self::null::NullBackend));
+
         map
     }
 
@@ -118,6 +120,48 @@ mod sdl2 {
             let mut sound_stream = CpalSoundStream::new();
             let mut renderer = Sdl2WindowRenderer::new(rendering_options);
             frontend.run(&mut renderer, &mut sound_stream);
+            log::info!("Exiting...");
+            std::process::exit(0)
+        }
+    }
+}
+
+mod null {
+    use super::{Backend, Frontend};
+    use come_boy::rendering::{Event, Renderer, RenderingOptions};
+    use come_boy::sound::NullSoundStream;
+    use std::io;
+    use std::sync::mpsc::{channel, Receiver};
+
+    pub struct NullRendererWithEvents(Receiver<Event>);
+
+    impl Renderer for NullRendererWithEvents {
+        type Color = ();
+
+        fn poll_events(&mut self) -> Vec<Event> {
+            self.0.try_recv().into_iter().collect()
+        }
+
+        fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn color_pixel(&mut self, _: i32, _: i32, _: Self::Color) {}
+        fn present(&mut self) {}
+    }
+
+    pub(super) struct NullBackend;
+
+    impl Backend for NullBackend {
+        fn run<F: Frontend>(&self, _rendering_options: RenderingOptions, frontend: F) -> ! {
+            log::info!("Using null renderer");
+
+            let (sender, recv) = channel();
+            ctrlc::set_handler(move || drop(sender.send(Event::Quit))).unwrap();
+
+            let mut renderer = NullRendererWithEvents(recv);
+            frontend.run(&mut renderer, &mut NullSoundStream);
+
             log::info!("Exiting...");
             std::process::exit(0)
         }
