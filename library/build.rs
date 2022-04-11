@@ -1139,8 +1139,13 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
         return;
     }
 
-    for rom_entry in std::fs::read_dir(roms_path).unwrap() {
-        let rom_entry = rom_entry.unwrap();
+    let mut entries = std::fs::read_dir(roms_path)
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    entries.sort_by(|a, b| a.path().partial_cmp(&b.path()).unwrap());
+
+    for rom_entry in entries {
         let rom_path = rom_entry.path();
         println!("Found ROM {}", rom_path.to_string_lossy());
         println!("cargo:rerun-if-changed={}", rom_path.to_string_lossy());
