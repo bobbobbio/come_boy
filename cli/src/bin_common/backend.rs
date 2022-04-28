@@ -72,6 +72,7 @@ impl<F: Frontend> BackendMap<F> {
             renderer_name = self
                 .map
                 .keys()
+                .filter(|n| &n[..] != "null")
                 .next()
                 .ok_or(Error::MissingRenderer)?
                 .clone();
