@@ -22,9 +22,9 @@ impl FromStr for InstructionSet {
             "GAMEBOY" => Ok(InstructionSet::GameBoy),
             "LR35902" => Ok(InstructionSet::LR35902),
             "INTEL8080" => Ok(InstructionSet::Intel8080),
-            _ => Err(clap::Error::with_description(
-                "invalid instruction-set",
+            _ => Err(clap::error::Error::raw(
                 clap::ErrorKind::InvalidValue,
+                "invalid instruction-set",
             )),
         }
     }
