@@ -18,10 +18,15 @@ pub fn run_emulator<Storage: PersistentStorage>(
     storage: Storage,
     game_pak: GamePak<Storage>,
     save_state: Option<Vec<u8>>,
+    unlock_cpu: bool,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
     ops.load_game_pak(game_pak);
     ops.plug_in_joy_pad(ControllerJoyPad::new());
+
+    if unlock_cpu {
+        ops.clock_speed_hz = u32::MAX;
+    }
 
     let mut e = GameBoyEmulator::new();
 

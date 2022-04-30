@@ -17,6 +17,7 @@ mod bin_common;
 struct Frontend {
     fs: Fs,
     disable_sound: bool,
+    unlock_cpu: bool,
     game_pak: GamePak<Fs>,
     save_state: Option<Vec<u8>>,
 }
@@ -25,12 +26,14 @@ impl Frontend {
     fn new(
         fs: Fs,
         disable_sound: bool,
+        unlock_cpu: bool,
         game_pak: GamePak<Fs>,
         save_state: Option<Vec<u8>>,
     ) -> Self {
         Self {
             fs,
             disable_sound,
+            unlock_cpu,
             game_pak,
             save_state,
         }
@@ -43,6 +46,7 @@ impl Frontend {
             self.fs,
             self.game_pak,
             self.save_state,
+            self.unlock_cpu,
         )
         .unwrap();
     }
@@ -75,6 +79,9 @@ struct Options {
 
     #[structopt(long = "disable-sound")]
     disable_sound: bool,
+
+    #[structopt(long = "unlock-cpu")]
+    unlock_cpu: bool,
 }
 
 fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
@@ -99,7 +106,13 @@ fn main() -> Result<()> {
         ..Default::default()
     };
 
-    let front_end = Frontend::new(fs, options.disable_sound, game_pak, save_state);
+    let front_end = Frontend::new(
+        fs,
+        options.disable_sound,
+        options.unlock_cpu,
+        game_pak,
+        save_state,
+    );
     let backend_map = BackendMap::new(rendering_options, front_end);
     backend_map.run(&options.renderer)?;
     Ok(())
