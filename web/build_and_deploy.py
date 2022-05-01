@@ -44,7 +44,7 @@ def build():
     sh('wasm-pack build --target web --release')
     cd('www')
     sh('npm install')
-    sh('..')
+    cd('..')
 
 def deploy(deploy_path):
     delete_contents(deploy_path)
