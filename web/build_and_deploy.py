@@ -6,6 +6,10 @@ import os
 import subprocess
 import sys
 
+def date():
+    env = { 'TZ': 'America/Los_Angeles' }
+    return subprocess.check_output(['date'], env=env).strip()
+
 def head_revision():
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
 
@@ -54,8 +58,9 @@ def deploy(deploy_path):
     install('www/*.js', deploy_path)
     install('www/src', deploy_path)
 
-    replace(
-        os.path.join(deploy_path, 'index.html'), '$REVISION', head_revision())
+    index_html = os.path.join(deploy_path, 'index.html')
+    replace(index_html, '$REVISION', head_revision())
+    replace(index_html, '$DATE', date())
 
 def main():
     parser = argparse.ArgumentParser()
