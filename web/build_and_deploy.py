@@ -42,6 +42,9 @@ def ensure_rust_updated():
 def build():
     cd('web')
     sh('wasm-pack build --target web --release')
+    cd('www')
+    sh('npm install')
+    sh('..')
 
 def deploy(deploy_path):
     delete_contents(deploy_path)
