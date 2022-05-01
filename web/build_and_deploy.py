@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import glob
@@ -8,10 +8,10 @@ import sys
 
 def date():
     env = { 'TZ': 'America/Los_Angeles' }
-    return subprocess.check_output(['date'], env=env).strip()
+    return subprocess.check_output(['date'], env=env).decode().strip()
 
 def head_revision():
-    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).strip()
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode().strip()
 
 def sh(script):
     subprocess.check_call(['bash', '-c', 'set -ex\n' + script])
@@ -20,7 +20,6 @@ def cd(path):
     os.chdir(path)
 
 def replace(path, needle, replacement):
-    print 'replace in {} "{}" with "{}"'.format(path, needle, replacement)
     with open(path) as f:
         contents = f.read()
         contents = contents.replace(needle, replacement)
