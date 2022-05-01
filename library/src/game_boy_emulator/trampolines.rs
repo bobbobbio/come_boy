@@ -19,6 +19,7 @@ pub fn run_emulator<Storage: PersistentStorage>(
     game_pak: GamePak<Storage>,
     save_state: Option<Vec<u8>>,
     unlock_cpu: bool,
+    run_until: Option<u64>,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
     ops.load_game_pak(game_pak);
@@ -32,6 +33,11 @@ pub fn run_emulator<Storage: PersistentStorage>(
 
     if let Some(save_state) = save_state {
         e.load_state(ops.game_pak.as_mut(), &save_state[..])?;
+    }
+
+    if let Some(ticks) = run_until {
+        run_emulator_until(&mut e, &mut ops, ticks);
+        return Ok(());
     }
 
     e.run(&mut ops);
@@ -63,6 +69,11 @@ pub(crate) fn run_emulator_until(
 
         e.tick(ops);
     }
+    log::info!(
+        "Ran Game Boy emulator until CPU clock was {} (which is >= {})",
+        e.cpu.elapsed_cycles,
+        ticks
+    );
 }
 
 fn run_emulator_until_and_take_screenshot(

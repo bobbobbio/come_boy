@@ -20,6 +20,7 @@ struct Frontend {
     unlock_cpu: bool,
     game_pak: GamePak<Fs>,
     save_state: Option<Vec<u8>>,
+    run_until: Option<u64>,
 }
 
 impl Frontend {
@@ -29,6 +30,7 @@ impl Frontend {
         unlock_cpu: bool,
         game_pak: GamePak<Fs>,
         save_state: Option<Vec<u8>>,
+        run_until: Option<u64>,
     ) -> Self {
         Self {
             fs,
@@ -36,6 +38,7 @@ impl Frontend {
             unlock_cpu,
             game_pak,
             save_state,
+            run_until,
         }
     }
 
@@ -47,6 +50,7 @@ impl Frontend {
             self.game_pak,
             self.save_state,
             self.unlock_cpu,
+            self.run_until,
         )
         .unwrap();
     }
@@ -82,6 +86,9 @@ struct Options {
 
     #[structopt(long = "unlock-cpu")]
     unlock_cpu: bool,
+
+    #[structopt(long = "run-until")]
+    run_until: Option<u64>,
 }
 
 fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
@@ -112,6 +119,7 @@ fn main() -> Result<()> {
         options.unlock_cpu,
         game_pak,
         save_state,
+        options.run_until,
     );
     let backend_map = BackendMap::new(rendering_options, front_end);
     backend_map.run(&options.renderer)?;
