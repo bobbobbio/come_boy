@@ -11,8 +11,8 @@ if [ "$CHANGES" != "" ]; then
     exit 1;
 fi;
 
-cargo build --all-features --release
-cargo build --release
+cargo build --all-features
+cargo build
 
 pushd library
 cargo build --no-default-features
