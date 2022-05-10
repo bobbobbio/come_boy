@@ -1,5 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
 use bin_common::backend::BackendMap;
 use bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
