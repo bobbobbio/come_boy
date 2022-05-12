@@ -197,7 +197,7 @@ impl ToTokens for OpcodeCode {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut hex_str: String = "0x".into();
         for code in &self.code {
-            hex_str += &format!("{:02X}", code);
+            write!(hex_str, "{:02X}", code);
         }
         tokens.extend(TokenStream::from_str(&hex_str));
     }
