@@ -8,7 +8,7 @@ use quote::{quote, ToTokens};
 use serde_derive::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
-use std::fmt::{self, Display};
+use std::fmt::{self, Display, Write as _};
 use std::fs::{DirEntry, File};
 use std::io::Read;
 use std::io::Write;
@@ -197,7 +197,7 @@ impl ToTokens for OpcodeCode {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut hex_str: String = "0x".into();
         for code in &self.code {
-            write!(hex_str, "{:02X}", code);
+            write!(hex_str, "{:02X}", code).unwrap();
         }
         tokens.extend(TokenStream::from_str(&hex_str));
     }
