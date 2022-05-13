@@ -19,6 +19,7 @@ mod bin_common;
 struct Frontend {
     fs: Fs,
     disable_sound: bool,
+    disable_joypad: bool,
     unlock_cpu: bool,
     game_pak: GamePak<Fs>,
     save_state: Option<Vec<u8>>,
@@ -29,6 +30,7 @@ impl Frontend {
     fn new(
         fs: Fs,
         disable_sound: bool,
+        disable_joypad: bool,
         unlock_cpu: bool,
         game_pak: GamePak<Fs>,
         save_state: Option<Vec<u8>>,
@@ -37,6 +39,7 @@ impl Frontend {
         Self {
             fs,
             disable_sound,
+            disable_joypad,
             unlock_cpu,
             game_pak,
             save_state,
@@ -52,6 +55,7 @@ impl Frontend {
             self.game_pak,
             self.save_state,
             self.unlock_cpu,
+            self.disable_joypad,
             self.run_until,
         )
         .unwrap();
@@ -86,6 +90,9 @@ struct Options {
     #[structopt(long = "disable-sound")]
     disable_sound: bool,
 
+    #[structopt(long = "disable-joypad")]
+    disable_joypad: bool,
+
     #[structopt(long = "unlock-cpu")]
     unlock_cpu: bool,
 
@@ -118,6 +125,7 @@ fn main() -> Result<()> {
     let front_end = Frontend::new(
         fs,
         options.disable_sound,
+        options.disable_joypad,
         options.unlock_cpu,
         game_pak,
         save_state,

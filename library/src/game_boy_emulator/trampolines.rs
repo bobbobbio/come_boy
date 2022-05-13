@@ -12,6 +12,7 @@ use crate::sound::{NullSoundStream, SoundStream};
 use crate::storage::{OpenMode, PersistentStorage};
 use alloc::{string::String, vec::Vec};
 
+#[allow(clippy::too_many_arguments)]
 pub fn run_emulator<Storage: PersistentStorage>(
     renderer: impl Renderer,
     sound_stream: impl SoundStream,
@@ -19,11 +20,15 @@ pub fn run_emulator<Storage: PersistentStorage>(
     game_pak: GamePak<Storage>,
     save_state: Option<Vec<u8>>,
     unlock_cpu: bool,
+    disable_joypad: bool,
     run_until: Option<u64>,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
     ops.load_game_pak(game_pak);
-    ops.plug_in_joy_pad(ControllerJoyPad::new());
+
+    if !disable_joypad {
+        ops.plug_in_joy_pad(ControllerJoyPad::new());
+    }
 
     if unlock_cpu {
         ops.clock_speed_hz = u32::MAX;

@@ -24,6 +24,8 @@ def perf_record(tmp_dir, rom_path, ticks):
         'target/release/come_boy',
         rom_path,
         '--renderer', 'null',
+        '--disable-sound',
+        '--disable-joypad',
         '--unlock-cpu',
         '--run-until', str(ticks)
     ]
