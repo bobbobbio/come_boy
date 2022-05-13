@@ -1,0 +1,17 @@
+#!/bin/bash
+
+sudo apt-get install --yes \
+    libasound2-dev \
+    libudev-dev \
+    llvm-dev \
+    libclang-dev \
+    clang \
+    libsdl2-dev \
+    gcc-arm-none-eabi \
+    wget
+
+library/download_test_roms
+
+if ! which wasm-pack; then
+    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+fi
