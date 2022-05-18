@@ -22,6 +22,11 @@ cargo test --release
 
 pushd web
 wasm-pack build
+
+pushd www
+npm run build
+popd
+
 popd
 
 ./pico/build.sh
