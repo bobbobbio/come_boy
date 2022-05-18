@@ -1,13 +1,14 @@
 #!/bin/bash
 
 sudo apt-get install --yes \
+    clang \
+    gcc-arm-none-eabi \
     libasound2-dev \
+    libclang-dev \
+    libsdl2-dev \
     libudev-dev \
     llvm-dev \
-    libclang-dev \
-    clang \
-    libsdl2-dev \
-    gcc-arm-none-eabi \
+    npm \
     wget
 
 library/download_test_roms
