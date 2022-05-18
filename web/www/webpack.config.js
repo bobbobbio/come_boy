@@ -13,5 +13,8 @@ module.exports = {
     },
     devServer: {
         allowedHosts: "all",
-    }
+    },
+    watchOptions: {
+        poll: 1000,
+    },
 }
