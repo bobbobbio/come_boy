@@ -27,6 +27,10 @@ def replace(path, needle, replacement):
     with open(path, 'w') as f:
         f.write(contents)
 
+def put(path, contents):
+    with open(path, 'w') as f:
+        f.write(contents)
+
 def delete_contents(path):
     for p in glob.glob(path + '/*'):
         sh('rm -r {}'.format(p))
@@ -49,17 +53,25 @@ def build():
     sh('npm install')
     cd('..')
 
+MAIN_SRC = '''\
+import * as wasm from "./come_boy_web.js";
+import init from "./come_boy_web.js";
+
+init();
+'''
+
 def deploy(deploy_path):
     delete_contents(deploy_path)
 
     install('pkg/*', deploy_path)
-    install('www/*.html', deploy_path)
-    install('www/*.js', deploy_path)
-    install('www/src', deploy_path)
+    install('www/public/index.html', deploy_path)
 
     index_html = os.path.join(deploy_path, 'index.html')
     replace(index_html, '$REVISION', head_revision())
     replace(index_html, '$DATE', date())
+
+    main_js = os.path.join(deploy_path, 'main.js')
+    put(main_js, MAIN_SRC)
 
 def main():
     parser = argparse.ArgumentParser()
