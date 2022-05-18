@@ -5,16 +5,6 @@ use std::rc::Rc;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
-}
-
-macro_rules! console_log {
-    ($($t:tt)*) => ($crate::log(&format_args!($($t)*).to_string()))
-}
-
 mod emulator;
 mod renderer;
 
@@ -130,7 +120,9 @@ fn schedule<F: FnMut() -> i32 + 'static>(mut body: F, from_now: i32) {
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
-    console_log!("Come Boy Starting");
+    wasm_logger::init(wasm_logger::Config::default());
+
+    log::info!("Come Boy Starting");
 
     let canvas = canvas();
     canvas.set_width((renderer::WIDTH * renderer::PIXEL_SIZE) as u32);

@@ -10,8 +10,10 @@ crate-type = ["cdylib"]
 [dependencies]
 come_boy = {default-features = false, features = ["std", "game-pad"], path = "../library", version = "*"}
 console_error_panic_hook = "*"
-wasm-bindgen = "*"
 js-sys = "*"
+log = "*"
+wasm-bindgen = "*"
+wasm-logger = "*"
 
 [dependencies.web-sys]
 version = "*"
