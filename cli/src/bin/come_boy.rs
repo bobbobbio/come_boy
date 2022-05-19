@@ -98,6 +98,9 @@ struct Options {
 
     #[structopt(long = "run-until")]
     run_until: Option<u64>,
+
+    #[structopt(long = "log-level", default_value = "info")]
+    log_level: log::LevelFilter,
 }
 
 fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
@@ -108,9 +111,11 @@ fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
 }
 
 fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new().init().unwrap();
-
     let options = Options::from_args();
+    simple_logger::SimpleLogger::new()
+        .with_level(options.log_level)
+        .init()
+        .unwrap();
 
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;
