@@ -29,7 +29,7 @@ byteorder = { version = "*", default_features = false }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "*"
-gilrs = { version = "*", optional = true }
+gilrs = { version = "*", features = ["wasm-bindgen"], optional = true }
 log = { version = "*", default_features = false }
 num_enum = { version = "*", default_features = false }
 sdl2 = { version = "0.32.*", optional = true }
