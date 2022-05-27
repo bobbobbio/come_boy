@@ -8,6 +8,7 @@ edition = "2018"
 crate-type = ["cdylib"]
 
 [dependencies]
+base64 = "*"
 come_boy = {default-features = false, features = ["std", "game-pad"], path = "../library", version = "*"}
 console_error_panic_hook = "*"
 js-sys = "*"
@@ -30,6 +31,7 @@ features = [
   "HtmlInputElement",
   "KeyboardEvent",
   "Performance",
+  "Storage",
   "WebGl2RenderingContext",
   "WebGlBuffer",
   "WebGlProgram",

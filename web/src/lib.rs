@@ -7,6 +7,7 @@ use wasm_bindgen::JsCast;
 
 mod emulator;
 mod renderer;
+mod storage;
 
 fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")

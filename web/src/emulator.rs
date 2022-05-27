@@ -1,13 +1,24 @@
 use super::renderer::CanvasRenderer;
+use super::storage::WebStorage;
 use super::window;
 use come_boy::game_boy_emulator::{
-    ControllerJoyPad, GameBoyEmulator, GameBoyOps, GamePak, UserControl, SLEEP_INPUT_TICKS,
+    rom_hash, ControllerJoyPad, GameBoyEmulator, GameBoyOps, GamePak, UserControl,
+    SLEEP_INPUT_TICKS,
 };
 use come_boy::sound::NullSoundStream;
-use come_boy::storage::PanicStorage;
 
 fn performance() -> web_sys::Performance {
-    window().performance().expect("performance to be available")
+    window()
+        .performance()
+        .expect("performance appears to be available")
+}
+
+fn local_storage() -> web_sys::Storage {
+    window()
+        .local_storage()
+        .ok()
+        .flatten()
+        .expect("storage appears to be available")
 }
 
 fn f64_saturating_sub(a: f64, b: f64) -> f64 {
@@ -50,14 +61,18 @@ impl Underclocker {
 
 pub struct Emulator {
     emulator: GameBoyEmulator,
-    ops: GameBoyOps<CanvasRenderer, NullSoundStream, PanicStorage>,
+    ops: GameBoyOps<CanvasRenderer, NullSoundStream, WebStorage>,
     underclocker: Underclocker,
 }
 
 impl Emulator {
     pub fn new(canvas: &web_sys::HtmlCanvasElement) -> Self {
         let emulator = GameBoyEmulator::new();
-        let ops = GameBoyOps::new(CanvasRenderer::new(canvas), NullSoundStream, PanicStorage);
+        let ops = GameBoyOps::new(
+            CanvasRenderer::new(canvas),
+            NullSoundStream,
+            WebStorage::new(local_storage()),
+        );
         let underclocker = Underclocker::new(emulator.elapsed_cycles(), ops.clock_speed_hz);
         Self {
             emulator,
@@ -76,7 +91,8 @@ impl Emulator {
 
     pub fn load_rom(&mut self, rom: &[u8]) {
         self.emulator = GameBoyEmulator::new();
-        let game_pak = GamePak::new(rom, &mut self.ops.storage, None).unwrap();
+        let sram_key = format!("{:x}", rom_hash(rom));
+        let game_pak = GamePak::new(rom, &mut self.ops.storage, Some(&sram_key)).unwrap();
         self.ops.load_game_pak(game_pak);
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
     }

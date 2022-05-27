@@ -1,6 +1,6 @@
 // Copyright 2017 Remi Bernotavicius
 
-pub use self::game_pak::GamePak;
+pub use self::game_pak::{rom_hash, GamePak};
 pub use self::joypad::ControllerJoyPad;
 use self::joypad::{JoyPad, KeyEvent};
 use self::lcd_controller::{LcdController, OAM_DATA};

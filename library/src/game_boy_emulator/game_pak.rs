@@ -3,12 +3,15 @@
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
 use crate::storage::{OpenMode, PersistentStorage, StorageFile as _};
-use crate::util::super_fast_hash;
 use alloc::{format, string::String, vec, vec::Vec};
 use core::fmt;
 use core::ops::Range;
 use core::str;
 use serde_derive::{Deserialize, Serialize};
+
+pub fn rom_hash(rom: &[u8]) -> u32 {
+    crate::util::super_fast_hash(rom)
+}
 
 struct BankOps<Storage: PersistentStorage> {
     sram_file: Option<Storage::File>,
@@ -980,7 +983,7 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
 
     pub fn new(rom: &[u8], storage: &mut Storage, sram_key: Option<&str>) -> io::Result<Self> {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
-        let hash = super_fast_hash(rom);
+        let hash = rom_hash(rom);
 
         let (rom_banks, rom_chunks) = banks_and_chunks_from_rom(rom);
 
