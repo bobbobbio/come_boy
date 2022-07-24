@@ -28,7 +28,7 @@ mod opcodes;
 
 const ROM_ADDRESS: usize = 0x0100;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LR35902Flag {
     // 76543210
     Zero = 0b10000000,

@@ -119,7 +119,7 @@ const ALL_INTERRUPTS: [(InterruptFlag, u16); 5] = [
 ];
 
 /// This mask represents the various interrupts the LcdController handles.
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum InterruptFlag {
     VerticalBlanking = 0b00000001,
@@ -160,7 +160,7 @@ impl From<InterruptEnableFlag> for InterruptFlag {
 }
 
 /// This mask represent the various interrupts that the program can enable.
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum InterruptEnableFlag {
     VerticalBlanking = 0b00000001,

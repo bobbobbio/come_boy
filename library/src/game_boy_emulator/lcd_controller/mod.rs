@@ -205,7 +205,7 @@ pub struct LcdControllerRegisters {
 /// Tiles and objects (sprites) pixels are described using these values. The actual color they
 /// represent depends on the palette.
 #[derive(
-    Debug, Clone, Copy, PartialEq, IntoPrimitive, Serialize, Deserialize, IntoEnumIterator,
+    Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, Serialize, Deserialize, IntoEnumIterator,
 )]
 #[repr(u8)]
 pub enum LcdColor {
@@ -226,7 +226,7 @@ impl FlagMask for LcdColor {
 }
 
 /// These are the 4 shades that the Game Boy (DMG) screen is capable of displaying.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LcdShade {
     Shade0 = 0x0,
     Shade1 = 0x1,
@@ -244,7 +244,7 @@ fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
 }
 
 /// This is a mask for the LCDC (LCD control) register.
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum LcdControlFlag {
     /// Controls whether the LCD is on and the PPU is running.
@@ -287,7 +287,7 @@ impl FlagMask for LcdControlFlag {
 }
 
 /// This is a mask for the STAT register.
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum LcdStatusFlag {
     /// Enable interrupt when LCY == LY. (0 = disable, 1 = enable)
@@ -336,7 +336,7 @@ struct LcdObject {
 }
 
 /// Mask for LcdObject flags.
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[repr(u8)]
 enum LcdObjectAttributeFlag {
     /// Controls whether the object is displayed in front or behind the background and window.
@@ -773,7 +773,7 @@ impl LcdController {
 
         let start_index = tile_y as usize * CHARACTER_AREA_SIZE as usize;
         let end_index = start_index + CHARACTER_AREA_SIZE as usize;
-        let iter = (&bg_data_slice[start_index..end_index]).iter().enumerate();
+        let iter = bg_data_slice[start_index..end_index].iter().enumerate();
 
         for (tile_x, character_code) in iter {
             let character_data = Self::read_dot_data(

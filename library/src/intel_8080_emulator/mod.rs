@@ -15,7 +15,7 @@ pub use crate::intel_8080_emulator::opcodes::{
 const MAX_ADDRESS: usize = 0xffff;
 const ROM_ADDRESS: usize = 0x0100;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Intel8080Flag {
     // 76543210
     Sign = 0b10000000,

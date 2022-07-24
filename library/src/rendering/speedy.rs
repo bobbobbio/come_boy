@@ -79,7 +79,7 @@ fn keycode_translate(keycode: VirtualKeyCode) -> Keycode {
 
 impl WindowHandler for SpeedyWindowHandler {
     fn on_draw(&mut self, helper: &mut WindowHelper, graphics: &mut Graphics2D) {
-        self.update_screen(&*self.buffer.buffer(), graphics);
+        self.update_screen(&self.buffer.buffer(), graphics);
         helper.request_redraw();
     }
 

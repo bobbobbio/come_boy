@@ -8,7 +8,7 @@ use core::str;
 #[cfg(test)]
 use crate::bytes::ReadBytesExt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryDescription {
     Instruction,
     Data(u16),

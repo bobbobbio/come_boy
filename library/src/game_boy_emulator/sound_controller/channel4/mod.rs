@@ -5,7 +5,7 @@ use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum SoundLength {
     Length = 0b00111111,
@@ -21,7 +21,7 @@ impl FlagMask for SoundLength {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum Counter {
     Initial = 0b10000000,

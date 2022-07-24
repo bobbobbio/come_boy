@@ -12,7 +12,7 @@ use serde_derive::{Deserialize, Serialize};
 
 mod memory_map_mut;
 
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive, IntoEnumIterator)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
 #[repr(u8)]
 pub enum SweepFlag {
     Time = 0b01110000,
@@ -161,7 +161,7 @@ enum Channel1Event {
     LengthTick,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[repr(u8)]
 enum LengthAndWaveDuty {
     WavePatternDuty = 0b11000000,

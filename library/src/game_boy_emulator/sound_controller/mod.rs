@@ -31,7 +31,7 @@ trait Channel: MemoryMappedHardware {
     fn disable(&mut self);
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[repr(u8)]
 enum ChannelHighByte {
     Restart = 0b10000000,
@@ -193,7 +193,7 @@ pub struct SoundController {
     mixer_buffer: MixerBuffer,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, IntoPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[repr(u8)]
 enum SoundEnable {
     All = 0b10000000,
