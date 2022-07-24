@@ -28,7 +28,7 @@ bmp = { version = "*", optional = true }
 byteorder = { version = "*", default_features = false }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
-enum-iterator = "*"
+enum-iterator = "0.8.1"
 gilrs = { version = "*", features = ["wasm-bindgen"], optional = true }
 log = { version = "*", default_features = false }
 num_enum = { version = "*", default_features = false }
