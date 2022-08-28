@@ -70,6 +70,9 @@ def deploy(deploy_path):
     replace(index_html, '$REVISION', head_revision())
     replace(index_html, '$DATE', date())
 
+    revision = os.path.join(deploy_path, 'revision')
+    put(revision, head_revision())
+
     main_js = os.path.join(deploy_path, 'main.js')
     put(main_js, MAIN_SRC)
 
