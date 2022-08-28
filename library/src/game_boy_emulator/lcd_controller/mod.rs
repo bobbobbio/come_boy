@@ -443,7 +443,7 @@ impl<'a> Iterator for LcdObjectIterator<'a> {
     type Item = LcdObject;
 
     fn next(&mut self) -> Option<LcdObject> {
-        if self.chunk_iterator.peek() == None {
+        if self.chunk_iterator.peek().is_none() {
             None
         } else {
             let y = *self.chunk_iterator.next().unwrap() as i32 - CHARACTER_SIZE * 2;
