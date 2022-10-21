@@ -506,6 +506,7 @@ where
 
 struct OpcodeGenerator {
     enum_name: Ident,
+    type_enum_name: Ident,
     trait_name: Ident,
     use_path: Vec<Ident>,
     printer_name: Ident,
@@ -536,6 +537,10 @@ impl OpcodeGenerator {
             &format!("{}Instruction", instruction_set_name),
             Span::call_site(),
         );
+        let type_enum_name = Ident::new(
+            &format!("{}InstructionType", instruction_set_name),
+            Span::call_site(),
+        );
         let trait_name = Ident::new(
             &format!("{}InstructionSet", instruction_set_name),
             Span::call_site(),
@@ -551,6 +556,7 @@ impl OpcodeGenerator {
 
         OpcodeGenerator {
             enum_name,
+            type_enum_name,
             trait_name,
             use_path,
             printer_name,
@@ -666,8 +672,10 @@ impl OpcodeGenerator {
 
     fn generate_instruction_enum(&self, tokens: &mut TokenStream) {
         let enum_name = &self.enum_name;
+        let type_enum_name = &self.type_enum_name;
 
         let mut variants: BTreeMap<String, syn::Variant> = BTreeMap::new();
+
         for opcode in &self.opcodes {
             let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
             let parameters = &opcode.function_call.function.parameters;
@@ -685,6 +693,36 @@ impl OpcodeGenerator {
                         #variant_name { #(#parameters, )* }
                     ),
                 );
+            }
+        }
+
+        let unique_opcode_names: BTreeMap<_, _> = self
+            .opcodes
+            .iter()
+            .map(|o| {
+                (
+                    o.camel_name.clone(),
+                    !o.function_call.function.parameters.is_empty(),
+                )
+            })
+            .collect();
+        let num_instructions = unique_opcode_names.len();
+
+        let mut type_from_instr: Vec<syn::Arm> = vec![];
+        let mut variants_types: Vec<syn::Variant> = vec![];
+        for (i, (opcode_name, has_params)) in unique_opcode_names.iter().enumerate() {
+            let variant_name = Ident::new(opcode_name, Span::call_site());
+            let type_index = i as isize;
+            variants_types.push(syn::parse_quote!(#variant_name = #type_index));
+
+            if *has_params {
+                type_from_instr.push(syn::parse_quote!(
+                    Self::#variant_name { .. } => #type_enum_name::#variant_name
+                ));
+            } else {
+                type_from_instr.push(syn::parse_quote!(
+                    Self::#variant_name => #type_enum_name::#variant_name
+                ));
             }
         }
 
@@ -732,6 +770,22 @@ impl OpcodeGenerator {
                 #( #variants_values, )*
             }
 
+            #[derive(
+                Copy,
+                Clone,
+                Debug,
+                PartialEq,
+                Eq,
+                Serialize,
+                Deserialize,
+                enum_iterator::IntoEnumIterator,
+            )]
+            pub enum #type_enum_name {
+                #( #variants_types, )*
+            }
+
+            const NUM_INSTRUCTIONS: usize = #num_instructions;
+
             impl #enum_name {
                 #[allow(clippy::unnecessary_cast)]
                 pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
@@ -740,6 +794,12 @@ impl OpcodeGenerator {
                         #( #dispatches, )*
                         _ => None,
                     })
+                }
+
+                pub fn to_type(&self) -> #type_enum_name {
+                    match self {
+                        #( #type_from_instr, )*
+                    }
                 }
             }
         ));

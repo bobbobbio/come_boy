@@ -196,6 +196,92 @@ pub enum Intel8080Instruction {
         data1: u8,
     },
 }
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, enum_iterator :: IntoEnumIterator,
+)]
+pub enum Intel8080InstructionType {
+    AddImmediateToAccumulator = 0isize,
+    AddImmediateToAccumulatorWithCarry = 1isize,
+    AddToAccumulator = 2isize,
+    AddToAccumulatorWithCarry = 3isize,
+    AndImmediateWithAccumulator = 4isize,
+    Call = 5isize,
+    CallIfCarry = 6isize,
+    CallIfMinus = 7isize,
+    CallIfNoCarry = 8isize,
+    CallIfNotZero = 9isize,
+    CallIfParityEven = 10isize,
+    CallIfParityOdd = 11isize,
+    CallIfPlus = 12isize,
+    CallIfZero = 13isize,
+    CompareImmediateWithAccumulator = 14isize,
+    CompareWithAccumulator = 15isize,
+    ComplementAccumulator = 16isize,
+    ComplementCarry = 17isize,
+    DecimalAdjustAccumulator = 18isize,
+    DecrementRegisterOrMemory = 19isize,
+    DecrementRegisterPair = 20isize,
+    DisableInterrupts = 21isize,
+    DoubleAdd = 22isize,
+    EnableInterrupts = 23isize,
+    ExchangeRegisters = 24isize,
+    ExchangeStack = 25isize,
+    ExclusiveOrImmediateWithAccumulator = 26isize,
+    Halt = 27isize,
+    IncrementRegisterOrMemory = 28isize,
+    IncrementRegisterPair = 29isize,
+    Input = 30isize,
+    Jump = 31isize,
+    JumpIfCarry = 32isize,
+    JumpIfMinus = 33isize,
+    JumpIfNoCarry = 34isize,
+    JumpIfNotZero = 35isize,
+    JumpIfParityEven = 36isize,
+    JumpIfParityOdd = 37isize,
+    JumpIfPositive = 38isize,
+    JumpIfZero = 39isize,
+    LoadAccumulator = 40isize,
+    LoadAccumulatorDirect = 41isize,
+    LoadHAndLDirect = 42isize,
+    LoadProgramCounter = 43isize,
+    LoadRegisterPairImmediate = 44isize,
+    LoadSpFromHAndL = 45isize,
+    LogicalAndWithAccumulator = 46isize,
+    LogicalExclusiveOrWithAccumulator = 47isize,
+    LogicalOrWithAccumulator = 48isize,
+    MoveData = 49isize,
+    MoveImmediateData = 50isize,
+    NoOperation = 51isize,
+    OrImmediateWithAccumulator = 52isize,
+    Output = 53isize,
+    PopDataOffStack = 54isize,
+    PushDataOntoStack = 55isize,
+    Restart = 56isize,
+    ReturnIfCarry = 57isize,
+    ReturnIfMinus = 58isize,
+    ReturnIfNoCarry = 59isize,
+    ReturnIfNotZero = 60isize,
+    ReturnIfParityEven = 61isize,
+    ReturnIfParityOdd = 62isize,
+    ReturnIfPlus = 63isize,
+    ReturnIfZero = 64isize,
+    ReturnUnconditionally = 65isize,
+    Rim = 66isize,
+    RotateAccumulatorLeft = 67isize,
+    RotateAccumulatorLeftThroughCarry = 68isize,
+    RotateAccumulatorRight = 69isize,
+    RotateAccumulatorRightThroughCarry = 70isize,
+    SetCarry = 71isize,
+    Sim = 72isize,
+    StoreAccumulator = 73isize,
+    StoreAccumulatorDirect = 74isize,
+    StoreHAndLDirect = 75isize,
+    SubtractFromAccumulator = 76isize,
+    SubtractFromAccumulatorWithBorrow = 77isize,
+    SubtractImmediateFromAccumulator = 78isize,
+    SubtractImmediateFromAccumulatorWithBorrow = 79isize,
+}
+const NUM_INSTRUCTIONS: usize = 80usize;
 impl Intel8080Instruction {
     #[allow(clippy::unnecessary_cast)]
     pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
@@ -946,6 +1032,128 @@ impl Intel8080Instruction {
             0xFF => Some(Self::Restart { data1: 7u8 }),
             _ => None,
         })
+    }
+    pub fn to_type(&self) -> Intel8080InstructionType {
+        match self {
+            Self::AddImmediateToAccumulator { .. } => {
+                Intel8080InstructionType::AddImmediateToAccumulator
+            }
+            Self::AddImmediateToAccumulatorWithCarry { .. } => {
+                Intel8080InstructionType::AddImmediateToAccumulatorWithCarry
+            }
+            Self::AddToAccumulator { .. } => Intel8080InstructionType::AddToAccumulator,
+            Self::AddToAccumulatorWithCarry { .. } => {
+                Intel8080InstructionType::AddToAccumulatorWithCarry
+            }
+            Self::AndImmediateWithAccumulator { .. } => {
+                Intel8080InstructionType::AndImmediateWithAccumulator
+            }
+            Self::Call { .. } => Intel8080InstructionType::Call,
+            Self::CallIfCarry { .. } => Intel8080InstructionType::CallIfCarry,
+            Self::CallIfMinus { .. } => Intel8080InstructionType::CallIfMinus,
+            Self::CallIfNoCarry { .. } => Intel8080InstructionType::CallIfNoCarry,
+            Self::CallIfNotZero { .. } => Intel8080InstructionType::CallIfNotZero,
+            Self::CallIfParityEven { .. } => Intel8080InstructionType::CallIfParityEven,
+            Self::CallIfParityOdd { .. } => Intel8080InstructionType::CallIfParityOdd,
+            Self::CallIfPlus { .. } => Intel8080InstructionType::CallIfPlus,
+            Self::CallIfZero { .. } => Intel8080InstructionType::CallIfZero,
+            Self::CompareImmediateWithAccumulator { .. } => {
+                Intel8080InstructionType::CompareImmediateWithAccumulator
+            }
+            Self::CompareWithAccumulator { .. } => Intel8080InstructionType::CompareWithAccumulator,
+            Self::ComplementAccumulator => Intel8080InstructionType::ComplementAccumulator,
+            Self::ComplementCarry => Intel8080InstructionType::ComplementCarry,
+            Self::DecimalAdjustAccumulator => Intel8080InstructionType::DecimalAdjustAccumulator,
+            Self::DecrementRegisterOrMemory { .. } => {
+                Intel8080InstructionType::DecrementRegisterOrMemory
+            }
+            Self::DecrementRegisterPair { .. } => Intel8080InstructionType::DecrementRegisterPair,
+            Self::DisableInterrupts => Intel8080InstructionType::DisableInterrupts,
+            Self::DoubleAdd { .. } => Intel8080InstructionType::DoubleAdd,
+            Self::EnableInterrupts => Intel8080InstructionType::EnableInterrupts,
+            Self::ExchangeRegisters => Intel8080InstructionType::ExchangeRegisters,
+            Self::ExchangeStack => Intel8080InstructionType::ExchangeStack,
+            Self::ExclusiveOrImmediateWithAccumulator { .. } => {
+                Intel8080InstructionType::ExclusiveOrImmediateWithAccumulator
+            }
+            Self::Halt => Intel8080InstructionType::Halt,
+            Self::IncrementRegisterOrMemory { .. } => {
+                Intel8080InstructionType::IncrementRegisterOrMemory
+            }
+            Self::IncrementRegisterPair { .. } => Intel8080InstructionType::IncrementRegisterPair,
+            Self::Input { .. } => Intel8080InstructionType::Input,
+            Self::Jump { .. } => Intel8080InstructionType::Jump,
+            Self::JumpIfCarry { .. } => Intel8080InstructionType::JumpIfCarry,
+            Self::JumpIfMinus { .. } => Intel8080InstructionType::JumpIfMinus,
+            Self::JumpIfNoCarry { .. } => Intel8080InstructionType::JumpIfNoCarry,
+            Self::JumpIfNotZero { .. } => Intel8080InstructionType::JumpIfNotZero,
+            Self::JumpIfParityEven { .. } => Intel8080InstructionType::JumpIfParityEven,
+            Self::JumpIfParityOdd { .. } => Intel8080InstructionType::JumpIfParityOdd,
+            Self::JumpIfPositive { .. } => Intel8080InstructionType::JumpIfPositive,
+            Self::JumpIfZero { .. } => Intel8080InstructionType::JumpIfZero,
+            Self::LoadAccumulator { .. } => Intel8080InstructionType::LoadAccumulator,
+            Self::LoadAccumulatorDirect { .. } => Intel8080InstructionType::LoadAccumulatorDirect,
+            Self::LoadHAndLDirect { .. } => Intel8080InstructionType::LoadHAndLDirect,
+            Self::LoadProgramCounter => Intel8080InstructionType::LoadProgramCounter,
+            Self::LoadRegisterPairImmediate { .. } => {
+                Intel8080InstructionType::LoadRegisterPairImmediate
+            }
+            Self::LoadSpFromHAndL => Intel8080InstructionType::LoadSpFromHAndL,
+            Self::LogicalAndWithAccumulator { .. } => {
+                Intel8080InstructionType::LogicalAndWithAccumulator
+            }
+            Self::LogicalExclusiveOrWithAccumulator { .. } => {
+                Intel8080InstructionType::LogicalExclusiveOrWithAccumulator
+            }
+            Self::LogicalOrWithAccumulator { .. } => {
+                Intel8080InstructionType::LogicalOrWithAccumulator
+            }
+            Self::MoveData { .. } => Intel8080InstructionType::MoveData,
+            Self::MoveImmediateData { .. } => Intel8080InstructionType::MoveImmediateData,
+            Self::NoOperation => Intel8080InstructionType::NoOperation,
+            Self::OrImmediateWithAccumulator { .. } => {
+                Intel8080InstructionType::OrImmediateWithAccumulator
+            }
+            Self::Output { .. } => Intel8080InstructionType::Output,
+            Self::PopDataOffStack { .. } => Intel8080InstructionType::PopDataOffStack,
+            Self::PushDataOntoStack { .. } => Intel8080InstructionType::PushDataOntoStack,
+            Self::Restart { .. } => Intel8080InstructionType::Restart,
+            Self::ReturnIfCarry => Intel8080InstructionType::ReturnIfCarry,
+            Self::ReturnIfMinus => Intel8080InstructionType::ReturnIfMinus,
+            Self::ReturnIfNoCarry => Intel8080InstructionType::ReturnIfNoCarry,
+            Self::ReturnIfNotZero => Intel8080InstructionType::ReturnIfNotZero,
+            Self::ReturnIfParityEven => Intel8080InstructionType::ReturnIfParityEven,
+            Self::ReturnIfParityOdd => Intel8080InstructionType::ReturnIfParityOdd,
+            Self::ReturnIfPlus => Intel8080InstructionType::ReturnIfPlus,
+            Self::ReturnIfZero => Intel8080InstructionType::ReturnIfZero,
+            Self::ReturnUnconditionally => Intel8080InstructionType::ReturnUnconditionally,
+            Self::Rim => Intel8080InstructionType::Rim,
+            Self::RotateAccumulatorLeft => Intel8080InstructionType::RotateAccumulatorLeft,
+            Self::RotateAccumulatorLeftThroughCarry => {
+                Intel8080InstructionType::RotateAccumulatorLeftThroughCarry
+            }
+            Self::RotateAccumulatorRight => Intel8080InstructionType::RotateAccumulatorRight,
+            Self::RotateAccumulatorRightThroughCarry => {
+                Intel8080InstructionType::RotateAccumulatorRightThroughCarry
+            }
+            Self::SetCarry => Intel8080InstructionType::SetCarry,
+            Self::Sim => Intel8080InstructionType::Sim,
+            Self::StoreAccumulator { .. } => Intel8080InstructionType::StoreAccumulator,
+            Self::StoreAccumulatorDirect { .. } => Intel8080InstructionType::StoreAccumulatorDirect,
+            Self::StoreHAndLDirect { .. } => Intel8080InstructionType::StoreHAndLDirect,
+            Self::SubtractFromAccumulator { .. } => {
+                Intel8080InstructionType::SubtractFromAccumulator
+            }
+            Self::SubtractFromAccumulatorWithBorrow { .. } => {
+                Intel8080InstructionType::SubtractFromAccumulatorWithBorrow
+            }
+            Self::SubtractImmediateFromAccumulator { .. } => {
+                Intel8080InstructionType::SubtractImmediateFromAccumulator
+            }
+            Self::SubtractImmediateFromAccumulatorWithBorrow { .. } => {
+                Intel8080InstructionType::SubtractImmediateFromAccumulatorWithBorrow
+            }
+        }
     }
 }
 impl Intel8080Instruction {

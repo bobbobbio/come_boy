@@ -230,6 +230,99 @@ pub enum LR35902Instruction {
         register2: Intel8080Register,
     },
 }
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, enum_iterator :: IntoEnumIterator,
+)]
+pub enum LR35902InstructionType {
+    AddImmediateToAccumulator = 0isize,
+    AddImmediateToAccumulatorWithCarry = 1isize,
+    AddImmediateToSp = 2isize,
+    AddToAccumulator = 3isize,
+    AddToAccumulatorWithCarry = 4isize,
+    AndImmediateWithAccumulator = 5isize,
+    Call = 6isize,
+    CallIfCarry = 7isize,
+    CallIfNoCarry = 8isize,
+    CallIfNotZero = 9isize,
+    CallIfZero = 10isize,
+    CompareImmediateWithAccumulator = 11isize,
+    CompareWithAccumulator = 12isize,
+    ComplementAccumulator = 13isize,
+    ComplementCarry = 14isize,
+    DecimalAdjustAccumulator = 15isize,
+    DecrementRegisterOrMemory = 16isize,
+    DecrementRegisterPair = 17isize,
+    DisableInterrupts = 18isize,
+    DoubleAdd = 19isize,
+    EnableInterrupts = 20isize,
+    ExclusiveOrImmediateWithAccumulator = 21isize,
+    Halt = 22isize,
+    HaltUntilButtonPress = 23isize,
+    IncrementRegisterOrMemory = 24isize,
+    IncrementRegisterPair = 25isize,
+    Jump = 26isize,
+    JumpIfCarry = 27isize,
+    JumpIfNoCarry = 28isize,
+    JumpIfNotZero = 29isize,
+    JumpIfZero = 30isize,
+    JumpRelative = 31isize,
+    JumpRelativeIfCarry = 32isize,
+    JumpRelativeIfNoCarry = 33isize,
+    JumpRelativeIfNotZero = 34isize,
+    JumpRelativeIfZero = 35isize,
+    LoadAccumulator = 36isize,
+    LoadAccumulatorDirect = 37isize,
+    LoadAccumulatorDirectOneByte = 38isize,
+    LoadAccumulatorOneByte = 39isize,
+    LoadProgramCounter = 40isize,
+    LoadRegisterPairImmediate = 41isize,
+    LoadSpFromHAndL = 42isize,
+    LogicalAndWithAccumulator = 43isize,
+    LogicalExclusiveOrWithAccumulator = 44isize,
+    LogicalOrWithAccumulator = 45isize,
+    MoveAndDecrementHl = 46isize,
+    MoveAndIncrementHl = 47isize,
+    MoveData = 48isize,
+    MoveImmediateData = 49isize,
+    NoOperation = 50isize,
+    OrImmediateWithAccumulator = 51isize,
+    PopDataOffStack = 52isize,
+    PushDataOntoStack = 53isize,
+    ResetBit = 54isize,
+    Restart = 55isize,
+    ReturnAndEnableInterrupts = 56isize,
+    ReturnIfCarry = 57isize,
+    ReturnIfNoCarry = 58isize,
+    ReturnIfNotZero = 59isize,
+    ReturnIfZero = 60isize,
+    ReturnUnconditionally = 61isize,
+    RotateAccumulatorLeft = 62isize,
+    RotateAccumulatorLeftThroughCarry = 63isize,
+    RotateAccumulatorRight = 64isize,
+    RotateAccumulatorRightThroughCarry = 65isize,
+    RotateRegisterLeft = 66isize,
+    RotateRegisterLeftThroughCarry = 67isize,
+    RotateRegisterRight = 68isize,
+    RotateRegisterRightThroughCarry = 69isize,
+    SetBit = 70isize,
+    SetCarry = 71isize,
+    ShiftRegisterLeft = 72isize,
+    ShiftRegisterRight = 73isize,
+    ShiftRegisterRightSigned = 74isize,
+    StoreAccumulator = 75isize,
+    StoreAccumulatorDirect = 76isize,
+    StoreAccumulatorDirectOneByte = 77isize,
+    StoreAccumulatorOneByte = 78isize,
+    StoreSpDirect = 79isize,
+    StoreSpPlusImmediate = 80isize,
+    SubtractFromAccumulator = 81isize,
+    SubtractFromAccumulatorWithBorrow = 82isize,
+    SubtractImmediateFromAccumulator = 83isize,
+    SubtractImmediateFromAccumulatorWithBorrow = 84isize,
+    SwapRegister = 85isize,
+    TestBit = 86isize,
+}
+const NUM_INSTRUCTIONS: usize = 87usize;
 impl LR35902Instruction {
     #[allow(clippy::unnecessary_cast)]
     pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
@@ -1952,6 +2045,143 @@ impl LR35902Instruction {
             0xFF => Some(Self::Restart { data1: 7u8 }),
             _ => None,
         })
+    }
+    pub fn to_type(&self) -> LR35902InstructionType {
+        match self {
+            Self::AddImmediateToAccumulator { .. } => {
+                LR35902InstructionType::AddImmediateToAccumulator
+            }
+            Self::AddImmediateToAccumulatorWithCarry { .. } => {
+                LR35902InstructionType::AddImmediateToAccumulatorWithCarry
+            }
+            Self::AddImmediateToSp { .. } => LR35902InstructionType::AddImmediateToSp,
+            Self::AddToAccumulator { .. } => LR35902InstructionType::AddToAccumulator,
+            Self::AddToAccumulatorWithCarry { .. } => {
+                LR35902InstructionType::AddToAccumulatorWithCarry
+            }
+            Self::AndImmediateWithAccumulator { .. } => {
+                LR35902InstructionType::AndImmediateWithAccumulator
+            }
+            Self::Call { .. } => LR35902InstructionType::Call,
+            Self::CallIfCarry { .. } => LR35902InstructionType::CallIfCarry,
+            Self::CallIfNoCarry { .. } => LR35902InstructionType::CallIfNoCarry,
+            Self::CallIfNotZero { .. } => LR35902InstructionType::CallIfNotZero,
+            Self::CallIfZero { .. } => LR35902InstructionType::CallIfZero,
+            Self::CompareImmediateWithAccumulator { .. } => {
+                LR35902InstructionType::CompareImmediateWithAccumulator
+            }
+            Self::CompareWithAccumulator { .. } => LR35902InstructionType::CompareWithAccumulator,
+            Self::ComplementAccumulator => LR35902InstructionType::ComplementAccumulator,
+            Self::ComplementCarry => LR35902InstructionType::ComplementCarry,
+            Self::DecimalAdjustAccumulator => LR35902InstructionType::DecimalAdjustAccumulator,
+            Self::DecrementRegisterOrMemory { .. } => {
+                LR35902InstructionType::DecrementRegisterOrMemory
+            }
+            Self::DecrementRegisterPair { .. } => LR35902InstructionType::DecrementRegisterPair,
+            Self::DisableInterrupts => LR35902InstructionType::DisableInterrupts,
+            Self::DoubleAdd { .. } => LR35902InstructionType::DoubleAdd,
+            Self::EnableInterrupts => LR35902InstructionType::EnableInterrupts,
+            Self::ExclusiveOrImmediateWithAccumulator { .. } => {
+                LR35902InstructionType::ExclusiveOrImmediateWithAccumulator
+            }
+            Self::Halt => LR35902InstructionType::Halt,
+            Self::HaltUntilButtonPress => LR35902InstructionType::HaltUntilButtonPress,
+            Self::IncrementRegisterOrMemory { .. } => {
+                LR35902InstructionType::IncrementRegisterOrMemory
+            }
+            Self::IncrementRegisterPair { .. } => LR35902InstructionType::IncrementRegisterPair,
+            Self::Jump { .. } => LR35902InstructionType::Jump,
+            Self::JumpIfCarry { .. } => LR35902InstructionType::JumpIfCarry,
+            Self::JumpIfNoCarry { .. } => LR35902InstructionType::JumpIfNoCarry,
+            Self::JumpIfNotZero { .. } => LR35902InstructionType::JumpIfNotZero,
+            Self::JumpIfZero { .. } => LR35902InstructionType::JumpIfZero,
+            Self::JumpRelative { .. } => LR35902InstructionType::JumpRelative,
+            Self::JumpRelativeIfCarry { .. } => LR35902InstructionType::JumpRelativeIfCarry,
+            Self::JumpRelativeIfNoCarry { .. } => LR35902InstructionType::JumpRelativeIfNoCarry,
+            Self::JumpRelativeIfNotZero { .. } => LR35902InstructionType::JumpRelativeIfNotZero,
+            Self::JumpRelativeIfZero { .. } => LR35902InstructionType::JumpRelativeIfZero,
+            Self::LoadAccumulator { .. } => LR35902InstructionType::LoadAccumulator,
+            Self::LoadAccumulatorDirect { .. } => LR35902InstructionType::LoadAccumulatorDirect,
+            Self::LoadAccumulatorDirectOneByte { .. } => {
+                LR35902InstructionType::LoadAccumulatorDirectOneByte
+            }
+            Self::LoadAccumulatorOneByte => LR35902InstructionType::LoadAccumulatorOneByte,
+            Self::LoadProgramCounter => LR35902InstructionType::LoadProgramCounter,
+            Self::LoadRegisterPairImmediate { .. } => {
+                LR35902InstructionType::LoadRegisterPairImmediate
+            }
+            Self::LoadSpFromHAndL => LR35902InstructionType::LoadSpFromHAndL,
+            Self::LogicalAndWithAccumulator { .. } => {
+                LR35902InstructionType::LogicalAndWithAccumulator
+            }
+            Self::LogicalExclusiveOrWithAccumulator { .. } => {
+                LR35902InstructionType::LogicalExclusiveOrWithAccumulator
+            }
+            Self::LogicalOrWithAccumulator { .. } => {
+                LR35902InstructionType::LogicalOrWithAccumulator
+            }
+            Self::MoveAndDecrementHl { .. } => LR35902InstructionType::MoveAndDecrementHl,
+            Self::MoveAndIncrementHl { .. } => LR35902InstructionType::MoveAndIncrementHl,
+            Self::MoveData { .. } => LR35902InstructionType::MoveData,
+            Self::MoveImmediateData { .. } => LR35902InstructionType::MoveImmediateData,
+            Self::NoOperation => LR35902InstructionType::NoOperation,
+            Self::OrImmediateWithAccumulator { .. } => {
+                LR35902InstructionType::OrImmediateWithAccumulator
+            }
+            Self::PopDataOffStack { .. } => LR35902InstructionType::PopDataOffStack,
+            Self::PushDataOntoStack { .. } => LR35902InstructionType::PushDataOntoStack,
+            Self::ResetBit { .. } => LR35902InstructionType::ResetBit,
+            Self::Restart { .. } => LR35902InstructionType::Restart,
+            Self::ReturnAndEnableInterrupts => LR35902InstructionType::ReturnAndEnableInterrupts,
+            Self::ReturnIfCarry => LR35902InstructionType::ReturnIfCarry,
+            Self::ReturnIfNoCarry => LR35902InstructionType::ReturnIfNoCarry,
+            Self::ReturnIfNotZero => LR35902InstructionType::ReturnIfNotZero,
+            Self::ReturnIfZero => LR35902InstructionType::ReturnIfZero,
+            Self::ReturnUnconditionally => LR35902InstructionType::ReturnUnconditionally,
+            Self::RotateAccumulatorLeft => LR35902InstructionType::RotateAccumulatorLeft,
+            Self::RotateAccumulatorLeftThroughCarry => {
+                LR35902InstructionType::RotateAccumulatorLeftThroughCarry
+            }
+            Self::RotateAccumulatorRight => LR35902InstructionType::RotateAccumulatorRight,
+            Self::RotateAccumulatorRightThroughCarry => {
+                LR35902InstructionType::RotateAccumulatorRightThroughCarry
+            }
+            Self::RotateRegisterLeft { .. } => LR35902InstructionType::RotateRegisterLeft,
+            Self::RotateRegisterLeftThroughCarry { .. } => {
+                LR35902InstructionType::RotateRegisterLeftThroughCarry
+            }
+            Self::RotateRegisterRight { .. } => LR35902InstructionType::RotateRegisterRight,
+            Self::RotateRegisterRightThroughCarry { .. } => {
+                LR35902InstructionType::RotateRegisterRightThroughCarry
+            }
+            Self::SetBit { .. } => LR35902InstructionType::SetBit,
+            Self::SetCarry => LR35902InstructionType::SetCarry,
+            Self::ShiftRegisterLeft { .. } => LR35902InstructionType::ShiftRegisterLeft,
+            Self::ShiftRegisterRight { .. } => LR35902InstructionType::ShiftRegisterRight,
+            Self::ShiftRegisterRightSigned { .. } => {
+                LR35902InstructionType::ShiftRegisterRightSigned
+            }
+            Self::StoreAccumulator { .. } => LR35902InstructionType::StoreAccumulator,
+            Self::StoreAccumulatorDirect { .. } => LR35902InstructionType::StoreAccumulatorDirect,
+            Self::StoreAccumulatorDirectOneByte { .. } => {
+                LR35902InstructionType::StoreAccumulatorDirectOneByte
+            }
+            Self::StoreAccumulatorOneByte => LR35902InstructionType::StoreAccumulatorOneByte,
+            Self::StoreSpDirect { .. } => LR35902InstructionType::StoreSpDirect,
+            Self::StoreSpPlusImmediate { .. } => LR35902InstructionType::StoreSpPlusImmediate,
+            Self::SubtractFromAccumulator { .. } => LR35902InstructionType::SubtractFromAccumulator,
+            Self::SubtractFromAccumulatorWithBorrow { .. } => {
+                LR35902InstructionType::SubtractFromAccumulatorWithBorrow
+            }
+            Self::SubtractImmediateFromAccumulator { .. } => {
+                LR35902InstructionType::SubtractImmediateFromAccumulator
+            }
+            Self::SubtractImmediateFromAccumulatorWithBorrow { .. } => {
+                LR35902InstructionType::SubtractImmediateFromAccumulatorWithBorrow
+            }
+            Self::SwapRegister { .. } => LR35902InstructionType::SwapRegister,
+            Self::TestBit { .. } => LR35902InstructionType::TestBit,
+        }
     }
 }
 impl LR35902Instruction {
