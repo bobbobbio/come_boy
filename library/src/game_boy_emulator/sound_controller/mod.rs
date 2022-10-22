@@ -303,9 +303,9 @@ impl SoundController {
     fn mixer_tick<S: SoundStream>(&mut self, now: u64, sound_stream: &mut S) {
         let sample_rate_hz = sound_stream.sample_rate();
         let num_channels = sound_stream.channels() as usize;
-        let freq_hz = default_clock_speed_hz() as u32
-            / ((2048 - self.channel1.freq.read_value() as u32) * 32);
-        let elong = ((sample_rate_hz / freq_hz) as usize) * num_channels as usize;
+        let freq_hz =
+            default_clock_speed_hz() / ((2048 - self.channel1.freq.read_value() as u32) * 32);
+        let elong = ((sample_rate_hz / freq_hz) as usize) * num_channels;
 
         let waveform = self.channel1.channel.waveform();
         self.mixer_buffer.0.resize(8 * elong, 0.0);

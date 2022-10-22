@@ -893,26 +893,10 @@ impl GameBoyEmulator {
         mem[0x10000 + 8] = (self.cpu.read_program_counter() & 0xFF) as u8;
         mem[0x10000 + 9] = (self.cpu.read_register_pair(Intel8080Register::SP) >> 8) as u8;
         mem[0x10000 + 10] = (self.cpu.read_register_pair(Intel8080Register::SP) & 0xFF) as u8;
-        mem[0x10000 + 11] = if self.cpu.read_flag(LR35902Flag::Zero) {
-            1
-        } else {
-            0
-        };
-        mem[0x10000 + 12] = if self.cpu.read_flag(LR35902Flag::Subtract) {
-            1
-        } else {
-            0
-        };
-        mem[0x10000 + 13] = if self.cpu.read_flag(LR35902Flag::HalfCarry) {
-            1
-        } else {
-            0
-        };
-        mem[0x10000 + 14] = if self.cpu.read_flag(LR35902Flag::Carry) {
-            1
-        } else {
-            0
-        };
+        mem[0x10000 + 11] = u8::from(self.cpu.read_flag(LR35902Flag::Zero));
+        mem[0x10000 + 12] = u8::from(self.cpu.read_flag(LR35902Flag::Subtract));
+        mem[0x10000 + 13] = u8::from(self.cpu.read_flag(LR35902Flag::HalfCarry));
+        mem[0x10000 + 14] = u8::from(self.cpu.read_flag(LR35902Flag::Carry));
         super_fast_hash(&mem[..])
     }
 

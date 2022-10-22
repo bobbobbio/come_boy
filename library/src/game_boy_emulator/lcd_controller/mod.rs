@@ -509,7 +509,7 @@ impl<'a> LcdDotData<'a> {
         palette: &GameBoyFlags<LcdColor>,
     ) {
         assert!(ly >= y && ly < y + CHARACTER_SIZE);
-        assert!((ly as i32) < SCREEN_HEIGHT, "drawing ly = {}", ly);
+        assert!(ly < SCREEN_HEIGHT, "drawing ly = {}", ly);
 
         let target_line = if vertical_flip {
             y + CHARACTER_SIZE - 1 - ly

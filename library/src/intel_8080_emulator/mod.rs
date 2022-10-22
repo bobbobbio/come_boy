@@ -258,21 +258,13 @@ pub trait Intel8080InstructionSetOps {
     }
 
     fn perform_rotate_left_through_carry(&mut self, value: u8) -> u8 {
-        let carry = if self.read_flag(Intel8080Flag::Carry) {
-            1
-        } else {
-            0
-        };
+        let carry = u8::from(self.read_flag(Intel8080Flag::Carry));
         self.set_flag(Intel8080Flag::Carry, (value & (1u8 << 7)) != 0);
         (value << 1) | carry
     }
 
     fn perform_rotate_right_through_carry(&mut self, value: u8) -> u8 {
-        let carry = if self.read_flag(Intel8080Flag::Carry) {
-            1
-        } else {
-            0
-        };
+        let carry = u8::from(self.read_flag(Intel8080Flag::Carry));
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
         (value >> 1) | (carry << 7)
     }

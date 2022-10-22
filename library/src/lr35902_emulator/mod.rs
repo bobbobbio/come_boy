@@ -2352,7 +2352,7 @@ impl LR35902Emulator {
         let total_duration = instruction.duration();
         let mut ops = InstructionDispatchOps::new(self, memory_accessor);
         instruction.dispatch(&mut ops);
-        self.add_cycles(total_duration - (instruction_size * 4) as u8);
+        self.add_cycles(total_duration - (instruction_size * 4));
     }
 
     fn crash_from_unkown_opcode(&mut self) {
@@ -2372,7 +2372,7 @@ impl LR35902Emulator {
 
         if let Some(instr) = &instr {
             self.set_program_counter(pc + instr.size() as u16);
-            self.add_cycles((instr.size() * 4) as u8);
+            self.add_cycles(instr.size() * 4);
         }
         self.instr = instr;
     }

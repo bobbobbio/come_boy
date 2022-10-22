@@ -202,7 +202,7 @@ where
 
     #[inline]
     pub fn set_flag(&mut self, f: T, v: bool) {
-        self.set_flag_value(f, if v { 1 } else { 0 });
+        self.set_flag_value(f, v.into())
     }
 
     #[inline]
