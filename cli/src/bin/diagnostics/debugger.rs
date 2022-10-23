@@ -1,7 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
-use bin_common::backend::BackendMap;
-use bin_common::Result;
+use crate::bin_common::backend::BackendMap;
+use crate::bin_common::Result;
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
@@ -11,15 +11,12 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use structopt::StructOpt;
 
-#[path = "../bin_common/mod.rs"]
-mod bin_common;
-
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 #[allow(unused)]
 #[derive(StructOpt)]
 #[structopt(name = "Come Boy Debugger", about = "Game Boy (DMG) emulator debugger")]
-struct Options {
+pub struct Options {
     #[structopt(parse(from_os_str))]
     rom: PathBuf,
 
@@ -41,7 +38,7 @@ impl Frontend {
     }
 }
 
-impl bin_common::frontend::Frontend for Frontend {
+impl crate::bin_common::frontend::Frontend for Frontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         let stdin = &mut io::stdin();
         let stdin_locked = &mut stdin.lock();
@@ -64,11 +61,8 @@ fn set_up_signal_handler() {
     ctrlc::set_handler(move || INTERRUPTED.store(true, Ordering::Relaxed)).unwrap();
 }
 
-fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new().init().unwrap();
+pub fn main(options: Options) -> Result<()> {
     set_up_signal_handler();
-
-    let options = Options::from_args();
 
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;

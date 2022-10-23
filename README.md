@@ -33,6 +33,9 @@ Run tests as follow. You only need to run `./library/download_test_roms` once.
 # Usage
 
 ## Emulator
+
+`cargo run --release --bin come_boy -- <path-to-rom>`
+
 ```
 Game Boy (DMG) emulator
 
@@ -67,13 +70,13 @@ There is little UI right now. If you are running it on Windows, you can
 drag-and-drop a ROM file onto the emulator `.exe`. For Linux or OS X you have to
 pass the path to the ROM via the command-line
 
-## Tools
+## Diagnostics
 
 Here is a list and descriptions of other binaries that are included
 
 ### Disassembler
 
-`cargo run --bin disassembler`
+`cargo run --bin diagnostics disassembler`
 `disassembler [FLAGS] [OPTIONS] <rom>`
 
 This tool reads instructions and data from ROM files and prints them to the
@@ -100,7 +103,7 @@ The following are valid options.
 
 ### Debugger
 
-`cargo run --bin debugger`
+`cargo run --bin diagnostics debugger`
 `debugger [OPTIONS] <rom>`
 
 This runs the emulator with debugging features accessible via the command line.
@@ -125,7 +128,7 @@ The debugger has the following commands
 
 ### GamePak
 
-`cargo run --bin game_pak`
+`cargo run --bin diagnostics game_pak`
 `game_pak <rom>`
 
 Prints out metadata for a given GameBoy ROM.
@@ -133,7 +136,7 @@ Prints out metadata for a given GameBoy ROM.
 
 ### Replay
 
-`cargo run --bin replay`
+`cargo run --bin diagnostics replay`
 
 Tool to record and playback GameBoy emulator gameplay. Has the following
 sub-commands.
@@ -149,7 +152,7 @@ sub-commands.
 
 ### Screenshot
 
-`cargo run --bin screenshot`
+`cargo run --bin diagnostics screenshot`
 `screenshot [OPTIONS] <rom> --output <output> --ticks <ticks>`
 
 Runs the emulator with the given ROM until the CPU clock has reached the given
@@ -165,7 +168,7 @@ The following are valid options.
 
 ### Tandem
 
-`cargo run --bin tandem`
+`cargo run --bin diagnostics tandem`
 `tandem [FLAGS] <emulator_trace> <rom>`
 
 Runs the given ROM in the emulator comparing the emulator state each cycle to

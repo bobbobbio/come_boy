@@ -11,7 +11,7 @@ use structopt::StructOpt;
     name = "Come Boy Emulator Screenshot Taker",
     about = "Runs emulator for specified amount of time and takes screenshot"
 )]
-struct Options {
+pub struct Options {
     #[structopt(parse(from_os_str))]
     rom: PathBuf,
     #[structopt(long = "ticks")]
@@ -22,11 +22,7 @@ struct Options {
     output: PathBuf,
 }
 
-fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new().init().unwrap();
-
-    let options = Options::from_args();
-
+pub fn main(options: Options) -> Result<()> {
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;
     let replay_key = if let Some(replay) = &options.replay {

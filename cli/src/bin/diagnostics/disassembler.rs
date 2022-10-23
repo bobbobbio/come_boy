@@ -49,7 +49,7 @@ fn disassemble_rom(
     name = "Come Boy Disassembler",
     about = "Game Boy / LR35902 / Intel 8080 disassembler"
 )]
-struct Options {
+pub struct Options {
     #[structopt(parse(from_os_str))]
     rom: PathBuf,
     #[structopt(long = "instruction-set", default_value = "GameBoy")]
@@ -58,9 +58,7 @@ struct Options {
     hide_opcodes: bool,
 }
 
-fn main() -> Result<()> {
-    let options = Options::from_args();
-
+pub fn main(options: Options) -> Result<()> {
     let mut rom_file = File::open(&options.rom)?;
     let mut rom: Vec<u8> = vec![];
     rom_file.read_to_end(&mut rom)?;

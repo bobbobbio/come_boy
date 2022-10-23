@@ -1,6 +1,6 @@
 // Copyright 2022 Remi Bernotavicius
 
-use bin_common::{backend::BackendMap, Result};
+use crate::bin_common::{backend::BackendMap, Result};
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
@@ -9,9 +9,6 @@ use std::fs::File;
 use std::io::{self, Read as _};
 use std::path::PathBuf;
 use structopt::StructOpt;
-
-#[path = "../bin_common/mod.rs"]
-mod bin_common;
 
 struct RecordFrontend {
     fs: Fs,
@@ -29,7 +26,7 @@ impl RecordFrontend {
     }
 }
 
-impl bin_common::frontend::Frontend for RecordFrontend {
+impl crate::bin_common::frontend::Frontend for RecordFrontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         game_boy_emulator::run_with_coverage(
             self.fs,
@@ -48,7 +45,7 @@ impl bin_common::frontend::Frontend for RecordFrontend {
     about = "Runs emulator and records coverage information",
     rename_all = "kebab-case"
 )]
-enum Options {
+pub enum Options {
     Record {
         #[structopt(parse(from_os_str))]
         rom: PathBuf,
@@ -67,10 +64,7 @@ enum Options {
     },
 }
 
-fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new().init().unwrap();
-
-    let options = Options::from_args();
+pub fn main(options: Options) -> Result<()> {
     match options {
         Options::Record {
             rom,

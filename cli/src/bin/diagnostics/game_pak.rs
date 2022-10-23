@@ -7,14 +7,12 @@ use structopt::StructOpt;
 
 #[derive(StructOpt)]
 #[structopt(name = "GamePak Info", about = "Prints information about GamePaks")]
-struct Options {
+pub struct Options {
     #[structopt(parse(from_os_str))]
     rom: PathBuf,
 }
 
-fn main() -> Result<()> {
-    let options = Options::from_args();
-
+pub fn main(options: Options) -> Result<()> {
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;
     let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;

@@ -1,6 +1,6 @@
 // Copyright 2019 Remi Bernotavicius
 
-use bin_common::{backend::BackendMap, Result};
+use crate::bin_common::{backend::BackendMap, Result};
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
@@ -8,16 +8,13 @@ use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
 use structopt::StructOpt;
 
-#[path = "../bin_common/mod.rs"]
-mod bin_common;
-
 #[derive(StructOpt)]
 #[structopt(
     name = "Come Boy Emulator Replay Recorder / Playback",
     about = "Record / Playback Emulator Gameplay.",
     rename_all = "kebab-case"
 )]
-enum Options {
+pub enum Options {
     Record {
         #[structopt(parse(from_os_str))]
         rom: PathBuf,
@@ -60,7 +57,7 @@ impl RecordFrontend {
     }
 }
 
-impl bin_common::frontend::Frontend for RecordFrontend {
+impl crate::bin_common::frontend::Frontend for RecordFrontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         game_boy_emulator::run_and_record_replay(
             self.fs,
@@ -89,7 +86,7 @@ impl PlaybackFrontend {
     }
 }
 
-impl bin_common::frontend::Frontend for PlaybackFrontend {
+impl crate::bin_common::frontend::Frontend for PlaybackFrontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         game_boy_emulator::playback_replay(
             self.fs,
@@ -102,10 +99,7 @@ impl bin_common::frontend::Frontend for PlaybackFrontend {
     }
 }
 
-fn main() -> Result<()> {
-    simple_logger::SimpleLogger::new().init().unwrap();
-
-    let options = Options::from_args();
+pub fn main(options: Options) -> Result<()> {
     match options {
         Options::Record {
             rom,
