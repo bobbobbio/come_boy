@@ -170,6 +170,7 @@ impl<T> Scheduler<T> {
 
     /// This is a linear search from the end. Binary-search might be better, but I suspect most
     /// insertions are closer to the end of the queue anyway.
+    #[inline(always)]
     fn insertion_position(&self, time: u64) -> usize {
         let mut index = self.timeline.len();
         while index > 0 && self.timeline[index - 1].time >= time {
@@ -178,12 +179,14 @@ impl<T> Scheduler<T> {
         index
     }
 
+    #[inline(always)]
     pub fn schedule(&mut self, time: u64, event: T) {
         let index = self.insertion_position(time);
         let entry = SchedulerEntry { time, event };
         self.timeline.insert(index, entry);
     }
 
+    #[inline(always)]
     pub fn poll(&mut self, current_time: u64) -> Option<(u64, T)> {
         if let Some(front) = self.timeline.front() {
             if front.time <= current_time {
@@ -194,6 +197,7 @@ impl<T> Scheduler<T> {
         None
     }
 
+    #[inline(always)]
     pub fn drop_events(&mut self) {
         self.timeline = VecDeque::new();
     }

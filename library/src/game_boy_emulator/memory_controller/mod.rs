@@ -39,13 +39,13 @@ impl fmt::Debug for GameBoyRegister {
 }
 
 impl MemoryMappedHardware for GameBoyRegister {
-    #[inline]
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         self.value
     }
 
-    #[inline]
+    #[inline(always)]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
         self.value = value;
@@ -53,17 +53,17 @@ impl MemoryMappedHardware for GameBoyRegister {
 }
 
 impl GameBoyRegister {
-    #[inline]
+    #[inline(always)]
     pub fn read_value(&self) -> u8 {
         self.value
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn set_value(&mut self, value: u8) {
         self.value = value;
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn add(&mut self, value: u8) {
         self.value = self.value.wrapping_add(value);
     }
@@ -88,6 +88,7 @@ impl fmt::Debug for GameBoyRegister16 {
 }
 
 impl MemoryMappedHardware for GameBoyRegister16 {
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         match address {
             0 => self.value as u8,
@@ -96,6 +97,7 @@ impl MemoryMappedHardware for GameBoyRegister16 {
         }
     }
 
+    #[inline(always)]
     fn set_value(&mut self, address: u16, value: u8) {
         self.value = match address {
             0 => (self.value & 0xFF00) | value as u16,
@@ -106,12 +108,12 @@ impl MemoryMappedHardware for GameBoyRegister16 {
 }
 
 impl GameBoyRegister16 {
-    #[inline]
+    #[inline(always)]
     pub fn read_value(&self) -> u16 {
         self.value
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn set_value(&mut self, value: u16) {
         self.value = value;
     }
@@ -154,13 +156,13 @@ impl<T> Default for GameBoyFlags<T> {
 }
 
 impl<T: FlagMask> MemoryMappedHardware for GameBoyFlags<T> {
-    #[inline]
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         Self::read_value(self)
     }
 
-    #[inline]
+    #[inline(always)]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
         Self::set_value(self, value);
@@ -174,12 +176,12 @@ impl<T> GameBoyFlags<T> {
 }
 
 impl<T: FlagMask> GameBoyFlags<T> {
-    #[inline]
+    #[inline(always)]
     pub fn set_value(&mut self, value: u8) {
         self.value = (value & T::write_mask()) | (self.value & !T::write_mask());
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_value(&self) -> u8 {
         self.value | !T::read_mask()
     }
@@ -189,23 +191,23 @@ impl<T> GameBoyFlags<T>
 where
     u8: From<T>,
 {
-    #[inline]
+    #[inline(always)]
     pub fn read_flag(&self, f: T) -> bool {
         self.read_flag_value(f) != 0
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read_flag_value(&self, f: T) -> u8 {
         let mask = u8::from(f);
         (self.value & mask) >> mask.trailing_zeros()
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn set_flag(&mut self, f: T, v: bool) {
         self.set_flag_value(f, v.into())
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn set_flag_value(&mut self, f: T, v: u8) {
         let mask = u8::from(f);
         let v = (v << mask.trailing_zeros()) & mask;
@@ -335,7 +337,7 @@ pub trait MemoryMappedHardware {
 }
 
 impl<T: MemoryMappedHardware> MemoryMappedHardware for Option<T> {
-    #[inline]
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         match self {
             Some(v) => v.read_value(address),
@@ -343,7 +345,7 @@ impl<T: MemoryMappedHardware> MemoryMappedHardware for Option<T> {
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn set_value(&mut self, address: u16, value: u8) {
         if let Some(v) = self {
             v.set_value(address, value);
@@ -352,12 +354,12 @@ impl<T: MemoryMappedHardware> MemoryMappedHardware for Option<T> {
 }
 
 impl<T: MemoryMappedHardware + ?Sized> MemoryMappedHardware for Box<T> {
-    #[inline]
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         MemoryMappedHardware::read_value(&**self, address)
     }
 
-    #[inline]
+    #[inline(always)]
     fn set_value(&mut self, address: u16, value: u8) {
         MemoryMappedHardware::set_value(&mut **self, address, value)
     }
@@ -376,14 +378,14 @@ impl fmt::Debug for MemoryChunk {
 }
 
 impl MemoryMappedHardware for MemoryChunk {
-    #[inline]
+    #[inline(always)]
     fn set_value(&mut self, address: u16, value: u8) {
         if self.borrowed == 0 {
             self.value[address as usize] = value;
         }
     }
 
-    #[inline]
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         if self.borrowed != 0 {
             0xFF

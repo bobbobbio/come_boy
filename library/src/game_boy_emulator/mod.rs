@@ -220,17 +220,21 @@ impl Divider {
     fn set_state_post_bios(&mut self) {
         self.0.set_value(0xab);
     }
+
+    #[inline(always)]
     fn increment(&mut self) {
         self.0.add(1)
     }
 }
 
 impl MemoryMappedHardware for Divider {
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         self.0.read_value()
     }
 
+    #[inline(always)]
     fn set_value(&mut self, address: u16, _value: u8) {
         assert_eq!(address, 0);
         self.0.set_value(0);
@@ -274,6 +278,7 @@ impl TimerControl {
 }
 
 impl MemoryMappedHardware for TimerControl {
+    #[inline(always)]
     fn read_value(&self, address: u16) -> u8 {
         MemoryMappedHardware::read_value(&self.value, address)
     }
@@ -371,6 +376,7 @@ impl GameBoyTimer {
         }
     }
 
+    #[inline(always)]
     fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.interrupt_requested {
             interrupt_flag.set_flag(InterruptFlag::Timer, true);
@@ -378,6 +384,7 @@ impl GameBoyTimer {
         }
     }
 
+    #[inline(always)]
     fn deliver_events(&mut self, now: u64) {
         while let Some((time, ())) = self.scheduler.poll(now) {
             self.fire(time);
@@ -392,6 +399,7 @@ enum GameBoyEmulatorEvent {
 }
 
 impl GameBoyEmulatorEvent {
+    #[inline(always)]
     fn deliver(
         self,
         emulator: &mut GameBoyEmulator,
@@ -478,6 +486,7 @@ impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, Sou
         }
     }
 
+    #[inline(always)]
     fn memory_map<'a>(&'a self, bridge: &'a Bridge) -> GameBoyMemoryMap<'a, Storage> {
         GameBoyMemoryMap {
             game_pak: self.game_pak.as_ref(),
@@ -486,6 +495,7 @@ impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, Sou
         }
     }
 
+    #[inline(always)]
     fn memory_map_mut<'a>(
         &'a mut self,
         bridge: &'a mut Bridge,
@@ -570,12 +580,14 @@ impl GameBoyEmulator {
         }
     }
 
+    #[inline(always)]
     fn divider_tick(&mut self, time: u64) {
         self.bridge.registers.divider.increment();
         self.scheduler
             .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
 
+    #[inline(always)]
     fn deliver_events(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -656,6 +668,7 @@ impl GameBoyEmulator {
         Ok(())
     }
 
+    #[inline(always)]
     fn drive_joypad(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -669,6 +682,7 @@ impl GameBoyEmulator {
             .schedule(time + 456, GameBoyEmulatorEvent::DriveJoypad);
     }
 
+    #[inline(always)]
     fn execute_dma(
         &mut self,
         ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -704,6 +718,7 @@ impl GameBoyEmulator {
     /// Before handling an interrupt we push the return address to the stack. If the high byte when
     /// writing that address overwrites the IE register (0xFFFF) the interrupt handling will
     /// short-circuit and jump to address 0x0000.
+    #[inline(always)]
     fn maybe_handle_ie_push_bug(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -726,6 +741,7 @@ impl GameBoyEmulator {
         }
     }
 
+    #[inline(always)]
     fn deliver_interrupt(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -748,6 +764,7 @@ impl GameBoyEmulator {
         self.bridge.registers.interrupt_flag.set_flag(flag, false);
     }
 
+    #[inline(always)]
     fn maybe_deliver_interrupt(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -774,6 +791,7 @@ impl GameBoyEmulator {
         }
     }
 
+    #[inline(always)]
     fn handle_interrupts(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,

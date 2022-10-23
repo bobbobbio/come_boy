@@ -25,6 +25,7 @@ pub trait Read {
         Bytes { inner: self }
     }
 
+    #[inline(always)]
     fn read_exact(&mut self, mut buf: &mut [u8]) -> Result<()> {
         while !buf.is_empty() {
             match self.read(buf) {
@@ -69,12 +70,14 @@ pub trait Read {
 }
 
 impl<T: Read + ?Sized> Read for &mut T {
+    #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         (**self).read(buf)
     }
 }
 
 impl<T: Read + ?Sized> Read for alloc::boxed::Box<T> {
+    #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         (**self).read(buf)
     }

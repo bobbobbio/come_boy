@@ -559,6 +559,7 @@ enum LcdControllerEvent {
 }
 
 impl LcdControllerEvent {
+    #[inline(always)]
     fn deliver<R: Renderer>(self, controller: &mut LcdController, renderer: &mut R, time: u64) {
         match self {
             Self::AdvanceLy => controller.advance_ly(time),
@@ -582,16 +583,19 @@ impl ScanLine {
         }
     }
 
+    #[inline(always)]
     fn set_pixel(&mut self, x: i32, shade: LcdShade) {
         assert!(x >= 0 && x < self.data.len() as i32);
         self.data[x as usize] = shade
     }
 
+    #[inline(always)]
     fn get_pixel(&self, x: i32) -> LcdShade {
         assert!(x >= 0 && x < self.data.len() as i32);
         self.data[x as usize]
     }
 
+    #[inline(always)]
     fn draw<R: Renderer>(&self, renderer: &mut R, y: i32) {
         for (x, &v) in self.data.iter().enumerate() {
             renderer.color_pixel(x as i32, y, color_for_shade::<R>(v));
@@ -653,12 +657,14 @@ impl LcdController {
     }
 
     /// Should be called periodically to drive the emulator.
+    #[inline(always)]
     pub fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
         while let Some((time, event)) = self.scheduler.poll(now) {
             event.deliver(self, renderer, time);
         }
     }
 
+    #[inline(always)]
     fn read_dot_data(
         data: &MemoryChunk,
         character_data_selection: bool,
@@ -711,6 +717,7 @@ impl LcdController {
         self.oam_data.clone_from_slice(&oam_data[..]);
     }
 
+    #[inline(always)]
     fn get_scroll_origin_relative_to_lcd(&self) -> (i32, i32) {
         let mut x = -(self.registers.scx.read_value() as i32);
         let mut y = -(self.registers.scy.read_value() as i32);
@@ -729,6 +736,7 @@ impl LcdController {
         (x, y)
     }
 
+    #[inline(always)]
     fn get_window_origin_relative_to_lcd(&self) -> (i32, i32) {
         let x = self.registers.wx.read_value() as i32 - 7;
         let y = self.registers.wy.read_value() as i32;
@@ -736,6 +744,7 @@ impl LcdController {
         (x, y)
     }
 
+    #[inline(always)]
     fn draw_tiles(
         &mut self,
         line: &mut ScanLine,
@@ -808,6 +817,7 @@ impl LcdController {
         }
     }
 
+    #[inline(always)]
     fn draw_oam_data(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::ObjectOn) {
             return;
@@ -851,6 +861,7 @@ impl LcdController {
         }
     }
 
+    #[inline(always)]
     fn mode_2(&mut self, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
@@ -867,6 +878,7 @@ impl LcdController {
             .schedule(time + 77, LcdControllerEvent::Mode3);
     }
 
+    #[inline(always)]
     fn draw_background(&mut self, line: &mut ScanLine) {
         let bg_area_selection = self
             .registers
@@ -887,6 +899,7 @@ impl LcdController {
         );
     }
 
+    #[inline(always)]
     fn draw_window(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::WindowingOn) {
             return;
@@ -907,6 +920,7 @@ impl LcdController {
         );
     }
 
+    #[inline(always)]
     fn mode_3<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         let ly = self.registers.ly.read_value();
         assert!((ly as i32) < SCREEN_HEIGHT, "drawing ly = {}", ly);
@@ -927,6 +941,7 @@ impl LcdController {
             .schedule(time + 175, LcdControllerEvent::Mode0);
     }
 
+    #[inline(always)]
     fn mode_0(&mut self, time: u64) {
         self.character_data.release();
         self.background_display_data_1.release();
@@ -953,6 +968,7 @@ impl LcdController {
         }
     }
 
+    #[inline(always)]
     fn advance_ly(&mut self, time: u64) {
         // This advances the ly register, which represents the horizontal line that is currently
         // being drawn on the LCD.
@@ -971,6 +987,7 @@ impl LcdController {
             .schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
     }
 
+    #[inline(always)]
     fn update_ly_match(&mut self, _time: u64) {
         if self.registers.ly.read_value() == self.registers.lyc.read_value() {
             self.registers.stat.set_flag(LcdStatusFlag::LYMatch, true);
@@ -984,6 +1001,7 @@ impl LcdController {
         }
     }
 
+    #[inline(always)]
     fn mode_1<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x1);
         renderer.present();
@@ -1002,6 +1020,7 @@ impl LcdController {
             .schedule(time + 4560, LcdControllerEvent::Mode2);
     }
 
+    #[inline(always)]
     fn enable(&mut self, time: u64) {
         assert!(!self.enabled);
 
@@ -1010,6 +1029,7 @@ impl LcdController {
         self.update_ly_match(time);
     }
 
+    #[inline(always)]
     fn disable(&mut self) {
         assert!(self.enabled);
 
@@ -1033,6 +1053,7 @@ impl LcdController {
         self.enabled = false;
     }
 
+    #[inline(always)]
     fn check_enabled_state(&mut self, time: u64) {
         let lcdc_enabled = self.registers.lcdc.read_flag(LcdControlFlag::DisplayOn);
         if self.enabled != lcdc_enabled {
@@ -1045,6 +1066,7 @@ impl LcdController {
     }
 
     /// Should be called periodically to drive the emulator.
+    #[inline(always)]
     pub fn tick(&mut self, time: u64) {
         self.check_enabled_state(time);
     }

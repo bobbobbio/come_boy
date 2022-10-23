@@ -6,6 +6,7 @@ where
     Storage: crate::storage::PersistentStorage,
 {
     #[allow(clippy::identity_op, clippy::if_same_then_else)]
+    #[inline(always)]
     fn read_memory(&self, address: u16) -> u8 {
         if address == 65280u16 {
             MemoryMappedHardware::read_value(&self.joypad, address - 65280u16)
@@ -141,6 +142,7 @@ where
         }
     }
     #[allow(unused_variables, clippy::identity_op, clippy::if_same_then_else)]
+    #[inline(always)]
     fn set_memory(&mut self, address: u16, value: u8) {
         panic!("Called set_memory on non-mutable MemoryMap")
     }

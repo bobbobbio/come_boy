@@ -284,6 +284,7 @@ pub enum Intel8080InstructionType {
 const NUM_INSTRUCTIONS: usize = 80usize;
 impl Intel8080Instruction {
     #[allow(clippy::unnecessary_cast)]
+    #[inline(always)]
     pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
         let opcode = stream.read_u8()?;
         Ok(match opcode {
@@ -2178,6 +2179,7 @@ pub trait Intel8080InstructionSet {
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8);
 }
 impl Intel8080Instruction {
+    #[inline(always)]
     pub fn dispatch<I: Intel8080InstructionSet>(self, machine: &mut I) {
         match self {
             Self::NoOperation {} => machine.no_operation(),

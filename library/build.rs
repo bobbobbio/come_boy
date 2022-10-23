@@ -661,6 +661,7 @@ impl OpcodeGenerator {
 
         tokens.extend(quote!(
             impl #enum_name {
+                #[inline(always)]
                 pub fn dispatch<I: #trait_name>(self, machine: &mut I) {
                     match self {
                         #( #dispatches, )*
@@ -788,6 +789,7 @@ impl OpcodeGenerator {
 
             impl #enum_name {
                 #[allow(clippy::unnecessary_cast)]
+                #[inline(always)]
                 pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
                     let opcode = stream.read_u8()?;
                     Ok(match opcode {
@@ -1106,6 +1108,7 @@ fn generate_memory_map_from_mapping(
 
         impl #generics #memory_controller::MemoryAccessor for #name #generics #where_clause {
             #[allow(clippy::identity_op, clippy::if_same_then_else)]
+            #[inline(always)]
             fn read_memory(&self, address: u16) -> u8 {
                 #(if #read_expr {
                     MemoryMappedHardware::read_value(&self.#read_field, address - #read_offset)
@@ -1116,6 +1119,7 @@ fn generate_memory_map_from_mapping(
             }
 
             #[allow(unused_variables, clippy::identity_op, clippy::if_same_then_else)]
+            #[inline(always)]
             fn set_memory(&mut self, address: u16, value: u8) {
                 #set_memory_body
             }
