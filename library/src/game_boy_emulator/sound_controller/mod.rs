@@ -295,9 +295,13 @@ impl SoundController {
     }
 
     pub fn schedule_initial_events(&mut self, now: u64) {
-        self.channel1.channel.schedule_initial_events(now);
-        self.scheduler
-            .schedule(now, SoundControllerEvent::MixerTick);
+        // Completely disabled sound controller, it is not functioning correctly and is causing
+        // problems on picosystem
+        if false {
+            self.channel1.channel.schedule_initial_events(now);
+            self.scheduler
+                .schedule(now, SoundControllerEvent::MixerTick);
+        }
     }
 
     fn mixer_tick<S: SoundStream>(&mut self, now: u64, sound_stream: &mut S) {
