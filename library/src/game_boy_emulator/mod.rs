@@ -264,14 +264,17 @@ impl fmt::Debug for TimerControl {
 }
 
 impl TimerControl {
+    #[inline(always)]
     fn read_flag(&self, flag: TimerFlags) -> bool {
         self.value.read_flag(flag)
     }
 
+    #[inline(always)]
     fn read_flag_value(&self, flag: TimerFlags) -> u8 {
         self.value.read_flag_value(flag)
     }
 
+    #[inline(always)]
     fn set_value(&mut self, value: u8) {
         self.value.set_value(value);
     }
