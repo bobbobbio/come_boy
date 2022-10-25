@@ -30,3 +30,9 @@ struct buffer {
 
 struct buffer *
 target_buffer(void);
+
+uint64_t
+now_us(void);
+
+void
+frect(int x, int y, int w, int h);

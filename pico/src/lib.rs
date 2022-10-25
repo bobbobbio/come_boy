@@ -13,6 +13,7 @@ mod emulator;
 mod graphics;
 mod joypad;
 mod picosystem;
+mod time;
 
 #[cfg(not(feature = "std"))]
 mod panic;

@@ -29,6 +29,12 @@ extern "C" {
   }
 
   void
+  frect(int x, int y, int w, int h)
+  {
+      picosystem::frect(x, y, w, h);
+  }
+
+  void
   wait_vsync(void)
   {
       picosystem::_wait_vsync();
@@ -50,6 +56,12 @@ extern "C" {
   target_buffer(void)
   {
       return (struct buffer *)picosystem::_dt;
+  }
+
+  uint64_t
+  now_us(void)
+  {
+      return time_us_64();
   }
 
 }

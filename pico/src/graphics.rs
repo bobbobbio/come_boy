@@ -68,13 +68,17 @@ impl Graphics {
         unsafe { picosystem::clear() };
     }
 
-    pub fn text(&self, msg: &str) {
+    pub fn text(&self, msg: &str, x: i32, y: i32) {
         assert!(msg.is_ascii());
 
         let mut buffer = vec![0; msg.len() + 1];
         buffer[..(msg.len())].clone_from_slice(msg.as_bytes());
 
-        unsafe { picosystem::text(buffer.as_ptr() as *const i8, 3, 3) }
+        unsafe { picosystem::text(buffer.as_ptr() as *const i8, x, y) }
+    }
+
+    pub fn filled_rect(&self, x: i32, y: i32, w: i32, h: i32) {
+        unsafe { picosystem::frect(x, y, w, h) }
     }
 }
 

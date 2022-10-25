@@ -22,7 +22,7 @@ fn panic(info: &PanicInfo) -> ! {
         "panic occurred from unknown place".into()
     };
 
-    graphics.text(&message);
+    graphics.text(&message, 3, 3);
 
     unsafe { crate::picosystem::wait_vsync() };
     unsafe { crate::picosystem::flip() };
