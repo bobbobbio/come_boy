@@ -127,10 +127,12 @@ pub struct DmaRegister {
 }
 
 impl MemoryMappedHardware for DmaRegister {
+    #[inline(always)]
     fn read_value(&self, _: u16) -> u8 {
         self.read_value()
     }
 
+    #[inline(always)]
     fn set_value(&mut self, _: u16, value: u8) {
         self.set_value(value);
         self.requested = true;
@@ -144,6 +146,7 @@ impl fmt::Debug for DmaRegister {
 }
 
 impl DmaRegister {
+    #[inline(always)]
     pub fn take_request(&mut self) -> Option<u16> {
         if self.requested {
             self.requested = false;
@@ -153,10 +156,12 @@ impl DmaRegister {
         }
     }
 
+    #[inline(always)]
     pub fn read_value(&self) -> u8 {
         self.value
     }
 
+    #[inline(always)]
     pub fn set_value(&mut self, value: u8) {
         self.value = value;
     }
@@ -217,10 +222,12 @@ pub enum LcdColor {
 }
 
 impl FlagMask for LcdColor {
+    #[inline(always)]
     fn read_mask() -> u8 {
         0xFF
     }
 
+    #[inline(always)]
     fn write_mask() -> u8 {
         0xFF
     }
@@ -235,6 +242,7 @@ enum LcdShade {
     Shade3 = 0x3,
 }
 
+#[inline(always)]
 fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
     match shade {
         LcdShade::Shade0 => R::Color::new(0xe0, 0xf8, 0xd0),
@@ -278,10 +286,12 @@ pub enum LcdControlFlag {
 }
 
 impl FlagMask for LcdControlFlag {
+    #[inline(always)]
     fn read_mask() -> u8 {
         0xFF
     }
 
+    #[inline(always)]
     fn write_mask() -> u8 {
         0xFF
     }
@@ -311,6 +321,7 @@ pub enum LcdStatusFlag {
 }
 
 impl FlagMask for LcdStatusFlag {
+    #[inline(always)]
     fn read_mask() -> u8 {
         Self::InterruptLYMatching as u8
             | Self::InterruptMode10 as u8
@@ -320,6 +331,7 @@ impl FlagMask for LcdStatusFlag {
             | Self::Mode as u8
     }
 
+    #[inline(always)]
     fn write_mask() -> u8 {
         Self::InterruptLYMatching as u8
             | Self::InterruptMode10 as u8
@@ -355,21 +367,25 @@ enum LcdObjectAttributeFlag {
 }
 
 impl FlagMask for LcdObjectAttributeFlag {
+    #[inline(always)]
     fn read_mask() -> u8 {
         0xFF
     }
 
+    #[inline(always)]
     fn write_mask() -> u8 {
         0xFF
     }
 }
 
 impl LcdObject {
+    #[inline(always)]
     fn read_flag(&self, flag: LcdObjectAttributeFlag) -> bool {
         self.flags.read_flag(flag)
     }
 
     /// Returns tuple (y position, character code)
+    #[inline(always)]
     fn get_character_data_for_line(
         &self,
         line: i32,
@@ -443,6 +459,7 @@ struct LcdObjectIterator<'a> {
 impl<'a> Iterator for LcdObjectIterator<'a> {
     type Item = LcdObject;
 
+    #[inline(always)]
     fn next(&mut self) -> Option<LcdObject> {
         if self.chunk_iterator.peek().is_none() {
             None
@@ -464,6 +481,7 @@ impl<'a> Iterator for LcdObjectIterator<'a> {
 }
 
 impl<'a> LcdObjectIterator<'a> {
+    #[inline(always)]
     fn new(chunk: &'a MemoryChunk) -> LcdObjectIterator<'a> {
         LcdObjectIterator {
             chunk_iterator: chunk.as_slice().iter().peekable(),
@@ -477,6 +495,7 @@ struct LcdDotData<'a> {
 }
 
 impl<'a> LcdDotData<'a> {
+    #[inline(always)]
     fn read_pixel(&self, offset: usize) -> LcdColor {
         let byte_offset = (offset / 8) * 2;
         let bit_offset = 7 - (offset % 8);
@@ -578,6 +597,7 @@ struct ScanLine {
 }
 
 impl ScanLine {
+    #[inline(always)]
     fn new() -> Self {
         Self {
             data: [LcdShade::Shade0; SCREEN_WIDTH as usize],
@@ -646,6 +666,7 @@ impl LcdController {
     }
 
     /// Must be called periodically so the proper interrupts can be triggered.
+    #[inline(always)]
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.vertical_blanking_interrupt {
             interrupt_flag.set_flag(InterruptFlag::VerticalBlanking, true);
