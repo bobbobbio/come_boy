@@ -4,7 +4,8 @@ use super::coverage::{self, CoverageData};
 pub use super::debugger::run_debugger;
 use super::joypad::{PlaybackJoyPad, RecordingJoyPad};
 use super::{
-    game_pak::GamePak, joypad, tandem, ControllerJoyPad, GameBoyEmulator, GameBoyOps, Result,
+    game_pak::GamePak, joypad, tandem, ControllerJoyPad, GameBoyEmulator, GameBoyOps,
+    NullPerfObserver, PerfObserver, Result,
 };
 use crate::io;
 use crate::rendering::Renderer;
@@ -20,6 +21,7 @@ pub fn run_emulator<Storage: PersistentStorage>(
     game_pak: GamePak<Storage>,
     save_state: Option<Vec<u8>>,
     unlock_cpu: bool,
+    observer: &mut impl PerfObserver,
     disable_joypad: bool,
     run_until: Option<u64>,
 ) -> Result<()> {
@@ -41,11 +43,11 @@ pub fn run_emulator<Storage: PersistentStorage>(
     }
 
     if let Some(ticks) = run_until {
-        run_emulator_until(&mut e, &mut ops, ticks);
+        run_emulator_until(&mut e, &mut ops, observer, ticks);
         return Ok(());
     }
 
-    e.run(&mut ops);
+    e.run_with_options(&mut ops, |_| (), observer);
 
     Ok(())
 }
@@ -65,6 +67,7 @@ pub fn run_in_tandem_with<Storage: PersistentStorage>(
 pub(crate) fn run_emulator_until(
     e: &mut GameBoyEmulator,
     ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    observer: &mut impl PerfObserver,
     ticks: u64,
 ) {
     while e.cpu.elapsed_cycles < ticks {
@@ -72,7 +75,7 @@ pub(crate) fn run_emulator_until(
             panic!("Emulator crashed: {}", c);
         }
 
-        e.tick(ops);
+        e.tick_with_observer(ops, observer);
     }
     log::info!(
         "Ran Game Boy emulator until CPU clock was {} (which is >= {})",
@@ -88,7 +91,7 @@ fn run_emulator_until_and_take_screenshot(
     output_stream: impl io::Write,
 ) {
     let ticks = e.cpu.elapsed_cycles + ticks;
-    run_emulator_until(&mut e, ops, ticks);
+    run_emulator_until(&mut e, ops, &mut NullPerfObserver, ticks);
     ops.renderer.save_buffer(output_stream).unwrap();
 }
 
@@ -172,7 +175,7 @@ pub fn run_with_coverage<Storage: PersistentStorage + 'static>(
 
     let mut coverage_data = CoverageData::new();
 
-    e.run_with_observer(&mut ops, |e| coverage_data.sample(e));
+    e.run_with_options(&mut ops, |e| coverage_data.sample(e), &mut NullPerfObserver);
 
     log::info!("Writing coverage data to {:?}", output_key);
     let mut output_file = ops.storage.open(OpenMode::Write, output_key)?;

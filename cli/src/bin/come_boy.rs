@@ -4,34 +4,79 @@
 
 use bin_common::backend::BackendMap;
 use bin_common::Result;
-use come_boy::game_boy_emulator::{self, GamePak};
+use come_boy::game_boy_emulator::{self, GamePak, NullPerfObserver, PerfObserver};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::{NullSoundStream, SoundStream};
 use come_boy::storage::fs::Fs;
+use std::collections::HashMap;
+use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::time::{Duration, Instant};
 use structopt::StructOpt;
 
 #[path = "../bin_common/mod.rs"]
 mod bin_common;
+
+#[derive(Default)]
+struct PerfStats {
+    in_flight: HashMap<&'static str, Instant>,
+    stats: HashMap<&'static str, (Duration, u32)>,
+}
+
+impl PerfObserver for PerfStats {
+    #[inline(always)]
+    fn start_observation(&mut self, tag: &'static str) {
+        let existing = self.in_flight.insert(tag, Instant::now()).is_some();
+        assert!(!existing, "unfinished tag {}", tag);
+    }
+
+    #[inline(always)]
+    fn end_observation(&mut self, tag: &'static str) {
+        let start = self
+            .in_flight
+            .remove(tag)
+            .unwrap_or_else(|| panic!("unexpected tag {}", tag));
+        let entry = self.stats.entry(tag).or_insert((Duration::ZERO, 0));
+        entry.0 += start.elapsed();
+        entry.1 += 1;
+    }
+}
+
+impl fmt::Display for PerfStats {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut sorted_stats: Vec<_> = self.stats.iter().map(|(t, &(d, n))| (t, d / n)).collect();
+        sorted_stats.sort_by(|(_, d1), (_, d2)| d1.cmp(d2));
+
+        writeln!(f)?;
+        for (tag, duration) in &sorted_stats {
+            writeln!(f, "{tag}: {}us", duration.as_nanos())?;
+        }
+
+        Ok(())
+    }
+}
 
 struct Frontend {
     fs: Fs,
     disable_sound: bool,
     disable_joypad: bool,
     unlock_cpu: bool,
+    perf_stats: bool,
     game_pak: GamePak<Fs>,
     save_state: Option<Vec<u8>>,
     run_until: Option<u64>,
 }
 
 impl Frontend {
+    #[allow(clippy::too_many_arguments)]
     fn new(
         fs: Fs,
         disable_sound: bool,
         disable_joypad: bool,
         unlock_cpu: bool,
+        perf_stats: bool,
         game_pak: GamePak<Fs>,
         save_state: Option<Vec<u8>>,
         run_until: Option<u64>,
@@ -41,13 +86,19 @@ impl Frontend {
             disable_sound,
             disable_joypad,
             unlock_cpu,
+            perf_stats,
             game_pak,
             save_state,
             run_until,
         }
     }
 
-    fn run_inner(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
+    fn run_with_observer(
+        self,
+        renderer: &mut impl Renderer,
+        sound_stream: &mut impl SoundStream,
+        observer: &mut impl PerfObserver,
+    ) {
         game_boy_emulator::run_emulator(
             renderer,
             sound_stream,
@@ -55,19 +106,30 @@ impl Frontend {
             self.game_pak,
             self.save_state,
             self.unlock_cpu,
+            observer,
             self.disable_joypad,
             self.run_until,
         )
         .unwrap();
+    }
+
+    fn run_with_sound(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
+        if self.perf_stats {
+            let mut perf_stats = PerfStats::default();
+            self.run_with_observer(renderer, sound_stream, &mut perf_stats);
+            log::info!("{}", &perf_stats);
+        } else {
+            self.run_with_observer(renderer, sound_stream, &mut NullPerfObserver);
+        }
     }
 }
 
 impl bin_common::frontend::Frontend for Frontend {
     fn run(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         if self.disable_sound {
-            self.run_inner(renderer, &mut NullSoundStream);
+            self.run_with_sound(renderer, &mut NullSoundStream);
         } else {
-            self.run_inner(renderer, sound_stream);
+            self.run_with_sound(renderer, sound_stream);
         }
     }
 }
@@ -95,6 +157,9 @@ struct Options {
 
     #[structopt(long = "unlock-cpu")]
     unlock_cpu: bool,
+
+    #[structopt(long = "perf-stats")]
+    perf_stats: bool,
 
     #[structopt(long = "run-until")]
     run_until: Option<u64>,
@@ -132,6 +197,7 @@ fn main() -> Result<()> {
         options.disable_sound,
         options.disable_joypad,
         options.unlock_cpu,
+        options.perf_stats,
         game_pak,
         save_state,
         options.run_until,

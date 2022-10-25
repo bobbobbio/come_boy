@@ -36,6 +36,7 @@ sdl2 = { version = "0.32.*", optional = true }
 serde = { version = "*", default_features = false, features = ["alloc"] }
 serde_derive = "*"
 speedy2d = { version = "*", optional = true }
+strum_macros = { version = "*" }
 
 [dev-dependencies]
 tempfile = "*"

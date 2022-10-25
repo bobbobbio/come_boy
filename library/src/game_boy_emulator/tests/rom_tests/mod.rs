@@ -2,7 +2,7 @@
 
 use crate::game_boy_emulator::{
     joypad::PlaybackJoyPad, run_emulator_until, run_until_and_take_screenshot, GameBoyEmulator,
-    GameBoyOps, GamePak, Result,
+    GameBoyOps, GamePak, NullPerfObserver, Result,
 };
 use crate::io;
 use crate::rendering::Renderer;
@@ -36,7 +36,7 @@ fn run_until_and_save_reload_and_take_screenshot(
     let initial_ticks = e.cpu.elapsed_cycles;
     let final_ticks = initial_ticks + ticks;
     let stopping_point = final_ticks - 500_000;
-    run_emulator_until(&mut e, &mut ops, stopping_point);
+    run_emulator_until(&mut e, &mut ops, &mut NullPerfObserver, stopping_point);
 
     // Save a save state
     let mut tmp_output = tempfile::NamedTempFile::new()?;
@@ -51,7 +51,7 @@ fn run_until_and_save_reload_and_take_screenshot(
     e.load_state(ops.game_pak.as_mut(), tmp_output)?;
 
     // Run it the rest of the time
-    run_emulator_until(&mut e, &mut ops, final_ticks);
+    run_emulator_until(&mut e, &mut ops, &mut NullPerfObserver, final_ticks);
     let mut file = ops.storage.open(OpenMode::Write, output_key)?;
     ops.renderer.save_buffer(&mut file).unwrap();
 

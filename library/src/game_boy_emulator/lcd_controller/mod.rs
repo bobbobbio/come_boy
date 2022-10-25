@@ -47,7 +47,7 @@
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
-use crate::game_boy_emulator::InterruptFlag;
+use crate::game_boy_emulator::{observe, InterruptFlag, PerfObserver};
 use crate::rendering::{Color, Renderer};
 use crate::util::Scheduler;
 use alloc::vec::Vec;
@@ -56,6 +56,7 @@ use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
+use strum_macros::IntoStaticStr;
 
 /// The width of the screen in pixels
 const SCREEN_WIDTH: i32 = 160;
@@ -548,7 +549,7 @@ impl<'a> LcdDotData<'a> {
 }
 
 /// Used with the scheduler to run functions after some amount of time.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, IntoStaticStr)]
 enum LcdControllerEvent {
     AdvanceLy,
     Mode0,
@@ -658,9 +659,16 @@ impl LcdController {
 
     /// Should be called periodically to drive the emulator.
     #[inline(always)]
-    pub fn deliver_events<R: Renderer>(&mut self, renderer: &mut R, now: u64) {
+    pub fn deliver_events(
+        &mut self,
+        renderer: &mut impl Renderer,
+        observer: &mut impl PerfObserver,
+        now: u64,
+    ) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event.deliver(self, renderer, time);
+            observe(observer, (&event).into(), || {
+                event.deliver(self, renderer, time)
+            });
         }
     }
 

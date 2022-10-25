@@ -23,6 +23,7 @@ use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
+use strum_macros::IntoStaticStr;
 
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
@@ -100,6 +101,29 @@ impl From<crate::codec::Error> for Error {
     fn from(e: crate::codec::Error) -> Self {
         Self::Serde(e)
     }
+}
+
+pub trait PerfObserver {
+    fn start_observation(&mut self, tag: &'static str);
+    fn end_observation(&mut self, tag: &'static str);
+}
+
+pub struct NullPerfObserver;
+
+impl PerfObserver for NullPerfObserver {
+    #[inline(always)]
+    fn start_observation(&mut self, _tag: &'static str) {}
+
+    #[inline(always)]
+    fn end_observation(&mut self, _tag: &'static str) {}
+}
+
+#[inline(always)]
+fn observe<R>(p: &mut impl PerfObserver, tag: &'static str, body: impl FnOnce() -> R) -> R {
+    p.start_observation(tag);
+    let ret = body();
+    p.end_observation(tag);
+    ret
 }
 
 /*   ____                      ____              _____                 _       _
@@ -395,7 +419,7 @@ impl GameBoyTimer {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, IntoStaticStr)]
 enum GameBoyEmulatorEvent {
     DividerTick,
     DriveJoypad,
@@ -594,47 +618,67 @@ impl GameBoyEmulator {
     fn deliver_events(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        observer: &mut impl PerfObserver,
         now: u64,
     ) {
         while let Some((time, event)) = self.scheduler.poll(now) {
-            event.deliver(self, ops, time);
+            observe(observer, (&event).into(), || event.deliver(self, ops, time));
         }
 
         self.bridge
             .lcd_controller
-            .deliver_events(&mut ops.renderer, now);
-        self.bridge.timer.deliver_events(now);
-        self.bridge
-            .sound_controller
-            .deliver_events(now, &mut ops.sound_stream);
+            .deliver_events(&mut ops.renderer, observer, now);
+        observe(observer, "timer", || self.bridge.timer.deliver_events(now));
+        observe(observer, "sound", || {
+            self.bridge
+                .sound_controller
+                .deliver_events(now, &mut ops.sound_stream)
+        });
     }
 
     pub fn tick(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) {
-        self.cpu.load_instruction(&ops.memory_map(&self.bridge));
+        self.tick_with_observer(ops, &mut NullPerfObserver)
+    }
+
+    #[inline(always)]
+    pub fn tick_with_observer(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        observer: &mut impl PerfObserver,
+    ) {
+        observe(observer, "load_instruction", || {
+            self.cpu.load_instruction(&ops.memory_map(&self.bridge));
+        });
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(ops, now);
+        self.deliver_events(ops, observer, now);
 
-        self.cpu
-            .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge));
+        observe(observer, "execute_instruction", || {
+            self.cpu
+                .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge))
+        });
 
         let now = self.cpu.elapsed_cycles;
-        self.bridge.timer.tick(now);
-        self.bridge.lcd_controller.tick(now);
-        self.execute_dma(ops, now);
-        self.deliver_events(ops, now);
+        observe(observer, "bridge_tick", || {
+            self.bridge.timer.tick(now);
+            self.bridge.lcd_controller.tick(now);
+        });
 
-        self.bridge
-            .lcd_controller
-            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
-        self.bridge
-            .timer
-            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
+        observe(observer, "dma", || {
+            self.execute_dma(ops, now);
+        });
 
-        self.handle_interrupts(ops);
+        self.deliver_events(ops, observer, now);
+
+        observe(observer, "interrupts", || {
+            self.schedule_interrupts();
+            self.handle_interrupts(ops);
+        });
+
+        observe(observer, "nothing", || ());
     }
 
     pub fn read_key_events(
@@ -808,6 +852,16 @@ impl GameBoyEmulator {
         if interrupted {
             self.cpu.set_interrupts_enabled(false);
         }
+    }
+
+    #[inline(always)]
+    fn schedule_interrupts(&mut self) {
+        self.bridge
+            .lcd_controller
+            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
+        self.bridge
+            .timer
+            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
     }
 
     fn set_state_post_bios(&mut self) {
