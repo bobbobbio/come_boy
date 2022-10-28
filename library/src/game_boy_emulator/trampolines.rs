@@ -5,7 +5,7 @@ pub use super::debugger::run_debugger;
 use super::joypad::{PlaybackJoyPad, RecordingJoyPad};
 use super::{
     game_pak::GamePak, joypad, tandem, ControllerJoyPad, GameBoyEmulator, GameBoyOps,
-    NullPerfObserver, PerfObserver, Result,
+    ModuloCounter, NullPerfObserver, PerfObserver, Result, SLEEP_INPUT_TICKS,
 };
 use crate::io;
 use crate::rendering::Renderer;
@@ -70,12 +70,18 @@ pub(crate) fn run_emulator_until(
     observer: &mut impl PerfObserver,
     ticks: u64,
 ) {
+    let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
     while e.cpu.elapsed_cycles < ticks {
         if let Some(c) = e.crashed() {
             panic!("Emulator crashed: {}", c);
         }
 
-        e.tick_with_observer(ops, observer);
+        if sometimes.incr() {
+            e.tick_with_observer(ops, observer);
+            observer.tick_observed();
+        } else {
+            e.tick(ops);
+        }
     }
     log::info!(
         "Ran Game Boy emulator until CPU clock was {} (which is >= {})",

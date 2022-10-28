@@ -53,10 +53,12 @@ impl PerfObserver for PerfStats {
 impl fmt::Display for PerfStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ticks = self.num_ticks;
+        assert!(ticks != 0);
         let mut sorted_stats: Vec<_> = self
             .stats
             .iter()
             .map(|(t, &(d, n))| {
+                assert!(n != 0);
                 if ticks > n {
                     (t, d / n / (ticks / n))
                 } else {

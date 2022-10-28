@@ -19,6 +19,7 @@ def run_and_time(tmp_dir, rom_path, ticks):
         rom_path,
         '--renderer', 'null',
         '--unlock-cpu',
+        '--perf-stats',
         '--run-until', str(ticks)
     ]
     time_output = os.path.join(tmp_dir, 'time.stderr')
