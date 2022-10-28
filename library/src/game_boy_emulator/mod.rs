@@ -647,7 +647,6 @@ impl GameBoyEmulator {
         self.tick_with_observer(ops, &mut NullPerfObserver)
     }
 
-    #[inline(always)]
     pub fn tick_with_observer(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,

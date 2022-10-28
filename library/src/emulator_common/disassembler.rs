@@ -75,12 +75,17 @@ impl<'a, M> MemoryStream<'a, M> {
 impl<'a, M: MemoryAccessor> io::Read for MemoryStream<'a, M> {
     #[inline(always)]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        self.read_exact(buf)?;
+        Ok(buf.len())
+    }
+
+    #[inline(always)]
+    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
         for (i, item) in buf.iter_mut().enumerate() {
             *item = self.memory_accessor.read_memory(self.index + (i as u16));
         }
         self.index += buf.len() as u16;
-
-        Ok(buf.len())
+        Ok(())
     }
 }
 
