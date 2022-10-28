@@ -88,11 +88,11 @@ pub fn main(options: Options) -> Result<()> {
             Ok(())
         }
         Options::Display { rom, input } => {
-            let mut rom_file = File::open(&rom)?;
+            let mut rom_file = File::open(rom)?;
             let mut rom: Vec<u8> = vec![];
             rom_file.read_to_end(&mut rom)?;
 
-            let input_file = File::open(&input)?;
+            let input_file = File::open(input)?;
 
             game_boy_emulator::display_coverage(&rom, &input_file, io::stdout())?;
             Ok(())

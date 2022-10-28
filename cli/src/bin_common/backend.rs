@@ -14,7 +14,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnknownRenderer(m) => write!(f, "unknown renderer {}", m),
+            Self::UnknownRenderer(m) => write!(f, "unknown renderer {m}"),
             Self::MissingRenderer => write!(f, "must be compiled with at least one renderer"),
         }
     }

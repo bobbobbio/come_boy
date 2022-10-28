@@ -208,12 +208,12 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let iter = &mut data.iter().peekable();
         while iter.peek().is_some() {
             if include_opcodes {
-                write!(self.stream_out, "{:07x}          ", index)?;
+                write!(self.stream_out, "{index:07x}          ")?;
             }
             write!(self.stream_out, "{:04} ${:02X}", "db", iter.next().unwrap())?;
             index += 1;
             for d in iter.take(15) {
-                write!(self.stream_out, ",${:02X}", d)?;
+                write!(self.stream_out, ",${d:02X}")?;
                 index += 1;
             }
             if iter.peek().is_some() {
@@ -245,9 +245,9 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         match str::from_utf8(&data) {
             Ok(s) => {
                 if include_opcodes {
-                    write!(self.stream_out, "{:07x}          ", start)?;
+                    write!(self.stream_out, "{start:07x}          ")?;
                 }
-                write!(self.stream_out, "{:04} \"{}\"", "db", s)
+                write!(self.stream_out, "{:04} \"{s}\"", "db")
             }
             Err(_) => self.display_data(&data, include_opcodes, start),
         }
@@ -279,7 +279,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let skip = lines.lines().count().saturating_sub(context as usize);
 
         for line in lines.lines().skip(skip) {
-            writeln!(self.stream_out, "{}", line)?;
+            writeln!(self.stream_out, "{line}")?;
         }
 
         self.disassemble_one(true)?;
@@ -326,16 +326,16 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         if include_opcodes {
             let mut raw_assembly = String::new();
             for code in &instr {
-                raw_assembly.push_str(format!("{:02x} ", code).as_str());
+                raw_assembly.push_str(format!("{code:02x} ").as_str());
             }
 
             write!(
                 self.stream_out,
-                "{:07x} {:9}{}",
-                self.index, raw_assembly, str_instr
+                "{:07x} {raw_assembly:9}{str_instr}",
+                self.index
             )?;
         } else {
-            write!(self.stream_out, "{}", str_instr)?;
+            write!(self.stream_out, "{str_instr}")?;
         }
 
         self.index += instr.len() as u16;
@@ -383,8 +383,8 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
     fn print_instruction(&mut self, instr: TestInstruction, _address: u16) -> Result<()> {
         match instr {
             TestInstruction::One => write!(self.stream_out, "TEST1")?,
-            TestInstruction::Two(v1) => write!(self.stream_out, "TEST2 {}", v1)?,
-            TestInstruction::Three(v1, v2) => write!(self.stream_out, "TEST3 {} {}", v1, v2)?,
+            TestInstruction::Two(v1) => write!(self.stream_out, "TEST2 {v1}")?,
+            TestInstruction::Three(v1, v2) => write!(self.stream_out, "TEST3 {v1} {v2}")?,
         };
         Ok(())
     }
@@ -407,9 +407,7 @@ struct TestInstructionPrinterFactory;
 impl<'a> InstructionPrinterFactory<'a> for TestInstructionPrinterFactory {
     type Output = TestInstructionPrinter<'a>;
     fn create(&self, stream_out: &'a mut dyn io::Write) -> TestInstructionPrinter<'a> {
-        return TestInstructionPrinter {
-            stream_out: stream_out,
-        };
+        TestInstructionPrinter { stream_out }
     }
 }
 

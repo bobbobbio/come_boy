@@ -338,7 +338,7 @@ fn disassembler_rgbds_prints_db_correctly() {
     let mut s = String::new();
     for a in 0..0x0104 {
         d.push(0x0);
-        write!(s, "{:07x} 00       nop\n", a).unwrap();
+        writeln!(s, "{a:07x} 00       nop").unwrap();
     }
 
     d.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);

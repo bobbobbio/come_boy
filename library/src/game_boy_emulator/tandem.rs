@@ -54,40 +54,40 @@ pub fn fmt_flags(flags: u8, f: &mut fmt::Formatter) -> fmt::Result {
             set.push(*f);
         }
     }
-    write!(f, "0x{:02x}: {:?}", flags, set)
+    write!(f, "0x{flags:02x}: {set:?}")
 }
 
 impl Debug for AbstractEmulatorRegisters {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let le = if f.alternate() { "\n" } else { "" };
         let sep = if f.alternate() { "    " } else { " " };
-        write!(f, "AbstractEmulatorRegisters {{{}", le)?;
-        write!(f, "{}pc: 0x{:x},{}", sep, self.pc, le)?;
-        write!(f, "{}sp: 0x{:x},{}", sep, self.sp, le)?;
-        write!(f, "{}a: 0x{:x},{}", sep, self.a, le)?;
-        write!(f, "{}b: 0x{:x},{}", sep, self.b, le)?;
-        write!(f, "{}c: 0x{:x},{}", sep, self.c, le)?;
-        write!(f, "{}d: 0x{:x},{}", sep, self.d, le)?;
-        write!(f, "{}e: 0x{:x},{}", sep, self.e, le)?;
-        write!(f, "{}h: 0x{:x},{}", sep, self.h, le)?;
-        write!(f, "{}l: 0x{:x},{}", sep, self.l, le)?;
-        write!(f, "{}flags: ", sep)?;
+        write!(f, "AbstractEmulatorRegisters {{{le}")?;
+        write!(f, "{sep}pc: 0x{:x},{le}", self.pc)?;
+        write!(f, "{sep}sp: 0x{:x},{le}", self.sp)?;
+        write!(f, "{sep}a: 0x{:x},{le}", self.a)?;
+        write!(f, "{sep}b: 0x{:x},{le}", self.b)?;
+        write!(f, "{sep}c: 0x{:x},{le}", self.c)?;
+        write!(f, "{sep}d: 0x{:x},{le}", self.d)?;
+        write!(f, "{sep}e: 0x{:x},{le}", self.e)?;
+        write!(f, "{sep}h: 0x{:x},{le}", self.h)?;
+        write!(f, "{sep}l: 0x{:x},{le}", self.l)?;
+        write!(f, "{sep}flags: ")?;
         fmt_flags(self.flags, f)?;
-        write!(f, "{}", le)?;
+        write!(f, "{le}")?;
 
-        write!(f, "{}lcdc: 0x{:x},{}", sep, self.lcdc, le)?;
-        write!(f, "{}stat: 0x{:x},{}", sep, self.stat, le)?;
+        write!(f, "{sep}lcdc: 0x{:x},{le}", self.lcdc)?;
+        write!(f, "{sep}stat: 0x{:x},{le}", self.stat)?;
 
-        write!(f, "{}scy: 0x{:x},{}", sep, self.scy, le)?;
-        write!(f, "{}scx: 0x{:x},{}", sep, self.scx, le)?;
-        write!(f, "{}ly: 0x{:x},{}", sep, self.ly, le)?;
-        write!(f, "{}lyc: 0x{:x},{}", sep, self.lyc, le)?;
-        write!(f, "{}dma: 0x{:x},{}", sep, self.dma, le)?;
-        write!(f, "{}bgp: 0x{:x},{}", sep, self.bgp, le)?;
-        write!(f, "{}obp0: 0x{:x},{}", sep, self.obp0, le)?;
-        write!(f, "{}obp1: 0x{:x},{}", sep, self.obp1, le)?;
-        write!(f, "{}wx: 0x{:x},{}", sep, self.wx, le)?;
-        write!(f, "{}wy: 0x{:x},{}", sep, self.wy, le)?;
+        write!(f, "{sep}scy: 0x{:x},{le}", self.scy)?;
+        write!(f, "{sep}scx: 0x{:x},{le}", self.scx)?;
+        write!(f, "{sep}ly: 0x{:x},{le}", self.ly)?;
+        write!(f, "{sep}lyc: 0x{:x},{le}", self.lyc)?;
+        write!(f, "{sep}dma: 0x{:x},{le}", self.dma)?;
+        write!(f, "{sep}bgp: 0x{:x},{le}", self.bgp)?;
+        write!(f, "{sep}obp0: 0x{:x},{le}", self.obp0)?;
+        write!(f, "{sep}obp1: 0x{:x},{le}", self.obp1)?;
+        write!(f, "{sep}wx: 0x{:x},{le}", self.wx)?;
+        write!(f, "{sep}wy: 0x{:x},{le}", self.wy)?;
         write!(f, "}}")?;
         Ok(())
     }
@@ -151,7 +151,7 @@ impl TestEmulator {
     fn new(mut states: Vec<AbstractEmulatorState>) -> TestEmulator {
         TestEmulator {
             state: states.remove(0),
-            states: states,
+            states,
         }
     }
 }
@@ -467,7 +467,7 @@ fn print_hex<F: FnMut(usize) -> bool>(
     for line in 0..((end - start) / 16) {
         let line_start = start + line * 16;
         let line_range = line_start..(line_start + 16);
-        write!(out, "{:04x}:", line_start)?;
+        write!(out, "{line_start:04x}:")?;
         for addr in line_range.clone() {
             if addr & 0xF == 0x8 {
                 write!(out, " ")?;
@@ -532,11 +532,11 @@ pub fn run<Storage: PersistentStorage>(
 
     let (a, b, runs) = compare_emulators(&mut e1, &mut e2, pc_only);
 
-    writeln!(out, "differed after {} runs", runs)?;
+    writeln!(out, "differed after {runs} runs")?;
     writeln!(out, "Replay from path {:?}:", &replay_file_path)?;
-    writeln!(out, "{:#?}", a)?;
+    writeln!(out, "{a:#?}")?;
     writeln!(out, "Comeboy:")?;
-    writeln!(out, "{:#?}", b)?;
+    writeln!(out, "{b:#?}")?;
 
     writeln!(out)?;
 

@@ -32,7 +32,7 @@ impl DebuggerOps for TestDebuggerOps {
         }
     }
 
-    fn format<'a>(&self, s: &'a mut dyn io::Write) -> io::Result<()> {
+    fn format<'a>(&self, s: &mut dyn io::Write) -> io::Result<()> {
         write!(s, "TestDebuggerOps pc={:x}", self.current_address)
     }
 
@@ -61,7 +61,7 @@ impl DebuggerOps for TestDebuggerOps {
     }
 
     fn disassemble(&mut self, address: u16, f: &mut dyn io::Write) -> io::Result<()> {
-        write!(f, "assembly at {:02x}", address)
+        write!(f, "assembly at {address:02x}")
     }
 
     fn read_call_stack(&self) -> Vec<u16> {
@@ -72,7 +72,7 @@ impl DebuggerOps for TestDebuggerOps {
 fn run_debugger_test_with_ops(ops: &mut dyn DebuggerOps, input: &[&str], expected_output: &str) {
     let mut output_bytes = vec![];
     let mut input_iter = input.iter().map(|l| Ok(l.to_string()));
-    println!("{:?}", input);
+    println!("{input:?}");
     {
         let mut debugger = Debugger::new(&mut input_iter, &mut output_bytes, ops);
         debugger.run(&|| false);
@@ -125,15 +125,15 @@ impl DebuggerTest {
     }
 
     fn expect_line(&mut self, line: &str) {
-        self.expected_log += &format!("{}\n", line);
+        self.expected_log += &format!("{line}\n");
     }
 
     fn expect_state(&mut self, pc: u16) {
-        self.expect_line(&format!("TestDebuggerOps pc={}", pc));
+        self.expect_line(&format!("TestDebuggerOps pc={pc}"));
     }
 
     fn expect_error(&mut self, msg: &str) {
-        self.expect_line(&format!("Error: {}", msg));
+        self.expect_line(&format!("Error: {msg}"));
     }
 
     fn expect_breakpoint(&mut self) {

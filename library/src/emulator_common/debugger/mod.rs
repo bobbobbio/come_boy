@@ -50,7 +50,7 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -240,7 +240,7 @@ impl<'a> Debugger<'a> {
         let mut frames = self.emulator.read_call_stack();
         frames.push(self.emulator.read_program_counter());
         for (n, address) in frames.into_iter().rev().enumerate() {
-            writeln!(self.out, "#{} 0x{:02x}", n, address).unwrap();
+            writeln!(self.out, "#{n} 0x{address:02x}").unwrap();
         }
     }
 
@@ -338,7 +338,7 @@ impl<'a> Debugger<'a> {
     fn parse_set(&mut self, iter: &mut dyn Iterator<Item = &str>) -> Result<()> {
         let operand = self.parse_string(iter, "provide an operand")?;
         if operand != "pc" {
-            return Err(ParseError::new(format!("unknown operand {}", operand)));
+            return Err(ParseError::new(format!("unknown operand {operand}")));
         }
         let address = self.parse_address(iter)?;
         self.parse_end(iter)?;
@@ -375,7 +375,7 @@ impl<'a> Debugger<'a> {
             "watch" => self.parse_watch(&mut iter)?,
             "x" => self.parse_x(&mut iter)?,
             _ => {
-                return Err(ParseError::new(format!("unknown command {}", func)));
+                return Err(ParseError::new(format!("unknown command {func}")));
             }
         };
         Ok(())

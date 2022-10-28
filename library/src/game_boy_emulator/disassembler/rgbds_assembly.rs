@@ -143,7 +143,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn or_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "or", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "or");
     }
     fn no_operation(&mut self) {
         self.error = write!(self.stream_out, "nop");
@@ -182,13 +182,13 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} z", "ret");
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "xor", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "xor");
     }
     fn rotate_accumulator_right(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "rrca");
     }
     fn and_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "and", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "and");
     }
     fn decrement_register_or_memory(&mut self, register1: Intel8080Register) {
         self.error = write!(
@@ -247,7 +247,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
     }
     fn jump_relative_if_not_zero(&mut self, data1: u8) {
         let a = self.address.wrapping_add((data1 as i8) as u16);
-        self.error = write!(self.stream_out, "{:04} nz,${:04X}", "jr", a);
+        self.error = write!(self.stream_out, "{:04} nz,${a:04X}", "jr");
     }
     fn rotate_register_left(&mut self, register1: Intel8080Register) {
         self.error = write!(
@@ -297,10 +297,10 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn jump(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:04X}", "jp", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:04X}", "jp");
     }
     fn call_if_not_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} nz,${:04X}", "call", address1);
+        self.error = write!(self.stream_out, "{:04} nz,${address1:04X}", "call");
     }
     fn store_sp_direct(&mut self, address1: u16) {
         self.error = write!(
@@ -312,7 +312,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn subtract_immediate_from_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "sub", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "sub");
     }
     fn rotate_accumulator_left_through_carry(&mut self) {
         self.error = write!(self.stream_out, "rla");
@@ -348,7 +348,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
     }
     fn jump_relative_if_no_carry(&mut self, data1: u8) {
         let a = self.address.wrapping_add((data1 as i8) as u16);
-        self.error = write!(self.stream_out, "{:04} nc,${:04X}", "jr", a);
+        self.error = write!(self.stream_out, "{:04} nc,${a:04X}", "jr");
     }
     fn return_unconditionally(&mut self) {
         self.error = write!(self.stream_out, "ret");
@@ -357,14 +357,14 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04} a,[$FF00+c]", "ld");
     }
     fn jump_if_not_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} nz,${:04X}", "jp", address1);
+        self.error = write!(self.stream_out, "{:04} nz,${address1:04X}", "jp");
     }
     fn jump_relative_if_carry(&mut self, data1: u8) {
         let a = self.address.wrapping_add((data1 as i8) as u16);
-        self.error = write!(self.stream_out, "{:04} c,${:04X}", "jr", a);
+        self.error = write!(self.stream_out, "{:04} c,${a:04X}", "jr");
     }
     fn call_if_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} c,${:04X}", "call", address1);
+        self.error = write!(self.stream_out, "{:04} c,${address1:04X}", "call");
     }
     fn test_bit(&mut self, implicit_data1: u8, register2: Intel8080Register) {
         self.error = write!(
@@ -400,7 +400,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
     }
     fn jump_relative(&mut self, data1: u8) {
         let a = self.address.wrapping_add((data1 as i8) as u16);
-        self.error = write!(self.stream_out, "{:04} ${:04X}", "jr", a);
+        self.error = write!(self.stream_out, "{:04} ${a:04X}", "jr");
     }
     fn store_accumulator_one_byte(&mut self) {
         self.error = write!(self.stream_out, "{:04} [$FF00+c],a", "ld");
@@ -409,16 +409,16 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "scf");
     }
     fn jump_if_no_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} nc,${:04X}", "jp", address1);
+        self.error = write!(self.stream_out, "{:04} nc,${address1:04X}", "jp");
     }
     fn call(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:04X}", "call", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:04X}", "call");
     }
     fn return_if_no_carry(&mut self) {
         self.error = write!(self.stream_out, "{:04} nc", "ret");
     }
     fn call_if_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} z,${:04X}", "call", address1);
+        self.error = write!(self.stream_out, "{:04} z,${address1:04X}", "call");
     }
     fn load_accumulator_direct_one_byte(&mut self, data1: u8) {
         self.error = write!(
@@ -430,7 +430,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn jump_if_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} c,${:04X}", "jp", address1);
+        self.error = write!(self.stream_out, "{:04} c,${address1:04X}", "jp");
     }
     fn rotate_register_right_through_carry(&mut self, register1: Intel8080Register) {
         self.error = write!(
@@ -441,7 +441,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "adc", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "adc");
     }
     fn store_accumulator_direct(&mut self, address1: u16) {
         self.error = write!(
@@ -520,10 +520,10 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn add_immediate_to_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "add", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "add");
     }
     fn store_sp_plus_immediate(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} hl,[sp+${:02X}]", "ld", data1);
+        self.error = write!(self.stream_out, "{:04} hl,[sp+${data1:02X}]", "ld");
     }
     fn complement_accumulator(&mut self) {
         self.error = write!(self.stream_out, "cpl");
@@ -550,7 +550,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn add_immediate_to_sp(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} sp,${:02X}", "add", data1);
+        self.error = write!(self.stream_out, "{:04} sp,${data1:02X}", "add");
     }
     fn add_to_accumulator(&mut self, register1: Intel8080Register) {
         self.error = write!(
@@ -564,7 +564,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(self.stream_out, "di");
     }
     fn compare_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "cp", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "cp");
     }
     fn decimal_adjust_accumulator(&mut self) {
         self.error = write!(self.stream_out, "daa");
@@ -579,20 +579,20 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         );
     }
     fn call_if_no_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} nc,${:04X}", "call", address1);
+        self.error = write!(self.stream_out, "{:04} nc,${address1:04X}", "call");
     }
     fn jump_relative_if_zero(&mut self, data1: u8) {
         let a = self.address.wrapping_add((data1 as i8) as u16);
-        self.error = write!(self.stream_out, "{:04} z,${:04X}", "jr", a);
+        self.error = write!(self.stream_out, "{:04} z,${a:04X}", "jr");
     }
     fn return_if_carry(&mut self) {
         self.error = write!(self.stream_out, "{:04} c", "ret");
     }
     fn jump_if_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} z,${:04X}", "jp", address1);
+        self.error = write!(self.stream_out, "{:04} z,${address1:04X}", "jp");
     }
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} a,${:02X}", "sbc", data1);
+        self.error = write!(self.stream_out, "{:04} a,${data1:02X}", "sbc");
     }
     fn rotate_accumulator_left(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "rlca");

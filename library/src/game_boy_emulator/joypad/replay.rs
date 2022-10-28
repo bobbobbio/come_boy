@@ -150,10 +150,10 @@ pub fn print(mut input: impl io::Read) -> Result<String> {
     let mut out = vec![];
 
     let header: ReplayFileHeader = crate::codec::deserialize_from(&mut input)?;
-    writeln!(&mut out, "{:#?}", header)?;
+    writeln!(&mut out, "{header:#?}")?;
 
     while let Ok(entry) = crate::codec::deserialize_from::<_, ReplayFileEntry>(&mut input) {
-        write!(&mut out, "{:#?}", entry)?;
+        write!(&mut out, "{entry:#?}")?;
     }
 
     Ok(String::from_utf8(out).unwrap())

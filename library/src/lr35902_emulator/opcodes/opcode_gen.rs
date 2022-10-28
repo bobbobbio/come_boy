@@ -4607,43 +4607,43 @@ impl LR35902Instruction {
 }
 impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {
     fn add_immediate_to_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "ADI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "ADI");
     }
     fn add_immediate_to_accumulator_with_carry(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "ACI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "ACI");
     }
     fn add_immediate_to_sp(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "ADDS", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "ADDS");
     }
     fn add_to_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "ADD", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "ADD");
     }
     fn add_to_accumulator_with_carry(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "ADC", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "ADC");
     }
     fn and_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "ANI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "ANI");
     }
     fn call(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "CALL", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "CALL");
     }
     fn call_if_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "CC", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "CC");
     }
     fn call_if_no_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "CNC", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "CNC");
     }
     fn call_if_not_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "CNZ", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "CNZ");
     }
     fn call_if_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "CZ", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "CZ");
     }
     fn compare_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "CPI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "CPI");
     }
     fn compare_with_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "CMP", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "CMP");
     }
     fn complement_accumulator(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "CPL");
@@ -4655,22 +4655,22 @@ impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04}", "DAA");
     }
     fn decrement_register_or_memory(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "DCR", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "DCR");
     }
     fn decrement_register_pair(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "DCX", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "DCX");
     }
     fn disable_interrupts(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "DI");
     }
     fn double_add(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "DAD", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "DAD");
     }
     fn enable_interrupts(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "EI");
     }
     fn exclusive_or_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "XRI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "XRI");
     }
     fn halt(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "HLT");
@@ -4679,49 +4679,49 @@ impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04}", "STOP");
     }
     fn increment_register_or_memory(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "INR", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "INR");
     }
     fn increment_register_pair(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "INX", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "INX");
     }
     fn jump(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "JMP", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "JMP");
     }
     fn jump_if_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "JC", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "JC");
     }
     fn jump_if_no_carry(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "JNC", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "JNC");
     }
     fn jump_if_not_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "JNZ", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "JNZ");
     }
     fn jump_if_zero(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "JZ", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "JZ");
     }
     fn jump_relative(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "JR", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "JR");
     }
     fn jump_relative_if_carry(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "JRC", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "JRC");
     }
     fn jump_relative_if_no_carry(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "JRNC", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "JRNC");
     }
     fn jump_relative_if_not_zero(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "JRNZ", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "JRNZ");
     }
     fn jump_relative_if_zero(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "JRZ", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "JRZ");
     }
     fn load_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "LDAX", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "LDAX");
     }
     fn load_accumulator_direct(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "LDAD", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "LDAD");
     }
     fn load_accumulator_direct_one_byte(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "LDAB", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "LDAB");
     }
     fn load_accumulator_one_byte(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "LDAC");
@@ -4730,77 +4730,57 @@ impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04}", "PCHL");
     }
     fn load_register_pair_immediate(&mut self, register1: Intel8080Register, data2: u16) {
-        self.error = write!(
-            self.stream_out,
-            "{:04} {:?} #${:02x}",
-            "LXI", register1, data2
-        );
+        self.error = write!(self.stream_out, "{:04} {register1:?} #${data2:02x}", "LXI");
     }
     fn load_sp_from_h_and_l(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "SPHL");
     }
     fn logical_and_with_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "ANA", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "ANA");
     }
     fn logical_exclusive_or_with_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "XRA", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "XRA");
     }
     fn logical_or_with_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "ORA", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "ORA");
     }
     fn move_and_decrement_hl(
         &mut self,
         register1: Intel8080Register,
         register2: Intel8080Register,
     ) {
-        self.error = write!(
-            self.stream_out,
-            "{:04} {:?} {:?}",
-            "MVM-", register1, register2
-        );
+        self.error = write!(self.stream_out, "{:04} {register1:?} {register2:?}", "MVM-");
     }
     fn move_and_increment_hl(
         &mut self,
         register1: Intel8080Register,
         register2: Intel8080Register,
     ) {
-        self.error = write!(
-            self.stream_out,
-            "{:04} {:?} {:?}",
-            "MVM+", register1, register2
-        );
+        self.error = write!(self.stream_out, "{:04} {register1:?} {register2:?}", "MVM+");
     }
     fn move_data(&mut self, register1: Intel8080Register, register2: Intel8080Register) {
-        self.error = write!(
-            self.stream_out,
-            "{:04} {:?} {:?}",
-            "MOV", register1, register2
-        );
+        self.error = write!(self.stream_out, "{:04} {register1:?} {register2:?}", "MOV");
     }
     fn move_immediate_data(&mut self, register1: Intel8080Register, data2: u8) {
-        self.error = write!(
-            self.stream_out,
-            "{:04} {:?} #${:02x}",
-            "MVI", register1, data2
-        );
+        self.error = write!(self.stream_out, "{:04} {register1:?} #${data2:02x}", "MVI");
     }
     fn no_operation(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "NOP");
     }
     fn or_immediate_with_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "ORI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "ORI");
     }
     fn pop_data_off_stack(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "POP", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "POP");
     }
     fn push_data_onto_stack(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "PUSH", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "PUSH");
     }
     fn reset_bit(&mut self, data1: u8, register2: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {} {:?}", "RES", data1, register2);
+        self.error = write!(self.stream_out, "{:04} {data1} {register2:?}", "RES");
     }
     fn restart(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} {}", "RST", data1);
+        self.error = write!(self.stream_out, "{:04} {data1}", "RST");
     }
     fn return_and_enable_interrupts(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "RETI");
@@ -4833,66 +4813,66 @@ impl<'a> LR35902InstructionSet for LR35902InstructionPrinter<'a> {
         self.error = write!(self.stream_out, "{:04}", "RAR");
     }
     fn rotate_register_left(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "RLC", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "RLC");
     }
     fn rotate_register_left_through_carry(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "RL", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "RL");
     }
     fn rotate_register_right(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "RRC", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "RRC");
     }
     fn rotate_register_right_through_carry(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "RR", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "RR");
     }
     fn set_bit(&mut self, data1: u8, register2: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {} {:?}", "SET", data1, register2);
+        self.error = write!(self.stream_out, "{:04} {data1} {register2:?}", "SET");
     }
     fn set_carry(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "SCF");
     }
     fn shift_register_left(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SLA", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "SLA");
     }
     fn shift_register_right(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SRL", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "SRL");
     }
     fn shift_register_right_signed(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SRA", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "SRA");
     }
     fn store_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "STAX", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "STAX");
     }
     fn store_accumulator_direct(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "STA", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "STA");
     }
     fn store_accumulator_direct_one_byte(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "STAB", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "STAB");
     }
     fn store_accumulator_one_byte(&mut self) {
         self.error = write!(self.stream_out, "{:04}", "STAC");
     }
     fn store_sp_direct(&mut self, address1: u16) {
-        self.error = write!(self.stream_out, "{:04} ${:02x}", "SSPD", address1);
+        self.error = write!(self.stream_out, "{:04} ${address1:02x}", "SSPD");
     }
     fn store_sp_plus_immediate(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "STSP", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "STSP");
     }
     fn subtract_from_accumulator(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SUB", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "SUB");
     }
     fn subtract_from_accumulator_with_borrow(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SBB", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "SBB");
     }
     fn subtract_immediate_from_accumulator(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "SUI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "SUI");
     }
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8) {
-        self.error = write!(self.stream_out, "{:04} #${:02x}", "SBI", data1);
+        self.error = write!(self.stream_out, "{:04} #${data1:02x}", "SBI");
     }
     fn swap_register(&mut self, register1: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {:?}", "SWAP", register1);
+        self.error = write!(self.stream_out, "{:04} {register1:?}", "SWAP");
     }
     fn test_bit(&mut self, data1: u8, register2: Intel8080Register) {
-        self.error = write!(self.stream_out, "{:04} {} {:?}", "BIT", data1, register2);
+        self.error = write!(self.stream_out, "{:04} {data1} {register2:?}", "BIT");
     }
 }

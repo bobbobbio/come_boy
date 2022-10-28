@@ -17,7 +17,7 @@ fn console_print(e: &mut Intel8080Emulator, stream: &mut dyn io::Write) {
     match e.read_register(Intel8080Register::C) {
         9 => {
             let mut msg_addr = e.read_register_pair(Intel8080Register::D) as usize;
-            while e.main_memory[msg_addr] != '$' as u8 {
+            while e.main_memory[msg_addr] != b'$' {
                 write!(stream, "{}", e.main_memory[msg_addr] as char).unwrap();
                 msg_addr += 1;
             }

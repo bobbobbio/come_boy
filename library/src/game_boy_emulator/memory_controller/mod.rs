@@ -227,9 +227,9 @@ where
             let is_flag = u8::from(flag.clone()).count_ones() == 1;
 
             if is_flag && value == 1 {
-                extra.push(format!("{:?}", flag));
+                extra.push(format!("{flag:?}"));
             } else if !is_flag {
-                extra.push(format!("{:?} = {}", flag, value));
+                extra.push(format!("{flag:?} = {value}"));
             }
         }
         write!(f, "0x{:02x}: [{}]", self.value, extra.join(", "))?;
@@ -238,6 +238,7 @@ where
 }
 
 #[cfg(test)]
+#[allow(clippy::enum_variant_names)]
 #[derive(num_enum::IntoPrimitive, IntoEnumIterator, Debug, Clone)]
 #[repr(u8)]
 enum TestMaskedValue {
@@ -267,7 +268,7 @@ fn flags_debug_fmt() {
     f.set_flag(TestMaskedValue::ReadWriteFlag, true);
     f.set_flag_value(TestMaskedValue::ReadWriteValue, 2);
     assert_eq!(
-        format!("{:?}", f),
+        format!("{f:?}"),
         "0x06: [ReadWriteValue = 2, ReadWriteFlag, ReadOnlyValue = 0]"
     )
 }

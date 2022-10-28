@@ -321,10 +321,10 @@ impl Renderer for CanvasRenderer {
 
     #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
-        assert!(x < WIDTH as i32, "x = {} > {}", x, WIDTH);
-        assert!(y < HEIGHT as i32, "y = {} > {}", y, HEIGHT);
-        assert!(x >= 0, "x = {} > 0", x);
-        assert!(y >= 0, "y = {} > 0", y);
+        assert!(x < WIDTH as i32, "{}", "x = {x} > {WIDTH}");
+        assert!(y < HEIGHT as i32, "{}", "y = {y} > {HEIGHT}");
+        assert!(x >= 0, "{}", "x = {x} > 0");
+        assert!(y >= 0, "{}", "y = {y} > 0");
 
         let i = (y as usize * WIDTH + x as usize) * 4;
         self.buffer[i] = color.r;

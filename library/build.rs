@@ -37,15 +37,14 @@ enum OpcodeParameterType {
 }
 
 impl OpcodeParameterType {
-    fn format_string(&self) -> String {
+    fn format_string(&self, ident: &Ident) -> String {
         match self {
-            OpcodeParameterType::Register => "{:?}",
-            OpcodeParameterType::ImmediateOneByteData => "#${:02x}",
-            OpcodeParameterType::ImmediateTwoByteData => "#${:02x}",
-            OpcodeParameterType::ConstantValue => "{}",
-            OpcodeParameterType::Address => "${:02x}",
+            OpcodeParameterType::Register => format!("{{{ident}:?}}"),
+            OpcodeParameterType::ImmediateOneByteData => format!("#${{{ident}:02x}}"),
+            OpcodeParameterType::ImmediateTwoByteData => format!("#${{{ident}:02x}}"),
+            OpcodeParameterType::ConstantValue => format!("{{{ident}}}"),
+            OpcodeParameterType::Address => format!("${{{ident}:02x}}"),
         }
-        .into()
     }
 }
 
@@ -87,6 +86,10 @@ impl OpcodeParameter {
                 OpcodeParameterType::Address => format!("address{}", i + 1),
             },
         )
+    }
+
+    fn format_string(&self) -> String {
+        self.type_.format_string(&self.name)
     }
 }
 
@@ -159,7 +162,7 @@ struct ParseOpcodeArgumentError;
 
 impl Display for ParseOpcodeArgumentError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -197,7 +200,7 @@ impl ToTokens for OpcodeCode {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut hex_str: String = "0x".into();
         for code in &self.code {
-            write!(hex_str, "{:02X}", code).unwrap();
+            write!(hex_str, "{code:02X}").unwrap();
         }
         tokens.extend(TokenStream::from_str(&hex_str));
     }
@@ -210,7 +213,7 @@ struct OpcodeCodeParseError {
 
 impl Display for OpcodeCodeParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -232,7 +235,7 @@ impl OpcodeCodeParseError {
 impl From<ParseIntError> for OpcodeCodeParseError {
     fn from(p: ParseIntError) -> Self {
         OpcodeCodeParseError {
-            message: format!("{}", p),
+            message: format!("{p}"),
         }
     }
 }
@@ -468,17 +471,16 @@ impl OpcodePrinterFunction {
 impl ToTokens for OpcodePrinterFunction {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let instruction = &self.instruction;
-        let params = self.function.parameters.iter().map(|p| p.name.clone());
         let mut fmt_string = "{:04}".to_string();
         for param in &self.function.parameters {
             fmt_string += " ";
-            fmt_string += &param.type_.format_string();
+            fmt_string += &param.format_string();
         }
         let function = &self.function;
 
         tokens.extend(quote!(
             #function {
-                self.error = write!(self.stream_out, #fmt_string, #instruction #(, #params)*);
+                self.error = write!(self.stream_out, #fmt_string, #instruction);
             }
         ));
     }
@@ -534,19 +536,19 @@ impl OpcodeGenerator {
             new_function
         });
         let enum_name = Ident::new(
-            &format!("{}Instruction", instruction_set_name),
+            &format!("{instruction_set_name}Instruction"),
             Span::call_site(),
         );
         let type_enum_name = Ident::new(
-            &format!("{}InstructionType", instruction_set_name),
+            &format!("{instruction_set_name}InstructionType"),
             Span::call_site(),
         );
         let trait_name = Ident::new(
-            &format!("{}InstructionSet", instruction_set_name),
+            &format!("{instruction_set_name}InstructionSet"),
             Span::call_site(),
         );
         let printer_name = Ident::new(
-            &format!("{}InstructionPrinter", instruction_set_name),
+            &format!("{instruction_set_name}InstructionPrinter"),
             Span::call_site(),
         );
         let use_path = use_path
@@ -920,7 +922,7 @@ fn generate_opcode_rs(
     generator.generate(&mut tokens);
 
     let mut out = File::create(output_file).unwrap();
-    write!(out, "{}", tokens).unwrap();
+    write!(out, "{tokens}").unwrap();
     out.flush().unwrap();
 
     // Try to run rustfmt on it, but don't fail if we are unable.
@@ -928,13 +930,13 @@ fn generate_opcode_rs(
 }
 
 fn generate_opcodes(opcodes_path: &str, name: &'static str) {
-    let opcodes_json = format!("src/{}/opcodes.json", opcodes_path);
-    println!("cargo:rerun-if-changed={}", opcodes_json);
+    let opcodes_json = format!("src/{opcodes_path}/opcodes.json");
+    println!("cargo:rerun-if-changed={opcodes_json}");
 
     let opcodes: BTreeMap<String, OpcodeOnDisk> =
         serde_json::from_reader(File::open(&opcodes_json).unwrap()).unwrap();
 
-    let output_file = format!("src/{}/opcode_gen.rs", opcodes_path);
+    let output_file = format!("src/{opcodes_path}/opcode_gen.rs");
     generate_opcode_rs(&output_file, opcodes_path, name, opcodes);
 }
 
@@ -960,7 +962,7 @@ struct ParseAddressRangeError {
 
 impl Display for ParseAddressRangeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -982,7 +984,7 @@ impl ParseAddressRangeError {
 impl From<ParseIntError> for ParseAddressRangeError {
     fn from(p: ParseIntError) -> Self {
         Self {
-            message: format!("{}", p),
+            message: format!("{p}"),
         }
     }
 }
@@ -1138,8 +1140,8 @@ fn generate_memory_map(
     where_clause_str: &str,
     mutable: bool,
 ) {
-    let memory_map_json = format!("src/{}/memory_map.json", memory_map_path);
-    println!("cargo:rerun-if-changed={}", memory_map_json);
+    let memory_map_json = format!("src/{memory_map_path}/memory_map.json");
+    println!("cargo:rerun-if-changed={memory_map_json}");
 
     let mapping: BTreeMap<String, MemoryMapping> =
         serde_json::from_reader(File::open(&memory_map_json).unwrap()).unwrap();
@@ -1165,9 +1167,9 @@ fn generate_memory_map(
     ));
 
     let file_name = format!("memory_map{}.rs", if mutable { "_mut" } else { "" });
-    let output_file = &format!("src/{}/{}", memory_map_path, file_name);
+    let output_file = &format!("src/{memory_map_path}/{file_name}");
     let mut out = File::create(output_file).unwrap();
-    write!(out, "{}", tokens).unwrap();
+    write!(out, "{tokens}").unwrap();
     out.flush().unwrap();
 
     Command::new("rustfmt").arg(output_file).status().ok();
@@ -1218,11 +1220,11 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
         println!("cargo:rerun-if-changed={}", rom_path.to_string_lossy());
 
         let game_pak_title = game_pak_title(&rom_path);
-        println!("Identified ROM as \"{}\"", game_pak_title);
+        println!("Identified ROM as \"{game_pak_title}\"");
 
         let game_pak_title = game_pak_title.to_lowercase().replace(' ', "_");
         let expectations_path: std::path::PathBuf =
-            format!("{}/{}/", expectations_path, game_pak_title).into();
+            format!("{expectations_path}/{game_pak_title}/").into();
         println!(
             "Looking for expectations in {}",
             expectations_path.to_string_lossy()
@@ -1254,16 +1256,16 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
                 .next()
                 .map(|p| expectation_path.with_file_name(p.to_owned() + ".replay"));
 
-            println!("Expectation for clock offset {}", ticks);
+            println!("Expectation for clock offset {ticks}");
 
-            let mut test_name = format!("{}_{}", game_pak_title, ticks);
+            let mut test_name = format!("{game_pak_title}_{ticks}");
             if let Some(replay) = &replay {
                 test_name += "_";
                 test_name += replay.file_stem().unwrap().to_str().unwrap();
             }
             let rom_test_name = Ident::new(&test_name, Span::call_site());
             let save_state_rom_test_name =
-                Ident::new(&format!("{}_save_state", test_name), Span::call_site());
+                Ident::new(&format!("{test_name}_save_state"), Span::call_site());
 
             let rom_path = rom_path.to_str().unwrap();
             let expectation_path = expectation_path.to_str().unwrap();
@@ -1289,7 +1291,7 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
 }
 
 fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
-    let output_file = format!("src/{}/tests/rom_tests/gen.rs", module);
+    let output_file = format!("src/{module}/tests/rom_tests/gen.rs");
     let mut out = File::create(&output_file).unwrap();
     let mut tokens = TokenStream::new();
     tokens.extend(quote! {
@@ -1298,7 +1300,7 @@ fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
     });
     generate_rom_test_functions(rom_dir, expectations_dir, &mut tokens);
 
-    write!(out, "{}", tokens).unwrap();
+    write!(out, "{tokens}").unwrap();
     out.flush().unwrap();
 
     // Try to run rustfmt on it, but don't fail if we are unable.

@@ -11,20 +11,16 @@ fn read_mooneye_test_rom(name: &str) -> Vec<u8> {
 
 // XXX: Should replace with fully fleshed symbol file parsing eventually.
 fn get_mooneye_address(rom_path: &str, symbol: &str) -> u16 {
-    let rom_path = PathBuf::from(format!("mooneye_test_roms/{}", rom_path));
+    let rom_path = PathBuf::from(format!("mooneye_test_roms/{rom_path}"));
     let stem = rom_path.file_stem().unwrap().to_str().unwrap().to_owned();
     let sym_path = rom_path.with_file_name(stem + ".sym");
 
-    println!("sym-path {:?}", sym_path);
+    println!("sym-path {sym_path:?}");
     let contents = fs::read_to_string(sym_path).unwrap();
-    let sym_line = contents
-        .lines()
-        .filter(|l| l.contains(symbol))
-        .next()
-        .unwrap();
+    let sym_line = contents.lines().find(|l| l.contains(symbol)).unwrap();
 
-    let location = sym_line.split(" ").next().unwrap();
-    let address = location.split(":").skip(1).next().unwrap();
+    let location = sym_line.split(' ').next().unwrap();
+    let address = location.split(':').nth(1).unwrap();
     u16::from_str_radix(address, 16).unwrap()
 }
 

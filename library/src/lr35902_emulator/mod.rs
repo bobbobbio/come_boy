@@ -1736,7 +1736,7 @@ fn test_bit_false() {
     instruction_test(|e| {
         e.set_register(Intel8080Register::A, 0b00010000);
         e.test_bit(4, Intel8080Register::A);
-        assert_eq!(e.read_flag(LR35902Flag::Zero), false);
+        assert!(!e.read_flag(LR35902Flag::Zero));
     });
 }
 
@@ -1745,7 +1745,7 @@ fn test_bit_true() {
     instruction_test(|e| {
         e.set_register(Intel8080Register::A, 0);
         e.test_bit(4, Intel8080Register::A);
-        assert_eq!(e.read_flag(LR35902Flag::Zero), true);
+        assert!(e.read_flag(LR35902Flag::Zero));
     });
 }
 
@@ -2522,7 +2522,7 @@ impl LR35902Emulator {
 
     fn crash_from_unkown_opcode(&mut self) {
         let pc = self.read_program_counter();
-        self.crash(format!("Unknown opcode at address {:x}", pc));
+        self.crash(format!("Unknown opcode at address {pc:x}"));
     }
 
     #[inline(always)]

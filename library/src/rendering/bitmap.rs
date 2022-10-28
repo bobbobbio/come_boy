@@ -42,8 +42,8 @@ impl Renderer for BitmapRenderer {
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
         let width = self.back.get_width();
         let height = self.back.get_height();
-        assert!(x < width as i32, "x = {} > {}", x, width);
-        assert!(y < height as i32, "y = {} > {}", y, height);
+        assert!(x < width as i32, "{}", "x = {x} > {width}");
+        assert!(y < height as i32, "{}", "y = {y} > {height}");
 
         if x < 0 || y < 0 {
             return;

@@ -130,7 +130,7 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
         ..
     } = options;
 
-    let window = Window::new_centered(&window_title, (width * scale, height * scale)).unwrap();
+    let window = Window::new_centered(window_title, (width * scale, height * scale)).unwrap();
 
     let base_buffer = vec![u8::MAX; width as usize * height as usize * 3];
     let screen_buffer = ScreenBuffer {
@@ -200,10 +200,10 @@ impl Renderer for SpeedyRenderer {
 
     #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
-        assert!(x < self.width as i32, "x = {} > {}", x, self.width);
-        assert!(y < self.height as i32, "y = {} > {}", y, self.height);
-        assert!(x >= 0, "x = {} > 0", x);
-        assert!(y >= 0, "y = {} > 0", y);
+        assert!(x < self.width as i32, "x = {x} > {}", self.width);
+        assert!(y < self.height as i32, "y = {y} > {}", self.height);
+        assert!(x >= 0, "{}", "x = {x} > 0");
+        assert!(y >= 0, "{}", "y = {y} > 0");
 
         let i = (y as usize * self.width + x as usize) * 3;
         self.back_buffer[i] = color.r;

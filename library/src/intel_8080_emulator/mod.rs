@@ -47,17 +47,17 @@ fn calculate_parity(value: u8) -> bool {
 
 #[test]
 fn calculate_parity_odd_parity() {
-    assert_eq!(calculate_parity(0b00000001), false);
+    assert!(!calculate_parity(0b00000001));
 }
 
 #[test]
 fn calculate_parity_even_parity() {
-    assert_eq!(calculate_parity(0b00000011), true);
+    assert!(calculate_parity(0b00000011));
 }
 
 #[test]
 fn calculate_parity_zero_is_even_parity() {
-    assert_eq!(calculate_parity(0b00000000), true);
+    assert!(calculate_parity(0b00000000));
 }
 
 /*   ___
@@ -343,7 +343,7 @@ impl<'a> Intel8080Emulator<'a> {
         let mut emu = Intel8080Emulator::new();
         emu.set_register_pair(Intel8080Register::SP, 0x0400);
 
-        return emu;
+        emu
     }
 
     #[cfg(test)]

@@ -89,7 +89,7 @@ fn run_and_take_screenshot(
         fs,
         game_pak,
         ticks,
-        replay_key.as_ref().map(|k| k.as_str()),
+        replay_key.as_deref(),
         &output_key,
     )
     .unwrap();
@@ -116,7 +116,7 @@ fn run_and_save_reload_and_take_screenshot(
         fs,
         &rom_key,
         ticks,
-        replay_key.as_ref().map(|k| k.as_str()),
+        replay_key.as_deref(),
         &output_key,
     )
     .unwrap();

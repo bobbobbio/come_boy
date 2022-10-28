@@ -16,7 +16,7 @@ pub fn main(options: Options) -> Result<()> {
     let mut fs = Fs::new(options.rom.parent());
     let rom_key = Fs::path_to_key(&options.rom)?;
     let game_pak = GamePak::from_storage_without_sav(&mut fs, &rom_key)?;
-    println!("{:?}", game_pak);
+    println!("{game_pak:?}");
 
     Ok(())
 }

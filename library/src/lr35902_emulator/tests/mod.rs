@@ -8,9 +8,8 @@ pub mod blargg;
 
 pub fn read_test_rom(rom_dir: &str, name: &str) -> Vec<u8> {
     let mut rom: Vec<u8> = vec![];
-    let mut file = File::open(format!("{}/{}", rom_dir, name))
-        .ok()
-        .expect("Did you forget to download the test roms?");
+    let mut file =
+        File::open(format!("{rom_dir}/{name}")).expect("Did you forget to download the test roms?");
     file.read_to_end(&mut rom).unwrap();
     rom
 }
@@ -47,7 +46,7 @@ pub fn read_screen_message<M: MemoryAccessor>(memory_accessor: &M) -> String {
 
     for r in vec![start1..end1, start2..end2].into_iter() {
         let iter = &mut MemoryIterator::new(memory_accessor, r).peekable();
-        while iter.peek() != None {
+        while iter.peek().is_some() {
             for c in iter.take(screen_tiles_per_row as usize) {
                 // This is where we assume the tile number uses ASCII
                 message.push(c as char);

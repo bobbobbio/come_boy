@@ -66,11 +66,11 @@ enum MemoryBankController {
 impl fmt::Debug for MemoryBankController {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Zero(r) => write!(f, "{:?}", r),
-            Self::One(r) => write!(f, "{:?}", r),
-            Self::Two(r) => write!(f, "{:?}", r),
-            Self::Three(r) => write!(f, "{:?}", r),
-            Self::Five(r) => write!(f, "{:?}", r),
+            Self::Zero(r) => write!(f, "{r:?}"),
+            Self::One(r) => write!(f, "{r:?}"),
+            Self::Two(r) => write!(f, "{r:?}"),
+            Self::Three(r) => write!(f, "{r:?}"),
+            Self::Five(r) => write!(f, "{r:?}"),
         }
     }
 }
@@ -452,8 +452,8 @@ impl MemoryMappedBank for InternalRam {
 impl fmt::Debug for InternalRam {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::Volatile(r) => write!(f, "{:?}", r),
-            Self::NonVolatile(r) => write!(f, "{:?}", r),
+            Self::Volatile(r) => write!(f, "{r:?}"),
+            Self::NonVolatile(r) => write!(f, "{r:?}"),
         }
     }
 }
@@ -684,9 +684,9 @@ enum CartridgeRam {
 impl fmt::Debug for CartridgeRam {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::No(r) => write!(f, "{:?}", r),
-            Self::Volatile(r) => write!(f, "{:?}", r),
-            Self::NonVolatile(r) => write!(f, "{:?}", r),
+            Self::No(r) => write!(f, "{r:?}"),
+            Self::Volatile(r) => write!(f, "{r:?}"),
+            Self::NonVolatile(r) => write!(f, "{r:?}"),
         }
     }
 }
@@ -1016,7 +1016,7 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
         let mut rom_file = storage.open(OpenMode::Read, key)?;
         let mut rom: Vec<u8> = vec![];
         rom_file.read_to_end(&mut rom)?;
-        GamePak::new(&rom, storage, Some(&format!("{}.sav", key)))
+        GamePak::new(&rom, storage, Some(&format!("{key}.sav")))
     }
 
     pub fn from_storage_without_sav(storage: &mut Storage, key: &str) -> io::Result<Self> {

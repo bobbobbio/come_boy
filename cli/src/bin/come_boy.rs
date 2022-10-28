@@ -30,7 +30,7 @@ impl PerfObserver for PerfStats {
     #[inline(always)]
     fn start_observation(&mut self, tag: &'static str) {
         let existing = self.in_flight.insert(tag, Instant::now()).is_some();
-        assert!(!existing, "unfinished tag {}", tag);
+        assert!(!existing, "{}", "unfinished tag {tag}");
     }
 
     #[inline(always)]
@@ -81,7 +81,7 @@ impl fmt::Display for PerfStats {
                 " ({avg:>10}ns average per call, {samples:>10} sample(s))",
             )?;
         }
-        write!(f, "{} sample(s)", ticks)?;
+        write!(f, "{ticks} sample(s)")?;
 
         Ok(())
     }
