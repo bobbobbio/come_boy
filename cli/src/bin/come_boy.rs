@@ -23,6 +23,7 @@ mod bin_common;
 struct PerfStats {
     in_flight: HashMap<&'static str, Instant>,
     stats: HashMap<&'static str, (Duration, u32)>,
+    num_ticks: u32,
 }
 
 impl PerfObserver for PerfStats {
@@ -42,17 +43,45 @@ impl PerfObserver for PerfStats {
         entry.0 += start.elapsed();
         entry.1 += 1;
     }
+
+    #[inline(always)]
+    fn tick_observed(&mut self) {
+        self.num_ticks += 1;
+    }
 }
 
 impl fmt::Display for PerfStats {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut sorted_stats: Vec<_> = self.stats.iter().map(|(t, &(d, n))| (t, d / n)).collect();
+        let ticks = self.num_ticks;
+        let mut sorted_stats: Vec<_> = self
+            .stats
+            .iter()
+            .map(|(t, &(d, n))| {
+                if ticks > n {
+                    (t, d / n / (ticks / n))
+                } else {
+                    (t, d / n * (n / ticks))
+                }
+            })
+            .collect();
         sorted_stats.sort_by(|(_, d1), (_, d2)| d1.cmp(d2));
 
         writeln!(f)?;
         for (tag, duration) in &sorted_stats {
-            writeln!(f, "{tag}: {}us", duration.as_nanos())?;
+            write!(
+                f,
+                "{tag:<30}: {:>10}ns amortized per tick",
+                duration.as_nanos()
+            )?;
+
+            let &(dur, samples) = self.stats.get(*tag).unwrap();
+            let avg = (dur / samples).as_nanos();
+            writeln!(
+                f,
+                " ({avg:>10}ns average per call, {samples:>10} sample(s))",
+            )?;
         }
+        write!(f, "{} sample(s)", ticks)?;
 
         Ok(())
     }

@@ -14,16 +14,18 @@ impl GameBoyEmulator {
         visitor(self);
 
         while self.crashed().is_none() {
-            self.tick_with_observer(ops, observer);
-
-            visitor(self);
-
             // We can't do this every tick because it is too slow. So instead so only every so
             // often.
             if sometimes.incr() {
+                self.tick_with_observer(ops, observer);
                 underclocker.underclock(self.elapsed_cycles());
                 self.read_key_events(ops)?;
+                observer.tick_observed();
+            } else {
+                self.tick(ops);
             }
+
+            visitor(self);
         }
 
         if self.cpu.crashed() {

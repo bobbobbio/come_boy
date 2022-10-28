@@ -106,6 +106,7 @@ impl From<crate::codec::Error> for Error {
 pub trait PerfObserver {
     fn start_observation(&mut self, tag: &'static str);
     fn end_observation(&mut self, tag: &'static str);
+    fn tick_observed(&mut self);
 }
 
 pub struct NullPerfObserver;
@@ -116,6 +117,9 @@ impl PerfObserver for NullPerfObserver {
 
     #[inline(always)]
     fn end_observation(&mut self, _tag: &'static str) {}
+
+    #[inline(always)]
+    fn tick_observed(&mut self) {}
 }
 
 #[inline(always)]
