@@ -7,6 +7,7 @@ use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use serde_derive::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
+use std::convert::TryInto as _;
 use std::error::Error;
 use std::fmt::{self, Display, Write as _};
 use std::fs::{DirEntry, File};
@@ -189,6 +190,15 @@ impl OpcodeCode {
         OpcodeCode {
             code: vec![self.code[depth]],
         }
+    }
+
+    fn disc_value_u16(&self) -> syn::LitInt {
+        let mut b = self.code.clone();
+        while b.len() < 2 {
+            b.insert(0, 0);
+        }
+        let value = u16::from_be_bytes((&b[..]).try_into().unwrap());
+        syn::parse_str(&format!("0x{value:x}")).unwrap()
     }
 
     fn len(&self) -> usize {
@@ -680,18 +690,19 @@ impl OpcodeGenerator {
         for opcode in &self.opcodes {
             let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
             let parameters = &opcode.function_call.function.parameters;
+            let disc_value = opcode.code.disc_value_u16();
             if parameters.is_empty() {
                 variants.insert(
                     opcode.camel_name.clone(),
                     syn::parse_quote!(
-                        #variant_name
+                        #variant_name = #disc_value
                     ),
                 );
             } else {
                 variants.insert(
                     opcode.camel_name.clone(),
                     syn::parse_quote!(
-                        #variant_name { #(#parameters, )* }
+                        #variant_name { #(#parameters, )* } = #disc_value
                     ),
                 );
             }
@@ -767,6 +778,7 @@ impl OpcodeGenerator {
 
         tokens.extend(quote!(
             #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+            #[repr(u16)]
             pub enum #enum_name {
                 #( #variants_values, )*
             }

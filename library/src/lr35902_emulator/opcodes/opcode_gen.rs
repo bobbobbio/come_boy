@@ -3,230 +3,231 @@ use crate::emulator_common::{Intel8080Register, MemoryAccessor};
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
 use serde_derive::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u16)]
 pub enum LR35902Instruction {
     AddImmediateToAccumulator {
         data1: u8,
-    },
+    } = 0xc6,
     AddImmediateToAccumulatorWithCarry {
         data1: u8,
-    },
+    } = 0xce,
     AddImmediateToSp {
         data1: u8,
-    },
+    } = 0xe8,
     AddToAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0x87,
     AddToAccumulatorWithCarry {
         register1: Intel8080Register,
-    },
+    } = 0x8f,
     AndImmediateWithAccumulator {
         data1: u8,
-    },
+    } = 0xe6,
     Call {
         address1: u16,
-    },
+    } = 0xcd,
     CallIfCarry {
         address1: u16,
-    },
+    } = 0xdc,
     CallIfNoCarry {
         address1: u16,
-    },
+    } = 0xd4,
     CallIfNotZero {
         address1: u16,
-    },
+    } = 0xc4,
     CallIfZero {
         address1: u16,
-    },
+    } = 0xcc,
     CompareImmediateWithAccumulator {
         data1: u8,
-    },
+    } = 0xfe,
     CompareWithAccumulator {
         register1: Intel8080Register,
-    },
-    ComplementAccumulator,
-    ComplementCarry,
-    DecimalAdjustAccumulator,
+    } = 0xbf,
+    ComplementAccumulator = 0x2f,
+    ComplementCarry = 0x3f,
+    DecimalAdjustAccumulator = 0x27,
     DecrementRegisterOrMemory {
         register1: Intel8080Register,
-    },
+    } = 0x3d,
     DecrementRegisterPair {
         register1: Intel8080Register,
-    },
-    DisableInterrupts,
+    } = 0x3b,
+    DisableInterrupts = 0xf3,
     DoubleAdd {
         register1: Intel8080Register,
-    },
-    EnableInterrupts,
+    } = 0x39,
+    EnableInterrupts = 0xfb,
     ExclusiveOrImmediateWithAccumulator {
         data1: u8,
-    },
-    Halt,
-    HaltUntilButtonPress,
+    } = 0xee,
+    Halt = 0x76,
+    HaltUntilButtonPress = 0x1000,
     IncrementRegisterOrMemory {
         register1: Intel8080Register,
-    },
+    } = 0x3c,
     IncrementRegisterPair {
         register1: Intel8080Register,
-    },
+    } = 0x33,
     Jump {
         address1: u16,
-    },
+    } = 0xc3,
     JumpIfCarry {
         address1: u16,
-    },
+    } = 0xda,
     JumpIfNoCarry {
         address1: u16,
-    },
+    } = 0xd2,
     JumpIfNotZero {
         address1: u16,
-    },
+    } = 0xc2,
     JumpIfZero {
         address1: u16,
-    },
+    } = 0xca,
     JumpRelative {
         data1: u8,
-    },
+    } = 0x18,
     JumpRelativeIfCarry {
         data1: u8,
-    },
+    } = 0x38,
     JumpRelativeIfNoCarry {
         data1: u8,
-    },
+    } = 0x30,
     JumpRelativeIfNotZero {
         data1: u8,
-    },
+    } = 0x20,
     JumpRelativeIfZero {
         data1: u8,
-    },
+    } = 0x28,
     LoadAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0x1a,
     LoadAccumulatorDirect {
         address1: u16,
-    },
+    } = 0xfa,
     LoadAccumulatorDirectOneByte {
         data1: u8,
-    },
-    LoadAccumulatorOneByte,
-    LoadProgramCounter,
+    } = 0xf0,
+    LoadAccumulatorOneByte = 0xf2,
+    LoadProgramCounter = 0xe9,
     LoadRegisterPairImmediate {
         register1: Intel8080Register,
         data2: u16,
-    },
-    LoadSpFromHAndL,
+    } = 0x31,
+    LoadSpFromHAndL = 0xf9,
     LogicalAndWithAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0xa7,
     LogicalExclusiveOrWithAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0xaf,
     LogicalOrWithAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0xb7,
     MoveAndDecrementHl {
         register1: Intel8080Register,
         register2: Intel8080Register,
-    },
+    } = 0x3a,
     MoveAndIncrementHl {
         register1: Intel8080Register,
         register2: Intel8080Register,
-    },
+    } = 0x2a,
     MoveData {
         register1: Intel8080Register,
         register2: Intel8080Register,
-    },
+    } = 0x7f,
     MoveImmediateData {
         register1: Intel8080Register,
         data2: u8,
-    },
-    NoOperation,
+    } = 0x3e,
+    NoOperation = 0x0,
     OrImmediateWithAccumulator {
         data1: u8,
-    },
+    } = 0xf6,
     PopDataOffStack {
         register1: Intel8080Register,
-    },
+    } = 0xf1,
     PushDataOntoStack {
         register1: Intel8080Register,
-    },
+    } = 0xf5,
     ResetBit {
         data1: u8,
         register2: Intel8080Register,
-    },
+    } = 0xcbbf,
     Restart {
         data1: u8,
-    },
-    ReturnAndEnableInterrupts,
-    ReturnIfCarry,
-    ReturnIfNoCarry,
-    ReturnIfNotZero,
-    ReturnIfZero,
-    ReturnUnconditionally,
-    RotateAccumulatorLeft,
-    RotateAccumulatorLeftThroughCarry,
-    RotateAccumulatorRight,
-    RotateAccumulatorRightThroughCarry,
+    } = 0xff,
+    ReturnAndEnableInterrupts = 0xd9,
+    ReturnIfCarry = 0xd8,
+    ReturnIfNoCarry = 0xd0,
+    ReturnIfNotZero = 0xc0,
+    ReturnIfZero = 0xc8,
+    ReturnUnconditionally = 0xc9,
+    RotateAccumulatorLeft = 0x7,
+    RotateAccumulatorLeftThroughCarry = 0x17,
+    RotateAccumulatorRight = 0xf,
+    RotateAccumulatorRightThroughCarry = 0x1f,
     RotateRegisterLeft {
         register1: Intel8080Register,
-    },
+    } = 0xcb07,
     RotateRegisterLeftThroughCarry {
         register1: Intel8080Register,
-    },
+    } = 0xcb17,
     RotateRegisterRight {
         register1: Intel8080Register,
-    },
+    } = 0xcb0f,
     RotateRegisterRightThroughCarry {
         register1: Intel8080Register,
-    },
+    } = 0xcb1f,
     SetBit {
         data1: u8,
         register2: Intel8080Register,
-    },
-    SetCarry,
+    } = 0xcbff,
+    SetCarry = 0x37,
     ShiftRegisterLeft {
         register1: Intel8080Register,
-    },
+    } = 0xcb27,
     ShiftRegisterRight {
         register1: Intel8080Register,
-    },
+    } = 0xcb3f,
     ShiftRegisterRightSigned {
         register1: Intel8080Register,
-    },
+    } = 0xcb2f,
     StoreAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0x12,
     StoreAccumulatorDirect {
         address1: u16,
-    },
+    } = 0xea,
     StoreAccumulatorDirectOneByte {
         data1: u8,
-    },
-    StoreAccumulatorOneByte,
+    } = 0xe0,
+    StoreAccumulatorOneByte = 0xe2,
     StoreSpDirect {
         address1: u16,
-    },
+    } = 0x8,
     StoreSpPlusImmediate {
         data1: u8,
-    },
+    } = 0xf8,
     SubtractFromAccumulator {
         register1: Intel8080Register,
-    },
+    } = 0x97,
     SubtractFromAccumulatorWithBorrow {
         register1: Intel8080Register,
-    },
+    } = 0x9f,
     SubtractImmediateFromAccumulator {
         data1: u8,
-    },
+    } = 0xd6,
     SubtractImmediateFromAccumulatorWithBorrow {
         data1: u8,
-    },
+    } = 0xde,
     SwapRegister {
         register1: Intel8080Register,
-    },
+    } = 0xcb37,
     TestBit {
         data1: u8,
         register2: Intel8080Register,
-    },
+    } = 0xcb7f,
 }
 #[derive(
     Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, enum_iterator :: IntoEnumIterator,
