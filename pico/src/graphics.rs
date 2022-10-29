@@ -11,7 +11,7 @@ const SCREEN_HEIGHT: usize = 240;
 pub struct Color(u16);
 
 impl Color {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         const fn conv(v: u8) -> u16 {
             ((v as u32) * 100 / 255 * 0xF / 100) as u16
@@ -33,7 +33,7 @@ impl Color {
 }
 
 impl come_boy::rendering::Color for Color {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn new(r: u8, g: u8, b: u8) -> Self {
         Self::rgb(r, g, b)
     }
@@ -54,7 +54,7 @@ impl Graphics {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn set_pen(&self, color: Color) {
         unsafe { picosystem::pen(color.r(), color.g(), color.b()) }
     }
@@ -63,7 +63,7 @@ impl Graphics {
         unsafe { picosystem::blend_copy() };
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn clear(&self) {
         unsafe { picosystem::clear() };
     }
@@ -93,7 +93,7 @@ impl come_boy::rendering::Renderer for Graphics {
         unimplemented!()
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
         if x < 0 || x >= SCREEN_WIDTH as i32 || y < 0 || y >= SCREEN_HEIGHT as i32 {
             return;

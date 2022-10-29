@@ -98,7 +98,7 @@ pub trait Intel8080InstructionSetOps {
      *     SP:  Stack Pointer
      *     PSW: A and FLAGS
      */
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_register_pair(&mut self, register: Intel8080Register, value: u16) {
         match register {
             Intel8080Register::B
@@ -114,7 +114,7 @@ pub trait Intel8080InstructionSetOps {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_register_pair(&self, register: Intel8080Register) -> u16 {
         match register {
             Intel8080Register::B
@@ -132,7 +132,7 @@ pub trait Intel8080InstructionSetOps {
      * The M register is special and represents the byte stored at the memory address stored in the
      * register pair H.
      */
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_register(&mut self, register: Intel8080Register, value: u8) {
         match register {
             Intel8080Register::PSW => panic!("PSW too big"),
@@ -146,7 +146,7 @@ pub trait Intel8080InstructionSetOps {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_register(&self, register: Intel8080Register) -> u8 {
         match register {
             Intel8080Register::PSW => panic!("PSW too big"),
@@ -159,14 +159,14 @@ pub trait Intel8080InstructionSetOps {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn update_flags_for_new_value(&mut self, new_value: u8) {
         self.set_flag(Intel8080Flag::Zero, new_value == 0);
         self.set_flag(Intel8080Flag::Sign, new_value & 0b10000000 != 0);
         self.set_flag(Intel8080Flag::Parity, calculate_parity(new_value));
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8 {
         let new_value = value_a.wrapping_add(value_b);
         self.update_flags_for_new_value(new_value);
@@ -183,14 +183,14 @@ pub trait Intel8080InstructionSetOps {
         new_value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_to_register(&mut self, register: Intel8080Register, value: u8, update_carry: bool) {
         let old_value = self.read_register(register);
         let new_value = self.perform_addition(old_value, value, update_carry);
         self.set_register(register, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, ovalue_b: u8) -> u8 {
         let value_b = ovalue_b.twos_complement();
         let new_value = value_a.wrapping_add(value_b);
@@ -205,7 +205,7 @@ pub trait Intel8080InstructionSetOps {
         new_value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn subtract_from_register_using_twos_complement(
         &mut self,
         register: Intel8080Register,
@@ -216,7 +216,7 @@ pub trait Intel8080InstructionSetOps {
         self.set_register(register, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a.wrapping_sub(value_b);
         self.update_flags_for_new_value(new_value);
@@ -227,14 +227,14 @@ pub trait Intel8080InstructionSetOps {
         new_value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn subtract_from_register(&mut self, register: Intel8080Register, value: u8) {
         let old_value = self.read_register(register);
         let new_value = self.perform_subtraction(old_value, value);
         self.set_register(register, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a & value_b;
         self.update_flags_for_new_value(new_value);
@@ -243,7 +243,7 @@ pub trait Intel8080InstructionSetOps {
         new_value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a ^ value_b;
         self.update_flags_for_new_value(new_value);
@@ -252,7 +252,7 @@ pub trait Intel8080InstructionSetOps {
         new_value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a | value_b;
         self.update_flags_for_new_value(new_value);
@@ -261,40 +261,40 @@ pub trait Intel8080InstructionSetOps {
         new_value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_rotate_left(&mut self, value: u8) -> u8 {
         self.set_flag(Intel8080Flag::Carry, value & (1u8 << 7) != 0);
         value.rotate_left(1)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_rotate_right(&mut self, value: u8) -> u8 {
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
         value.rotate_right(1)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_rotate_left_through_carry(&mut self, value: u8) -> u8 {
         let carry = u8::from(self.read_flag(Intel8080Flag::Carry));
         self.set_flag(Intel8080Flag::Carry, (value & (1u8 << 7)) != 0);
         (value << 1) | carry
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn perform_rotate_right_through_carry(&mut self, value: u8) -> u8 {
         let carry = u8::from(self.read_flag(Intel8080Flag::Carry));
         self.set_flag(Intel8080Flag::Carry, value & 1 != 0);
         (value >> 1) | (carry << 7)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn push_u16_onto_stack(&mut self, data: u16) {
         let sp = self.read_register_pair(Intel8080Register::SP);
         self.set_memory_u16(sp.wrapping_sub(2), data);
         self.set_register_pair(Intel8080Register::SP, sp.wrapping_sub(2));
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn pop_u16_off_stack(&mut self) -> u16 {
         let sp = self.read_register_pair(Intel8080Register::SP);
         self.set_register_pair(Intel8080Register::SP, sp.wrapping_add(2));
@@ -358,17 +358,17 @@ impl<'a> Intel8080Emulator<'a> {
 }
 
 impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         self.main_memory[address as usize]
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.main_memory[address as usize] = value;
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_memory_u16(&self, address: u16) -> u16 {
         if address == 0xFFFF {
             return self.read_memory(address) as u16;
@@ -377,7 +377,7 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         u16::from_le_bytes([self.main_memory[address], self.main_memory[address + 1]])
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory_u16(&mut self, address: u16, value: u16) {
         if address == 0xFFFF {
             return self.set_memory(address, (value >> 8) as u8);
@@ -389,7 +389,7 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         self.main_memory[address + 1] = bytes[1];
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_flag(&mut self, flag: Intel8080Flag, value: bool) {
         if value {
             self.registers[Intel8080Register::FLAGS as usize] |= flag as u8;
@@ -402,25 +402,25 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         self.registers[Intel8080Register::FLAGS as usize] & flag as u8 == flag as u8
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_raw_register(&self, index: usize) -> u8 {
         self.registers[index]
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_raw_register(&mut self, index: usize, value: u8) {
         assert!(index != Intel8080Register::FLAGS as usize);
         self.registers[index] = value;
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_raw_register_pair(&self, index: usize) -> u16 {
         let first_byte = index * 2;
         let second_byte = first_byte + 1;
         u16::from_be_bytes([self.registers[first_byte], self.registers[second_byte]])
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
         let first_byte = index * 2;
         let second_byte = first_byte + 1;
@@ -435,12 +435,12 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_program_counter(&self) -> u16 {
         self.program_counter
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_program_counter(&mut self, address: u16) {
         self.program_counter = address;
 
@@ -452,30 +452,30 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_interrupts_enabled(&mut self, state: bool) {
         self.interrupts_enabled = state;
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn get_interrupts_enabled(&self) -> bool {
         self.interrupts_enabled
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_cycles(&mut self, _cycles: u8) {}
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn push_frame(&mut self, address: u16) {
         self.call_stack.push(address);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn pop_frame(&mut self) {
         self.call_stack.pop();
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn wait_until_interrupt(&mut self) {}
 }
 
@@ -1070,34 +1070,34 @@ const CALL_EXTRA_CYCLES: u8 = 12;
 const RETURN_EXTRA_CYCLES: u8 = 12;
 
 impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn complement_carry(&mut self) {
         let value = self.read_flag(Intel8080Flag::Carry);
         self.set_flag(Intel8080Flag::Carry, !value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_carry(&mut self) {
         self.set_flag(Intel8080Flag::Carry, true);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn increment_register_or_memory(&mut self, register: Intel8080Register) {
         self.add_to_register(register, 1, false /* update carry */);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn decrement_register_or_memory(&mut self, register: Intel8080Register) {
         self.subtract_from_register(register, 1);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn complement_accumulator(&mut self) {
         let old_value = self.read_register(Intel8080Register::A);
         self.set_register(Intel8080Register::A, !old_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn decimal_adjust_accumulator(&mut self) {
         /* The eight-bit hexadecimal number in the accumulator is adjusted to form two four-bit
          * binary-coded decimal digits by the follow two step process:
@@ -1127,7 +1127,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_flag(Intel8080Flag::Zero, accumulator == 0);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn no_operation(&mut self) {
         /*
          * Easiest instruction to implement :)
@@ -1155,115 +1155,115 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
          */
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn move_data(&mut self, dest_register: Intel8080Register, src_register: Intel8080Register) {
         let value = self.read_register(src_register);
         self.set_register(dest_register, value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn store_accumulator(&mut self, register_pair: Intel8080Register) {
         let address = self.read_register_pair(register_pair);
         let value = self.read_register(Intel8080Register::A);
         self.set_memory(address, value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn load_accumulator(&mut self, register_pair: Intel8080Register) {
         let address = self.read_register_pair(register_pair);
         let value = self.read_memory(address);
         self.set_register(Intel8080Register::A, value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_to_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.add_immediate_to_accumulator(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_to_accumulator_with_carry(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.add_immediate_to_accumulator_with_carry(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn subtract_from_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.subtract_immediate_from_accumulator(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn subtract_from_accumulator_with_borrow(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.subtract_immediate_from_accumulator_with_borrow(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn logical_and_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.and_immediate_with_accumulator(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn logical_exclusive_or_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.exclusive_or_immediate_with_accumulator(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn logical_or_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.or_immediate_with_accumulator(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn compare_with_accumulator(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         self.compare_immediate_with_accumulator(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn rotate_accumulator_left(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_left(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn rotate_accumulator_right(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_right(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn rotate_accumulator_left_through_carry(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_left_through_carry(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn rotate_accumulator_right_through_carry(&mut self) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_rotate_right_through_carry(value);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn push_data_onto_stack(&mut self, register_pair: Intel8080Register) {
         let pair_data = self.read_register_pair(register_pair);
         self.push_u16_onto_stack(pair_data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn pop_data_off_stack(&mut self, register_pair: Intel8080Register) {
         let pair_data = self.pop_u16_off_stack();
         self.set_register_pair(register_pair, pair_data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn double_add(&mut self, register: Intel8080Register) {
         let value = self.read_register_pair(register);
         let old_value = self.read_register_pair(Intel8080Register::H);
@@ -1272,20 +1272,20 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_register_pair(Intel8080Register::H, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn increment_register_pair(&mut self, register: Intel8080Register) {
         let old_value = self.read_register_pair(register);
         let new_value = old_value.wrapping_add(1);
         self.set_register_pair(register, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn decrement_register_pair(&mut self, register: Intel8080Register) {
         let old_value = self.read_register_pair(register);
         self.set_register_pair(register, old_value.wrapping_sub(1));
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn exchange_registers(&mut self) {
         let pair_h = self.read_register_pair(Intel8080Register::H);
         let pair_d = self.read_register_pair(Intel8080Register::D);
@@ -1293,7 +1293,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_register_pair(Intel8080Register::D, pair_h);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn exchange_stack(&mut self) {
         let h_data = self.read_register(Intel8080Register::H);
         let l_data = self.read_register(Intel8080Register::L);
@@ -1307,28 +1307,28 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_register(Intel8080Register::L, mem_2);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn load_sp_from_h_and_l(&mut self) {
         let h_data = self.read_register_pair(Intel8080Register::H);
         self.set_register_pair(Intel8080Register::SP, h_data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn load_register_pair_immediate(&mut self, register: Intel8080Register, data: u16) {
         self.set_register_pair(register, data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn move_immediate_data(&mut self, dest_register: Intel8080Register, data: u8) {
         self.set_register(dest_register, data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_immediate_to_accumulator(&mut self, data: u8) {
         self.add_to_register(Intel8080Register::A, data, true /* update_carry */);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_immediate_to_accumulator_with_carry(&mut self, data: u8) {
         let carry = self.read_flag(Intel8080Flag::Carry);
         self.add_to_register(Intel8080Register::A, data, true /* update_carry */);
@@ -1348,12 +1348,12 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn subtract_immediate_from_accumulator(&mut self, data: u8) {
         self.subtract_from_register_using_twos_complement(Intel8080Register::A, data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8) {
         let carry = self.read_flag(Intel8080Flag::Carry);
         self.subtract_from_register_using_twos_complement(Intel8080Register::A, data);
@@ -1373,46 +1373,46 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn and_immediate_with_accumulator(&mut self, data: u8) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_and(value, data);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn exclusive_or_immediate_with_accumulator(&mut self, data: u8) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_exclusive_or(value, data);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn or_immediate_with_accumulator(&mut self, data: u8) {
         let value = self.read_register(Intel8080Register::A);
         let new_value = self.perform_or(value, data);
         self.set_register(Intel8080Register::A, new_value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn compare_immediate_with_accumulator(&mut self, data: u8) {
         let accumulator = self.read_register(Intel8080Register::A);
         self.perform_subtraction_using_twos_complement(accumulator, data);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn store_accumulator_direct(&mut self, address: u16) {
         let value = self.read_register(Intel8080Register::A);
         self.set_memory(address, value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn load_accumulator_direct(&mut self, address: u16) {
         let value = self.read_memory(address);
         self.set_register(Intel8080Register::A, value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn store_h_and_l_direct(&mut self, address: u16) {
         let value_l = self.read_register(Intel8080Register::L);
         let value_h = self.read_register(Intel8080Register::H);
@@ -1420,7 +1420,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_memory(address + 1, value_h);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn load_h_and_l_direct(&mut self, address: u16) {
         let value1 = self.read_memory(address);
         let value2 = self.read_memory(address + 1);
@@ -1428,18 +1428,18 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.set_register(Intel8080Register::H, value2);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn load_program_counter(&mut self) {
         let value = self.read_register_pair(Intel8080Register::H);
         self.set_program_counter(value);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump(&mut self, address: u16) {
         self.set_program_counter(address);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_carry(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Carry) {
             self.jump(address);
@@ -1447,7 +1447,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_no_carry(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.jump(address);
@@ -1455,7 +1455,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_zero(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Zero) {
             self.jump(address);
@@ -1463,7 +1463,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_not_zero(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.jump(address);
@@ -1471,7 +1471,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_minus(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Sign) {
             self.jump(address);
@@ -1479,7 +1479,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_positive(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.jump(address);
@@ -1487,7 +1487,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_parity_even(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Parity) {
             self.jump(address);
@@ -1495,7 +1495,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn jump_if_parity_odd(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.jump(address);
@@ -1503,7 +1503,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call(&mut self, address: u16) {
         let pc = self.read_program_counter();
         self.push_u16_onto_stack(pc);
@@ -1511,7 +1511,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         self.push_frame(pc);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_carry(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Carry) {
             self.call(address);
@@ -1519,7 +1519,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_no_carry(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.call(address);
@@ -1527,7 +1527,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_zero(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Zero) {
             self.call(address);
@@ -1535,7 +1535,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_not_zero(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.call(address);
@@ -1543,7 +1543,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_minus(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Sign) {
             self.call(address);
@@ -1551,7 +1551,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_plus(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.call(address);
@@ -1559,7 +1559,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_parity_even(&mut self, address: u16) {
         if self.read_flag(Intel8080Flag::Parity) {
             self.call(address);
@@ -1567,7 +1567,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn call_if_parity_odd(&mut self, address: u16) {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.call(address);
@@ -1575,14 +1575,14 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_unconditionally(&mut self) {
         let address = self.pop_u16_off_stack();
         self.set_program_counter(address);
         self.pop_frame();
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_carry(&mut self) {
         if self.read_flag(Intel8080Flag::Carry) {
             self.return_unconditionally();
@@ -1590,7 +1590,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_no_carry(&mut self) {
         if !self.read_flag(Intel8080Flag::Carry) {
             self.return_unconditionally();
@@ -1598,7 +1598,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_zero(&mut self) {
         if self.read_flag(Intel8080Flag::Zero) {
             self.return_unconditionally();
@@ -1606,7 +1606,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_not_zero(&mut self) {
         if !self.read_flag(Intel8080Flag::Zero) {
             self.return_unconditionally();
@@ -1614,7 +1614,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_minus(&mut self) {
         if self.read_flag(Intel8080Flag::Sign) {
             self.return_unconditionally();
@@ -1622,7 +1622,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_plus(&mut self) {
         if !self.read_flag(Intel8080Flag::Sign) {
             self.return_unconditionally();
@@ -1630,7 +1630,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_parity_even(&mut self) {
         if self.read_flag(Intel8080Flag::Parity) {
             self.return_unconditionally();
@@ -1638,7 +1638,7 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn return_if_parity_odd(&mut self) {
         if !self.read_flag(Intel8080Flag::Parity) {
             self.return_unconditionally();
@@ -1646,43 +1646,43 @@ impl<I: Intel8080InstructionSetOps> Intel8080InstructionSet for I {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn rim(&mut self) {
         panic!("rim: Not Implemented")
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn disable_interrupts(&mut self) {
         self.set_interrupts_enabled(false);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn enable_interrupts(&mut self) {
         self.set_interrupts_enabled(true);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn input(&mut self, _data1: u8) {
         panic!("input: Not Implemented")
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn halt(&mut self) {
         self.wait_until_interrupt();
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn restart(&mut self, implicit_data: u8) {
         assert!(implicit_data <= 7);
         self.call((implicit_data as u16) << 3);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn output(&mut self, _data1: u8) {
         panic!("output: Not Implemented")
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn sim(&mut self) {
         panic!("sim: Not Implemented")
     }

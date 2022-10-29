@@ -127,12 +127,12 @@ pub struct DmaRegister {
 }
 
 impl MemoryMappedHardware for DmaRegister {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, _: u16) -> u8 {
         self.read_value()
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, _: u16, value: u8) {
         self.set_value(value);
         self.requested = true;
@@ -146,7 +146,7 @@ impl fmt::Debug for DmaRegister {
 }
 
 impl DmaRegister {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn take_request(&mut self) -> Option<u16> {
         if self.requested {
             self.requested = false;
@@ -156,12 +156,12 @@ impl DmaRegister {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn read_value(&self) -> u8 {
         self.value
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn set_value(&mut self, value: u8) {
         self.value = value;
     }
@@ -222,12 +222,12 @@ pub enum LcdColor {
 }
 
 impl FlagMask for LcdColor {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_mask() -> u8 {
         0xFF
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn write_mask() -> u8 {
         0xFF
     }
@@ -242,7 +242,7 @@ enum LcdShade {
     Shade3 = 0x3,
 }
 
-#[inline(always)]
+#[cfg_attr(not(debug_assertions), inline(always))]
 fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
     match shade {
         LcdShade::Shade0 => R::Color::new(0xe0, 0xf8, 0xd0),
@@ -286,12 +286,12 @@ pub enum LcdControlFlag {
 }
 
 impl FlagMask for LcdControlFlag {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_mask() -> u8 {
         0xFF
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn write_mask() -> u8 {
         0xFF
     }
@@ -321,7 +321,7 @@ pub enum LcdStatusFlag {
 }
 
 impl FlagMask for LcdStatusFlag {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_mask() -> u8 {
         Self::InterruptLYMatching as u8
             | Self::InterruptMode10 as u8
@@ -331,7 +331,7 @@ impl FlagMask for LcdStatusFlag {
             | Self::Mode as u8
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn write_mask() -> u8 {
         Self::InterruptLYMatching as u8
             | Self::InterruptMode10 as u8
@@ -367,25 +367,25 @@ enum LcdObjectAttributeFlag {
 }
 
 impl FlagMask for LcdObjectAttributeFlag {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_mask() -> u8 {
         0xFF
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn write_mask() -> u8 {
         0xFF
     }
 }
 
 impl LcdObject {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_flag(&self, flag: LcdObjectAttributeFlag) -> bool {
         self.flags.read_flag(flag)
     }
 
     /// Returns tuple (y position, character code)
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn get_character_data_for_line(
         &self,
         line: i32,
@@ -422,7 +422,7 @@ impl LcdObject {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw_line(
         &self,
         line: &mut ScanLine,
@@ -459,7 +459,7 @@ struct LcdObjectIterator<'a> {
 impl<'a> Iterator for LcdObjectIterator<'a> {
     type Item = LcdObject;
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn next(&mut self) -> Option<LcdObject> {
         if self.chunk_iterator.peek().is_none() {
             None
@@ -481,7 +481,7 @@ impl<'a> Iterator for LcdObjectIterator<'a> {
 }
 
 impl<'a> LcdObjectIterator<'a> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn new(chunk: &'a MemoryChunk) -> LcdObjectIterator<'a> {
         LcdObjectIterator {
             chunk_iterator: chunk.as_slice().iter().peekable(),
@@ -495,7 +495,7 @@ struct LcdDotData<'a> {
 }
 
 impl<'a> LcdDotData<'a> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_pixel(&self, offset: usize) -> LcdColor {
         let byte_offset = (offset / 8) * 2;
         let bit_offset = 7 - (offset % 8);
@@ -514,7 +514,7 @@ impl<'a> LcdDotData<'a> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     #[allow(clippy::too_many_arguments)]
     fn draw_line(
         &self,
@@ -579,7 +579,7 @@ enum LcdControllerEvent {
 }
 
 impl LcdControllerEvent {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn deliver<R: Renderer>(self, controller: &mut LcdController, renderer: &mut R, time: u64) {
         match self {
             Self::AdvanceLy => controller.advance_ly(time),
@@ -597,26 +597,26 @@ struct ScanLine {
 }
 
 impl ScanLine {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn new() -> Self {
         Self {
             data: [LcdShade::Shade0; SCREEN_WIDTH as usize],
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_pixel(&mut self, x: i32, shade: LcdShade) {
         assert!(x >= 0 && x < self.data.len() as i32);
         self.data[x as usize] = shade
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn get_pixel(&self, x: i32) -> LcdShade {
         assert!(x >= 0 && x < self.data.len() as i32);
         self.data[x as usize]
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw<R: Renderer>(&self, renderer: &mut R, y: i32) {
         for (x, &v) in self.data.iter().enumerate() {
             renderer.color_pixel(x as i32, y, color_for_shade::<R>(v));
@@ -666,7 +666,7 @@ impl LcdController {
     }
 
     /// Must be called periodically so the proper interrupts can be triggered.
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.vertical_blanking_interrupt {
             interrupt_flag.set_flag(InterruptFlag::VerticalBlanking, true);
@@ -679,7 +679,7 @@ impl LcdController {
     }
 
     /// Should be called periodically to drive the emulator.
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn deliver_events(
         &mut self,
         renderer: &mut impl Renderer,
@@ -693,7 +693,7 @@ impl LcdController {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_dot_data(
         data: &MemoryChunk,
         character_data_selection: bool,
@@ -746,7 +746,7 @@ impl LcdController {
         self.oam_data.clone_from_slice(&oam_data[..]);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn get_scroll_origin_relative_to_lcd(&self) -> (i32, i32) {
         let mut x = -(self.registers.scx.read_value() as i32);
         let mut y = -(self.registers.scy.read_value() as i32);
@@ -765,7 +765,7 @@ impl LcdController {
         (x, y)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn get_window_origin_relative_to_lcd(&self) -> (i32, i32) {
         let x = self.registers.wx.read_value() as i32 - 7;
         let y = self.registers.wy.read_value() as i32;
@@ -773,7 +773,7 @@ impl LcdController {
         (x, y)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw_tiles(
         &mut self,
         line: &mut ScanLine,
@@ -846,7 +846,7 @@ impl LcdController {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw_oam_data(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::ObjectOn) {
             return;
@@ -890,7 +890,7 @@ impl LcdController {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn mode_2(&mut self, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
@@ -907,7 +907,7 @@ impl LcdController {
             .schedule(time + 77, LcdControllerEvent::Mode3);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw_background(&mut self, line: &mut ScanLine) {
         let bg_area_selection = self
             .registers
@@ -928,7 +928,7 @@ impl LcdController {
         );
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw_window(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::WindowingOn) {
             return;
@@ -949,7 +949,7 @@ impl LcdController {
         );
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn mode_3<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         let ly = self.registers.ly.read_value();
         assert!((ly as i32) < SCREEN_HEIGHT, "{}", "drawing ly = {ly}");
@@ -970,7 +970,7 @@ impl LcdController {
             .schedule(time + 175, LcdControllerEvent::Mode0);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn mode_0(&mut self, time: u64) {
         self.character_data.release();
         self.background_display_data_1.release();
@@ -997,7 +997,7 @@ impl LcdController {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn advance_ly(&mut self, time: u64) {
         // This advances the ly register, which represents the horizontal line that is currently
         // being drawn on the LCD.
@@ -1016,7 +1016,7 @@ impl LcdController {
             .schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn update_ly_match(&mut self, _time: u64) {
         if self.registers.ly.read_value() == self.registers.lyc.read_value() {
             self.registers.stat.set_flag(LcdStatusFlag::LYMatch, true);
@@ -1030,7 +1030,7 @@ impl LcdController {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn mode_1<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x1);
         renderer.present();
@@ -1049,7 +1049,7 @@ impl LcdController {
             .schedule(time + 4560, LcdControllerEvent::Mode2);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn enable(&mut self, time: u64) {
         assert!(!self.enabled);
 
@@ -1058,7 +1058,7 @@ impl LcdController {
         self.update_ly_match(time);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn disable(&mut self) {
         assert!(self.enabled);
 
@@ -1082,7 +1082,7 @@ impl LcdController {
         self.enabled = false;
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn check_enabled_state(&mut self, time: u64) {
         let lcdc_enabled = self.registers.lcdc.read_flag(LcdControlFlag::DisplayOn);
         if self.enabled != lcdc_enabled {
@@ -1095,7 +1095,7 @@ impl LcdController {
     }
 
     /// Should be called periodically to drive the emulator.
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn tick(&mut self, time: u64) {
         self.check_enabled_state(time);
     }

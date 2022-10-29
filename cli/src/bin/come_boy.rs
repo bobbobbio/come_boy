@@ -27,13 +27,13 @@ struct PerfStats {
 }
 
 impl PerfObserver for PerfStats {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn start_observation(&mut self, tag: &'static str) {
         let existing = self.in_flight.insert(tag, Instant::now()).is_some();
         assert!(!existing, "{}", "unfinished tag {tag}");
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn end_observation(&mut self, tag: &'static str) {
         let start = self
             .in_flight
@@ -44,7 +44,7 @@ impl PerfObserver for PerfStats {
         entry.1 += 1;
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn tick_observed(&mut self) {
         self.num_ticks += 1;
     }

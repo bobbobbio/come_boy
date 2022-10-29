@@ -198,7 +198,7 @@ impl Renderer for SpeedyRenderer {
         unimplemented!()
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
         assert!(x < self.width as i32, "x = {x} > {}", self.width);
         assert!(y < self.height as i32, "y = {y} > {}", self.height);

@@ -19,7 +19,7 @@ pub trait MemoryAccessor {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_memory_u16(&self, address: u16) -> u16 {
         if address == 0xFFFF {
             return self.read_memory(address) as u16;
@@ -28,7 +28,7 @@ pub trait MemoryAccessor {
         (self.read_memory(address + 1) as u16) << 8 | (self.read_memory(address) as u16)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory_u16(&mut self, address: u16, value: u16) {
         self.set_memory(address, value as u8);
 
@@ -43,12 +43,12 @@ pub trait MemoryAccessor {
 }
 
 impl MemoryAccessor for &dyn MemoryAccessor {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         (*self).read_memory(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, _address: u16, _value: u8) {
         panic!()
     }
@@ -73,13 +73,13 @@ impl<'a, M> MemoryStream<'a, M> {
 }
 
 impl<'a, M: MemoryAccessor> io::Read for MemoryStream<'a, M> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         self.read_exact(buf)?;
         Ok(buf.len())
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
         for (i, item) in buf.iter_mut().enumerate() {
             *item = self.memory_accessor.read_memory(self.index + (i as u16));
@@ -98,7 +98,7 @@ pub struct MemoryIterator<'a> {
 impl<'a> Iterator for MemoryIterator<'a> {
     type Item = u8;
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn next(&mut self) -> Option<u8> {
         if self.current_address < self.ending_address {
             let mem = self.memory_accessor.read_memory(self.current_address);
@@ -140,12 +140,12 @@ impl SimpleMemoryAccessor {
 }
 
 impl MemoryAccessor for SimpleMemoryAccessor {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         self.memory[address as usize]
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.memory[address as usize] = value;
     }

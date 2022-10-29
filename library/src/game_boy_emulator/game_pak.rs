@@ -38,12 +38,12 @@ impl RomBank {
 }
 
 impl MemoryMappedBank for RomBank {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         ops.rom_memory[self.0].read_value(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -76,7 +76,7 @@ impl fmt::Debug for MemoryBankController {
 }
 
 impl MemoryMappedBank for MemoryBankController {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         match self {
             Self::Zero(r) => r.read_bank_value(ops, address),
@@ -87,7 +87,7 @@ impl MemoryMappedBank for MemoryBankController {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -129,7 +129,7 @@ impl fmt::Debug for MemoryBankController0 {
 }
 
 impl MemoryMappedBank for MemoryBankController0 {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0x4000 {
             self.banks[0].read_bank_value(ops, address)
@@ -140,7 +140,7 @@ impl MemoryMappedBank for MemoryBankController0 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         _ops: &mut BankOps<impl PersistentStorage>,
@@ -164,7 +164,7 @@ impl<T> SwitchableBank<T> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn switch_bank(&mut self, new_bank: usize) {
         assert!(new_bank < self.banks.len());
         self.current_bank = new_bank;
@@ -172,7 +172,7 @@ impl<T> SwitchableBank<T> {
 }
 
 impl SwitchableBank<SramChunk> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn total_len(&self) -> usize {
         let mut len = 0;
         for b in &self.banks {
@@ -183,7 +183,7 @@ impl SwitchableBank<SramChunk> {
 }
 
 impl<T: MemoryMappedBank> MemoryMappedBank for SwitchableBank<T> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if self.current_bank >= self.banks.len() {
             0xFF
@@ -192,7 +192,7 @@ impl<T: MemoryMappedBank> MemoryMappedBank for SwitchableBank<T> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -206,7 +206,7 @@ impl<T: MemoryMappedBank> MemoryMappedBank for SwitchableBank<T> {
 }
 
 impl<T: MemoryMappedHardware> MemoryMappedHardware for SwitchableBank<T> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         if self.current_bank >= self.banks.len() {
             0xFF
@@ -215,7 +215,7 @@ impl<T: MemoryMappedHardware> MemoryMappedHardware for SwitchableBank<T> {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         if self.current_bank < self.banks.len() {
             self.banks[self.current_bank].set_value(address, value);
@@ -246,7 +246,7 @@ impl From<MemoryBankController1> for MemoryBankController {
 }
 
 impl MemoryMappedBank for MemoryBankController1 {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0x4000 {
             self.switchable_bank.banks[0].read_bank_value(ops, address)
@@ -259,7 +259,7 @@ impl MemoryMappedBank for MemoryBankController1 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -317,7 +317,7 @@ impl MemoryBankController1 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn update_rom_bank(&mut self) {
         if self.rom_bank_number == 0 {
             self.rom_bank_number = 1;
@@ -325,7 +325,7 @@ impl MemoryBankController1 {
         self.switchable_bank.switch_bank(self.rom_bank_number);
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn update_ram_bank(&mut self) {
         self.ram.switch_bank(self.ram_bank_number);
     }
@@ -365,7 +365,7 @@ impl MemoryBankController3 {
 }
 
 impl MemoryMappedBank for MemoryBankController3 {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0xA000 {
             self.inner.read_bank_value(ops, address)
@@ -381,7 +381,7 @@ impl MemoryMappedBank for MemoryBankController3 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -427,7 +427,7 @@ enum InternalRam {
 }
 
 impl MemoryMappedBank for InternalRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         match self {
             Self::Volatile(r) => r.read_value(address),
@@ -435,7 +435,7 @@ impl MemoryMappedBank for InternalRam {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -474,12 +474,12 @@ impl VolatileInternalRam {
 }
 
 impl MemoryMappedHardware for VolatileInternalRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         self.0.read_value(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         self.0.set_value(address, value & 0x0F);
     }
@@ -508,12 +508,12 @@ impl NonVolatileInternalRam {
 }
 
 impl MemoryMappedBank for NonVolatileInternalRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         self.0.read_bank_value(ops, address) | 0xF0
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -574,7 +574,7 @@ impl MemoryBankController2 {
 }
 
 impl MemoryMappedBank for MemoryBankController2 {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         if address < 0x4000 {
             self.switchable_bank.banks[0].read_bank_value(ops, address)
@@ -587,7 +587,7 @@ impl MemoryMappedBank for MemoryBankController2 {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -636,12 +636,12 @@ impl MemoryBankController5 {
 }
 
 impl MemoryMappedBank for MemoryBankController5 {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         self.inner.read_bank_value(ops, address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -692,7 +692,7 @@ impl fmt::Debug for CartridgeRam {
 }
 
 impl MemoryMappedBank for CartridgeRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         match self {
             Self::No(r) => r.read_value(address),
@@ -701,7 +701,7 @@ impl MemoryMappedBank for CartridgeRam {
         }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -717,7 +717,7 @@ impl MemoryMappedBank for CartridgeRam {
 }
 
 impl CartridgeRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn switch_bank(&mut self, bank: usize) {
         if let Self::Volatile(r) = self {
             r.switch_bank(bank);
@@ -741,7 +741,7 @@ impl fmt::Debug for NoRam {
 }
 
 impl MemoryMappedHardware for NoRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, _address: u16) -> u8 {
         0xFF
     }
@@ -778,12 +778,12 @@ impl VolatileRam {
 }
 
 impl MemoryMappedHardware for VolatileRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         self.switchable_bank.read_value(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         self.switchable_bank.set_value(address, value);
     }
@@ -800,19 +800,19 @@ impl SramChunk {
         Self { offset, memory }
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn len(&self) -> u16 {
         self.memory.len()
     }
 }
 
 impl MemoryMappedBank for SramChunk {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, _ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         self.memory.read_value(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -850,12 +850,12 @@ impl NonVolatileRam {
 }
 
 impl MemoryMappedBank for NonVolatileRam {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_bank_value(&self, ops: &BankOps<impl PersistentStorage>, address: u16) -> u8 {
         self.0.read_bank_value(ops, address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_bank_value(
         &mut self,
         ops: &mut BankOps<impl PersistentStorage>,
@@ -878,36 +878,36 @@ pub struct GamePak<Storage: PersistentStorage> {
 }
 
 impl<Storage: PersistentStorage> MemoryMappedHardware for GamePak<Storage> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         self.mbc.read_bank_value(&self.ops, address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         self.mbc.set_bank_value(&mut self.ops, address, value);
     }
 }
 
 impl<Storage: PersistentStorage> MemoryMappedHardware for &GamePak<Storage> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         (*self).read_value(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, _address: u16, _value: u8) {
         panic!("can't set_value on &GamePak")
     }
 }
 
 impl<Storage: PersistentStorage> MemoryMappedHardware for &mut GamePak<Storage> {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         (**self).read_value(address)
     }
 
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         (**self).set_value(address, value)
     }

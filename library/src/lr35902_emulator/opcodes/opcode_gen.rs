@@ -325,7 +325,7 @@ pub enum LR35902InstructionType {
 const NUM_INSTRUCTIONS: usize = 87usize;
 impl LR35902Instruction {
     #[allow(clippy::unnecessary_cast)]
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
         let opcode = stream.read_u8()?;
         Ok(match opcode {
@@ -4451,7 +4451,7 @@ pub trait LR35902InstructionSet {
     fn test_bit(&mut self, data1: u8, register2: Intel8080Register);
 }
 impl LR35902Instruction {
-    #[inline(always)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn dispatch<I: LR35902InstructionSet>(self, machine: &mut I) {
         match self {
             Self::NoOperation {} => machine.no_operation(),
