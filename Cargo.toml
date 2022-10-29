@@ -4,6 +4,10 @@ debug = true
 panic = "abort"
 lto = "thin"
 
+[profile.release.package."*"]
+opt-level = 3
+debug = true
+
 [profile.dev]
 debug = true
 panic = "abort"
