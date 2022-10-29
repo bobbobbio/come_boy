@@ -13,10 +13,9 @@ sdl2-renderer = ["come_boy/sdl2-renderer"]
 sound = ["come_boy/sound"]
 
 [dependencies]
-clap = "*"
+clap = { version = "^3" }
 come_boy = { version = "*", path = "../library" }
 ctrlc = "*"
 log = "*"
 simple_logger = "*"
 structopt = "*"
-

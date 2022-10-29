@@ -16,7 +16,7 @@ std = []
 
 [dependencies]
 come_boy = {default_features = false, features = [], path = "../library", version = "*"}
-enum-iterator = "*"
+enum-iterator = "0.8.1"
 
 [build-dependencies]
 bindgen = "*"
