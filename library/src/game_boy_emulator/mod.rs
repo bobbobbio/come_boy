@@ -29,7 +29,7 @@ use strum_macros::IntoStaticStr;
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 pub use self::underclocker::*;
-pub use perf::{NullPerfObserver, PerfObserver};
+pub use perf::{NullPerfObserver, PerfObserver, PerfStats};
 
 mod coverage;
 mod debugger;

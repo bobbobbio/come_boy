@@ -4,90 +4,17 @@
 
 use bin_common::backend::BackendMap;
 use bin_common::Result;
-use come_boy::game_boy_emulator::{self, GamePak, NullPerfObserver, PerfObserver};
+use come_boy::game_boy_emulator::{self, GamePak, NullPerfObserver, PerfObserver, PerfStats};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::{NullSoundStream, SoundStream};
 use come_boy::storage::fs::Fs;
-use std::collections::HashMap;
-use std::fmt;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
 use structopt::StructOpt;
 
 #[path = "../bin_common/mod.rs"]
 mod bin_common;
-
-#[derive(Default)]
-struct PerfStats {
-    in_flight: HashMap<&'static str, Instant>,
-    stats: HashMap<&'static str, (Duration, u32)>,
-    num_ticks: u32,
-}
-
-impl PerfObserver for PerfStats {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn start_observation(&mut self, tag: &'static str) {
-        let existing = self.in_flight.insert(tag, Instant::now()).is_some();
-        assert!(!existing, "{}", "unfinished tag {tag}");
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn end_observation(&mut self, tag: &'static str) {
-        let start = self
-            .in_flight
-            .remove(tag)
-            .unwrap_or_else(|| panic!("unexpected tag {}", tag));
-        let entry = self.stats.entry(tag).or_insert((Duration::ZERO, 0));
-        entry.0 += start.elapsed();
-        entry.1 += 1;
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn tick_observed(&mut self) {
-        self.num_ticks += 1;
-    }
-}
-
-impl fmt::Display for PerfStats {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let ticks = self.num_ticks;
-        assert!(ticks != 0);
-        let mut sorted_stats: Vec<_> = self
-            .stats
-            .iter()
-            .map(|(t, &(d, n))| {
-                assert!(n != 0);
-                if ticks > n {
-                    (t, d / n / (ticks / n))
-                } else {
-                    (t, d / n * (n / ticks))
-                }
-            })
-            .collect();
-        sorted_stats.sort_by(|(_, d1), (_, d2)| d1.cmp(d2));
-
-        writeln!(f)?;
-        for (tag, duration) in &sorted_stats {
-            write!(
-                f,
-                "{tag:<30}: {:>10}ns amortized per tick",
-                duration.as_nanos()
-            )?;
-
-            let &(dur, samples) = self.stats.get(*tag).unwrap();
-            let avg = (dur / samples).as_nanos();
-            writeln!(
-                f,
-                " ({avg:>10}ns average per call, {samples:>10} sample(s))",
-            )?;
-        }
-        write!(f, "{ticks} sample(s)")?;
-
-        Ok(())
-    }
-}
 
 struct Frontend {
     fs: Fs,
@@ -146,7 +73,7 @@ impl Frontend {
 
     fn run_with_sound(self, renderer: &mut impl Renderer, sound_stream: &mut impl SoundStream) {
         if self.perf_stats {
-            let mut perf_stats = PerfStats::default();
+            let mut perf_stats = PerfStats::new();
             self.run_with_observer(renderer, sound_stream, &mut perf_stats);
             log::info!("{}", &perf_stats);
         } else {
