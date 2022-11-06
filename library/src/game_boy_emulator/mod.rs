@@ -658,6 +658,8 @@ impl GameBoyEmulator {
         });
 
         observe(observer, "nothing", || ());
+
+        observer.tick_observed();
     }
 
     pub fn read_key_events(

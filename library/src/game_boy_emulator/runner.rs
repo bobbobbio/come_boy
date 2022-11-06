@@ -20,7 +20,6 @@ impl GameBoyEmulator {
                 self.tick_with_observer(ops, observer);
                 underclocker.underclock(self.elapsed_cycles());
                 self.read_key_events(ops)?;
-                observer.tick_observed();
             } else {
                 self.tick(ops);
             }

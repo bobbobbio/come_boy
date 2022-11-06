@@ -4,10 +4,7 @@ use crate::graphics::Graphics;
 use crate::joypad::PicoJoyPad;
 use crate::time::Instant;
 use alloc::format;
-use come_boy::game_boy_emulator::{
-    perf::{PerfObserver as _, PerfStats},
-    GameBoyEmulator, GameBoyOps, GamePak,
-};
+use come_boy::game_boy_emulator::{perf::PerfStats, GameBoyEmulator, GameBoyOps, GamePak};
 use come_boy::sound::NullSoundStream;
 use come_boy::storage::PanicStorage;
 
@@ -65,7 +62,6 @@ impl Emulator {
             } else {
                 self.game_boy.tick(&mut self.ops);
             }
-            self.perf_stats.tick_observed();
             self.ticks += 1;
         }
         self.frames += 1;
