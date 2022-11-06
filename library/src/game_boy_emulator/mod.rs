@@ -22,12 +22,14 @@ use core::ops::{Range, RangeFrom};
 use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
+use perf::observe;
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::IntoStaticStr;
 
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 pub use self::underclocker::*;
+pub use perf::{NullPerfObserver, PerfObserver};
 
 mod coverage;
 mod debugger;
@@ -36,6 +38,7 @@ mod game_pak;
 pub mod joypad;
 mod lcd_controller;
 mod memory_controller;
+mod perf;
 mod runner;
 mod sound_controller;
 mod tandem;
@@ -101,33 +104,6 @@ impl From<crate::codec::Error> for Error {
     fn from(e: crate::codec::Error) -> Self {
         Self::Serde(e)
     }
-}
-
-pub trait PerfObserver {
-    fn start_observation(&mut self, tag: &'static str);
-    fn end_observation(&mut self, tag: &'static str);
-    fn tick_observed(&mut self);
-}
-
-pub struct NullPerfObserver;
-
-impl PerfObserver for NullPerfObserver {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn start_observation(&mut self, _tag: &'static str) {}
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn end_observation(&mut self, _tag: &'static str) {}
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn tick_observed(&mut self) {}
-}
-
-#[cfg_attr(not(debug_assertions), inline(always))]
-fn observe<R>(p: &mut impl PerfObserver, tag: &'static str, body: impl FnOnce() -> R) -> R {
-    p.start_observation(tag);
-    let ret = body();
-    p.end_observation(tag);
-    ret
 }
 
 /*   ____                      ____              _____                 _       _
