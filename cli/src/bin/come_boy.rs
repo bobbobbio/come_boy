@@ -75,7 +75,7 @@ impl Frontend {
         if self.perf_stats {
             let mut perf_stats = PerfStats::new();
             self.run_with_observer(renderer, sound_stream, &mut perf_stats);
-            log::info!("{}", &perf_stats);
+            log::info!("{perf_stats:#}");
         } else {
             self.run_with_observer(renderer, sound_stream, &mut NullPerfObserver);
         }

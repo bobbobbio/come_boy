@@ -115,16 +115,19 @@ impl<InstantT> fmt::Display for PerfStats<InstantT> {
         for (tag, duration) in &sorted_stats {
             write!(
                 f,
-                "{tag:<30}: {:>10}ns amortized per tick",
+                "{tag:<20}: {:>7}ns amortized per tick",
                 duration.as_nanos()
             )?;
 
-            let &(dur, samples) = self.stats.get(*tag).unwrap();
-            let avg = (dur / samples).as_nanos();
-            writeln!(
-                f,
-                " ({avg:>10}ns average per call, {samples:>10} sample(s))",
-            )?;
+            if f.alternate() {
+                let &(dur, samples) = self.stats.get(*tag).unwrap();
+                let avg = (dur / samples).as_nanos();
+                write!(
+                    f,
+                    " ({avg:>10}ns average per call, {samples:>10} sample(s))",
+                )?;
+            }
+            writeln!(f)?;
         }
         write!(f, "{ticks} sample(s)")?;
 
