@@ -25,3 +25,13 @@ impl Instant {
         Self::now().duration_since(*self)
     }
 }
+
+impl come_boy::game_boy_emulator::perf::Instant for Instant {
+    fn now() -> Self {
+        Instant::now()
+    }
+
+    fn elapsed(&self) -> Duration {
+        Instant::elapsed(self)
+    }
+}

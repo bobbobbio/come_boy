@@ -4,7 +4,11 @@
 
 use bin_common::backend::BackendMap;
 use bin_common::Result;
-use come_boy::game_boy_emulator::{self, GamePak, NullPerfObserver, PerfObserver, PerfStats};
+use come_boy::game_boy_emulator::{
+    self,
+    perf::{PerfObserver, PerfStats},
+    GamePak, NullPerfObserver,
+};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::{NullSoundStream, SoundStream};
 use come_boy::storage::fs::Fs;

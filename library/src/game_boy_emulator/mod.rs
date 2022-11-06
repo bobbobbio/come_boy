@@ -22,14 +22,14 @@ use core::ops::{Range, RangeFrom};
 use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
-use perf::observe;
+use perf::{observe, PerfObserver};
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::IntoStaticStr;
 
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 pub use self::underclocker::*;
-pub use perf::{NullPerfObserver, PerfObserver, PerfStats};
+pub use perf::NullPerfObserver;
 
 mod coverage;
 mod debugger;
@@ -38,7 +38,7 @@ mod game_pak;
 pub mod joypad;
 mod lcd_controller;
 mod memory_controller;
-mod perf;
+pub mod perf;
 mod runner;
 mod sound_controller;
 mod tandem;

@@ -31,7 +31,7 @@ pub fn observe<R>(p: &mut impl PerfObserver, tag: &'static str, body: impl FnOnc
     ret
 }
 
-trait Instant: Sized {
+pub trait Instant: Sized {
     fn now() -> Self;
 
     fn elapsed(&self) -> Duration;
@@ -112,6 +112,14 @@ impl<InstantT> fmt::Display for PerfStats<InstantT> {
         sorted_stats.sort_by(|(_, d1), (_, d2)| d2.cmp(d1));
 
         writeln!(f)?;
+        let total_duration: Duration = sorted_stats.iter().map(|(_, d)| d).sum();
+        writeln!(
+            f,
+            "{:<20}: {:>7}ns amortized per tick",
+            "sum of all",
+            total_duration.as_nanos()
+        )?;
+
         for (tag, duration) in &sorted_stats {
             write!(
                 f,
