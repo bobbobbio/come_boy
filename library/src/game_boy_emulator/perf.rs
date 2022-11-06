@@ -109,7 +109,7 @@ impl<InstantT> fmt::Display for PerfStats<InstantT> {
                 }
             })
             .collect();
-        sorted_stats.sort_by(|(_, d1), (_, d2)| d1.cmp(d2));
+        sorted_stats.sort_by(|(_, d1), (_, d2)| d2.cmp(d1));
 
         writeln!(f)?;
         for (tag, duration) in &sorted_stats {
