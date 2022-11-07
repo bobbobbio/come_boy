@@ -115,17 +115,14 @@ impl<InstantT> fmt::Display for PerfStats<InstantT> {
         let total_duration: Duration = sorted_stats.iter().map(|(_, d)| d).sum();
         writeln!(
             f,
-            "{:<20}: {:>7}ns amortized per tick",
+            "{:<20}: {:>7}ns apt",
             "sum of all",
             total_duration.as_nanos()
         )?;
 
         for (tag, duration) in &sorted_stats {
-            write!(
-                f,
-                "{tag:<20}: {:>7}ns amortized per tick",
-                duration.as_nanos()
-            )?;
+            let pct = duration.as_nanos() * 100 / total_duration.as_nanos();
+            write!(f, "{tag:<20}: {:>7}ns apt ({pct:>2}%)", duration.as_nanos())?;
 
             if f.alternate() {
                 let &(dur, samples) = self.stats.get(*tag).unwrap();

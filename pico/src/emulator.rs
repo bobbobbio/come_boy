@@ -75,7 +75,7 @@ impl Emulator {
         self.ops
             .renderer
             .set_pen(crate::graphics::Color::rgb(0, 0, 0));
-        self.ops.renderer.filled_rect(3, 160, 240, 100);
+        self.ops.renderer.filled_rect(3, 150, 240, 100);
 
         // draw stats
         self.ops
@@ -94,14 +94,12 @@ impl Emulator {
 
         self.ops.renderer.text(
             &format!(
-                "update: {update}ms\n\
-                 between update: {between_update}ms\n\
-                 ticks per frame: {ticks_per_frame}\n\
+                "upd: {update}m btw: {between_update}ms tpf: {ticks_per_frame}\n\
                  {}",
                 &self.perf_stats
             ),
             3,
-            160,
+            150,
         );
     }
 }
