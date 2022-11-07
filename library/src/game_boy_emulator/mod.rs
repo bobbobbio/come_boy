@@ -15,7 +15,7 @@ use crate::lr35902_emulator::{Intel8080Register, LR35902Emulator, LR35902Flag};
 use crate::rendering::{Keycode, NullRenderer, Renderer};
 use crate::sound::{NullSoundStream, SoundStream};
 use crate::storage::{OpenMode, PanicStorage, PersistentStorage};
-use crate::util::{super_fast_hash, Scheduler};
+use crate::util::super_fast_hash;
 use alloc::{boxed::Box, string::String, vec, vec::Vec};
 use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
@@ -24,7 +24,6 @@ use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
 use perf::{observe, PerfObserver};
 use serde_derive::{Deserialize, Serialize};
-use strum_macros::IntoStaticStr;
 
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
@@ -301,7 +300,6 @@ struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
     control: TimerControl,
-    scheduler: Scheduler<()>,
     interrupt_requested: bool,
     running: bool,
 }
@@ -354,12 +352,12 @@ impl GameBoyTimer {
         self.control.set_value(0xf8);
     }
 
-    fn schedule_initial_events(&mut self, now: u64) {
+    fn schedule_initial_events(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
         let speed = self.timer_speed();
-        self.scheduler.schedule(now + speed, ());
+        scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
     }
 
-    fn fire(&mut self, now: u64) {
+    fn fire(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
         let counter = self.counter.read_value().wrapping_add(1);
         if counter == 0 {
             self.interrupt_requested = true;
@@ -369,15 +367,15 @@ impl GameBoyTimer {
             self.counter.set_value(counter);
         }
         let speed = self.timer_speed();
-        self.scheduler.schedule(now + speed, ());
+        scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
     }
 
-    fn tick(&mut self, now: u64) {
+    fn tick(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
         if self.control.timer_restart_requested {
-            self.scheduler.drop_events();
+            scheduler.drop_events(|e| matches!(e, GameBoyEmulatorEvent::TimerTick));
             if self.enabled() {
                 let speed = self.timer_speed();
-                self.scheduler.schedule(now + speed, ());
+                scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
             }
             self.control.timer_restart_requested = false;
         }
@@ -390,20 +388,42 @@ impl GameBoyTimer {
             self.interrupt_requested = false;
         }
     }
+}
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn deliver_events(&mut self, now: u64) {
-        while let Some((time, ())) = self.scheduler.poll(now) {
-            self.fire(time);
+#[derive(Serialize, Deserialize)]
+pub(crate) enum GameBoyEmulatorEvent {
+    DividerTick,
+    DriveJoypad,
+    TimerTick,
+    Lcd(lcd_controller::LcdControllerEvent),
+    Sound(sound_controller::SoundControllerEvent),
+}
+
+impl<'a> Into<&'static str> for &'a GameBoyEmulatorEvent {
+    fn into(self) -> &'static str {
+        match self {
+            GameBoyEmulatorEvent::DividerTick => "DividerTick",
+            GameBoyEmulatorEvent::DriveJoypad => "DriveJoypad",
+            GameBoyEmulatorEvent::TimerTick => "TimerTick",
+            GameBoyEmulatorEvent::Lcd(e) => e.into(),
+            GameBoyEmulatorEvent::Sound(e) => e.into(),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, IntoStaticStr)]
-enum GameBoyEmulatorEvent {
-    DividerTick,
-    DriveJoypad,
+impl From<lcd_controller::LcdControllerEvent> for GameBoyEmulatorEvent {
+    fn from(e: lcd_controller::LcdControllerEvent) -> Self {
+        Self::Lcd(e)
+    }
 }
+
+impl From<sound_controller::SoundControllerEvent> for GameBoyEmulatorEvent {
+    fn from(e: sound_controller::SoundControllerEvent) -> Self {
+        Self::Sound(e)
+    }
+}
+
+type GameBoyScheduler = crate::util::Scheduler<GameBoyEmulatorEvent>;
 
 impl GameBoyEmulatorEvent {
     #[cfg_attr(not(debug_assertions), inline(always))]
@@ -413,9 +433,23 @@ impl GameBoyEmulatorEvent {
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         time: u64,
     ) {
+        let scheduler = &mut emulator.scheduler;
         match self {
             Self::DividerTick => emulator.divider_tick(time),
             Self::DriveJoypad => emulator.drive_joypad(ops, time),
+            Self::TimerTick => emulator.bridge.timer.fire(scheduler, time),
+            Self::Lcd(e) => e.deliver(
+                &mut emulator.bridge.lcd_controller,
+                &mut ops.renderer,
+                scheduler,
+                time,
+            ),
+            Self::Sound(e) => e.deliver(
+                &mut emulator.bridge.sound_controller,
+                &mut ops.sound_stream,
+                scheduler,
+                time,
+            ),
         }
     }
 }
@@ -553,7 +587,7 @@ impl Bridge {
 pub struct GameBoyEmulator {
     cpu: LR35902Emulator,
     bridge: Bridge,
-    scheduler: Scheduler<GameBoyEmulatorEvent>,
+    scheduler: GameBoyScheduler,
     dma_transfer: Option<OamDmaTransfer>,
     joypad_key_events: Vec<KeyEvent>,
 }
@@ -570,7 +604,7 @@ impl GameBoyEmulator {
             cpu: LR35902Emulator::new(),
             bridge: Bridge::new(),
 
-            scheduler: Scheduler::new(),
+            scheduler: GameBoyScheduler::new(),
             dma_transfer: None,
             joypad_key_events: vec![],
         };
@@ -604,16 +638,6 @@ impl GameBoyEmulator {
         while let Some((time, event)) = self.scheduler.poll(now) {
             observe(observer, (&event).into(), || event.deliver(self, ops, time));
         }
-
-        self.bridge
-            .lcd_controller
-            .deliver_events(&mut ops.renderer, observer, now);
-        observe(observer, "timer", || self.bridge.timer.deliver_events(now));
-        observe(observer, "sound", || {
-            self.bridge
-                .sound_controller
-                .deliver_events(now, &mut ops.sound_stream)
-        });
     }
 
     pub fn tick(
@@ -642,8 +666,8 @@ impl GameBoyEmulator {
 
         let now = self.cpu.elapsed_cycles;
         observe(observer, "bridge_tick", || {
-            self.bridge.timer.tick(now);
-            self.bridge.lcd_controller.tick(now);
+            self.bridge.timer.tick(&mut self.scheduler, now);
+            self.bridge.lcd_controller.tick(&mut self.scheduler, now);
         });
 
         observe(observer, "dma", || {
@@ -904,9 +928,15 @@ impl GameBoyEmulator {
         self.scheduler
             .schedule(now + 456, GameBoyEmulatorEvent::DriveJoypad);
 
-        self.bridge.lcd_controller.schedule_initial_events(now);
-        self.bridge.timer.schedule_initial_events(now);
-        self.bridge.sound_controller.schedule_initial_events(now);
+        self.bridge
+            .lcd_controller
+            .schedule_initial_events(&mut self.scheduler, now);
+        self.bridge
+            .timer
+            .schedule_initial_events(&mut self.scheduler, now);
+        self.bridge
+            .sound_controller
+            .schedule_initial_events(&mut self.scheduler, now);
     }
 
     pub fn elapsed_cycles(&self) -> u64 {

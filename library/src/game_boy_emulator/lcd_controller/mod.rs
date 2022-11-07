@@ -47,9 +47,8 @@
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
-use crate::game_boy_emulator::{observe, InterruptFlag, PerfObserver};
+use crate::game_boy_emulator::{GameBoyEmulatorEvent, GameBoyScheduler, InterruptFlag};
 use crate::rendering::{Color, Renderer};
-use crate::util::Scheduler;
 use alloc::vec::Vec;
 use core::ops::Range;
 use core::{fmt, iter};
@@ -569,7 +568,7 @@ impl<'a> LcdDotData<'a> {
 
 /// Used with the scheduler to run functions after some amount of time.
 #[derive(Serialize, Deserialize, IntoStaticStr)]
-enum LcdControllerEvent {
+pub enum LcdControllerEvent {
     AdvanceLy,
     Mode0,
     Mode1,
@@ -580,14 +579,20 @@ enum LcdControllerEvent {
 
 impl LcdControllerEvent {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn deliver<R: Renderer>(self, controller: &mut LcdController, renderer: &mut R, time: u64) {
+    pub(crate) fn deliver(
+        self,
+        controller: &mut LcdController,
+        renderer: &mut impl Renderer,
+        scheduler: &mut GameBoyScheduler,
+        time: u64,
+    ) {
         match self {
-            Self::AdvanceLy => controller.advance_ly(time),
-            Self::Mode0 => controller.mode_0(time),
-            Self::Mode1 => controller.mode_1(renderer, time),
-            Self::Mode2 => controller.mode_2(time),
-            Self::Mode3 => controller.mode_3(renderer, time),
-            Self::UpdateLyMatch => controller.update_ly_match(time),
+            Self::AdvanceLy => controller.advance_ly(scheduler, time),
+            Self::Mode0 => controller.mode_0(scheduler, time),
+            Self::Mode1 => controller.mode_1(renderer, scheduler, time),
+            Self::Mode2 => controller.mode_2(scheduler, time),
+            Self::Mode3 => controller.mode_3(renderer, scheduler, time),
+            Self::UpdateLyMatch => controller.update_ly_match(),
         }
     }
 }
@@ -633,7 +638,6 @@ pub struct LcdController {
     pub oam_data: MemoryChunk,
     pub unusable_memory: MemoryChunk,
     pub registers: LcdControllerRegisters,
-    scheduler: Scheduler<LcdControllerEvent>,
     enabled: bool,
     vertical_blanking_interrupt: bool,
     stat_interrupt: bool,
@@ -650,7 +654,6 @@ impl LcdController {
             oam_data: MemoryChunk::from_range(OAM_DATA),
             unusable_memory: MemoryChunk::from_range(UNUSABLE_MEMORY),
             enabled: true,
-            scheduler: Scheduler::new(),
             vertical_blanking_interrupt: false,
             stat_interrupt: false,
             registers: Default::default(),
@@ -659,10 +662,9 @@ impl LcdController {
     }
 
     /// Must be called after creation to schedule events needed for proper operation.
-    pub fn schedule_initial_events(&mut self, now: u64) {
-        self.scheduler.schedule(now + 56, LcdControllerEvent::Mode2);
-        self.scheduler
-            .schedule(now + 56 + 456, LcdControllerEvent::AdvanceLy);
+    pub(crate) fn schedule_initial_events(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
+        scheduler.schedule(now + 56, LcdControllerEvent::Mode2);
+        scheduler.schedule(now + 56 + 456, LcdControllerEvent::AdvanceLy);
     }
 
     /// Must be called periodically so the proper interrupts can be triggered.
@@ -675,21 +677,6 @@ impl LcdController {
         if self.stat_interrupt {
             interrupt_flag.set_flag(InterruptFlag::LCDSTAT, true);
             self.stat_interrupt = false;
-        }
-    }
-
-    /// Should be called periodically to drive the emulator.
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn deliver_events(
-        &mut self,
-        renderer: &mut impl Renderer,
-        observer: &mut impl PerfObserver,
-        now: u64,
-    ) {
-        while let Some((time, event)) = self.scheduler.poll(now) {
-            observe(observer, (&event).into(), || {
-                event.deliver(self, renderer, time)
-            });
         }
     }
 
@@ -891,7 +878,7 @@ impl LcdController {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn mode_2(&mut self, time: u64) {
+    fn mode_2(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
         self.oam_data.borrow();
         self.unusable_memory.borrow();
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x2);
@@ -903,8 +890,7 @@ impl LcdController {
             self.stat_interrupt = true;
         }
 
-        self.scheduler
-            .schedule(time + 77, LcdControllerEvent::Mode3);
+        scheduler.schedule(time + 77, LcdControllerEvent::Mode3);
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
@@ -950,7 +936,12 @@ impl LcdController {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn mode_3<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
+    fn mode_3(
+        &mut self,
+        renderer: &mut impl Renderer,
+        scheduler: &mut GameBoyScheduler,
+        time: u64,
+    ) {
         let ly = self.registers.ly.read_value();
         assert!((ly as i32) < SCREEN_HEIGHT, "{}", "drawing ly = {ly}");
         assert!(self.enabled);
@@ -966,12 +957,11 @@ impl LcdController {
         line.draw(renderer, ly as i32);
 
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x3);
-        self.scheduler
-            .schedule(time + 175, LcdControllerEvent::Mode0);
+        scheduler.schedule(time + 175, LcdControllerEvent::Mode0);
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn mode_0(&mut self, time: u64) {
+    fn mode_0(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
         self.character_data.release();
         self.background_display_data_1.release();
         self.background_display_data_2.release();
@@ -989,16 +979,14 @@ impl LcdController {
         }
 
         if self.registers.ly.read_value() < 143 {
-            self.scheduler
-                .schedule(time + 204, LcdControllerEvent::Mode2);
+            scheduler.schedule(time + 204, LcdControllerEvent::Mode2);
         } else {
-            self.scheduler
-                .schedule(time + 204, LcdControllerEvent::Mode1);
+            scheduler.schedule(time + 204, LcdControllerEvent::Mode1);
         }
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn advance_ly(&mut self, time: u64) {
+    fn advance_ly(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
         // This advances the ly register, which represents the horizontal line that is currently
         // being drawn on the LCD.
         self.registers.ly.add(1);
@@ -1008,16 +996,14 @@ impl LcdController {
             self.registers.ly.set_value(0);
         }
 
-        self.scheduler
-            .schedule(time + 456, LcdControllerEvent::AdvanceLy);
+        scheduler.schedule(time + 456, LcdControllerEvent::AdvanceLy);
 
         self.registers.stat.set_flag(LcdStatusFlag::LYMatch, false);
-        self.scheduler
-            .schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
+        scheduler.schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn update_ly_match(&mut self, _time: u64) {
+    fn update_ly_match(&mut self) {
         if self.registers.ly.read_value() == self.registers.lyc.read_value() {
             self.registers.stat.set_flag(LcdStatusFlag::LYMatch, true);
             if self
@@ -1031,7 +1017,12 @@ impl LcdController {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn mode_1<R: Renderer>(&mut self, renderer: &mut R, time: u64) {
+    fn mode_1<R: Renderer>(
+        &mut self,
+        renderer: &mut R,
+        scheduler: &mut GameBoyScheduler,
+        time: u64,
+    ) {
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x1);
         renderer.present();
 
@@ -1045,21 +1036,20 @@ impl LcdController {
             self.stat_interrupt = true;
         }
 
-        self.scheduler
-            .schedule(time + 4560, LcdControllerEvent::Mode2);
+        scheduler.schedule(time + 4560, LcdControllerEvent::Mode2);
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn enable(&mut self, time: u64) {
+    fn enable(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
         assert!(!self.enabled);
 
         self.enabled = true;
-        self.schedule_initial_events(time);
-        self.update_ly_match(time);
+        self.schedule_initial_events(scheduler, time);
+        self.update_ly_match();
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn disable(&mut self) {
+    fn disable(&mut self, scheduler: &mut GameBoyScheduler) {
         assert!(self.enabled);
 
         let mode = self.registers.stat.read_flag_value(LcdStatusFlag::Mode);
@@ -1077,27 +1067,27 @@ impl LcdController {
 
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x0);
         self.registers.ly.set_value(0);
-        self.scheduler.drop_events();
+        scheduler.drop_events(|e| matches!(e, GameBoyEmulatorEvent::Lcd(_)));
 
         self.enabled = false;
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn check_enabled_state(&mut self, time: u64) {
+    fn check_enabled_state(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
         let lcdc_enabled = self.registers.lcdc.read_flag(LcdControlFlag::DisplayOn);
         if self.enabled != lcdc_enabled {
             if lcdc_enabled {
-                self.enable(time);
+                self.enable(scheduler, time);
             } else {
-                self.disable();
+                self.disable(scheduler);
             }
         }
     }
 
     /// Should be called periodically to drive the emulator.
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn tick(&mut self, time: u64) {
-        self.check_enabled_state(time);
+    pub(crate) fn tick(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
+        self.check_enabled_state(scheduler, time);
     }
 }
 

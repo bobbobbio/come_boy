@@ -1,12 +1,11 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::game_boy_emulator::default_clock_speed_hz;
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, GameBoyRegister16, MemoryAccessor,
     MemoryMappedHardware,
 };
+use crate::game_boy_emulator::{default_clock_speed_hz, GameBoyEmulatorEvent, GameBoyScheduler};
 use crate::sound::SoundStream;
-use crate::util::Scheduler;
 use alloc::vec::Vec;
 use channel1::Channel1;
 use channel2::Channel2;
@@ -15,6 +14,7 @@ use channel4::Channel4;
 use core::fmt;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
+use strum_macros::IntoStaticStr;
 
 mod channel1;
 mod channel2;
@@ -26,7 +26,6 @@ trait Channel: MemoryMappedHardware {
     const FREQUENCY_ADDRESS: u16;
 
     fn restart(&mut self, freq: &mut Frequency);
-    fn deliver_events(&mut self, now: u64, freq: &mut Frequency, using_length: bool);
     fn enabled(&self) -> bool;
     fn disable(&mut self);
 }
@@ -50,7 +49,7 @@ impl FlagMask for ChannelHighByte {
 }
 
 #[derive(Clone, Default, Serialize, Deserialize)]
-struct Frequency(GameBoyRegister16);
+pub(crate) struct Frequency(GameBoyRegister16);
 
 impl fmt::Debug for Frequency {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -135,11 +134,6 @@ impl<C: Channel> ChannelController<C> {
         control.set_flag(ChannelHighByte::CounterSelection, self.using_length);
         MemoryMappedHardware::read_value(&control, 0)
     }
-
-    fn deliver_events(&mut self, now: u64) {
-        self.channel
-            .deliver_events(now, &mut self.freq, self.using_length);
-    }
 }
 
 impl<C: Channel> MemoryMappedHardware for ChannelController<C> {
@@ -164,9 +158,38 @@ impl<C: Channel> MemoryMappedHardware for ChannelController<C> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-enum SoundControllerEvent {
+#[derive(Serialize, Deserialize, IntoStaticStr)]
+pub enum SoundControllerEvent {
     MixerTick,
+    Channel1(channel1::Channel1Event),
+}
+
+impl From<channel1::Channel1Event> for GameBoyEmulatorEvent {
+    fn from(e: channel1::Channel1Event) -> Self {
+        SoundControllerEvent::Channel1(e).into()
+    }
+}
+
+impl SoundControllerEvent {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    pub(crate) fn deliver(
+        self,
+        controller: &mut SoundController,
+        sound_stream: &mut impl SoundStream,
+        scheduler: &mut GameBoyScheduler,
+        time: u64,
+    ) {
+        match self {
+            SoundControllerEvent::MixerTick => controller.mixer_tick(sound_stream, scheduler, time),
+            SoundControllerEvent::Channel1(e) => e.deliver(
+                &mut controller.channel1.channel,
+                &mut controller.channel1.freq,
+                controller.channel1.using_length,
+                scheduler,
+                time,
+            ),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -186,7 +209,6 @@ pub struct SoundController {
     channel4: Channel4,
     channel_control: GameBoyRegister,
     output_terminal: GameBoyRegister,
-    scheduler: Scheduler<SoundControllerEvent>,
     enabled: bool,
 
     #[serde(skip)]
@@ -294,17 +316,24 @@ impl SoundController {
         self.enabled = true;
     }
 
-    pub fn schedule_initial_events(&mut self, now: u64) {
+    pub(crate) fn schedule_initial_events(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
         // Completely disabled sound controller, it is not functioning correctly and is causing
         // problems on picosystem
         if false {
-            self.channel1.channel.schedule_initial_events(now);
-            self.scheduler
-                .schedule(now, SoundControllerEvent::MixerTick);
+            self.channel1
+                .channel
+                .schedule_initial_events(scheduler, now);
+            scheduler.schedule(now, SoundControllerEvent::MixerTick);
         }
     }
 
-    fn mixer_tick<S: SoundStream>(&mut self, now: u64, sound_stream: &mut S) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn mixer_tick(
+        &mut self,
+        sound_stream: &mut impl SoundStream,
+        scheduler: &mut GameBoyScheduler,
+        now: u64,
+    ) {
         let sample_rate_hz = sound_stream.sample_rate();
         let num_channels = sound_stream.channels() as usize;
         let freq_hz =
@@ -320,17 +349,7 @@ impl SoundController {
 
         let period = default_clock_speed_hz() / freq_hz;
 
-        self.scheduler
-            .schedule(now + period as u64, SoundControllerEvent::MixerTick);
-    }
-
-    pub fn deliver_events<S: SoundStream>(&mut self, now: u64, sound_stream: &mut S) {
-        self.channel1.deliver_events(now);
-        while let Some((time, event)) = self.scheduler.poll(now) {
-            match event {
-                SoundControllerEvent::MixerTick => self.mixer_tick(time, sound_stream),
-            }
-        }
+        scheduler.schedule(now + period as u64, SoundControllerEvent::MixerTick);
     }
 }
 

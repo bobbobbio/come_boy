@@ -66,8 +66,6 @@ impl Channel for Channel3 {
 
     fn restart(&mut self, _freq: &mut Frequency) {}
 
-    fn deliver_events(&mut self, _now: u64, _freq: &mut Frequency, _using_length: bool) {}
-
     fn enabled(&self) -> bool {
         false
     }

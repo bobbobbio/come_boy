@@ -1,11 +1,11 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::{Channel, Frequency};
-use crate::game_boy_emulator::default_clock_speed_hz;
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryAccessor, MemoryMappedHardware,
 };
-use crate::util::{Scheduler, TwosComplement};
+use crate::game_boy_emulator::{default_clock_speed_hz, GameBoyScheduler};
+use crate::util::TwosComplement;
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
 use serde_derive::{Deserialize, Serialize};
@@ -155,10 +155,28 @@ impl MemoryMappedHardware for Sweep {
 
 #[allow(clippy::enum_variant_names)]
 #[derive(Serialize, Deserialize)]
-enum Channel1Event {
+pub enum Channel1Event {
     FrequencyTick,
     SweepTick,
     LengthTick,
+}
+
+impl Channel1Event {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    pub(crate) fn deliver(
+        self,
+        channel: &mut Channel1,
+        freq: &mut Frequency,
+        using_length: bool,
+        scheduler: &mut GameBoyScheduler,
+        time: u64,
+    ) {
+        match self {
+            Channel1Event::FrequencyTick => channel.freq_tick(freq, scheduler, time),
+            Channel1Event::SweepTick => channel.sweep_tick(freq, scheduler, time),
+            Channel1Event::LengthTick => channel.length_tick(using_length, scheduler, time),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
@@ -227,36 +245,35 @@ pub struct Channel1 {
     pub sweep: Sweep,
     pub length_and_wave: LengthAndWave,
     pub volume_envelope: GameBoyRegister,
-    scheduler: Scheduler<Channel1Event>,
     pub enabled: bool,
 }
 
 impl Channel1 {
-    fn sweep_tick(&mut self, now: u64, freq: &mut Frequency) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn sweep_tick(&mut self, freq: &mut Frequency, scheduler: &mut GameBoyScheduler, now: u64) {
         self.sweep.tick(freq, &mut self.enabled);
 
         let period = default_clock_speed_hz() / 128;
-        self.scheduler
-            .schedule(now + period as u64, Channel1Event::SweepTick);
+        scheduler.schedule(now + period as u64, Channel1Event::SweepTick);
     }
 
-    fn freq_tick(&mut self, now: u64, freq: &mut Frequency) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn freq_tick(&mut self, freq: &mut Frequency, scheduler: &mut GameBoyScheduler, now: u64) {
         self.length_and_wave.waveform.tick();
 
         let freq = freq.read_value();
         let period = (2048 - freq as u64) * 4;
         assert!(period > 0);
-        self.scheduler
-            .schedule(now + period, Channel1Event::FrequencyTick);
+        scheduler.schedule(now + period, Channel1Event::FrequencyTick);
     }
 
-    fn length_tick(&mut self, now: u64, using_length: bool) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn length_tick(&mut self, using_length: bool, scheduler: &mut GameBoyScheduler, now: u64) {
         self.length_and_wave
             .length_tick(using_length, &mut self.enabled);
 
         let period = default_clock_speed_hz() / 256;
-        self.scheduler
-            .schedule(now + period as u64, Channel1Event::LengthTick);
+        scheduler.schedule(now + period as u64, Channel1Event::LengthTick);
     }
 
     pub fn waveform(&self) -> u8 {
@@ -267,10 +284,10 @@ impl Channel1 {
         }
     }
 
-    pub fn schedule_initial_events(&mut self, now: u64) {
-        self.scheduler.schedule(now, Channel1Event::FrequencyTick);
-        self.scheduler.schedule(now, Channel1Event::SweepTick);
-        self.scheduler.schedule(now, Channel1Event::LengthTick);
+    pub(crate) fn schedule_initial_events(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
+        scheduler.schedule(now, Channel1Event::FrequencyTick);
+        scheduler.schedule(now, Channel1Event::SweepTick);
+        scheduler.schedule(now, Channel1Event::LengthTick);
     }
 }
 
@@ -281,16 +298,6 @@ impl Channel for Channel1 {
         self.enabled = true;
         self.sweep.restart(freq, &mut self.enabled);
         self.length_and_wave.restart();
-    }
-
-    fn deliver_events(&mut self, now: u64, freq: &mut Frequency, using_length: bool) {
-        while let Some((time, event)) = self.scheduler.poll(now) {
-            match event {
-                Channel1Event::FrequencyTick => self.freq_tick(time, freq),
-                Channel1Event::SweepTick => self.sweep_tick(time, freq),
-                Channel1Event::LengthTick => self.length_tick(time, using_length),
-            }
-        }
     }
 
     fn enabled(&self) -> bool {

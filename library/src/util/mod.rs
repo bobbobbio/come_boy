@@ -180,9 +180,12 @@ impl<T> Scheduler<T> {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn schedule(&mut self, time: u64, event: T) {
+    pub fn schedule(&mut self, time: u64, event: impl Into<T>) {
         let index = self.insertion_position(time);
-        let entry = SchedulerEntry { time, event };
+        let entry = SchedulerEntry {
+            time,
+            event: event.into(),
+        };
         self.timeline.insert(index, entry);
     }
 
@@ -198,8 +201,8 @@ impl<T> Scheduler<T> {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn drop_events(&mut self) {
-        self.timeline = VecDeque::new();
+    pub fn drop_events(&mut self, mut should_drop: impl FnMut(&T) -> bool) {
+        self.timeline.retain(|e| !should_drop(&e.event));
     }
 }
 
@@ -218,7 +221,7 @@ fn scheduler_on_time() {
 
 #[test]
 fn scheduler_no_events_yet() {
-    let mut scheduler = Scheduler::new();
+    let mut scheduler = Scheduler::<i32>::new();
     scheduler.schedule(1, 1);
     scheduler.schedule(2, 2);
     scheduler.schedule(3, 3);
