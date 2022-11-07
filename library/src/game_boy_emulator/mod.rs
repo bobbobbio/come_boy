@@ -399,9 +399,9 @@ pub(crate) enum GameBoyEmulatorEvent {
     Sound(sound_controller::SoundControllerEvent),
 }
 
-impl<'a> Into<&'static str> for &'a GameBoyEmulatorEvent {
-    fn into(self) -> &'static str {
-        match self {
+impl<'a> From<&'a GameBoyEmulatorEvent> for &'static str {
+    fn from(e: &'a GameBoyEmulatorEvent) -> Self {
+        match e {
             GameBoyEmulatorEvent::DividerTick => "DividerTick",
             GameBoyEmulatorEvent::DriveJoypad => "DriveJoypad",
             GameBoyEmulatorEvent::TimerTick => "TimerTick",

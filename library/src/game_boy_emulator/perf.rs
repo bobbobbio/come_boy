@@ -69,6 +69,12 @@ impl PerfStats<crate::Instant> {
     }
 }
 
+impl<InstantT> PerfStats<InstantT> {
+    fn get_avg(&self, tag: &str) -> Option<Duration> {
+        self.stats.get(tag).map(|&(d, n)| d / n)
+    }
+}
+
 impl<InstantT: Instant> PerfObserver for PerfStats<InstantT> {
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn start_observation(&mut self, tag: &'static str) {
@@ -93,21 +99,31 @@ impl<InstantT: Instant> PerfObserver for PerfStats<InstantT> {
     }
 }
 
+fn stat_sorter(
+    (&tag, &(mut dur, n)): (&&'static str, &(Duration, u32)),
+    nothing: Duration,
+    ticks: u32,
+) -> (&'static str, Duration) {
+    assert!(n != 0);
+    dur -= nothing;
+
+    if ticks > n {
+        (tag, dur / n / (ticks / n))
+    } else {
+        (tag, dur / n * (n / ticks))
+    }
+}
+
 impl<InstantT> fmt::Display for PerfStats<InstantT> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let ticks = self.num_ticks;
         assert!(ticks != 0);
+
+        let nothing = self.get_avg("nothing").unwrap_or(Duration::ZERO);
         let mut sorted_stats: Vec<_> = self
             .stats
             .iter()
-            .map(|(t, &(d, n))| {
-                assert!(n != 0);
-                if ticks > n {
-                    (t, d / n / (ticks / n))
-                } else {
-                    (t, d / n * (n / ticks))
-                }
-            })
+            .map(|e| stat_sorter(e, nothing, ticks))
             .collect();
         sorted_stats.sort_by(|(_, d1), (_, d2)| d2.cmp(d1));
 
@@ -121,6 +137,10 @@ impl<InstantT> fmt::Display for PerfStats<InstantT> {
         )?;
 
         for (tag, duration) in &sorted_stats {
+            if tag == &"nothing" {
+                continue;
+            }
+
             let pct = duration.as_nanos() * 100 / total_duration.as_nanos();
             write!(f, "{tag:<20}: {:>7}ns apt ({pct:>2}%)", duration.as_nanos())?;
 
