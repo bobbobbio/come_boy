@@ -645,6 +645,12 @@ pub struct LcdController {
     object_buffer: Vec<LcdObject>,
 }
 
+impl Default for LcdController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LcdController {
     pub fn new() -> Self {
         LcdController {

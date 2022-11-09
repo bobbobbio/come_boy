@@ -1042,7 +1042,7 @@ impl MemoryMapping {
             ..
         } = self;
         let m = if mutable { "mut" } else { "" };
-        let expr = if with != "" {
+        let expr = if !with.is_empty() {
             syn::parse_str(&format!("&{m} (&{m} self.{field}, &{m} self.{with})")).unwrap()
         } else {
             syn::parse_str(&format!("&{m} self.{field}")).unwrap()
