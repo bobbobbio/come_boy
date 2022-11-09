@@ -1029,6 +1029,26 @@ struct MemoryMapping {
     mapping_type: MappingType,
     #[serde(default)]
     full_address: bool,
+    #[serde(default)]
+    with: String,
+}
+
+impl MemoryMapping {
+    fn to_field_and_type(&self, mutable: bool) -> (syn::Expr, MappingType) {
+        let MemoryMapping {
+            field,
+            with,
+            mapping_type,
+            ..
+        } = self;
+        let m = if mutable { "mut" } else { "" };
+        let expr = if with != "" {
+            syn::parse_str(&format!("&{m} (&{m} self.{field}, &{m} self.{with})")).unwrap()
+        } else {
+            syn::parse_str(&format!("&{m} self.{field}")).unwrap()
+        };
+        (expr, *mapping_type)
+    }
 }
 
 fn filter_read<T>((v, mapping_type): &(T, MappingType)) -> Option<&T> {
@@ -1056,7 +1076,7 @@ fn generate_memory_map_from_mapping(
 ) -> TokenStream {
     let name: Ident = syn::Ident::new(type_name, Span::call_site());
 
-    let expr: &Vec<(syn::Expr, MappingType)> = &mapping
+    let condition: &Vec<(syn::Expr, MappingType)> = &mapping
         .iter()
         .map(|(k, v)| {
             (
@@ -1080,22 +1100,23 @@ fn generate_memory_map_from_mapping(
         })
         .collect();
 
-    let selected_field: &Vec<(syn::Expr, MappingType)> = &mapping
+    let read_condition = condition.iter().filter_map(filter_read);
+    let set_condition = condition.iter().filter_map(filter_write);
+    let read_expr = mapping
         .values()
-        .map(|v| (syn::parse_str(&v.field).unwrap(), v.mapping_type))
-        .collect();
-
-    let read_expr = expr.iter().filter_map(filter_read);
-    let set_expr = expr.iter().filter_map(filter_write);
-    let read_field = selected_field.iter().filter_map(filter_read);
-    let set_field = selected_field.iter().filter_map(filter_write);
+        .map(|m| MemoryMapping::to_field_and_type(m, false))
+        .filter_map(|e| filter_read(&e).cloned());
+    let set_expr = mapping
+        .values()
+        .map(|m| MemoryMapping::to_field_and_type(m, true))
+        .filter_map(|e| filter_write(&e).cloned());
     let read_offset = offset.iter().filter_map(filter_read);
     let set_offset = offset.iter().filter_map(filter_write);
 
     let set_memory_body: syn::Expr = if mutable {
         syn::parse_quote!(
-            #(if #set_expr {
-                MemoryMappedHardware::set_value(&mut self.#set_field, address - #set_offset, value)
+            #(if #set_condition {
+                MemoryMappedHardware::set_value(#set_expr, address - #set_offset, value)
             }) else *
         )
     } else {
@@ -1112,8 +1133,8 @@ fn generate_memory_map_from_mapping(
             #[allow(clippy::identity_op, clippy::if_same_then_else)]
             #[cfg_attr(not(debug_assertions), inline(always))]
             fn read_memory(&self, address: u16) -> u8 {
-                #(if #read_expr {
-                    MemoryMappedHardware::read_value(&self.#read_field, address - #read_offset)
+                #(if #read_condition {
+                    MemoryMappedHardware::read_value(#read_expr, address - #read_offset)
                 }) else *
                 else {
                     0xFF

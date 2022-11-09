@@ -79,7 +79,8 @@
         "full_address": true
     },
     "0xFF40": {
-        "field": "bridge.lcd_controller.registers.lcdc",
+        "field": "bridge.lcd_controller",
+        "with": "bridge.scheduler",
         "mapping_type": "ReadWrite"
     },
     "0xFF41": {

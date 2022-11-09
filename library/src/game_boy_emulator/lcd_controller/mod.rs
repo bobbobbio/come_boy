@@ -962,6 +962,11 @@ impl LcdController {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn mode_0(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
+        if !self.enabled {
+            scheduler.schedule(time + 4, LcdControllerEvent::Mode0);
+            return;
+        }
+
         self.character_data.release();
         self.background_display_data_1.release();
         self.background_display_data_2.release();
@@ -1040,11 +1045,11 @@ impl LcdController {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn enable(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
+    fn enable(&mut self, scheduler: &mut GameBoyScheduler) {
         assert!(!self.enabled);
 
         self.enabled = true;
-        self.schedule_initial_events(scheduler, time);
+        self.schedule_initial_events(scheduler, scheduler.now());
         self.update_ly_match();
     }
 
@@ -1071,23 +1076,47 @@ impl LcdController {
 
         self.enabled = false;
     }
+}
 
+/// This implementation is where reads for LCDC go
+impl<'a> MemoryMappedHardware for (&'a LcdController, &'a GameBoyScheduler) {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn check_enabled_state(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
-        let lcdc_enabled = self.registers.lcdc.read_flag(LcdControlFlag::DisplayOn);
-        if self.enabled != lcdc_enabled {
-            if lcdc_enabled {
-                self.enable(scheduler, time);
-            } else {
-                self.disable(scheduler);
-            }
-        }
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (controller, _scheduler) = self;
+        controller.registers.lcdc.read_value()
     }
 
-    /// Should be called periodically to drive the emulator.
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+}
+
+/// This implementation is where the writes for LCDC go
+impl<'a> MemoryMappedHardware for (&'a mut LcdController, &'a mut GameBoyScheduler) {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub(crate) fn tick(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
-        self.check_enabled_state(scheduler, time);
+    fn read_value(&self, _address: u16) -> u8 {
+        unreachable!()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_value(&mut self, address: u16, value: u8) {
+        assert_eq!(address, 0);
+        let (controller, scheduler) = self;
+
+        controller.registers.lcdc.set_value(value);
+
+        let lcdc_enabled = controller
+            .registers
+            .lcdc
+            .read_flag(LcdControlFlag::DisplayOn);
+        if controller.enabled != lcdc_enabled {
+            if lcdc_enabled {
+                controller.enable(scheduler);
+            } else {
+                controller.disable(scheduler);
+            }
+        }
     }
 }
 

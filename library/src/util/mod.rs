@@ -145,6 +145,7 @@ struct SchedulerEntry<T> {
 #[derive(Serialize, Deserialize)]
 pub struct Scheduler<T> {
     timeline: VecDeque<SchedulerEntry<T>>,
+    now: u64,
 }
 
 impl<T> fmt::Debug for Scheduler<T> {
@@ -157,15 +158,14 @@ impl<T> Default for Scheduler<T> {
     fn default() -> Self {
         Self {
             timeline: VecDeque::new(),
+            now: 0,
         }
     }
 }
 
 impl<T> Scheduler<T> {
     pub fn new() -> Self {
-        Scheduler {
-            timeline: VecDeque::new(),
-        }
+        Self::default()
     }
 
     /// This is a linear search from the end. Binary-search might be better, but I suspect most
@@ -190,9 +190,12 @@ impl<T> Scheduler<T> {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn poll(&mut self, current_time: u64) -> Option<(u64, T)> {
+    pub fn poll(&mut self, now: u64) -> Option<(u64, T)> {
+        assert!(now >= self.now);
+        self.now = now;
+
         if let Some(front) = self.timeline.front() {
-            if front.time <= current_time {
+            if front.time <= now {
                 let entry = self.timeline.pop_front().unwrap();
                 return Some((entry.time, entry.event));
             }
@@ -203,6 +206,11 @@ impl<T> Scheduler<T> {
     #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn drop_events(&mut self, mut should_drop: impl FnMut(&T) -> bool) {
         self.timeline.retain(|e| !should_drop(&e.event));
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    pub fn now(&self) -> u64 {
+        self.now
     }
 }
 
