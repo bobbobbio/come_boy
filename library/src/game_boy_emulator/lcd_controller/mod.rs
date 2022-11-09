@@ -1121,8 +1121,10 @@ impl<'a> MemoryMappedHardware for (&'a LcdController, &'a GameBoyScheduler) {
 /// This implementation is where the writes for LCDC go
 impl<'a> MemoryMappedHardware for (&'a mut LcdController, &'a mut GameBoyScheduler) {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_value(&self, _address: u16) -> u8 {
-        unreachable!()
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (controller, _scheduler) = self;
+        controller.registers.lcdc.read_value()
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
