@@ -380,6 +380,8 @@ pub(crate) enum GameBoyEmulatorEvent {
     DividerTick,
     DriveJoypad,
     TimerTick,
+    StartDmaTransfer { address: u16 },
+    DriveDmaTransfer,
     Lcd(lcd_controller::LcdControllerEvent),
     Sound(sound_controller::SoundControllerEvent),
 }
@@ -390,6 +392,8 @@ impl<'a> From<&'a GameBoyEmulatorEvent> for &'static str {
             GameBoyEmulatorEvent::DividerTick => "DividerTick",
             GameBoyEmulatorEvent::DriveJoypad => "DriveJoypad",
             GameBoyEmulatorEvent::TimerTick => "TimerTick",
+            GameBoyEmulatorEvent::StartDmaTransfer { .. } => "StartDmaTransfer",
+            GameBoyEmulatorEvent::DriveDmaTransfer => "DriveDmaTransfer",
             GameBoyEmulatorEvent::Lcd(e) => e.into(),
             GameBoyEmulatorEvent::Sound(e) => e.into(),
         }
@@ -423,6 +427,8 @@ impl GameBoyEmulatorEvent {
             Self::DividerTick => emulator.divider_tick(time),
             Self::DriveJoypad => emulator.drive_joypad(ops, time),
             Self::TimerTick => emulator.bridge.timer.fire(scheduler, time),
+            Self::StartDmaTransfer { address } => emulator.start_dma_transfer(ops, address, time),
+            Self::DriveDmaTransfer => emulator.drive_dma_transfer(ops, time),
             Self::Lcd(e) => e.deliver(
                 &mut emulator.bridge.lcd_controller,
                 &mut ops.renderer,
@@ -651,10 +657,6 @@ impl GameBoyEmulator {
         });
 
         let now = self.cpu.elapsed_cycles;
-        observe(observer, "dma", || {
-            self.execute_dma(ops, now);
-        });
-
         self.deliver_events(ops, observer, now);
 
         observe(observer, "interrupts", || {
@@ -717,33 +719,48 @@ impl GameBoyEmulator {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn execute_dma(
+    fn start_dma_transfer(
+        &mut self,
+        ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        mut address: u16,
+        now: u64,
+    ) {
+        if self.dma_transfer.is_some() {
+            // XXX: I'm not sure what is suppose to happen in this case.
+            return;
+        }
+        // 0xE000 to 0xFFFF is mapped differently for DMA. It ends up just being the internal
+        // ram repeated again. To account for this we just adjust the source address.
+        if address >= INTERNAL_RAM_B.end {
+            address -= 0x2000;
+        }
+        self.dma_transfer = Some(OamDmaTransfer::new(address.., now));
+        self.bridge.lcd_controller.oam_data.borrow();
+
+        self.drive_dma_transfer(ops, now);
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn drive_dma_transfer(
         &mut self,
         ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         now: u64,
     ) {
-        if let Some(mut address) = self.bridge.lcd_controller.registers.dma.take_request() {
-            // 0xE000 to 0xFFFF is mapped differently for DMA. It ends up just being the internal
-            // ram repeated again. To account for this we just adjust the source address.
-            if address >= INTERNAL_RAM_B.end {
-                address -= 0x2000;
-            }
-            self.dma_transfer = Some(OamDmaTransfer::new(address.., now));
-            self.bridge.lcd_controller.oam_data.borrow();
-        }
+        let transfer = self.dma_transfer.as_mut().unwrap();
 
-        if let Some(transfer) = self.dma_transfer.as_mut() {
-            for _ in 0..transfer.bytes_to_transfer(now) {
-                transfer.read(&ops.memory_map(&self.bridge));
-                transfer.write(&mut self.bridge.lcd_controller.oam_data);
+        for _ in 0..transfer.bytes_to_transfer(now) {
+            transfer.read(&ops.memory_map(&self.bridge));
+            transfer.write(&mut self.bridge.lcd_controller.oam_data);
 
-                if transfer.is_done() {
-                    self.dma_transfer = None;
-                    self.bridge.lcd_controller.oam_data.release();
-                    break;
-                }
+            if transfer.is_done() {
+                self.dma_transfer = None;
+                self.bridge.lcd_controller.oam_data.release();
+                return;
             }
         }
+        self.bridge
+            .scheduler
+            .schedule(now + 4, GameBoyEmulatorEvent::DriveDmaTransfer);
     }
 
     /// If the stack happens to overflow into the IO registers, it can cause weird behavior when

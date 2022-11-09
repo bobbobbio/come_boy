@@ -106,6 +106,7 @@
     },
     "0xFF46": {
         "field": "bridge.lcd_controller.registers.dma",
+        "with": "bridge.scheduler",
         "mapping_type": "ReadWrite"
     },
     "0xFF47": {

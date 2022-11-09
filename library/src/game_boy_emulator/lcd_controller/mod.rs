@@ -122,19 +122,44 @@ const LINE_SPRITE_LIMIT: usize = 10;
 #[derive(Default, Serialize, Deserialize)]
 pub struct DmaRegister {
     value: u8,
-    requested: bool,
 }
 
-impl MemoryMappedHardware for DmaRegister {
+impl<'a> MemoryMappedHardware for (&'a DmaRegister, &'a GameBoyScheduler) {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_value(&self, _: u16) -> u8 {
-        self.read_value()
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+
+        let (reg, _) = self;
+        reg.read_value()
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn set_value(&mut self, _: u16, value: u8) {
-        self.set_value(value);
-        self.requested = true;
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+}
+
+impl<'a> MemoryMappedHardware for (&'a mut DmaRegister, &'a mut GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+
+        let (reg, _) = self;
+        reg.read_value()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_value(&mut self, address: u16, value: u8) {
+        assert_eq!(address, 0);
+
+        let (reg, scheduler) = self;
+        reg.set_value(value);
+
+        let address = reg.get_request_addr();
+        scheduler.schedule(
+            scheduler.now(),
+            GameBoyEmulatorEvent::StartDmaTransfer { address },
+        );
     }
 }
 
@@ -146,13 +171,8 @@ impl fmt::Debug for DmaRegister {
 
 impl DmaRegister {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn take_request(&mut self) -> Option<u16> {
-        if self.requested {
-            self.requested = false;
-            Some(self.read_value() as u16 * 0x100)
-        } else {
-            None
-        }
+    pub fn get_request_addr(&mut self) -> u16 {
+        self.read_value() as u16 * 0x100
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]

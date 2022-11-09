@@ -68,7 +68,10 @@ where
             )
         } else if address == 65350u16 {
             MemoryMappedHardware::read_value(
-                &self.bridge.lcd_controller.registers.dma,
+                &(
+                    &self.bridge.lcd_controller.registers.dma,
+                    &self.bridge.scheduler,
+                ),
                 address - 65350u16,
             )
         } else if address == 65351u16 {
@@ -223,7 +226,10 @@ where
             )
         } else if address == 65350u16 {
             MemoryMappedHardware::set_value(
-                &mut self.bridge.lcd_controller.registers.dma,
+                &mut (
+                    &mut self.bridge.lcd_controller.registers.dma,
+                    &mut self.bridge.scheduler,
+                ),
                 address - 65350u16,
                 value,
             )
