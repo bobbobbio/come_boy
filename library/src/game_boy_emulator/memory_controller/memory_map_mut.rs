@@ -27,7 +27,10 @@ where
         } else if address == 65286u16 {
             MemoryMappedHardware::read_value(&self.bridge.timer.modulo, address - 65286u16)
         } else if address == 65287u16 {
-            MemoryMappedHardware::read_value(&self.bridge.timer.control, address - 65287u16)
+            MemoryMappedHardware::read_value(
+                &(&self.bridge.timer, &self.bridge.scheduler),
+                address - 65287u16,
+            )
         } else if address == 65295u16 {
             MemoryMappedHardware::read_value(
                 &self.bridge.registers.interrupt_flag,
@@ -172,7 +175,7 @@ where
             )
         } else if address == 65287u16 {
             MemoryMappedHardware::set_value(
-                &mut self.bridge.timer.control,
+                &mut (&mut self.bridge.timer, &mut self.bridge.scheduler),
                 address - 65287u16,
                 value,
             )

@@ -255,51 +255,10 @@ struct GameBoyRegisters {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-struct TimerControl {
-    value: GameBoyFlags<TimerFlags>,
-    timer_restart_requested: bool,
-}
-
-impl fmt::Debug for TimerControl {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self.value)
-    }
-}
-
-impl TimerControl {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_flag(&self, flag: TimerFlags) -> bool {
-        self.value.read_flag(flag)
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_flag_value(&self, flag: TimerFlags) -> u8 {
-        self.value.read_flag_value(flag)
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn set_value(&mut self, value: u8) {
-        self.value.set_value(value);
-    }
-}
-
-impl MemoryMappedHardware for TimerControl {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_value(&self, address: u16) -> u8 {
-        MemoryMappedHardware::read_value(&self.value, address)
-    }
-
-    fn set_value(&mut self, address: u16, value: u8) {
-        self.timer_restart_requested = true;
-        MemoryMappedHardware::set_value(&mut self.value, address, value)
-    }
-}
-
-#[derive(Default, Serialize, Deserialize)]
 struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
-    control: TimerControl,
+    control: GameBoyFlags<TimerFlags>,
     interrupt_requested: bool,
     running: bool,
 }
@@ -370,22 +329,48 @@ impl GameBoyTimer {
         scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
     }
 
-    fn tick(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
-        if self.control.timer_restart_requested {
-            scheduler.drop_events(|e| matches!(e, GameBoyEmulatorEvent::TimerTick));
-            if self.enabled() {
-                let speed = self.timer_speed();
-                scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
-            }
-            self.control.timer_restart_requested = false;
-        }
-    }
-
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
         if self.interrupt_requested {
             interrupt_flag.set_flag(InterruptFlag::Timer, true);
             self.interrupt_requested = false;
+        }
+    }
+}
+
+/// This implementation is where reads for timer control go
+impl<'a> MemoryMappedHardware for (&'a GameBoyTimer, &'a GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (timer, _scheduler) = self;
+        timer.control.read_value()
+    }
+
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+}
+
+/// This implementation is where the writes for timer control go
+impl<'a> MemoryMappedHardware for (&'a mut GameBoyTimer, &'a mut GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, _address: u16) -> u8 {
+        unreachable!()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_value(&mut self, address: u16, value: u8) {
+        assert_eq!(address, 0);
+        let (timer, scheduler) = self;
+
+        timer.control.set_value(value);
+
+        scheduler.drop_events(|e| matches!(e, GameBoyEmulatorEvent::TimerTick));
+        if timer.enabled() {
+            let speed = timer.timer_speed();
+            let now = scheduler.now();
+            scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
         }
     }
 }
@@ -666,10 +651,6 @@ impl GameBoyEmulator {
         });
 
         let now = self.cpu.elapsed_cycles;
-        observe(observer, "bridge_tick", || {
-            self.bridge.timer.tick(&mut self.bridge.scheduler, now);
-        });
-
         observe(observer, "dma", || {
             self.execute_dma(ops, now);
         });
