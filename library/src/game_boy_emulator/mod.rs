@@ -434,6 +434,7 @@ impl GameBoyEmulatorEvent {
             Self::Lcd(e) => e.deliver(
                 &mut emulator.bridge.lcd_controller,
                 &mut ops.renderer,
+                &mut emulator.bridge.registers.interrupt_flag,
                 scheduler,
                 time,
             ),
@@ -862,9 +863,6 @@ impl GameBoyEmulator {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn schedule_interrupts(&mut self) {
-        self.bridge
-            .lcd_controller
-            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
         self.bridge
             .timer
             .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
