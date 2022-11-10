@@ -259,7 +259,6 @@ struct GameBoyTimer {
     counter: GameBoyRegister,
     modulo: GameBoyRegister,
     control: GameBoyFlags<TimerFlags>,
-    interrupt_requested: bool,
     running: bool,
 }
 
@@ -316,10 +315,15 @@ impl GameBoyTimer {
         scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
     }
 
-    fn fire(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
+    fn fire(
+        &mut self,
+        interrupt_flag: &mut GameBoyFlags<InterruptFlag>,
+        scheduler: &mut GameBoyScheduler,
+        now: u64,
+    ) {
         let counter = self.counter.read_value().wrapping_add(1);
         if counter == 0 {
-            self.interrupt_requested = true;
+            interrupt_flag.set_flag(InterruptFlag::Timer, true);
             let modulo_value = self.modulo.read_value();
             self.counter.set_value(modulo_value);
         } else {
@@ -327,14 +331,6 @@ impl GameBoyTimer {
         }
         let speed = self.timer_speed();
         scheduler.schedule(now + speed, GameBoyEmulatorEvent::TimerTick);
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn schedule_interrupts(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
-        if self.interrupt_requested {
-            interrupt_flag.set_flag(InterruptFlag::Timer, true);
-            self.interrupt_requested = false;
-        }
     }
 }
 
@@ -425,16 +421,17 @@ impl GameBoyEmulatorEvent {
         time: u64,
     ) {
         let scheduler = &mut emulator.bridge.scheduler;
+        let interrupt_flag = &mut emulator.bridge.registers.interrupt_flag;
         match self {
             Self::DividerTick => emulator.divider_tick(time),
             Self::DriveJoypad => emulator.drive_joypad(ops, time),
-            Self::TimerTick => emulator.bridge.timer.fire(scheduler, time),
+            Self::TimerTick => emulator.bridge.timer.fire(interrupt_flag, scheduler, time),
             Self::StartDmaTransfer { address } => emulator.start_dma_transfer(ops, address, time),
             Self::DriveDmaTransfer => emulator.drive_dma_transfer(ops, time),
             Self::Lcd(e) => e.deliver(
                 &mut emulator.bridge.lcd_controller,
                 &mut ops.renderer,
-                &mut emulator.bridge.registers.interrupt_flag,
+                interrupt_flag,
                 scheduler,
                 time,
             ),
@@ -663,7 +660,6 @@ impl GameBoyEmulator {
         self.deliver_events(ops, observer, now);
 
         observe(observer, "interrupts", || {
-            self.schedule_interrupts();
             self.handle_interrupts(ops);
         });
 
@@ -859,13 +855,6 @@ impl GameBoyEmulator {
         if interrupted {
             self.cpu.set_interrupts_enabled(false);
         }
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn schedule_interrupts(&mut self) {
-        self.bridge
-            .timer
-            .schedule_interrupts(&mut self.bridge.registers.interrupt_flag);
     }
 
     fn set_state_post_bios(&mut self) {
