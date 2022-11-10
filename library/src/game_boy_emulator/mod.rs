@@ -355,8 +355,10 @@ impl<'a> MemoryMappedHardware for (&'a GameBoyTimer, &'a GameBoyScheduler) {
 /// This implementation is where the writes for timer control go
 impl<'a> MemoryMappedHardware for (&'a mut GameBoyTimer, &'a mut GameBoyScheduler) {
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_value(&self, _address: u16) -> u8 {
-        unreachable!()
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (timer, _scheduler) = self;
+        timer.control.read_value()
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
