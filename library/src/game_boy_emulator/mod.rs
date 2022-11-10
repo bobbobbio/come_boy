@@ -846,6 +846,14 @@ impl GameBoyEmulator {
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) {
+        let interrupts = self.bridge.registers.interrupt_flag.read_value();
+        let interrupts_mask = self.bridge.registers.interrupt_enable.read_value();
+
+        // fast-path, no interrupts to process
+        if interrupts & interrupts_mask == 0 {
+            return;
+        }
+
         let mut interrupted = false;
 
         for &(flag, address) in &ALL_INTERRUPTS {
