@@ -105,7 +105,7 @@ fn stat_sorter(
     ticks: u32,
 ) -> (&'static str, Duration) {
     assert!(n != 0);
-    dur -= nothing;
+    dur = dur.saturating_sub(nothing);
 
     if ticks > n {
         (tag, dur / n / (ticks / n))
