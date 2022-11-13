@@ -1072,6 +1072,7 @@ fn generate_memory_map_from_mapping(
     generics: syn::Generics,
     where_clause: Option<syn::WhereClause>,
     mapping: &BTreeMap<AddressRange, MemoryMapping>,
+    interrupts_enabled: &Option<MemoryMapping>,
     mutable: bool,
 ) -> TokenStream {
     let name: Ident = syn::Ident::new(type_name, Span::call_site());
@@ -1126,6 +1127,14 @@ fn generate_memory_map_from_mapping(
     let memory_controller: syn::Path =
         syn::parse_quote!(crate::game_boy_emulator::memory_controller);
 
+    let set_interrupts_enabled_body: syn::Expr = if let Some(b) = interrupts_enabled {
+        let (f, m) = b.to_field_and_type(true);
+        assert!(matches!(m, MappingType::ReadWrite));
+        syn::parse_quote!(MemoryMappedHardware::set_interrupts_enabled(#f, enabled))
+    } else {
+        syn::parse_quote!(panic!("unexpected set_interrupts_enabled call"))
+    };
+
     quote!(
         use super::#name;
 
@@ -1147,6 +1156,12 @@ fn generate_memory_map_from_mapping(
                 #set_memory_body
             }
 
+            #[allow(unused_variables)]
+            #[cfg_attr(not(debug_assertions), inline(always))]
+            fn set_interrupts_enabled(&mut self, enabled: bool) {
+                #set_interrupts_enabled_body
+            }
+
             fn describe_address(&self, _address: u16) -> #memory_controller::MemoryDescription {
                 #memory_controller::MemoryDescription::Instruction
             }
@@ -1164,12 +1179,18 @@ fn generate_memory_map(
     let memory_map_json = format!("src/{memory_map_path}/memory_map.json");
     println!("cargo:rerun-if-changed={memory_map_json}");
 
-    let mapping: BTreeMap<String, MemoryMapping> =
+    let mut mapping: BTreeMap<String, MemoryMapping> =
         serde_json::from_reader(File::open(&memory_map_json).unwrap()).unwrap();
+
+    let mut interrupts_enabled = mapping.remove("interrupts_enabled");
     let mapping: BTreeMap<AddressRange, MemoryMapping> = mapping
         .into_iter()
         .map(|(k, v)| (k.parse().unwrap(), v))
         .collect();
+
+    if !mutable {
+        interrupts_enabled = None;
+    }
 
     let mut tokens = TokenStream::new();
     tokens.extend(quote! {
@@ -1184,6 +1205,7 @@ fn generate_memory_map(
         generics,
         where_clause,
         &mapping,
+        &interrupts_enabled,
         mutable,
     ));
 

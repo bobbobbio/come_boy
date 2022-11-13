@@ -43,7 +43,6 @@ pub enum LR35902Flag {
 pub struct LR35902Emulator {
     registers: [u8; Intel8080Register::Count as usize],
     program_counter: u16,
-    interrupts_enabled: bool,
     pub elapsed_cycles: u64,
     pub crash_message: Option<String>,
     pub call_stack: Vec<u16>,
@@ -62,7 +61,6 @@ impl LR35902Emulator {
         let mut e = LR35902Emulator {
             registers: [0; Intel8080Register::Count as usize],
             program_counter: 0,
-            interrupts_enabled: true,
             elapsed_cycles: 102348,
             crash_message: None,
             call_stack: Vec::new(),
@@ -154,16 +152,6 @@ impl LR35902Emulator {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn set_interrupts_enabled(&mut self, value: bool) {
-        self.interrupts_enabled = value;
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn get_interrupts_enabled(&self) -> bool {
-        self.interrupts_enabled
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn push_u16_onto_stack<M: MemoryAccessor>(
         &mut self,
         memory_accessor: &mut M,
@@ -206,7 +194,6 @@ pub trait LR35902InstructionSetOps {
     fn read_program_counter(&self) -> u16;
     fn set_program_counter(&mut self, address: u16);
     fn set_interrupts_enabled(&mut self, value: bool);
-    fn get_interrupts_enabled(&self) -> bool;
     fn add_cycles(&mut self, cycles: u8);
     fn push_frame(&mut self, address: u16);
     fn pop_frame(&mut self);
@@ -365,12 +352,7 @@ impl<'a, M: MemoryAccessor> InstructionDispatchOps<'a, M> {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_interrupts_enabled(&mut self, value: bool) {
-        self.emulator.set_interrupts_enabled(value);
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn get_interrupts_enabled(&self) -> bool {
-        self.emulator.get_interrupts_enabled()
+        self.memory_accessor.set_interrupts_enabled(value);
     }
 }
 
@@ -441,11 +423,6 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for InstructionDispatchOps<
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn get_interrupts_enabled(&self) -> bool {
-        self.get_interrupts_enabled()
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
     fn add_cycles(&mut self, cycles: u8) {
         self.emulator.add_cycles(cycles);
     }
@@ -462,7 +439,13 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for InstructionDispatchOps<
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn wait_until_interrupt(&mut self) {
-        self.emulator.halted = true;
+        assert!(!self.emulator.halted);
+
+        let interrupt_flag = 0xFF0F;
+        let interrupt_enable_mask = 0xFFFF;
+        if self.read_memory(interrupt_flag) & self.read_memory(interrupt_enable_mask) == 0 {
+            self.emulator.halted = true;
+        }
     }
 }
 
@@ -582,11 +565,6 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_interrupts_enabled(&mut self, value: bool) {
         self.set_interrupts_enabled(value);
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn get_interrupts_enabled(&self) -> bool {
-        self.get_interrupts_enabled()
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
@@ -1622,7 +1600,6 @@ fn return_and_enable_interrupts() {
         e.return_and_enable_interrupts();
         assert_eq!(e.read_program_counter(), 0x0000);
         assert_eq!(e.read_register_pair(Intel8080Register::SP), 0x0402);
-        assert!(e.get_interrupts_enabled());
     });
 }
 

@@ -33,7 +33,10 @@ where
             )
         } else if address == 65295u16 {
             MemoryMappedHardware::read_value(
-                &self.bridge.registers.interrupt_flag,
+                &(
+                    &self.bridge.registers.interrupt_flag,
+                    &self.bridge.scheduler,
+                ),
                 address - 65295u16,
             )
         } else if address == 65344u16 {
@@ -101,7 +104,10 @@ where
             )
         } else if address == 65535u16 {
             MemoryMappedHardware::read_value(
-                &self.bridge.registers.interrupt_enable,
+                &(
+                    &self.bridge.registers.interrupt_enable_mask,
+                    &self.bridge.scheduler,
+                ),
                 address - 65535u16,
             )
         } else if address < 32768u16 {
@@ -184,7 +190,10 @@ where
             )
         } else if address == 65295u16 {
             MemoryMappedHardware::set_value(
-                &mut self.bridge.registers.interrupt_flag,
+                &mut (
+                    &mut self.bridge.registers.interrupt_flag,
+                    &mut self.bridge.scheduler,
+                ),
                 address - 65295u16,
                 value,
             )
@@ -265,7 +274,10 @@ where
             )
         } else if address == 65535u16 {
             MemoryMappedHardware::set_value(
-                &mut self.bridge.registers.interrupt_enable,
+                &mut (
+                    &mut self.bridge.registers.interrupt_enable_mask,
+                    &mut self.bridge.scheduler,
+                ),
                 address - 65535u16,
                 value,
             )
@@ -330,6 +342,17 @@ where
         } else if (65408u16..65535u16).contains(&address) {
             MemoryMappedHardware::set_value(&mut self.bridge.high_ram, address - 65408u16, value)
         }
+    }
+    #[allow(unused_variables)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_interrupts_enabled(&mut self, enabled: bool) {
+        MemoryMappedHardware::set_interrupts_enabled(
+            &mut (
+                &mut self.bridge.registers.interrupts_enabled,
+                &mut self.bridge.scheduler,
+            ),
+            enabled,
+        )
     }
     fn describe_address(
         &self,

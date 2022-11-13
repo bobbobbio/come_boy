@@ -78,7 +78,6 @@ pub trait Intel8080InstructionSetOps {
     fn read_program_counter(&self) -> u16;
     fn set_program_counter(&mut self, address: u16);
     fn set_interrupts_enabled(&mut self, state: bool);
-    fn get_interrupts_enabled(&self) -> bool;
     fn read_raw_register(&self, index: usize) -> u8;
     fn set_raw_register(&mut self, index: usize, value: u8);
     fn read_raw_register_pair(&self, index: usize) -> u16;
@@ -455,11 +454,6 @@ impl<'a> Intel8080InstructionSetOps for Intel8080Emulator<'a> {
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_interrupts_enabled(&mut self, state: bool) {
         self.interrupts_enabled = state;
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn get_interrupts_enabled(&self) -> bool {
-        self.interrupts_enabled
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]

@@ -613,7 +613,7 @@ impl LcdControllerEvent {
             Self::Mode1 => controller.mode_1(renderer, interrupt_flag, scheduler, time),
             Self::Mode2 => controller.mode_2(interrupt_flag, scheduler, time),
             Self::Mode3 => controller.mode_3(renderer, scheduler, time),
-            Self::UpdateLyMatch => controller.update_ly_match(interrupt_flag),
+            Self::UpdateLyMatch => controller.update_ly_match(interrupt_flag, scheduler, time),
         }
     }
 }
@@ -903,6 +903,7 @@ impl LcdController {
             .read_flag(LcdStatusFlag::InterruptMode10)
         {
             interrupt_flag.set_flag(InterruptFlag::LCDSTAT, true);
+            scheduler.schedule(time, GameBoyEmulatorEvent::HandleInterrupts);
         }
 
         scheduler.schedule(time + 77, LcdControllerEvent::Mode3);
@@ -1001,6 +1002,7 @@ impl LcdController {
             .read_flag(LcdStatusFlag::InterruptMode00)
         {
             interrupt_flag.set_flag(InterruptFlag::LCDSTAT, true);
+            scheduler.schedule(time, GameBoyEmulatorEvent::HandleInterrupts);
         }
 
         if self.registers.ly.read_value() < 143 {
@@ -1028,7 +1030,12 @@ impl LcdController {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn update_ly_match(&mut self, interrupt_flag: &mut GameBoyFlags<InterruptFlag>) {
+    fn update_ly_match(
+        &mut self,
+        interrupt_flag: &mut GameBoyFlags<InterruptFlag>,
+        scheduler: &mut GameBoyScheduler,
+        time: u64,
+    ) {
         if self.registers.ly.read_value() == self.registers.lyc.read_value() {
             self.registers.stat.set_flag(LcdStatusFlag::LYMatch, true);
             if self
@@ -1037,6 +1044,7 @@ impl LcdController {
                 .read_flag(LcdStatusFlag::InterruptLYMatching)
             {
                 interrupt_flag.set_flag(InterruptFlag::LCDSTAT, true);
+                scheduler.schedule(time, GameBoyEmulatorEvent::HandleInterrupts);
             }
         }
     }
@@ -1062,6 +1070,7 @@ impl LcdController {
             interrupt_flag.set_flag(InterruptFlag::LCDSTAT, true);
         }
 
+        scheduler.schedule(time, GameBoyEmulatorEvent::HandleInterrupts);
         scheduler.schedule(time + 4560, LcdControllerEvent::Mode2);
     }
 

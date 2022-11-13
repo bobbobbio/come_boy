@@ -335,6 +335,9 @@ fn flags_write_mask() {
 pub trait MemoryMappedHardware {
     fn read_value(&self, address: u16) -> u8;
     fn set_value(&mut self, address: u16, value: u8);
+    fn set_interrupts_enabled(&mut self, _enabled: bool) {
+        panic!("unexpected set_interrupts_enabled call");
+    }
 }
 
 impl<T: MemoryMappedHardware> MemoryMappedHardware for Option<T> {

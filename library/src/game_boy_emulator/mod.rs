@@ -244,14 +244,149 @@ impl MemoryMappedHardware for Divider {
     }
 }
 
+#[derive(Default, Debug, Copy, Clone, Serialize, Deserialize)]
+struct InterruptsEnabled(bool);
+
+impl InterruptsEnabled {
+    fn get(&self) -> bool {
+        self.0
+    }
+
+    fn set(&mut self, value: bool) {
+        self.0 = value
+    }
+}
+
+impl<'a> MemoryMappedHardware for (&'a InterruptsEnabled, &'a GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, _address: u16) -> u8 {
+        unreachable!()
+    }
+
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+
+    fn set_interrupts_enabled(&mut self, _enabled: bool) {
+        unreachable!()
+    }
+}
+
+impl<'a> MemoryMappedHardware for (&'a mut InterruptsEnabled, &'a mut GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, _address: u16) -> u8 {
+        unreachable!()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_interrupts_enabled(&mut self, enabled: bool) {
+        let (flag, scheduler) = self;
+        flag.set(enabled);
+
+        if enabled {
+            scheduler.schedule(scheduler.now(), GameBoyEmulatorEvent::HandleInterrupts);
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 struct GameBoyRegisters {
     interrupt_flag: GameBoyFlags<InterruptFlag>,
-    interrupt_enable: GameBoyFlags<InterruptEnableFlag>,
+    interrupt_enable_mask: GameBoyFlags<InterruptEnableFlag>,
+    interrupts_enabled: InterruptsEnabled,
 
     serial_transfer_data: GameBoyRegister,
     serial_transfer_control: GameBoyRegister,
     divider: Divider,
+}
+
+/// This implementation is where reads for interrupt_flag go
+impl<'a> MemoryMappedHardware for (&'a GameBoyFlags<InterruptFlag>, &'a GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (flags, _scheduler) = self;
+        flags.read_value()
+    }
+
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+}
+
+/// This implementation is where the writes for interrupt_flag go
+impl<'a> MemoryMappedHardware
+    for (
+        &'a mut GameBoyFlags<InterruptFlag>,
+        &'a mut GameBoyScheduler,
+    )
+{
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (flags, _scheduler) = self;
+        flags.read_value()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_value(&mut self, address: u16, value: u8) {
+        assert_eq!(address, 0);
+        let (flags, scheduler) = self;
+
+        flags.set_value(value);
+
+        if value != 0 {
+            let now = scheduler.now();
+            scheduler.schedule(now, GameBoyEmulatorEvent::HandleInterrupts);
+        }
+    }
+}
+
+/// This implementation is where reads for interrupt_enable_mask go
+impl<'a> MemoryMappedHardware for (&'a GameBoyFlags<InterruptEnableFlag>, &'a GameBoyScheduler) {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (flags, _scheduler) = self;
+        flags.read_value()
+    }
+
+    fn set_value(&mut self, _address: u16, _value: u8) {
+        unreachable!()
+    }
+}
+
+/// This implementation is where the writes for interrupt_enable_mask go
+impl<'a> MemoryMappedHardware
+    for (
+        &'a mut GameBoyFlags<InterruptEnableFlag>,
+        &'a mut GameBoyScheduler,
+    )
+{
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn read_value(&self, address: u16) -> u8 {
+        assert_eq!(address, 0);
+        let (flags, _scheduler) = self;
+        flags.read_value()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_value(&mut self, address: u16, value: u8) {
+        assert_eq!(address, 0);
+        let (flags, scheduler) = self;
+
+        flags.set_value(value);
+
+        if value != 0 {
+            let now = scheduler.now();
+            scheduler.schedule(now, GameBoyEmulatorEvent::HandleInterrupts);
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -324,6 +459,7 @@ impl GameBoyTimer {
         let counter = self.counter.read_value().wrapping_add(1);
         if counter == 0 {
             interrupt_flag.set_flag(InterruptFlag::Timer, true);
+            scheduler.schedule(now, GameBoyEmulatorEvent::HandleInterrupts);
             let modulo_value = self.modulo.read_value();
             self.counter.set_value(modulo_value);
         } else {
@@ -380,6 +516,7 @@ pub(crate) enum GameBoyEmulatorEvent {
     TimerTick,
     StartDmaTransfer { address: u16 },
     DriveDmaTransfer,
+    HandleInterrupts,
     Lcd(lcd_controller::LcdControllerEvent),
     Sound(sound_controller::SoundControllerEvent),
 }
@@ -392,6 +529,7 @@ impl<'a> From<&'a GameBoyEmulatorEvent> for &'static str {
             GameBoyEmulatorEvent::TimerTick => "TimerTick",
             GameBoyEmulatorEvent::StartDmaTransfer { .. } => "StartDmaTransfer",
             GameBoyEmulatorEvent::DriveDmaTransfer => "DriveDmaTransfer",
+            GameBoyEmulatorEvent::HandleInterrupts => "HandleInterrupts",
             GameBoyEmulatorEvent::Lcd(e) => e.into(),
             GameBoyEmulatorEvent::Sound(e) => e.into(),
         }
@@ -428,6 +566,7 @@ impl GameBoyEmulatorEvent {
             Self::TimerTick => emulator.bridge.timer.fire(interrupt_flag, scheduler, time),
             Self::StartDmaTransfer { address } => emulator.start_dma_transfer(ops, address, time),
             Self::DriveDmaTransfer => emulator.drive_dma_transfer(ops, time),
+            Self::HandleInterrupts => emulator.handle_interrupts(ops),
             Self::Lcd(e) => e.deliver(
                 &mut emulator.bridge.lcd_controller,
                 &mut ops.renderer,
@@ -625,9 +764,11 @@ impl GameBoyEmulator {
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         observer: &mut impl PerfObserver,
+        interrupts_ok: bool,
         now: u64,
     ) {
-        while let Some((time, event)) = self.bridge.scheduler.poll(now) {
+        let m = |e: &_| interrupts_ok || !matches!(e, GameBoyEmulatorEvent::HandleInterrupts);
+        while let Some((time, event)) = self.bridge.scheduler.poll_match(now, m) {
             observe(observer, (&event).into(), || event.deliver(self, ops, time));
         }
     }
@@ -649,7 +790,8 @@ impl GameBoyEmulator {
         });
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(ops, observer, now);
+        let interrupts_ok = false;
+        self.deliver_events(ops, observer, interrupts_ok, now);
 
         observe(observer, "execute_instruction", || {
             self.cpu
@@ -657,11 +799,8 @@ impl GameBoyEmulator {
         });
 
         let now = self.cpu.elapsed_cycles;
-        self.deliver_events(ops, observer, now);
-
-        observe(observer, "interrupts", || {
-            self.handle_interrupts(ops);
-        });
+        let interrupts_ok = true;
+        self.deliver_events(ops, observer, interrupts_ok, now);
 
         observe(observer, "nothing", || ());
 
@@ -779,7 +918,7 @@ impl GameBoyEmulator {
         let flag_value = self
             .bridge
             .registers
-            .interrupt_enable
+            .interrupt_enable_mask
             .read_flag(flag.into());
 
         if sp == 0xFFFE && !flag_value {
@@ -822,15 +961,15 @@ impl GameBoyEmulator {
         address: u16,
     ) -> bool {
         let interrupt_flag_value = self.bridge.registers.interrupt_flag.read_flag(flag);
-        let interrupt_enable_value = self
+        let interrupts_enable_mask_value = self
             .bridge
             .registers
-            .interrupt_enable
+            .interrupt_enable_mask
             .read_flag(flag.into());
 
-        if interrupt_flag_value && interrupt_enable_value {
+        if interrupt_flag_value && interrupts_enable_mask_value {
             self.cpu.resume();
-            if self.cpu.get_interrupts_enabled() {
+            if self.bridge.registers.interrupts_enabled.get() {
                 self.deliver_interrupt(ops, flag, address);
                 true
             } else {
@@ -847,7 +986,7 @@ impl GameBoyEmulator {
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) {
         let interrupts = self.bridge.registers.interrupt_flag.read_value();
-        let interrupts_mask = self.bridge.registers.interrupt_enable.read_value();
+        let interrupts_mask = self.bridge.registers.interrupt_enable_mask.read_value();
 
         // fast-path, no interrupts to process
         if interrupts & interrupts_mask == 0 {
@@ -861,7 +1000,7 @@ impl GameBoyEmulator {
         }
 
         if interrupted {
-            self.cpu.set_interrupts_enabled(false);
+            self.bridge.registers.interrupts_enabled.set(false);
         }
     }
 
@@ -914,7 +1053,7 @@ impl GameBoyEmulator {
             .internal_ram_b
             .clone_from_slice(&internal_ram[split..]);
 
-        self.bridge.registers.interrupt_enable.set_value(0x0);
+        self.bridge.registers.interrupt_enable_mask.set_value(0x0);
     }
 
     fn schedule_initial_events(&mut self) {

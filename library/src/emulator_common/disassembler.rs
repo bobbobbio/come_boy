@@ -39,6 +39,8 @@ pub trait MemoryAccessor {
         self.set_memory(address + 1, (value >> 8) as u8);
     }
 
+    fn set_interrupts_enabled(&mut self, enabled: bool);
+
     fn describe_address(&self, address: u16) -> MemoryDescription;
 }
 
@@ -50,7 +52,12 @@ impl MemoryAccessor for &dyn MemoryAccessor {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, _address: u16, _value: u8) {
-        panic!()
+        unreachable!()
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_interrupts_enabled(&mut self, _enabled: bool) {
+        unreachable!()
     }
 
     fn describe_address(&self, address: u16) -> MemoryDescription {
@@ -123,6 +130,7 @@ impl<'a> MemoryIterator<'a> {
 
 pub struct SimpleMemoryAccessor {
     pub memory: [u8; 0x10000],
+    pub interrupts_enabled: bool,
 }
 
 impl Default for SimpleMemoryAccessor {
@@ -135,6 +143,7 @@ impl SimpleMemoryAccessor {
     pub fn new() -> Self {
         Self {
             memory: [0; 0x10000],
+            interrupts_enabled: false,
         }
     }
 }
@@ -148,6 +157,10 @@ impl MemoryAccessor for SimpleMemoryAccessor {
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.memory[address as usize] = value;
+    }
+
+    fn set_interrupts_enabled(&mut self, enabled: bool) {
+        self.interrupts_enabled = enabled;
     }
 
     fn describe_address(&self, _address: u16) -> MemoryDescription {

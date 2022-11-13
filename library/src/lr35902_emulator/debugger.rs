@@ -76,10 +76,6 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for SimulatedInstructionLR3
 
     fn set_interrupts_enabled(&mut self, _value: bool) {}
 
-    fn get_interrupts_enabled(&self) -> bool {
-        self.emulator.get_interrupts_enabled()
-    }
-
     fn add_cycles(&mut self, _cycles: u8) {}
 
     fn push_frame(&mut self, _address: u16) {}

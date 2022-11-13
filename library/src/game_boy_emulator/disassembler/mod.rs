@@ -34,6 +34,8 @@ impl<'a> MemoryAccessor for ROMAccessor<'a> {
 
     fn set_memory(&mut self, _address: u16, _value: u8) {}
 
+    fn set_interrupts_enabled(&mut self, _enabled: bool) {}
+
     fn describe_address(&self, address: u16) -> MemoryDescription {
         // This should probably live somewhere else, possibly in some GamePak object.
         match address {

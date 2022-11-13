@@ -191,15 +191,24 @@ impl<T> Scheduler<T> {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn poll(&mut self, now: u64) -> Option<(u64, T)> {
+        self.poll_match(now, |_| true)
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    pub fn poll_match(&mut self, now: u64, mut m: impl FnMut(&T) -> bool) -> Option<(u64, T)> {
         assert!(now >= self.now);
         self.now = now;
 
-        if let Some(front) = self.timeline.front() {
-            if front.time <= now {
-                let entry = self.timeline.pop_front().unwrap();
+        for (i, entry) in self.timeline.iter().enumerate() {
+            if entry.time > now {
+                return None;
+            }
+            if m(&entry.event) {
+                let entry = self.timeline.remove(i).unwrap();
                 return Some((entry.time, entry.event));
             }
         }
+
         None
     }
 
@@ -223,6 +232,19 @@ fn scheduler_on_time() {
 
     assert_eq!(scheduler.poll(1), Some((1, 1)));
     assert_eq!(scheduler.poll(2), Some((2, 2)));
+    assert_eq!(scheduler.poll(3), Some((3, 3)));
+    assert_eq!(scheduler.poll(4), None);
+}
+
+#[test]
+fn scheduler_poll_match() {
+    let mut scheduler = Scheduler::new();
+    scheduler.schedule(1, 1);
+    scheduler.schedule(2, 2);
+    scheduler.schedule(3, 3);
+
+    assert_eq!(scheduler.poll_match(2, |&e| e != 1), Some((2, 2)));
+    assert_eq!(scheduler.poll(2), Some((1, 1)));
     assert_eq!(scheduler.poll(3), Some((3, 3)));
     assert_eq!(scheduler.poll(4), None);
 }

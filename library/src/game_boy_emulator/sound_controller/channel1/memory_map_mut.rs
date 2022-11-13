@@ -25,6 +25,11 @@ impl crate::game_boy_emulator::memory_controller::MemoryAccessor for Channel1 {
             MemoryMappedHardware::set_value(&mut self.volume_envelope, address - 65298u16, value)
         }
     }
+    #[allow(unused_variables)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_interrupts_enabled(&mut self, enabled: bool) {
+        panic!("unexpected set_interrupts_enabled call")
+    }
     fn describe_address(
         &self,
         _address: u16,

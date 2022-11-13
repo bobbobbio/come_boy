@@ -72,6 +72,7 @@
     },
     "0xFF0F": {
         "field": "bridge.registers.interrupt_flag",
+        "with": "bridge.scheduler",
         "mapping_type": "ReadWrite"
     },
     "0xFF10..0xFF40": {
@@ -134,7 +135,13 @@
         "mapping_type": "ReadWrite"
     },
     "0xFFFF": {
-        "field": "bridge.registers.interrupt_enable",
+        "field": "bridge.registers.interrupt_enable_mask",
+        "with": "bridge.scheduler",
+        "mapping_type": "ReadWrite"
+    },
+    "interrupts_enabled": {
+        "field": "bridge.registers.interrupts_enabled",
+        "with": "bridge.scheduler",
         "mapping_type": "ReadWrite"
     }
 }

@@ -33,7 +33,10 @@ where
             )
         } else if address == 65295u16 {
             MemoryMappedHardware::read_value(
-                &self.bridge.registers.interrupt_flag,
+                &(
+                    &self.bridge.registers.interrupt_flag,
+                    &self.bridge.scheduler,
+                ),
                 address - 65295u16,
             )
         } else if address == 65344u16 {
@@ -101,7 +104,10 @@ where
             )
         } else if address == 65535u16 {
             MemoryMappedHardware::read_value(
-                &self.bridge.registers.interrupt_enable,
+                &(
+                    &self.bridge.registers.interrupt_enable_mask,
+                    &self.bridge.scheduler,
+                ),
                 address - 65535u16,
             )
         } else if address < 32768u16 {
@@ -151,6 +157,11 @@ where
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         panic!("Called set_memory on non-mutable MemoryMap")
+    }
+    #[allow(unused_variables)]
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn set_interrupts_enabled(&mut self, enabled: bool) {
+        panic!("unexpected set_interrupts_enabled call")
     }
     fn describe_address(
         &self,
