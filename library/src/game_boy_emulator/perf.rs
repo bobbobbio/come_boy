@@ -123,6 +123,7 @@ impl<InstantT> fmt::Display for PerfStats<InstantT> {
         let mut sorted_stats: Vec<_> = self
             .stats
             .iter()
+            .filter(|e| e.0 != &"nothing")
             .map(|e| stat_sorter(e, nothing, ticks))
             .collect();
         sorted_stats.sort_by(|(_, d1), (_, d2)| d2.cmp(d1));
