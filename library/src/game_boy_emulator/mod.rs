@@ -780,7 +780,20 @@ impl GameBoyEmulator {
         self.tick_with_observer(ops, &mut NullPerfObserver)
     }
 
-    pub fn tick_with_observer(
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn halted_cpu_tick(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        observer: &mut impl PerfObserver,
+    ) {
+        self.cpu.add_cycles(4);
+
+        let interrupts_ok = true;
+        self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn cpu_tick(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         observer: &mut impl PerfObserver,
@@ -789,18 +802,28 @@ impl GameBoyEmulator {
             self.cpu.load_instruction(&ops.memory_map(&self.bridge));
         });
 
-        let now = self.cpu.elapsed_cycles;
         let interrupts_ok = false;
-        self.deliver_events(ops, observer, interrupts_ok, now);
+        self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
 
         observe(observer, "execute_instruction", || {
             self.cpu
                 .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge))
         });
+    }
 
-        let now = self.cpu.elapsed_cycles;
+    pub fn tick_with_observer(
+        &mut self,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+        observer: &mut impl PerfObserver,
+    ) {
+        if self.cpu.is_halted() {
+            self.halted_cpu_tick(ops, observer);
+        } else {
+            self.cpu_tick(ops, observer);
+        }
+
         let interrupts_ok = true;
-        self.deliver_events(ops, observer, interrupts_ok, now);
+        self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
 
         observe(observer, "nothing", || ());
 

@@ -170,6 +170,11 @@ impl LR35902Emulator {
     pub fn resume(&mut self) {
         self.halted = false;
     }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    pub fn is_halted(&self) -> bool {
+        self.halted
+    }
 }
 
 /*   ___
@@ -2498,10 +2503,7 @@ impl LR35902Emulator {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn load_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &M) {
-        if self.halted {
-            self.add_cycles(4);
-            return;
-        }
+        debug_assert!(!self.halted);
 
         let pc = self.read_program_counter();
         let stream = MemoryStream::new(memory_accessor, pc);
@@ -2516,9 +2518,7 @@ impl LR35902Emulator {
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn execute_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
-        if self.halted {
-            return;
-        }
+        debug_assert!(!self.halted);
 
         match self.instr.take() {
             Some(res) => {
