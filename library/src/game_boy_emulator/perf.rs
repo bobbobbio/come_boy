@@ -23,12 +23,15 @@ impl PerfObserver for NullPerfObserver {
     fn tick_observed(&mut self) {}
 }
 
-#[cfg_attr(not(debug_assertions), inline(always))]
-pub fn observe<R>(p: &mut impl PerfObserver, tag: &'static str, body: impl FnOnce() -> R) -> R {
-    p.start_observation(tag);
-    let ret = body();
-    p.end_observation(tag);
-    ret
+macro_rules! observe {
+    ($observer:expr, $tag:expr, $body:expr) => {{
+        let p: &mut _ = $observer;
+        let tag = $tag;
+        p.start_observation(tag);
+        let ret = $body;
+        p.end_observation(tag);
+        ret
+    }};
 }
 
 pub trait Instant: Sized {

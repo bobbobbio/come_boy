@@ -22,7 +22,7 @@ use core::ops::{Range, RangeFrom};
 use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
-use perf::{observe, PerfObserver};
+use perf::PerfObserver;
 use serde_derive::{Deserialize, Serialize};
 
 pub use self::disassembler::disassemble_game_boy_rom;
@@ -37,6 +37,7 @@ mod game_pak;
 pub mod joypad;
 mod lcd_controller;
 mod memory_controller;
+#[macro_use]
 pub mod perf;
 mod runner;
 mod sound_controller;
@@ -769,7 +770,7 @@ impl GameBoyEmulator {
     ) {
         let m = |e: &_| interrupts_ok || !matches!(e, GameBoyEmulatorEvent::HandleInterrupts);
         while let Some((time, event)) = self.bridge.scheduler.poll_match(now, m) {
-            observe(observer, (&event).into(), || event.deliver(self, ops, time));
+            observe!(observer, (&event).into(), event.deliver(self, ops, time));
         }
     }
 
@@ -798,14 +799,14 @@ impl GameBoyEmulator {
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         observer: &mut impl PerfObserver,
     ) {
-        observe(observer, "load_instruction", || {
+        observe!(observer, "load_instruction", {
             self.cpu.load_instruction(&ops.memory_map(&self.bridge));
         });
 
         let interrupts_ok = false;
         self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
 
-        observe(observer, "execute_instruction", || {
+        observe!(observer, "execute_instruction", {
             self.cpu
                 .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge))
         });
@@ -825,7 +826,7 @@ impl GameBoyEmulator {
         let interrupts_ok = true;
         self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
 
-        observe(observer, "nothing", || ());
+        observe!(observer, "nothing", ());
 
         observer.tick_observed();
     }
