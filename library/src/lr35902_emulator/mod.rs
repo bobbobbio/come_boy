@@ -439,13 +439,7 @@ impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for InstructionDispatchOps<
 
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn wait_until_interrupt(&mut self) {
-        assert!(!self.emulator.halted);
-
-        let interrupt_flag = 0xFF0F;
-        let interrupt_enable_mask = 0xFFFF;
-        if self.read_memory(interrupt_flag) & self.read_memory(interrupt_enable_mask) == 0 {
-            self.emulator.halted = true;
-        }
+        self.emulator.halted = true;
     }
 }
 
