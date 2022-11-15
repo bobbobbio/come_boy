@@ -4,9 +4,9 @@ use crate::io::{self, Result};
 use core::mem;
 
 use crate::emulator_common::disassembler::{
-    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
-    SimpleMemoryAccessor,
+    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory,
 };
+use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
 pub use crate::intel_8080_emulator::opcodes::opcode_gen::{
     Intel8080Instruction, Intel8080InstructionSet,
 };

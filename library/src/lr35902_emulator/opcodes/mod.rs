@@ -4,9 +4,9 @@ use crate::io::{self, Result};
 use core::mem;
 
 use crate::emulator_common::disassembler::{
-    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
-    SimpleMemoryAccessor,
+    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory,
 };
+use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
 pub use crate::lr35902_emulator::opcodes::opcode_gen::{LR35902Instruction, LR35902InstructionSet};
 
 #[cfg(test)]

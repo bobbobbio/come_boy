@@ -1,6 +1,6 @@
 // copyright 2021 Remi Bernotavicius
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
-use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor};
+use crate::emulator_common::{disassembler::Disassembler, MemoryAccessor};
 use crate::game_boy_emulator::disassembler::RGBDSInstructionPrinterFactory;
 use crate::game_boy_emulator::game_pak::GamePak;
 use crate::game_boy_emulator::joypad::PlainJoyPad;

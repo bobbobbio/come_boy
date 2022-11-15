@@ -1,7 +1,7 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::{read_screen_message, read_test_rom};
-use crate::emulator_common::disassembler::{MemoryAccessor, SimpleMemoryAccessor};
+use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
 use crate::lr35902_emulator::LR35902Emulator;
 
 fn load_rom(memory_accessor: &mut SimpleMemoryAccessor, rom: &Vec<u8>) {

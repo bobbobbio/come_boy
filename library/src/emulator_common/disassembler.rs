@@ -1,120 +1,10 @@
 // Copyright 2018 Remi Bernotavicius
 
+use super::{MemoryAccessor, MemoryDescription};
 use crate::io::{self, Result};
 use alloc::{format, string::String, vec, vec::Vec};
 use core::ops::Range;
 use core::str;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MemoryDescription {
-    Instruction,
-    Data(u16),
-    Ascii(u16),
-}
-
-pub trait MemoryAccessor {
-    fn read_memory(&self, address: u16) -> u8;
-    fn set_memory(&mut self, address: u16, value: u8);
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_memory_u16(&self, address: u16) -> u16 {
-        if address == 0xFFFF {
-            return self.read_memory(address) as u16;
-        }
-
-        (self.read_memory(address + 1) as u16) << 8 | (self.read_memory(address) as u16)
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn set_memory_u16(&mut self, address: u16, value: u16) {
-        self.set_memory(address, value as u8);
-
-        if address == 0xFFFF {
-            return;
-        }
-
-        self.set_memory(address + 1, (value >> 8) as u8);
-    }
-
-    fn set_interrupts_enabled(&mut self, enabled: bool);
-
-    fn describe_address(&self, address: u16) -> MemoryDescription;
-}
-
-impl MemoryAccessor for &dyn MemoryAccessor {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_memory(&self, address: u16) -> u8 {
-        (*self).read_memory(address)
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn set_memory(&mut self, _address: u16, _value: u8) {
-        unreachable!()
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn set_interrupts_enabled(&mut self, _enabled: bool) {
-        unreachable!()
-    }
-
-    fn describe_address(&self, address: u16) -> MemoryDescription {
-        (*self).describe_address(address)
-    }
-}
-
-pub struct SimpleMemoryAccessor {
-    pub memory: [u8; 0x10000],
-    pub interrupts_enabled: bool,
-}
-
-impl Default for SimpleMemoryAccessor {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SimpleMemoryAccessor {
-    pub fn new() -> Self {
-        Self {
-            memory: [0; 0x10000],
-            interrupts_enabled: false,
-        }
-    }
-}
-
-impl MemoryAccessor for SimpleMemoryAccessor {
-    fn read_memory(&self, address: u16) -> u8 {
-        self.memory[address as usize]
-    }
-
-    fn set_memory(&mut self, address: u16, value: u8) {
-        self.memory[address as usize] = value;
-    }
-
-    fn set_interrupts_enabled(&mut self, enabled: bool) {
-        self.interrupts_enabled = enabled;
-    }
-
-    fn describe_address(&self, _address: u16) -> MemoryDescription {
-        MemoryDescription::Instruction
-    }
-}
-
-impl MemoryAccessor for [u8] {
-    fn read_memory(&self, address: u16) -> u8 {
-        self[address as usize]
-    }
-
-    fn set_memory(&mut self, address: u16, value: u8) {
-        self[address as usize] = value;
-    }
-
-    fn set_interrupts_enabled(&mut self, _enabled: bool) {}
-
-    fn describe_address(&self, _address: u16) -> MemoryDescription {
-        MemoryDescription::Instruction
-    }
-}
 
 /*   ___                      _      ____       _       _
  *  / _ \ _ __   ___ ___   __| | ___|  _ \ _ __(_)_ __ | |_ ___ _ __
@@ -397,7 +287,7 @@ pub fn do_disassembler_test<PF: for<'b> InstructionPrinterFactory<'b> + Copy>(
 ) {
     let mut output = vec![];
     {
-        let mut ma = SimpleMemoryAccessor::new();
+        let mut ma = super::SimpleMemoryAccessor::new();
         ma.memory[0..test_rom.len()].clone_from_slice(test_rom);
         let mut disassembler = Disassembler::new(&ma, opcode_printer_factory, &mut output);
         disassembler

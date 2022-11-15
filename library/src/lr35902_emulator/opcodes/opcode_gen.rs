@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use crate::emulator_common::{disassembler::MemoryAccessor, Intel8080Register};
+use crate::emulator_common::{Intel8080Register, MemoryAccessor};
 use crate::io;
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
 use serde_derive::{Deserialize, Serialize};

@@ -571,7 +571,7 @@ impl OpcodeGenerator {
         let use_path = &self.use_path;
         let printer_name = &self.printer_name;
         tokens.extend(quote!(
-            use crate::emulator_common::{disassembler::MemoryAccessor, Intel8080Register};
+            use crate::emulator_common::{MemoryAccessor, Intel8080Register};
             use crate::#(#use_path)::*::#printer_name;
             use crate::io;
             use serde_derive::{Serialize, Deserialize};

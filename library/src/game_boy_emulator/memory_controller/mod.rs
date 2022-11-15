@@ -3,7 +3,7 @@
 use super::game_pak::GamePak;
 use super::joypad::JoyPad;
 use super::Bridge;
-pub use crate::emulator_common::disassembler::{MemoryAccessor, MemoryDescription};
+pub use crate::emulator_common::{MemoryAccessor, MemoryDescription};
 use crate::storage::PersistentStorage;
 use alloc::{boxed::Box, format, vec, vec::Vec};
 use core::fmt;

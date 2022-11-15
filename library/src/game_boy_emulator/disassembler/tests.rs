@@ -1,7 +1,7 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::{Disassembler, RGBDSInstructionPrinterFactory, ROMAccessor};
-use crate::emulator_common::disassembler::SimpleMemoryAccessor;
+use crate::emulator_common::SimpleMemoryAccessor;
 use std::fmt::Write;
 use std::str;
 

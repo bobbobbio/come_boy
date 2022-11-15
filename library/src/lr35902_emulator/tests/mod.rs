@@ -1,6 +1,6 @@
 // Copyright 2021 Remi Bernotavicius
 
-use crate::emulator_common::disassembler::MemoryAccessor;
+use crate::emulator_common::MemoryAccessor;
 use crate::io::Read;
 use std::fs::File;
 use std::iter;

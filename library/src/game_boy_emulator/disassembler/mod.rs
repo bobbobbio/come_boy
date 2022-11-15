@@ -1,6 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
-use crate::emulator_common::disassembler::{Disassembler, MemoryAccessor, MemoryDescription};
+use crate::emulator_common::disassembler::Disassembler;
+use crate::emulator_common::{MemoryAccessor, MemoryDescription};
 use crate::io::{self, Result};
 
 pub use crate::game_boy_emulator::disassembler::rgbds_assembly::RGBDSInstructionPrinterFactory;

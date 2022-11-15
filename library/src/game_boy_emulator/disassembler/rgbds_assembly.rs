@@ -1,9 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::emulator_common::disassembler::{
-    InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
-};
+use crate::emulator_common::disassembler::{InstructionPrinter, InstructionPrinterFactory};
 use crate::emulator_common::Intel8080Register;
+use crate::emulator_common::MemoryAccessor;
 use crate::io::{self, Result};
 pub use crate::lr35902_emulator::{LR35902Instruction, LR35902InstructionSet};
 use core::mem;
