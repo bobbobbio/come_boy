@@ -5,9 +5,6 @@ use alloc::{format, string::String, vec, vec::Vec};
 use core::ops::Range;
 use core::str;
 
-#[cfg(test)]
-use crate::bytes::ReadBytesExt;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MemoryDescription {
     Instruction,
@@ -65,37 +62,6 @@ impl MemoryAccessor for &dyn MemoryAccessor {
     }
 }
 
-pub struct MemoryStream<'a, M> {
-    memory_accessor: &'a M,
-    index: u16,
-}
-
-impl<'a, M> MemoryStream<'a, M> {
-    pub fn new(memory_accessor: &'a M, index: u16) -> Self {
-        Self {
-            memory_accessor,
-            index,
-        }
-    }
-}
-
-impl<'a, M: MemoryAccessor> io::Read for MemoryStream<'a, M> {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-        self.read_exact(buf)?;
-        Ok(buf.len())
-    }
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn read_exact(&mut self, buf: &mut [u8]) -> Result<()> {
-        for (i, item) in buf.iter_mut().enumerate() {
-            *item = self.memory_accessor.read_memory(self.index + (i as u16));
-        }
-        self.index += buf.len() as u16;
-        Ok(())
-    }
-}
-
 pub struct MemoryIterator<'a> {
     memory_accessor: &'a dyn MemoryAccessor,
     current_address: u16,
@@ -149,12 +115,10 @@ impl SimpleMemoryAccessor {
 }
 
 impl MemoryAccessor for SimpleMemoryAccessor {
-    #[cfg_attr(not(debug_assertions), inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         self.memory[address as usize]
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.memory[address as usize] = value;
     }
@@ -162,6 +126,22 @@ impl MemoryAccessor for SimpleMemoryAccessor {
     fn set_interrupts_enabled(&mut self, enabled: bool) {
         self.interrupts_enabled = enabled;
     }
+
+    fn describe_address(&self, _address: u16) -> MemoryDescription {
+        MemoryDescription::Instruction
+    }
+}
+
+impl MemoryAccessor for [u8] {
+    fn read_memory(&self, address: u16) -> u8 {
+        self[address as usize]
+    }
+
+    fn set_memory(&mut self, address: u16, value: u8) {
+        self[address as usize] = value;
+    }
+
+    fn set_interrupts_enabled(&mut self, _enabled: bool) {}
 
     fn describe_address(&self, _address: u16) -> MemoryDescription {
         MemoryDescription::Instruction
@@ -185,7 +165,11 @@ pub trait InstructionPrinter<'a> {
 
     fn print_instruction(&mut self, instr: Self::Instruction, address: u16) -> Result<()>;
 
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<Self::Instruction>>;
+    fn get_instruction(
+        &self,
+        memory_accessor: &impl MemoryAccessor,
+        address: u16,
+    ) -> Result<Option<Self::Instruction>>;
 }
 
 pub trait InstructionPrinterFactory<'a> {
@@ -320,8 +304,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let printed;
         {
             let mut opcode_printer = self.opcode_printer_factory.create(&mut printed_instr);
-            let stream = MemoryStream::new(&self.memory_accessor, self.index);
-            printed = match opcode_printer.get_instruction(stream)? {
+            printed = match opcode_printer.get_instruction(&self.memory_accessor, self.index)? {
                 Some(res) => {
                     for i in 0..res.size() {
                         instr.push(self.memory_accessor.read_memory(self.index + i as u16));
@@ -407,11 +390,20 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
         Ok(())
     }
 
-    fn get_instruction<R: io::Read>(&self, mut stream: R) -> Result<Option<TestInstruction>> {
-        Ok(match stream.read_u8()? {
+    fn get_instruction(
+        &self,
+        memory_accessor: &impl MemoryAccessor,
+        address: u16,
+    ) -> Result<Option<TestInstruction>> {
+        Ok(match memory_accessor.read_memory(address) {
             0x1 => Some(TestInstruction::One),
-            0x2 => Some(TestInstruction::Two(stream.read_u8()?)),
-            0x3 => Some(TestInstruction::Three(stream.read_u8()?, stream.read_u8()?)),
+            0x2 => Some(TestInstruction::Two(
+                memory_accessor.read_memory(address + 1),
+            )),
+            0x3 => Some(TestInstruction::Three(
+                memory_accessor.read_memory(address + 1),
+                memory_accessor.read_memory(address + 2),
+            )),
             _ => None,
         })
     }

@@ -131,9 +131,9 @@ impl ToTokens for OpcodeArgument {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.extend(match self {
             OpcodeArgument::Register(r) => quote!(Intel8080Register::#r),
-            OpcodeArgument::ReadOneByte => quote!(stream.read_u8().unwrap()),
-            OpcodeArgument::ReadTwoBytes => quote!(stream.read_u16::<LittleEndian>().unwrap()),
-            OpcodeArgument::ReadAddress => quote!(stream.read_u16::<LittleEndian>().unwrap()),
+            OpcodeArgument::ReadOneByte => quote!(memory.read_memory(address + 1)),
+            OpcodeArgument::ReadTwoBytes => quote!(memory.read_memory_u16(address + 1)),
+            OpcodeArgument::ReadAddress => quote!(memory.read_memory_u16(address + 1)),
             OpcodeArgument::ConstantValue(v) => quote!(#v),
         });
     }
@@ -571,8 +571,7 @@ impl OpcodeGenerator {
         let use_path = &self.use_path;
         let printer_name = &self.printer_name;
         tokens.extend(quote!(
-            use crate::bytes::{ReadBytesExt, LittleEndian};
-            use crate::emulator_common::Intel8080Register;
+            use crate::emulator_common::{disassembler::MemoryAccessor, Intel8080Register};
             use crate::#(#use_path)::*::#printer_name;
             use crate::io;
             use serde_derive::{Serialize, Deserialize};
@@ -756,7 +755,7 @@ impl OpcodeGenerator {
             let code = &tree.code;
             let dispatches = tree.children.values();
             tokens.extend(quote!(
-                #code => match (#code as u16) << 8 | stream.read_u8()? as u16 {
+                #code => match (#code as u16) << 8 | memory.read_memory(address + 1) as u16 {
                     #( #dispatches, )*
                     _ => None,
                 }
@@ -792,8 +791,11 @@ impl OpcodeGenerator {
             impl #enum_name {
                 #[allow(clippy::unnecessary_cast)]
                 #[cfg_attr(not(debug_assertions), inline(always))]
-                pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
-                    let opcode = stream.read_u8()?;
+                pub fn from_memory(
+                    memory: &(impl MemoryAccessor + ?Sized),
+                    address: u16
+                ) -> io::Result<Option<Self>> {
+                    let opcode = memory.read_memory(address);
                     Ok(match opcode {
                         #( #dispatches, )*
                         _ => None,

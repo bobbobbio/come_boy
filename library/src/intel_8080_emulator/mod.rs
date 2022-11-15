@@ -3134,11 +3134,11 @@ fn if_no_carry_updates_call_stack() {
 
 impl<'a> Intel8080Emulator<'a> {
     pub fn run_one_instruction(&mut self) {
-        let pc = self.program_counter as usize;
-        let maybe_instr = Intel8080Instruction::from_reader(&self.main_memory[pc..]).unwrap();
+        let pc = self.program_counter;
+        let maybe_instr = Intel8080Instruction::from_memory(&self.main_memory[..], pc).unwrap();
         let instruction = match maybe_instr {
             Some(res) => res,
-            None => panic!("Unknown Opcode {}", self.main_memory[pc]),
+            None => panic!("Unknown Opcode {}", self.main_memory[pc as usize]),
         };
 
         self.program_counter += instruction.size() as u16;

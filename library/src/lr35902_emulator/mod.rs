@@ -8,7 +8,7 @@ use alloc::{format, string::String, vec::Vec};
 use serde_derive::{Deserialize, Serialize};
 
 pub use crate::emulator_common::disassembler::{
-    MemoryAccessor, MemoryIterator, MemoryStream, SimpleMemoryAccessor,
+    MemoryAccessor, MemoryIterator, SimpleMemoryAccessor,
 };
 pub use crate::emulator_common::Intel8080Register;
 pub use crate::lr35902_emulator::debugger::run_debugger;
@@ -2506,8 +2506,7 @@ impl LR35902Emulator {
         debug_assert!(!self.halted);
 
         let pc = self.read_program_counter();
-        let stream = MemoryStream::new(memory_accessor, pc);
-        let instr = LR35902Instruction::from_reader(stream).unwrap();
+        let instr = LR35902Instruction::from_memory(memory_accessor, pc).unwrap();
 
         if let Some(instr) = &instr {
             self.set_program_counter(pc + instr.size() as u16);

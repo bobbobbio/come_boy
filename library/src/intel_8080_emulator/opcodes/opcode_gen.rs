@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-use crate::bytes::{LittleEndian, ReadBytesExt};
-use crate::emulator_common::Intel8080Register;
+use crate::emulator_common::{disassembler::MemoryAccessor, Intel8080Register};
 use crate::intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
 use crate::io;
 use serde_derive::{Deserialize, Serialize};
@@ -285,13 +284,16 @@ const NUM_INSTRUCTIONS: usize = 80usize;
 impl Intel8080Instruction {
     #[allow(clippy::unnecessary_cast)]
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn from_reader<R: io::Read>(mut stream: R) -> io::Result<Option<Self>> {
-        let opcode = stream.read_u8()?;
+    pub fn from_memory(
+        memory: &(impl MemoryAccessor + ?Sized),
+        address: u16,
+    ) -> io::Result<Option<Self>> {
+        let opcode = memory.read_memory(address);
         Ok(match opcode {
             0x00 => Some(Self::NoOperation),
             0x01 => Some(Self::LoadRegisterPairImmediate {
                 register1: Intel8080Register::B,
-                data2: stream.read_u16::<LittleEndian>().unwrap(),
+                data2: memory.read_memory_u16(address + 1),
             }),
             0x02 => Some(Self::StoreAccumulator {
                 register1: Intel8080Register::B,
@@ -307,7 +309,7 @@ impl Intel8080Instruction {
             }),
             0x06 => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::B,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x07 => Some(Self::RotateAccumulatorLeft),
             0x09 => Some(Self::DoubleAdd {
@@ -327,12 +329,12 @@ impl Intel8080Instruction {
             }),
             0x0E => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::C,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x0F => Some(Self::RotateAccumulatorRight),
             0x11 => Some(Self::LoadRegisterPairImmediate {
                 register1: Intel8080Register::D,
-                data2: stream.read_u16::<LittleEndian>().unwrap(),
+                data2: memory.read_memory_u16(address + 1),
             }),
             0x12 => Some(Self::StoreAccumulator {
                 register1: Intel8080Register::D,
@@ -348,7 +350,7 @@ impl Intel8080Instruction {
             }),
             0x16 => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::D,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x17 => Some(Self::RotateAccumulatorLeftThroughCarry),
             0x19 => Some(Self::DoubleAdd {
@@ -368,16 +370,16 @@ impl Intel8080Instruction {
             }),
             0x1E => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::E,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x1F => Some(Self::RotateAccumulatorRightThroughCarry),
             0x20 => Some(Self::Rim),
             0x21 => Some(Self::LoadRegisterPairImmediate {
                 register1: Intel8080Register::H,
-                data2: stream.read_u16::<LittleEndian>().unwrap(),
+                data2: memory.read_memory_u16(address + 1),
             }),
             0x22 => Some(Self::StoreHAndLDirect {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0x23 => Some(Self::IncrementRegisterPair {
                 register1: Intel8080Register::H,
@@ -390,14 +392,14 @@ impl Intel8080Instruction {
             }),
             0x26 => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::H,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x27 => Some(Self::DecimalAdjustAccumulator),
             0x29 => Some(Self::DoubleAdd {
                 register1: Intel8080Register::H,
             }),
             0x2A => Some(Self::LoadHAndLDirect {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0x2B => Some(Self::DecrementRegisterPair {
                 register1: Intel8080Register::H,
@@ -410,16 +412,16 @@ impl Intel8080Instruction {
             }),
             0x2E => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::L,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x2F => Some(Self::ComplementAccumulator),
             0x30 => Some(Self::Sim),
             0x31 => Some(Self::LoadRegisterPairImmediate {
                 register1: Intel8080Register::SP,
-                data2: stream.read_u16::<LittleEndian>().unwrap(),
+                data2: memory.read_memory_u16(address + 1),
             }),
             0x32 => Some(Self::StoreAccumulatorDirect {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0x33 => Some(Self::IncrementRegisterPair {
                 register1: Intel8080Register::SP,
@@ -432,14 +434,14 @@ impl Intel8080Instruction {
             }),
             0x36 => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::M,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x37 => Some(Self::SetCarry),
             0x39 => Some(Self::DoubleAdd {
                 register1: Intel8080Register::SP,
             }),
             0x3A => Some(Self::LoadAccumulatorDirect {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0x3B => Some(Self::DecrementRegisterPair {
                 register1: Intel8080Register::SP,
@@ -452,7 +454,7 @@ impl Intel8080Instruction {
             }),
             0x3E => Some(Self::MoveImmediateData {
                 register1: Intel8080Register::A,
-                data2: stream.read_u8().unwrap(),
+                data2: memory.read_memory(address + 1),
             }),
             0x3F => Some(Self::ComplementCarry),
             0x40 => Some(Self::MoveData {
@@ -905,34 +907,34 @@ impl Intel8080Instruction {
                 register1: Intel8080Register::B,
             }),
             0xC2 => Some(Self::JumpIfNotZero {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xC3 => Some(Self::Jump {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xC4 => Some(Self::CallIfNotZero {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xC5 => Some(Self::PushDataOntoStack {
                 register1: Intel8080Register::B,
             }),
             0xC6 => Some(Self::AddImmediateToAccumulator {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xC7 => Some(Self::Restart { data1: 0u8 }),
             0xC8 => Some(Self::ReturnIfZero),
             0xC9 => Some(Self::ReturnUnconditionally),
             0xCA => Some(Self::JumpIfZero {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xCC => Some(Self::CallIfZero {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xCD => Some(Self::Call {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xCE => Some(Self::AddImmediateToAccumulatorWithCarry {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xCF => Some(Self::Restart { data1: 1u8 }),
             0xD0 => Some(Self::ReturnIfNoCarry),
@@ -940,33 +942,33 @@ impl Intel8080Instruction {
                 register1: Intel8080Register::D,
             }),
             0xD2 => Some(Self::JumpIfNoCarry {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xD3 => Some(Self::Output {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xD4 => Some(Self::CallIfNoCarry {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xD5 => Some(Self::PushDataOntoStack {
                 register1: Intel8080Register::D,
             }),
             0xD6 => Some(Self::SubtractImmediateFromAccumulator {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xD7 => Some(Self::Restart { data1: 2u8 }),
             0xD8 => Some(Self::ReturnIfCarry),
             0xDA => Some(Self::JumpIfCarry {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xDB => Some(Self::Input {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xDC => Some(Self::CallIfCarry {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xDE => Some(Self::SubtractImmediateFromAccumulatorWithBorrow {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xDF => Some(Self::Restart { data1: 3u8 }),
             0xE0 => Some(Self::ReturnIfParityOdd),
@@ -974,30 +976,30 @@ impl Intel8080Instruction {
                 register1: Intel8080Register::H,
             }),
             0xE2 => Some(Self::JumpIfParityOdd {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xE3 => Some(Self::ExchangeStack),
             0xE4 => Some(Self::CallIfParityOdd {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xE5 => Some(Self::PushDataOntoStack {
                 register1: Intel8080Register::H,
             }),
             0xE6 => Some(Self::AndImmediateWithAccumulator {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xE7 => Some(Self::Restart { data1: 4u8 }),
             0xE8 => Some(Self::ReturnIfParityEven),
             0xE9 => Some(Self::LoadProgramCounter),
             0xEA => Some(Self::JumpIfParityEven {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xEB => Some(Self::ExchangeRegisters),
             0xEC => Some(Self::CallIfParityEven {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xEE => Some(Self::ExclusiveOrImmediateWithAccumulator {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xEF => Some(Self::Restart { data1: 5u8 }),
             0xF0 => Some(Self::ReturnIfPlus),
@@ -1005,30 +1007,30 @@ impl Intel8080Instruction {
                 register1: Intel8080Register::PSW,
             }),
             0xF2 => Some(Self::JumpIfPositive {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xF3 => Some(Self::DisableInterrupts),
             0xF4 => Some(Self::CallIfPlus {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xF5 => Some(Self::PushDataOntoStack {
                 register1: Intel8080Register::PSW,
             }),
             0xF6 => Some(Self::OrImmediateWithAccumulator {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xF7 => Some(Self::Restart { data1: 6u8 }),
             0xF8 => Some(Self::ReturnIfMinus),
             0xF9 => Some(Self::LoadSpFromHAndL),
             0xFA => Some(Self::JumpIfMinus {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xFB => Some(Self::EnableInterrupts),
             0xFC => Some(Self::CallIfMinus {
-                address1: stream.read_u16::<LittleEndian>().unwrap(),
+                address1: memory.read_memory_u16(address + 1),
             }),
             0xFE => Some(Self::CompareImmediateWithAccumulator {
-                data1: stream.read_u8().unwrap(),
+                data1: memory.read_memory(address + 1),
             }),
             0xFF => Some(Self::Restart { data1: 7u8 }),
             _ => None,

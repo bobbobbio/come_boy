@@ -4,7 +4,8 @@ use crate::io::{self, Result};
 use core::mem;
 
 use crate::emulator_common::disassembler::{
-    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, SimpleMemoryAccessor,
+    Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
+    SimpleMemoryAccessor,
 };
 pub use crate::intel_8080_emulator::opcodes::opcode_gen::{
     Intel8080Instruction, Intel8080InstructionSet,
@@ -46,8 +47,13 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
         instr.dispatch(self);
         mem::replace(&mut self.error, Ok(()))
     }
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<Intel8080Instruction>> {
-        Intel8080Instruction::from_reader(stream)
+
+    fn get_instruction(
+        &self,
+        memory_accessor: &impl MemoryAccessor,
+        address: u16,
+    ) -> Result<Option<Intel8080Instruction>> {
+        Intel8080Instruction::from_memory(memory_accessor, address)
     }
 }
 

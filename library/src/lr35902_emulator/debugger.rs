@@ -1,7 +1,7 @@
 // Copyright 2017 Remi Bernotavicius
 
 use crate::emulator_common::debugger::{Debugger, DebuggerOps, SimulatedInstruction};
-use crate::emulator_common::disassembler::{MemoryAccessor, MemoryStream, SimpleMemoryAccessor};
+use crate::emulator_common::disassembler::{MemoryAccessor, SimpleMemoryAccessor};
 use crate::emulator_common::Intel8080Register;
 use crate::io::{self, Result};
 use crate::lr35902_emulator::opcodes::LR35902Instruction;
@@ -150,8 +150,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
         let pc = self.read_program_counter();
-        let maybe_instr =
-            LR35902Instruction::from_reader(MemoryStream::new(self.memory_accessor, pc)).unwrap();
+        let maybe_instr = LR35902Instruction::from_memory(self.memory_accessor, pc).unwrap();
         if let Some(res) = maybe_instr {
             let mut wrapping_instruction =
                 SimulatedInstructionLR35902::new(self.emulator, self.memory_accessor, instruction);

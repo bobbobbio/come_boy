@@ -25,7 +25,6 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 [dependencies]
 bincode = { version = "*", optional = true }
 bmp = { version = "*", optional = true }
-byteorder = { version = "*", default_features = false }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "0.8.1"

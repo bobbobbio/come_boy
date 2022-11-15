@@ -1,6 +1,8 @@
 // Copyright 2018 Remi Bernotavicius
 
-use crate::emulator_common::disassembler::{InstructionPrinter, InstructionPrinterFactory};
+use crate::emulator_common::disassembler::{
+    InstructionPrinter, InstructionPrinterFactory, MemoryAccessor,
+};
 use crate::emulator_common::Intel8080Register;
 use crate::io::{self, Result};
 pub use crate::lr35902_emulator::{LR35902Instruction, LR35902InstructionSet};
@@ -35,8 +37,12 @@ impl<'a> InstructionPrinter<'a> for RGBDSInstructionPrinter<'a> {
         mem::replace(&mut self.error, Ok(()))
     }
 
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<LR35902Instruction>> {
-        LR35902Instruction::from_reader(stream)
+    fn get_instruction(
+        &self,
+        memory_accessor: &impl MemoryAccessor,
+        address: u16,
+    ) -> Result<Option<LR35902Instruction>> {
+        LR35902Instruction::from_memory(memory_accessor, address)
     }
 }
 

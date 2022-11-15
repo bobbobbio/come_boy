@@ -46,8 +46,12 @@ impl<'a> InstructionPrinter<'a> for LR35902InstructionPrinter<'a> {
         mem::replace(&mut self.error, Ok(()))
     }
 
-    fn get_instruction<R: io::Read>(&self, stream: R) -> Result<Option<LR35902Instruction>> {
-        LR35902Instruction::from_reader(stream)
+    fn get_instruction(
+        &self,
+        memory_accessor: &impl MemoryAccessor,
+        address: u16,
+    ) -> Result<Option<LR35902Instruction>> {
+        LR35902Instruction::from_memory(memory_accessor, address)
     }
 }
 
