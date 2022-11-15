@@ -1,8 +1,9 @@
 // Copyright 2021 Remi Bernotavicius
 
-use crate::emulator_common::disassembler::{MemoryAccessor, MemoryIterator};
+use crate::emulator_common::disassembler::MemoryAccessor;
 use crate::io::Read;
 use std::fs::File;
+use std::iter;
 
 pub mod blargg;
 
@@ -44,8 +45,10 @@ pub fn read_screen_message<M: MemoryAccessor>(memory_accessor: &M) -> String {
     let start2 = 0x9800;
     let end2 = start2 + visible_rows - (end1 - start1);
 
-    for r in vec![start1..end1, start2..end2].into_iter() {
-        let iter = &mut MemoryIterator::new(memory_accessor, r).peekable();
+    for mut r in vec![start1..end1, start2..end2].into_iter() {
+        let iter =
+            &mut iter::from_fn(|| r.next().map(|i| memory_accessor.read_memory(i))).peekable();
+        // let iter = &mut MemoryIterator::new(memory_accessor, r).peekable();
         while iter.peek().is_some() {
             for c in iter.take(screen_tiles_per_row as usize) {
                 // This is where we assume the tile number uses ASCII

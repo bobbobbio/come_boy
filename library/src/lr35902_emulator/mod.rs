@@ -7,9 +7,7 @@ use crate::util::TwosComplement;
 use alloc::{format, string::String, vec::Vec};
 use serde_derive::{Deserialize, Serialize};
 
-pub use crate::emulator_common::disassembler::{
-    MemoryAccessor, MemoryIterator, SimpleMemoryAccessor,
-};
+pub use crate::emulator_common::disassembler::{MemoryAccessor, SimpleMemoryAccessor};
 pub use crate::emulator_common::Intel8080Register;
 pub use crate::lr35902_emulator::debugger::run_debugger;
 pub use crate::lr35902_emulator::opcodes::{

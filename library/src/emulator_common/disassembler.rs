@@ -62,38 +62,6 @@ impl MemoryAccessor for &dyn MemoryAccessor {
     }
 }
 
-pub struct MemoryIterator<'a> {
-    memory_accessor: &'a dyn MemoryAccessor,
-    current_address: u16,
-    ending_address: u16,
-}
-
-impl<'a> Iterator for MemoryIterator<'a> {
-    type Item = u8;
-
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn next(&mut self) -> Option<u8> {
-        if self.current_address < self.ending_address {
-            let mem = self.memory_accessor.read_memory(self.current_address);
-            self.current_address += 1;
-            Some(mem)
-        } else {
-            None
-        }
-    }
-}
-
-impl<'a> MemoryIterator<'a> {
-    pub fn new(memory_accessor: &'a dyn MemoryAccessor, range: Range<u16>) -> MemoryIterator {
-        assert!(range.start <= range.end);
-        Self {
-            memory_accessor,
-            current_address: range.start,
-            ending_address: range.end,
-        }
-    }
-}
-
 pub struct SimpleMemoryAccessor {
     pub memory: [u8; 0x10000],
     pub interrupts_enabled: bool,
