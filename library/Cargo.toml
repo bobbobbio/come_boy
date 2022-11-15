@@ -3,7 +3,7 @@ name = "come_boy"
 version = "0.1.0"
 authors = ["Remi Bernotavicius <remi@.abort.cc>"]
 build = "build.rs"
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 

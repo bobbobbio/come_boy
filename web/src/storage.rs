@@ -2,7 +2,6 @@
 
 use come_boy::storage::OpenMode;
 use std::cmp::min;
-use std::convert::TryInto as _;
 use std::io::{self, SeekFrom};
 
 pub struct WebStorageFile {

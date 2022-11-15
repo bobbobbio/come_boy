@@ -2,7 +2,7 @@
 name = "come_boy_cli"
 version = "0.1.0"
 authors = ["Remi Bernotavicius <remi@.abort.cc>"]
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 

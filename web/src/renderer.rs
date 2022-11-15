@@ -1,7 +1,6 @@
 // copyright 2021 Remi Bernotavicius
 
 use come_boy::rendering::{Color, Event, Keycode, Renderer};
-use std::convert::TryInto;
 use std::{io, mem};
 use wasm_bindgen::JsCast;
 use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader, WebGlTexture};
