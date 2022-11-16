@@ -2,7 +2,11 @@
 
 use super::{disassembler, GameBoyEmulator};
 use crate::io;
+use crate::lr35902_emulator::{LR35902InstructionType, NUM_INSTRUCTIONS};
 use alloc::collections::BTreeMap;
+use alloc::vec;
+use alloc::vec::Vec;
+use enum_iterator::IntoEnumIterator as _;
 use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -25,19 +29,26 @@ impl From<crate::codec::Error> for Error {
     }
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct CoverageData {
     address_to_count: BTreeMap<u16, u64>,
+    instruction_stats: Vec<u64>,
 }
 
 impl CoverageData {
     pub fn new() -> Self {
-        Default::default()
+        Self {
+            address_to_count: BTreeMap::new(),
+            instruction_stats: vec![0; NUM_INSTRUCTIONS],
+        }
     }
 
     pub fn sample(&mut self, e: &GameBoyEmulator) {
         let pc = e.cpu.read_program_counter();
         *self.address_to_count.entry(pc).or_insert(0) += 1;
+        if let Some(instr) = e.cpu.get_last_instruction() {
+            self.instruction_stats[instr.to_type() as usize] += 1;
+        }
     }
 }
 
@@ -62,5 +73,18 @@ pub fn display(rom: &[u8], input: impl io::Read, mut output: impl io::Write) -> 
 
         writeln!(&mut output)?;
     }
+
+    writeln!(&mut output)?;
+
+    let mut instr_counts = vec![];
+    for instr_type in LR35902InstructionType::into_enum_iter() {
+        instr_counts.push((instr_type, data.instruction_stats[instr_type as usize]));
+    }
+    instr_counts.sort_by(|(_, v1), (_, v2)| v2.cmp(v1));
+
+    for (instr_type, amount) in instr_counts {
+        writeln!(&mut output, "{instr_type:?}: {amount}")?;
+    }
+
     Ok(())
 }

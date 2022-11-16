@@ -11,7 +11,8 @@ pub use crate::emulator_common::Intel8080Register;
 pub use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
 pub use crate::lr35902_emulator::debugger::run_debugger;
 pub use crate::lr35902_emulator::opcodes::{
-    disassemble_lr35902_rom, LR35902Instruction, LR35902InstructionSet,
+    disassemble_lr35902_rom, LR35902Instruction, LR35902InstructionSet, LR35902InstructionType,
+    NUM_INSTRUCTIONS,
 };
 
 pub mod debugger;
@@ -70,6 +71,10 @@ impl LR35902Emulator {
         e.set_program_counter(ROM_ADDRESS as u16);
 
         e
+    }
+
+    pub fn get_last_instruction(&self) -> Option<LR35902Instruction> {
+        self.instr.clone()
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
@@ -2517,7 +2522,7 @@ impl LR35902Emulator {
     pub fn execute_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
         debug_assert!(!self.halted);
 
-        match self.instr.take() {
+        match self.instr.clone() {
             Some(res) => {
                 self.run_lr35902_instruction(res, memory_accessor);
             }

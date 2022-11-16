@@ -785,7 +785,7 @@ impl OpcodeGenerator {
                 #( #variants_types, )*
             }
 
-            const NUM_INSTRUCTIONS: usize = #num_instructions;
+            pub const NUM_INSTRUCTIONS: usize = #num_instructions;
 
             impl #enum_name {
                 #[allow(clippy::unnecessary_cast)]

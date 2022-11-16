@@ -279,7 +279,7 @@ pub enum Intel8080InstructionType {
     SubtractImmediateFromAccumulator = 78isize,
     SubtractImmediateFromAccumulatorWithBorrow = 79isize,
 }
-const NUM_INSTRUCTIONS: usize = 80usize;
+pub const NUM_INSTRUCTIONS: usize = 80usize;
 impl Intel8080Instruction {
     #[allow(clippy::unnecessary_cast)]
     #[cfg_attr(not(debug_assertions), inline(always))]

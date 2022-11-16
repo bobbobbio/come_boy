@@ -320,7 +320,7 @@ pub enum LR35902InstructionType {
     SwapRegister = 85isize,
     TestBit = 86isize,
 }
-const NUM_INSTRUCTIONS: usize = 87usize;
+pub const NUM_INSTRUCTIONS: usize = 87usize;
 impl LR35902Instruction {
     #[allow(clippy::unnecessary_cast)]
     #[cfg_attr(not(debug_assertions), inline(always))]

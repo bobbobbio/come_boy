@@ -7,7 +7,9 @@ use crate::emulator_common::disassembler::{
     Disassembler, Instruction, InstructionPrinter, InstructionPrinterFactory,
 };
 use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
-pub use crate::lr35902_emulator::opcodes::opcode_gen::{LR35902Instruction, LR35902InstructionSet};
+pub use crate::lr35902_emulator::opcodes::opcode_gen::{
+    LR35902Instruction, LR35902InstructionSet, LR35902InstructionType, NUM_INSTRUCTIONS,
+};
 
 #[cfg(test)]
 use crate::emulator_common::disassembler::do_disassembler_test;
