@@ -150,7 +150,7 @@ impl<'a, M: MemoryAccessor> DebuggerOps for LR35902Debugger<'a, M> {
 
     fn simulate_next(&mut self, instruction: &mut SimulatedInstruction) {
         let pc = self.read_program_counter();
-        let maybe_instr = LR35902Instruction::from_memory(self.memory_accessor, pc).unwrap();
+        let maybe_instr = LR35902Instruction::from_memory(self.memory_accessor, pc);
         if let Some(res) = maybe_instr {
             let mut wrapping_instruction =
                 SimulatedInstructionLR35902::new(self.emulator, self.memory_accessor, instruction);

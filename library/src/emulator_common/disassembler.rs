@@ -27,7 +27,7 @@ pub trait InstructionPrinter<'a> {
         &self,
         memory_accessor: &impl MemoryAccessor,
         address: u16,
-    ) -> Result<Option<Self::Instruction>>;
+    ) -> Option<Self::Instruction>;
 }
 
 pub trait InstructionPrinterFactory<'a> {
@@ -162,7 +162,7 @@ impl<'a, PF: for<'b> InstructionPrinterFactory<'b> + Copy> Disassembler<'a, PF> 
         let printed;
         {
             let mut opcode_printer = self.opcode_printer_factory.create(&mut printed_instr);
-            printed = match opcode_printer.get_instruction(&self.memory_accessor, self.index)? {
+            printed = match opcode_printer.get_instruction(&self.memory_accessor, self.index) {
                 Some(res) => {
                     for i in 0..res.size() {
                         instr.push(self.memory_accessor.read_memory(self.index + i as u16));
@@ -252,8 +252,8 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
         &self,
         memory_accessor: &impl MemoryAccessor,
         address: u16,
-    ) -> Result<Option<TestInstruction>> {
-        Ok(match memory_accessor.read_memory(address) {
+    ) -> Option<TestInstruction> {
+        match memory_accessor.read_memory(address) {
             0x1 => Some(TestInstruction::One),
             0x2 => Some(TestInstruction::Two(
                 memory_accessor.read_memory(address + 1),
@@ -263,7 +263,7 @@ impl<'a> InstructionPrinter<'a> for TestInstructionPrinter<'a> {
                 memory_accessor.read_memory(address + 2),
             )),
             _ => None,
-        })
+        }
     }
 }
 

@@ -2504,7 +2504,7 @@ impl LR35902Emulator {
         debug_assert!(!self.halted);
 
         let pc = self.read_program_counter();
-        let instr = LR35902Instruction::from_memory(memory_accessor, pc).unwrap();
+        let instr = LR35902Instruction::from_memory(memory_accessor, pc);
 
         if let Some(instr) = &instr {
             self.set_program_counter(pc + instr.size() as u16);

@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 use crate::emulator_common::{Intel8080Register, MemoryAccessor};
-use crate::io;
 use crate::lr35902_emulator::opcodes::LR35902InstructionPrinter;
 use serde_derive::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -325,12 +324,9 @@ const NUM_INSTRUCTIONS: usize = 87usize;
 impl LR35902Instruction {
     #[allow(clippy::unnecessary_cast)]
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn from_memory(
-        memory: &(impl MemoryAccessor + ?Sized),
-        address: u16,
-    ) -> io::Result<Option<Self>> {
+    pub fn from_memory(memory: &(impl MemoryAccessor + ?Sized), address: u16) -> Option<Self> {
         let opcode = memory.read_memory(address);
-        Ok(match opcode {
+        match opcode {
             0x00 => Some(Self::NoOperation),
             0x01 => Some(Self::LoadRegisterPairImmediate {
                 register1: Intel8080Register::B,
@@ -2047,7 +2043,7 @@ impl LR35902Instruction {
             }),
             0xFF => Some(Self::Restart { data1: 7u8 }),
             _ => None,
-        })
+        }
     }
     pub fn to_type(&self) -> LR35902InstructionType {
         match self {

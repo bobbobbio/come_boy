@@ -573,7 +573,6 @@ impl OpcodeGenerator {
         tokens.extend(quote!(
             use crate::emulator_common::{MemoryAccessor, Intel8080Register};
             use crate::#(#use_path)::*::#printer_name;
-            use crate::io;
             use serde_derive::{Serialize, Deserialize};
         ));
     }
@@ -794,12 +793,12 @@ impl OpcodeGenerator {
                 pub fn from_memory(
                     memory: &(impl MemoryAccessor + ?Sized),
                     address: u16
-                ) -> io::Result<Option<Self>> {
+                ) -> Option<Self> {
                     let opcode = memory.read_memory(address);
-                    Ok(match opcode {
+                    match opcode {
                         #( #dispatches, )*
                         _ => None,
-                    })
+                    }
                 }
 
                 pub fn to_type(&self) -> #type_enum_name {

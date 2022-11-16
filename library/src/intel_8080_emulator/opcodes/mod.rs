@@ -52,7 +52,7 @@ impl<'a> InstructionPrinter<'a> for Intel8080InstructionPrinter<'a> {
         &self,
         memory_accessor: &impl MemoryAccessor,
         address: u16,
-    ) -> Result<Option<Intel8080Instruction>> {
+    ) -> Option<Intel8080Instruction> {
         Intel8080Instruction::from_memory(memory_accessor, address)
     }
 }

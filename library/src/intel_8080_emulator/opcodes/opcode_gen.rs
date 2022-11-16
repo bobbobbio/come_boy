@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 use crate::emulator_common::{Intel8080Register, MemoryAccessor};
 use crate::intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
-use crate::io;
 use serde_derive::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Intel8080Instruction {
@@ -284,12 +283,9 @@ const NUM_INSTRUCTIONS: usize = 80usize;
 impl Intel8080Instruction {
     #[allow(clippy::unnecessary_cast)]
     #[cfg_attr(not(debug_assertions), inline(always))]
-    pub fn from_memory(
-        memory: &(impl MemoryAccessor + ?Sized),
-        address: u16,
-    ) -> io::Result<Option<Self>> {
+    pub fn from_memory(memory: &(impl MemoryAccessor + ?Sized), address: u16) -> Option<Self> {
         let opcode = memory.read_memory(address);
-        Ok(match opcode {
+        match opcode {
             0x00 => Some(Self::NoOperation),
             0x01 => Some(Self::LoadRegisterPairImmediate {
                 register1: Intel8080Register::B,
@@ -1034,7 +1030,7 @@ impl Intel8080Instruction {
             }),
             0xFF => Some(Self::Restart { data1: 7u8 }),
             _ => None,
-        })
+        }
     }
     pub fn to_type(&self) -> Intel8080InstructionType {
         match self {

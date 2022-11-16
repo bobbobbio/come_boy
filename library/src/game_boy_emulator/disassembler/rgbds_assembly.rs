@@ -40,7 +40,7 @@ impl<'a> InstructionPrinter<'a> for RGBDSInstructionPrinter<'a> {
         &self,
         memory_accessor: &impl MemoryAccessor,
         address: u16,
-    ) -> Result<Option<LR35902Instruction>> {
+    ) -> Option<LR35902Instruction> {
         LR35902Instruction::from_memory(memory_accessor, address)
     }
 }
