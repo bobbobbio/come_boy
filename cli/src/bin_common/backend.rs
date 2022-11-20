@@ -153,11 +153,13 @@ mod null {
     pub(super) struct NullBackend;
 
     impl Backend for NullBackend {
-        fn run<F: Frontend>(&self, _rendering_options: RenderingOptions, frontend: F) -> ! {
+        fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
             log::info!("Using null renderer");
 
             let (sender, recv) = channel();
-            ctrlc::set_handler(move || drop(sender.send(Event::Quit))).unwrap();
+            if rendering_options.stop_on_ctrl_c {
+                ctrlc::set_handler(move || drop(sender.send(Event::Quit))).unwrap();
+            }
 
             let mut renderer = NullRendererWithEvents(recv);
             frontend.run(&mut renderer, &mut NullSoundStream);

@@ -71,6 +71,7 @@ pub fn main(options: Options) -> Result<()> {
     let rendering_options = RenderingOptions {
         scale: options.scale,
         window_title: "come boy (in debugger)".into(),
+        stop_on_ctrl_c: false,
         ..Default::default()
     };
 

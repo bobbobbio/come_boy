@@ -92,6 +92,7 @@ pub struct RenderingOptions {
     pub scale: u32,
     pub width: u32,
     pub height: u32,
+    pub stop_on_ctrl_c: bool,
 }
 
 impl Default for RenderingOptions {
@@ -101,6 +102,7 @@ impl Default for RenderingOptions {
             scale: 1,
             width: 160,
             height: 144,
+            stop_on_ctrl_c: true,
         }
     }
 }
