@@ -2,6 +2,7 @@
 
 use super::{disassembler, GameBoyEmulator};
 use crate::io;
+use crate::io::Write as _;
 use crate::lr35902_emulator::{LR35902InstructionType, NUM_INSTRUCTIONS};
 use alloc::collections::BTreeMap;
 use alloc::vec;
@@ -63,15 +64,21 @@ pub fn display(rom: &[u8], input: impl io::Read, mut output: impl io::Write) -> 
     )?;
 
     while index < rom.len() as u16 {
-        let count = data.address_to_count.get(&index).copied().unwrap_or(0);
-        write!(&mut output, "{count:010} times ")?;
+        let mut line = Vec::new();
 
-        let mut disassembler = disassembler::create_disassembler(&ma, &mut output);
+        let count = data.address_to_count.get(&index).copied().unwrap_or(0);
+        write!(&mut line, "{count:010} times ")?;
+
+        let mut disassembler = disassembler::create_disassembler(&ma, &mut line);
         disassembler.index = index;
         disassembler.disassemble_one(true)?;
         index = disassembler.index;
 
-        writeln!(&mut output)?;
+        writeln!(&mut line)?;
+
+        if count > 0 {
+            output.write_all(&line[..])?;
+        }
     }
 
     writeln!(&mut output)?;
