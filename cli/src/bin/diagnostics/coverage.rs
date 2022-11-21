@@ -8,7 +8,6 @@ use come_boy::storage::fs::Fs;
 use std::fs::File;
 use std::io::{self, Read as _};
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 struct RecordFrontend {
     fs: Fs,
@@ -39,34 +38,37 @@ impl crate::bin_common::frontend::Frontend for RecordFrontend {
     }
 }
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "Come Boy Coverage Runner",
+#[derive(clap::Args)]
+#[command(
     about = "Runs emulator and records coverage information",
     rename_all = "kebab-case"
 )]
-pub enum Options {
+pub struct Options {
+    #[command(subcommand)]
+    command: Subcommand,
+}
+
+#[derive(clap::Subcommand)]
+enum Subcommand {
     Record {
-        #[structopt(parse(from_os_str))]
         rom: PathBuf,
-        #[structopt(long = "output", parse(from_os_str))]
+        #[arg(long = "output")]
         output: PathBuf,
-        #[structopt(long = "scale", default_value = "4")]
+        #[arg(long = "scale", default_value = "4")]
         scale: u32,
-        #[structopt(long = "renderer", default_value = "default")]
+        #[arg(long = "renderer", default_value = "default")]
         renderer: String,
     },
     Display {
-        #[structopt(parse(from_os_str))]
         rom: PathBuf,
-        #[structopt(long = "input", parse(from_os_str))]
+        #[arg(long = "input")]
         input: PathBuf,
     },
 }
 
 pub fn main(options: Options) -> Result<()> {
-    match options {
-        Options::Record {
+    match options.command {
+        Subcommand::Record {
             rom,
             output,
             scale,
@@ -87,7 +89,7 @@ pub fn main(options: Options) -> Result<()> {
             backend_map.run(&renderer)?;
             Ok(())
         }
-        Options::Display { rom, input } => {
+        Subcommand::Display { rom, input } => {
             let mut rom_file = File::open(rom)?;
             let mut rom: Vec<u8> = vec![];
             rom_file.read_to_end(&mut rom)?;

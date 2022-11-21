@@ -1,7 +1,7 @@
 // Copyright 2022 Remi Bernotavicius
 
 use bin_common::Result;
-use structopt::StructOpt;
+use clap::Parser as _;
 
 #[path = "../../bin_common/mod.rs"]
 mod bin_common;
@@ -14,8 +14,8 @@ mod replay;
 mod screenshot;
 mod tandem;
 
-#[derive(StructOpt)]
-#[structopt(name = "Come Boy Diagnostics Runner")]
+#[derive(clap::Parser)]
+#[command(about = "Come Boy Diagnostics Runner")]
 enum Options {
     Coverage(coverage::Options),
     Debugger(debugger::Options),
@@ -44,6 +44,6 @@ impl Options {
 fn main() -> Result<()> {
     simple_logger::SimpleLogger::new().init().unwrap();
 
-    let options = Options::from_args();
+    let options = Options::parse();
     options.main()
 }

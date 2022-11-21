@@ -3,19 +3,13 @@
 use come_boy::game_boy_emulator::{self, GamePak, Result};
 use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "Come Boy Tandem Runner",
-    about = "Runs emulator in tandem with another source"
-)]
+#[derive(clap::Args)]
+#[command(about = "Runs emulator in tandem with another source")]
 pub struct Options {
-    #[structopt(parse(from_os_str))]
     emulator_trace: PathBuf,
-    #[structopt(parse(from_os_str))]
     rom: PathBuf,
-    #[structopt(long = "pc-only")]
+    #[arg(long = "pc-only")]
     pc_only: bool,
 }
 

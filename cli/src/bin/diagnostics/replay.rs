@@ -6,37 +6,39 @@ use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
 use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "Come Boy Emulator Replay Recorder / Playback",
+#[derive(clap::Args)]
+#[command(
     about = "Record / Playback Emulator Gameplay.",
     rename_all = "kebab-case"
 )]
-pub enum Options {
+pub struct Options {
+    #[command(subcommand)]
+    command: Subcommand,
+}
+
+#[derive(clap::Subcommand)]
+enum Subcommand {
     Record {
-        #[structopt(parse(from_os_str))]
         rom: PathBuf,
-        #[structopt(long = "output", parse(from_os_str))]
+        #[arg(long = "output")]
         output: PathBuf,
-        #[structopt(long = "scale", default_value = "4")]
+        #[arg(long = "scale", default_value = "4")]
         scale: u32,
-        #[structopt(long = "renderer", default_value = "default")]
+        #[arg(long = "renderer", default_value = "default")]
         renderer: String,
     },
     Playback {
-        #[structopt(parse(from_os_str))]
         rom: PathBuf,
-        #[structopt(long = "input", parse(from_os_str))]
+        #[arg(long = "input")]
         input: PathBuf,
-        #[structopt(long = "scale", default_value = "4")]
+        #[arg(long = "scale", default_value = "4")]
         scale: u32,
-        #[structopt(long = "renderer", default_value = "default")]
+        #[arg(long = "renderer", default_value = "default")]
         renderer: String,
     },
     Print {
-        #[structopt(long = "input", parse(from_os_str))]
+        #[arg(long = "input")]
         input: PathBuf,
     },
 }
@@ -100,8 +102,8 @@ impl crate::bin_common::frontend::Frontend for PlaybackFrontend {
 }
 
 pub fn main(options: Options) -> Result<()> {
-    match options {
-        Options::Record {
+    match options.command {
+        Subcommand::Record {
             rom,
             output,
             scale,
@@ -121,7 +123,7 @@ pub fn main(options: Options) -> Result<()> {
             backend_map.run(&renderer)?;
             Ok(())
         }
-        Options::Playback {
+        Subcommand::Playback {
             rom,
             input,
             scale,
@@ -142,7 +144,7 @@ pub fn main(options: Options) -> Result<()> {
             backend_map.run(&renderer)?;
             Ok(())
         }
-        Options::Print { input } => {
+        Subcommand::Print { input } => {
             let file = std::fs::File::open(input)?;
             print!("{}", game_boy_emulator::print_replay(file)?);
             Ok(())

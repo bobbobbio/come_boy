@@ -3,12 +3,10 @@
 use come_boy::game_boy_emulator::{GamePak, Result};
 use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(name = "GamePak Info", about = "Prints information about GamePaks")]
+#[derive(clap::Args)]
+#[command(about = "Prints information about GamePaks")]
 pub struct Options {
-    #[structopt(parse(from_os_str))]
     rom: PathBuf,
 }
 

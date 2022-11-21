@@ -9,21 +9,19 @@ use come_boy::storage::fs::Fs;
 use std::io::{self, BufRead as _};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use structopt::StructOpt;
 
 static INTERRUPTED: AtomicBool = AtomicBool::new(false);
 
 #[allow(unused)]
-#[derive(StructOpt)]
-#[structopt(name = "Come Boy Debugger", about = "Game Boy (DMG) emulator debugger")]
+#[derive(clap::Args)]
+#[command(about = "Game Boy (DMG) emulator debugger")]
 pub struct Options {
-    #[structopt(parse(from_os_str))]
     rom: PathBuf,
 
-    #[structopt(long = "scale", default_value = "4")]
+    #[arg(long = "scale", default_value = "4")]
     scale: u32,
 
-    #[structopt(long = "renderer", default_value = "default")]
+    #[arg(long = "renderer", default_value = "default")]
     renderer: String,
 }
 

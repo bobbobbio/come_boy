@@ -7,8 +7,8 @@ use std::fs::File;
 use std::io::{self, Read as _};
 use std::path::PathBuf;
 use std::str::FromStr;
-use structopt::StructOpt;
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 enum InstructionSet {
     GameBoy,
     LR35902,
@@ -16,16 +16,13 @@ enum InstructionSet {
 }
 
 impl FromStr for InstructionSet {
-    type Err = clap::Error;
-    fn from_str(s: &str) -> clap::Result<Self> {
+    type Err = &'static str;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_uppercase().as_ref() {
             "GAMEBOY" => Ok(InstructionSet::GameBoy),
             "LR35902" => Ok(InstructionSet::LR35902),
             "INTEL8080" => Ok(InstructionSet::Intel8080),
-            _ => Err(clap::error::Error::raw(
-                clap::ErrorKind::InvalidValue,
-                "invalid instruction-set",
-            )),
+            _ => Err("invalid instruction-set"),
         }
     }
 }
@@ -44,17 +41,13 @@ fn disassemble_rom(
     Ok(())
 }
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "Come Boy Disassembler",
-    about = "Game Boy / LR35902 / Intel 8080 disassembler"
-)]
+#[derive(clap::Args)]
+#[command(about = "Game Boy / LR35902 / Intel 8080 disassembler")]
 pub struct Options {
-    #[structopt(parse(from_os_str))]
     rom: PathBuf,
-    #[structopt(long = "instruction-set", default_value = "GameBoy")]
+    #[arg(long = "instruction-set", default_value = "GameBoy")]
     instruction_set: InstructionSet,
-    #[structopt(long = "hide-opcodes")]
+    #[arg(long = "hide-opcodes")]
     hide_opcodes: bool,
 }
 

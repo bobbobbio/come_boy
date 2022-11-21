@@ -4,21 +4,16 @@ use come_boy::game_boy_emulator::{self, GamePak, Result};
 use come_boy::rendering::bitmap::BitmapRenderer;
 use come_boy::storage::fs::Fs;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(
-    name = "Come Boy Emulator Screenshot Taker",
-    about = "Runs emulator for specified amount of time and takes screenshot"
-)]
+#[derive(clap::Args)]
+#[command(about = "Runs emulator for specified amount of time and takes screenshot")]
 pub struct Options {
-    #[structopt(parse(from_os_str))]
     rom: PathBuf,
-    #[structopt(long = "ticks")]
+    #[arg(long = "ticks")]
     ticks: u64,
-    #[structopt(long = "replay")]
+    #[arg(long = "replay")]
     replay: Option<PathBuf>,
-    #[structopt(long = "output", parse(from_os_str))]
+    #[arg(long = "output")]
     output: PathBuf,
 }
 

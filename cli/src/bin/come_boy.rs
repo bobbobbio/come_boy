@@ -4,6 +4,7 @@
 
 use bin_common::backend::BackendMap;
 use bin_common::Result;
+use clap::Parser as _;
 use come_boy::game_boy_emulator::{
     self,
     perf::{PerfObserver, PerfStats},
@@ -15,7 +16,6 @@ use come_boy::storage::fs::Fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
 #[path = "../bin_common/mod.rs"]
 mod bin_common;
@@ -96,37 +96,36 @@ impl bin_common::frontend::Frontend for Frontend {
     }
 }
 
-#[derive(StructOpt)]
-#[structopt(name = "Come Boy", about = "Game Boy (DMG) emulator")]
+#[derive(clap::Parser)]
+#[command(about = "Game Boy (DMG) emulator")]
 struct Options {
-    #[structopt(parse(from_os_str))]
     rom: PathBuf,
 
-    #[structopt(long = "scale", default_value = "4")]
+    #[arg(long = "scale", default_value = "4")]
     scale: u32,
 
-    #[structopt(long = "renderer", default_value = "default")]
+    #[arg(long = "renderer", default_value = "default")]
     renderer: String,
 
-    #[structopt(long = "save-state", parse(from_os_str))]
+    #[arg(long = "save-state")]
     save_state: Option<PathBuf>,
 
-    #[structopt(long = "disable-sound")]
+    #[arg(long = "disable-sound")]
     disable_sound: bool,
 
-    #[structopt(long = "disable-joypad")]
+    #[arg(long = "disable-joypad")]
     disable_joypad: bool,
 
-    #[structopt(long = "unlock-cpu")]
+    #[arg(long = "unlock-cpu")]
     unlock_cpu: bool,
 
-    #[structopt(long = "perf-stats")]
+    #[arg(long = "perf-stats")]
     perf_stats: bool,
 
-    #[structopt(long = "run-until")]
+    #[arg(long = "run-until")]
     run_until: Option<u64>,
 
-    #[structopt(long = "log-level", default_value = "info")]
+    #[arg(long = "log-level", default_value = "info")]
     log_level: log::LevelFilter,
 }
 
@@ -138,7 +137,7 @@ fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
 }
 
 fn main() -> Result<()> {
-    let options = Options::from_args();
+    let options = Options::parse();
     simple_logger::SimpleLogger::new()
         .with_level(options.log_level)
         .init()
