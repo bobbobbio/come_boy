@@ -213,6 +213,11 @@ impl<T> Scheduler<T> {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
+    pub fn peek_time(&self) -> Option<u64> {
+        self.timeline.get(0).map(|e| e.time)
+    }
+
+    #[cfg_attr(not(debug_assertions), inline(always))]
     pub fn drop_events(&mut self, mut should_drop: impl FnMut(&T) -> bool) {
         self.timeline.retain(|e| !should_drop(&e.event));
     }
