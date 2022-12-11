@@ -20,11 +20,11 @@ impl Fs {
     }
 
     pub fn path_to_key(path: &Path) -> io::Result<String> {
-        let path_out = if let Some(parent) = path.parent() {
-            parent.canonicalize()?.join(path.file_name().unwrap())
-        } else {
-            path.canonicalize()?
-        };
+        let mut parent = path.parent().unwrap_or_else(|| Path::new("./"));
+        if parent == Path::new("") {
+            parent = Path::new("./");
+        }
+        let path_out = parent.canonicalize()?.join(path.file_name().unwrap());
         Ok(path_out.to_str().unwrap().to_owned())
     }
 }
