@@ -1,7 +1,6 @@
 // copyright 2021 Remi Bernotavicius
 
 #![no_std]
-#![feature(default_alloc_error_handler)]
 
 extern crate alloc;
 
