@@ -210,7 +210,7 @@ impl<'a> Debugger<'a> {
         let height = 20usize;
 
         let end_address = start_address.saturating_add((width * height - 1) as u16);
-        for (i, address) in (start_address..=end_address).into_iter().enumerate() {
+        for (i, address) in (start_address..=end_address).enumerate() {
             if i % width == 0 {
                 write!(
                     self.out,

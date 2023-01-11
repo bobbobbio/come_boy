@@ -494,7 +494,6 @@ fn print_memory_diff(out: &mut impl Write, a: &[u8], b: &[u8]) -> io::Result<()>
         .find_map(|(i, (a, b))| if a != b { Some(i) } else { None })
         .unwrap_or(0);
     let end = iter
-        .clone()
         .rev()
         .find_map(|(i, (a, b))| if a != b { Some(i) } else { None })
         .unwrap_or(0);

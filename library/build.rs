@@ -1235,7 +1235,7 @@ fn game_pak_title(path: &Path) -> String {
         .position(|&c| c == b'\0')
         .unwrap_or(title_slice.len());
     let title: &str = str::from_utf8(&title_slice[..title_end])
-        .unwrap_or_else(|_| panic!("Malformed title {:?}", title_slice));
+        .unwrap_or_else(|_| panic!("Malformed title {title_slice:?}"));
     title.into()
 }
 
