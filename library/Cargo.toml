@@ -11,12 +11,20 @@ homepage = "https://github.com/bobbobbio/come_boy"
 crate-type = ["rlib"]
 
 [features]
-default = ["bitmap-renderer", "game-pad", "speedy2d-renderer", "std", "sound"]
-game-pad = ["gilrs"]
+default = [
+    "bitmap-renderer",
+    "game-pad",
+    "glow-renderer",
+    "sound",
+    "speedy2d-renderer",
+    "std",
+]
 bitmap-renderer = ["bmp"]
-speedy2d-renderer = ["speedy2d", "crossbeam"]
+game-pad = ["gilrs"]
+glow-renderer = ["glow"]
 sdl2-renderer = ["sdl2"]
 sound = ["cpal"]
+speedy2d-renderer = ["speedy2d", "crossbeam"]
 std = ["bincode"]
 
 [badges]
@@ -28,6 +36,7 @@ bmp = { version = "*", optional = true }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "0.8.1"
+glow = { version = "*", optional = true }
 gilrs = { version = "*", features = ["wasm-bindgen"], optional = true }
 log = { version = "*", default_features = false }
 num_enum = { version = "*", default_features = false }

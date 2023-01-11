@@ -37,12 +37,12 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
         .expect("should register `requestAnimationFrame` OK");
 }
 
-fn set_up_rendering(emulator: Rc<RefCell<Emulator>>) {
+fn set_up_rendering(emulator: Rc<RefCell<Emulator>>, gl: glow::Context) {
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        emulator.borrow_mut().render();
+        emulator.borrow_mut().render(&gl);
 
         // Schedule ourselves for another requestAnimationFrame callback.
         request_animation_frame(f.borrow().as_ref().unwrap());
@@ -129,8 +129,10 @@ pub fn start() -> Result<(), JsValue> {
     canvas.set_width((renderer::WIDTH * renderer::PIXEL_SIZE) as u32);
     canvas.set_height((renderer::HEIGHT * renderer::PIXEL_SIZE) as u32);
 
-    let emulator = Rc::new(RefCell::new(Emulator::new(&canvas)));
-    set_up_rendering(emulator.clone());
+    let gl = renderer::get_rendering_context(&canvas);
+
+    let emulator = Rc::new(RefCell::new(Emulator::new(&gl)));
+    set_up_rendering(emulator.clone(), gl);
 
     set_up_file_input(emulator.clone());
 

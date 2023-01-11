@@ -9,12 +9,18 @@ crate-type = ["cdylib"]
 
 [dependencies]
 base64 = "*"
-come_boy = {default-features = false, features = ["std", "game-pad"], path = "../library", version = "*"}
 console_error_panic_hook = "*"
+glow = "*"
 js-sys = "*"
 log = "*"
 wasm-bindgen = "*"
 wasm-logger = "*"
+
+[dependencies.come_boy]
+default-features = false
+features = ["std", "game-pad", "glow-renderer"]
+path = "../library"
+version = "*"
 
 [dependencies.web-sys]
 version = "*"

@@ -13,6 +13,9 @@ pub mod speedy;
 #[cfg(feature = "bitmap-renderer")]
 pub mod bitmap;
 
+#[cfg(feature = "glow-renderer")]
+pub mod glow;
+
 #[derive(Serialize, Deserialize, Clone, Copy)]
 pub enum Keycode {
     Down,

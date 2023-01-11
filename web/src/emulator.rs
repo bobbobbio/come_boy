@@ -66,10 +66,10 @@ pub struct Emulator {
 }
 
 impl Emulator {
-    pub fn new(canvas: &web_sys::HtmlCanvasElement) -> Self {
+    pub fn new(gl: &glow::Context) -> Self {
         let emulator = GameBoyEmulator::new();
         let ops = GameBoyOps::new(
-            CanvasRenderer::new(canvas),
+            CanvasRenderer::new(gl),
             NullSoundStream,
             WebStorage::new(local_storage()),
         );
@@ -97,8 +97,8 @@ impl Emulator {
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
     }
 
-    pub fn render(&self) {
-        self.ops.renderer.render();
+    pub fn render(&mut self, gl: &glow::Context) {
+        self.ops.renderer.render(gl);
     }
 
     fn read_key_events(&mut self) {
