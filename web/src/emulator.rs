@@ -66,7 +66,7 @@ pub struct Emulator {
 }
 
 impl Emulator {
-    pub fn new(gl: &glow::Context) -> Self {
+    pub fn new(gl: &eframe::glow::Context) -> Self {
         let emulator = GameBoyEmulator::new();
         let ops = GameBoyOps::new(
             CanvasRenderer::new(gl),
@@ -97,7 +97,7 @@ impl Emulator {
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
     }
 
-    pub fn render(&mut self, gl: &glow::Context) {
+    pub fn render(&mut self, gl: &eframe::glow::Context) {
         self.ops.renderer.render(gl);
     }
 

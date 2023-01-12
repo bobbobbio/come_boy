@@ -3,32 +3,10 @@
 pub use come_boy::rendering::glow::{HEIGHT, PIXEL_SIZE, WIDTH};
 use come_boy::rendering::{glow::GlowRenderer, Event, Keycode, Renderer};
 use std::{io, mem};
-use wasm_bindgen::JsCast;
-use web_sys::WebGl2RenderingContext;
 
 pub struct CanvasRenderer {
     inner: GlowRenderer,
     keyboard_events: Vec<Event>,
-}
-
-pub fn get_rendering_context(canvas: &web_sys::HtmlCanvasElement) -> glow::Context {
-    let context = canvas
-        .get_context("webgl2")
-        .unwrap()
-        .unwrap()
-        .dyn_into::<WebGl2RenderingContext>()
-        .unwrap();
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        glow::Context::from_webgl2_context(context)
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    {
-        drop(context);
-        unimplemented!()
-    }
 }
 
 fn keycode_from_native_code(code: &str) -> Keycode {

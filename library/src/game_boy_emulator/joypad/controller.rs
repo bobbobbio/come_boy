@@ -9,6 +9,8 @@ pub struct ControllerJoyPad {
     gilrs: gilrs::Gilrs,
 }
 
+unsafe impl Send for ControllerJoyPad {}
+
 impl Default for ControllerJoyPad {
     fn default() -> Self {
         Self::new()

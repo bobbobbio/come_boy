@@ -41,9 +41,11 @@ unsafe fn link_program(
 
 pub struct GlowRenderer {
     texture: glow::Texture,
+    program: glow::Program,
+    vertex_array: glow::VertexArray,
     front_buffer: Vec<u8>,
     back_buffer: Vec<u8>,
-    buffer_dirty: bool,
+    pub buffer_dirty: bool,
 }
 
 pub const WIDTH: usize = 160;
@@ -63,7 +65,10 @@ fn set_rectangle(context: &glow::Context, x: f32, y: f32, width: f32, height: f3
     }
 }
 
-unsafe fn set_up_context(context: &glow::Context, texture: glow::Texture) {
+unsafe fn set_up_context(
+    context: &glow::Context,
+    texture: glow::Texture,
+) -> (glow::Program, glow::VertexArray) {
     let vert_shader = compile_shader(
         context,
         glow::VERTEX_SHADER,
@@ -147,11 +152,8 @@ unsafe fn set_up_context(context: &glow::Context, texture: glow::Texture) {
     context.bind_buffer(glow::ARRAY_BUFFER, Some(texcoord_buffer));
 
     let data: [f32; 12] = [0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0];
-    unsafe {
-        let u8_slice =
-            slice::from_raw_parts(data.as_ptr() as *const u8, 12 * mem::size_of::<f32>());
-        context.buffer_data_u8_slice(glow::ARRAY_BUFFER, u8_slice, glow::STATIC_DRAW);
-    }
+    let u8_slice = slice::from_raw_parts(data.as_ptr() as *const u8, 12 * mem::size_of::<f32>());
+    context.buffer_data_u8_slice(glow::ARRAY_BUFFER, u8_slice, glow::STATIC_DRAW);
 
     context.enable_vertex_attrib_array(texcoord_attribute_location);
 
@@ -197,14 +199,18 @@ unsafe fn set_up_context(context: &glow::Context, texture: glow::Texture) {
 
     context.bind_buffer(glow::ARRAY_BUFFER, Some(position_buffer));
     set_rectangle(context, 0.0, 0.0, width, height);
+
+    (program, vao)
 }
 
 impl GlowRenderer {
     pub fn new(context: &glow::Context) -> Self {
         let texture = unsafe { context.create_texture() }.unwrap();
-        unsafe { set_up_context(context, texture) };
+        let (program, vertex_array) = unsafe { set_up_context(context, texture) };
         Self {
             texture,
+            program,
+            vertex_array,
             front_buffer: vec![u8::MAX; WIDTH * HEIGHT * 4],
             back_buffer: vec![u8::MAX; WIDTH * HEIGHT * 4],
             buffer_dirty: false,
@@ -212,10 +218,13 @@ impl GlowRenderer {
     }
 
     pub fn render(&mut self, context: &glow::Context) {
-        if self.buffer_dirty {
-            unsafe {
-                context.bind_texture(glow::TEXTURE_2D, Some(self.texture));
+        unsafe {
+            context.bind_vertex_array(Some(self.vertex_array));
+            context.active_texture(glow::TEXTURE0);
+            context.use_program(Some(self.program));
+            context.bind_texture(glow::TEXTURE_2D, Some(self.texture));
 
+            if self.buffer_dirty {
                 context.tex_image_2d(
                     glow::TEXTURE_2D,
                     0,
@@ -227,10 +236,10 @@ impl GlowRenderer {
                     glow::UNSIGNED_BYTE,
                     Some(&self.front_buffer[..]),
                 );
+                self.buffer_dirty = false;
             }
-            self.buffer_dirty = false;
+            context.draw_arrays(glow::TRIANGLES, 0, 6)
         }
-        unsafe { context.draw_arrays(glow::TRIANGLES, 0, 6) };
     }
 }
 

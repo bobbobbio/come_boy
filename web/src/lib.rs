@@ -1,5 +1,6 @@
 // copyright 2021 Remi Bernotavicius
 use emulator::Emulator;
+use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
@@ -13,15 +14,6 @@ fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
 
-fn canvas() -> web_sys::HtmlCanvasElement {
-    let document = window().document().unwrap();
-    let canvas = document.get_element_by_id("canvas").unwrap();
-    canvas
-        .dyn_into::<web_sys::HtmlCanvasElement>()
-        .map_err(|_| ())
-        .unwrap()
-}
-
 fn input() -> web_sys::HtmlInputElement {
     let document = window().document().unwrap();
     let input = document.get_element_by_id("input").unwrap();
@@ -31,27 +23,26 @@ fn input() -> web_sys::HtmlInputElement {
         .unwrap()
 }
 
-fn request_animation_frame(f: &Closure<dyn FnMut()>) {
-    window()
-        .request_animation_frame(f.as_ref().unchecked_ref())
-        .expect("should register `requestAnimationFrame` OK");
+#[derive(Clone)]
+struct EmulatorRef(Rc<RefCell<Emulator>>);
+
+impl EmulatorRef {
+    fn new(emulator: Emulator) -> Self {
+        Self(Rc::new(RefCell::new(emulator)))
+    }
+
+    fn borrow_mut(&self) -> std::cell::RefMut<'_, Emulator> {
+        self.0.borrow_mut()
+    }
 }
 
-fn set_up_rendering(emulator: Rc<RefCell<Emulator>>, gl: glow::Context) {
-    let f = Rc::new(RefCell::new(None));
-    let g = f.clone();
+#[cfg(target_arch = "wasm32")]
+unsafe impl Send for EmulatorRef {}
 
-    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        emulator.borrow_mut().render(&gl);
+#[cfg(target_arch = "wasm32")]
+unsafe impl Sync for EmulatorRef {}
 
-        // Schedule ourselves for another requestAnimationFrame callback.
-        request_animation_frame(f.borrow().as_ref().unwrap());
-    }) as Box<dyn FnMut()>));
-
-    request_animation_frame(g.borrow().as_ref().unwrap());
-}
-
-fn set_up_file_input(emulator: Rc<RefCell<Emulator>>) {
+fn set_up_file_input(emulator: EmulatorRef) {
     let on_change = Closure::wrap(Box::new(move || {
         let file_list = input().files().unwrap();
         let file = file_list.get(0).unwrap();
@@ -76,7 +67,7 @@ fn set_up_file_input(emulator: Rc<RefCell<Emulator>>) {
     on_change.forget();
 }
 
-fn set_up_input(emulator: Rc<RefCell<Emulator>>) {
+fn set_up_input(emulator: EmulatorRef) {
     let window = window();
 
     let their_emulator = emulator.clone();
@@ -118,27 +109,89 @@ fn schedule<F: FnMut() -> i32 + 'static>(mut body: F, from_now: i32) {
     request_timeout(g.borrow().as_ref().unwrap(), from_now);
 }
 
+fn set_up_tick(emulator: EmulatorRef) {
+    schedule(move || emulator.borrow_mut().tick(), 0);
+}
+
+struct MyEguiApp {
+    emulator: EmulatorRef,
+}
+
+impl MyEguiApp {
+    #[allow(dead_code)]
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        let gl = cc.gl.as_ref().unwrap();
+
+        let emulator = EmulatorRef::new(Emulator::new(gl.as_ref()));
+        set_up_file_input(emulator.clone());
+
+        set_up_tick(emulator.clone());
+        set_up_input(emulator.clone());
+
+        Self { emulator }
+    }
+
+    fn custom_painting(&mut self, ui: &mut egui::Ui) {
+        let emulator = self.emulator.clone();
+        let callback = move |_info: egui::PaintCallbackInfo,
+                             painter: &egui_glow::painter::Painter| {
+            emulator.borrow_mut().render(painter.gl());
+        };
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            let (rect, _) = ui.allocate_exact_size(
+                egui::Vec2::new((WIDTH * PIXEL_SIZE) as f32, (HEIGHT * PIXEL_SIZE) as f32),
+                egui::Sense::drag(),
+            );
+
+            let callback = egui::PaintCallback {
+                rect,
+                callback: std::sync::Arc::new(egui_glow::CallbackFn::new(callback)),
+            };
+            ui.painter().add(callback);
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            drop((ui, callback));
+        }
+    }
+}
+
+impl eframe::App for MyEguiApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.spacing_mut().item_spacing.x = 0.0;
+                ui.label("ComeBoy");
+            });
+
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.custom_painting(ui);
+            });
+
+            if ui.add(egui::Button::new("load ROM")).clicked() {
+                input().click();
+            }
+            ctx.request_repaint_after(std::time::Duration::from_millis(17));
+        });
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
-pub fn start() -> Result<(), JsValue> {
+pub async fn start() -> Result<(), eframe::wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
     wasm_logger::init(wasm_logger::Config::default());
-
     log::info!("Come Boy Starting");
 
-    let canvas = canvas();
-    canvas.set_width((renderer::WIDTH * renderer::PIXEL_SIZE) as u32);
-    canvas.set_height((renderer::HEIGHT * renderer::PIXEL_SIZE) as u32);
-
-    let gl = renderer::get_rendering_context(&canvas);
-
-    let emulator = Rc::new(RefCell::new(Emulator::new(&gl)));
-    set_up_rendering(emulator.clone(), gl);
-
-    set_up_file_input(emulator.clone());
-
-    set_up_input(emulator.clone());
-
-    schedule(move || emulator.borrow_mut().tick(), 0);
-
+    let web_options = eframe::WebOptions::default();
+    eframe::start_web(
+        "canvas",
+        web_options,
+        Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+    )
+    .await?;
     Ok(())
 }

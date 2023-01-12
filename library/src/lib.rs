@@ -17,6 +17,9 @@ pub mod sound;
 pub mod storage;
 mod util;
 
+#[cfg(feature = "ui")]
+pub mod ui;
+
 #[cfg(feature = "std")]
 pub use {
     bincode as codec,

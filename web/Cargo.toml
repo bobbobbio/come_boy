@@ -8,13 +8,17 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+egui = "*"
+egui_glow = "*"
+eframe = "*"
 base64 = "*"
 console_error_panic_hook = "*"
-glow = "*"
+glow = "^0.11"
 js-sys = "*"
 log = "*"
 wasm-bindgen = "*"
 wasm-logger = "*"
+wasm-bindgen-futures = "*"
 
 [dependencies.come_boy]
 default-features = false
