@@ -1,6 +1,6 @@
 // copyright 2021 Remi Bernotavicius
+use egui::widgets::Hyperlink;
 use emulator::Emulator;
-use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::prelude::*;
@@ -20,6 +20,16 @@ fn input() -> web_sys::HtmlInputElement {
     input
         .dyn_into::<web_sys::HtmlInputElement>()
         .map_err(|_| ())
+        .unwrap()
+}
+
+fn meta(name: &str) -> String {
+    let document = window().document().unwrap();
+    let head = document.head().unwrap();
+    head.query_selector(&format!("[name={name}][content]"))
+        .unwrap()
+        .unwrap()
+        .get_attribute("content")
         .unwrap()
 }
 
@@ -140,6 +150,8 @@ impl MyEguiApp {
 
         #[cfg(target_arch = "wasm32")]
         {
+            use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
+
             let (rect, _) = ui.allocate_exact_size(
                 egui::Vec2::new((WIDTH * PIXEL_SIZE) as f32, (HEIGHT * PIXEL_SIZE) as f32),
                 egui::Sense::drag(),
@@ -174,6 +186,13 @@ impl eframe::App for MyEguiApp {
             if ui.add(egui::Button::new("load ROM")).clicked() {
                 input().click();
             }
+            ui.add(Hyperlink::from_label_and_url(
+                "come_boy on github",
+                "https://github.com/bobbobbio/come_boy",
+            ));
+            ui.label(&format!("revision: {}", meta("revision")));
+            ui.label(&format!("built at: {}", meta("build_date")));
+
             ctx.request_repaint_after(std::time::Duration::from_millis(17));
         });
     }
