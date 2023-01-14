@@ -3,6 +3,8 @@
 use super::{Color, Event, Renderer};
 use alloc::{string::String, vec, vec::Vec};
 use glow::HasContext as _;
+use std::ops::DerefMut;
+use std::sync::{Arc, Mutex};
 use std::{io, mem, slice};
 
 unsafe fn compile_shader(
@@ -39,13 +41,63 @@ unsafe fn link_program(
     }
 }
 
-pub struct GlowRenderer {
+struct ScreenBuffer {
+    data: Vec<u8>,
+    dirty: bool,
+}
+
+const DEFAULT_COLOR: SimpleColor = SimpleColor {
+    r: 0xe0,
+    g: 0xf8,
+    b: 0xd0,
+};
+
+impl ScreenBuffer {
+    fn new() -> Self {
+        Self {
+            data: DEFAULT_COLOR
+                .to_array()
+                .into_iter()
+                .cycle()
+                .take(WIDTH * HEIGHT * 4)
+                .collect(),
+            dirty: true,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct SharedScreenBuffer {
+    buffer: Arc<Mutex<ScreenBuffer>>,
+}
+
+impl SharedScreenBuffer {
+    fn new() -> Self {
+        Self {
+            buffer: Arc::new(Mutex::new(ScreenBuffer::new())),
+        }
+    }
+
+    fn buffer(&self) -> impl DerefMut<Target = ScreenBuffer> + '_ {
+        self.buffer.lock().unwrap()
+    }
+
+    fn swap(&mut self, other: &mut ScreenBuffer) {
+        let mut buffer = self.buffer.lock().unwrap();
+        std::mem::swap(&mut *buffer, other);
+    }
+}
+
+pub struct GlowBackRenderer {
+    front_buffer: SharedScreenBuffer,
+    back_buffer: ScreenBuffer,
+}
+
+pub struct GlowFrontRenderer {
     texture: glow::Texture,
     program: glow::Program,
     vertex_array: glow::VertexArray,
-    front_buffer: Vec<u8>,
-    back_buffer: Vec<u8>,
-    pub buffer_dirty: bool,
+    front_buffer: SharedScreenBuffer,
 }
 
 pub const WIDTH: usize = 160;
@@ -203,28 +255,35 @@ unsafe fn set_up_context(
     (program, vao)
 }
 
-impl GlowRenderer {
-    pub fn new(context: &glow::Context) -> Self {
+pub fn render_pair(context: &glow::Context) -> (GlowFrontRenderer, GlowBackRenderer) {
+    let front_buffer = SharedScreenBuffer::new();
+    (
+        GlowFrontRenderer::new(front_buffer.clone(), context),
+        GlowBackRenderer::new(front_buffer),
+    )
+}
+
+impl GlowFrontRenderer {
+    fn new(front_buffer: SharedScreenBuffer, context: &glow::Context) -> Self {
         let texture = unsafe { context.create_texture() }.unwrap();
         let (program, vertex_array) = unsafe { set_up_context(context, texture) };
         Self {
             texture,
             program,
             vertex_array,
-            front_buffer: vec![u8::MAX; WIDTH * HEIGHT * 4],
-            back_buffer: vec![u8::MAX; WIDTH * HEIGHT * 4],
-            buffer_dirty: false,
+            front_buffer,
         }
     }
 
-    pub fn render(&mut self, context: &glow::Context) {
+    pub fn render(&self, context: &glow::Context) {
         unsafe {
             context.bind_vertex_array(Some(self.vertex_array));
             context.active_texture(glow::TEXTURE0);
             context.use_program(Some(self.program));
             context.bind_texture(glow::TEXTURE_2D, Some(self.texture));
 
-            if self.buffer_dirty {
+            let mut buffer = self.front_buffer.buffer();
+            if buffer.dirty {
                 context.tex_image_2d(
                     glow::TEXTURE_2D,
                     0,
@@ -234,9 +293,9 @@ impl GlowRenderer {
                     0,
                     glow::RGBA,
                     glow::UNSIGNED_BYTE,
-                    Some(&self.front_buffer[..]),
+                    Some(&buffer.data[..]),
                 );
-                self.buffer_dirty = false;
+                buffer.dirty = false;
             }
             context.draw_arrays(glow::TRIANGLES, 0, 6)
         }
@@ -250,13 +309,28 @@ pub struct SimpleColor {
     b: u8,
 }
 
+impl SimpleColor {
+    fn to_array(&self) -> [u8; 4] {
+        [self.r, self.g, self.b, 255]
+    }
+}
+
 impl Color for SimpleColor {
     fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }
 }
 
-impl Renderer for GlowRenderer {
+impl GlowBackRenderer {
+    fn new(front_buffer: SharedScreenBuffer) -> Self {
+        Self {
+            front_buffer,
+            back_buffer: ScreenBuffer::new(),
+        }
+    }
+}
+
+impl Renderer for GlowBackRenderer {
     type Color = SimpleColor;
 
     fn poll_events(&mut self) -> Vec<Event> {
@@ -275,14 +349,14 @@ impl Renderer for GlowRenderer {
         assert!(y >= 0, "{}", "y = {y} > 0");
 
         let i = (y as usize * WIDTH + x as usize) * 4;
-        self.back_buffer[i] = color.r;
-        self.back_buffer[i + 1] = color.g;
-        self.back_buffer[i + 2] = color.b;
-        self.back_buffer[i + 3] = 255;
+        self.back_buffer.data[i] = color.r;
+        self.back_buffer.data[i + 1] = color.g;
+        self.back_buffer.data[i + 2] = color.b;
+        self.back_buffer.data[i + 3] = 255;
     }
 
     fn present(&mut self) {
-        mem::swap(&mut self.front_buffer, &mut self.back_buffer);
-        self.buffer_dirty = true;
+        self.back_buffer.dirty = true;
+        self.front_buffer.swap(&mut self.back_buffer);
     }
 }

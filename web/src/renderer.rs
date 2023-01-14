@@ -1,11 +1,19 @@
 // copyright 2021 Remi Bernotavicius
 
 pub use come_boy::rendering::glow::{HEIGHT, PIXEL_SIZE, WIDTH};
-use come_boy::rendering::{glow::GlowRenderer, Event, Keycode, Renderer};
+use come_boy::rendering::{
+    self,
+    glow::{GlowBackRenderer, GlowFrontRenderer},
+    Event, Keycode, Renderer,
+};
 use std::{io, mem};
 
-pub struct CanvasRenderer {
-    inner: GlowRenderer,
+pub struct CanvasFrontRenderer {
+    inner: GlowFrontRenderer,
+}
+
+pub struct CanvasBackRenderer {
+    inner: GlowBackRenderer,
     keyboard_events: Vec<Event>,
 }
 
@@ -26,16 +34,30 @@ fn keycode_from_native_code(code: &str) -> Keycode {
     }
 }
 
-impl CanvasRenderer {
-    pub fn new(gl: &glow::Context) -> Self {
-        Self {
-            inner: GlowRenderer::new(gl),
-            keyboard_events: vec![],
-        }
+pub fn render_pair(gl: &glow::Context) -> (CanvasFrontRenderer, CanvasBackRenderer) {
+    let (front, back) = rendering::glow::render_pair(gl);
+    (
+        CanvasFrontRenderer::new(front),
+        CanvasBackRenderer::new(back),
+    )
+}
+
+impl CanvasFrontRenderer {
+    pub fn new(inner: GlowFrontRenderer) -> Self {
+        Self { inner }
     }
 
-    pub fn render(&mut self, gl: &glow::Context) {
+    pub fn render(&self, gl: &glow::Context) {
         self.inner.render(gl);
+    }
+}
+
+impl CanvasBackRenderer {
+    pub fn new(inner: GlowBackRenderer) -> Self {
+        Self {
+            inner,
+            keyboard_events: vec![],
+        }
     }
 
     pub fn on_key_down(&mut self, code: &str) {
@@ -49,8 +71,8 @@ impl CanvasRenderer {
     }
 }
 
-impl Renderer for CanvasRenderer {
-    type Color = <GlowRenderer as Renderer>::Color;
+impl Renderer for CanvasBackRenderer {
+    type Color = <GlowBackRenderer as Renderer>::Color;
 
     fn poll_events(&mut self) -> Vec<Event> {
         mem::take(&mut self.keyboard_events)

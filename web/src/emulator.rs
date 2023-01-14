@@ -1,4 +1,4 @@
-use super::renderer::CanvasRenderer;
+use super::renderer::CanvasBackRenderer;
 use super::storage::WebStorage;
 use super::window;
 use come_boy::game_boy_emulator::{
@@ -62,18 +62,14 @@ impl Underclocker {
 
 pub struct Emulator {
     emulator: GameBoyEmulator,
-    ops: GameBoyOps<CanvasRenderer, NullSoundStream, WebStorage>,
+    ops: GameBoyOps<CanvasBackRenderer, NullSoundStream, WebStorage>,
     underclocker: Underclocker,
 }
 
 impl Emulator {
-    pub fn new(gl: &eframe::glow::Context) -> Self {
+    pub fn new(renderer: CanvasBackRenderer) -> Self {
         let emulator = GameBoyEmulator::new();
-        let ops = GameBoyOps::new(
-            CanvasRenderer::new(gl),
-            NullSoundStream,
-            WebStorage::new(local_storage()),
-        );
+        let ops = GameBoyOps::new(renderer, NullSoundStream, WebStorage::new(local_storage()));
         let underclocker = Underclocker::new(emulator.elapsed_cycles(), ops.clock_speed_hz);
         Self {
             emulator,
@@ -96,10 +92,6 @@ impl Emulator {
         let game_pak = GamePak::new(rom, &mut self.ops.storage, Some(&sram_key)).unwrap();
         self.ops.load_game_pak(game_pak);
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
-    }
-
-    pub fn render(&mut self, gl: &eframe::glow::Context) {
-        self.ops.renderer.render(gl);
     }
 
     fn read_key_events(&mut self) {

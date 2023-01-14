@@ -1,8 +1,10 @@
 // copyright 2021 Remi Bernotavicius
 use egui::widgets::Hyperlink;
 use emulator::Emulator;
+use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -46,12 +48,6 @@ impl EmulatorRef {
         self.0.borrow_mut()
     }
 }
-
-#[cfg(target_arch = "wasm32")]
-unsafe impl Send for EmulatorRef {}
-
-#[cfg(target_arch = "wasm32")]
-unsafe impl Sync for EmulatorRef {}
 
 fn set_up_file_input(emulator: EmulatorRef) {
     let on_change = Closure::wrap(Box::new(move || {
@@ -104,6 +100,7 @@ fn set_up_input(emulator: EmulatorRef) {
 }
 
 struct MyEguiApp {
+    paint_callback: Arc<egui_glow::CallbackFn>,
     emulator: EmulatorRef,
 }
 
@@ -112,40 +109,32 @@ impl MyEguiApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let gl = cc.gl.as_ref().unwrap();
 
-        let emulator = EmulatorRef::new(Emulator::new(gl.as_ref()));
+        let (front, back) = renderer::render_pair(gl);
+        let emulator = EmulatorRef::new(Emulator::new(back));
         set_up_file_input(emulator.clone());
         set_up_input(emulator.clone());
 
-        Self { emulator }
+        let paint_cb = move |_: egui::PaintCallbackInfo, painter: &egui_glow::painter::Painter| {
+            front.render(painter.gl());
+        };
+
+        Self {
+            emulator,
+            paint_callback: Arc::new(egui_glow::CallbackFn::new(paint_cb)),
+        }
     }
 
     fn custom_painting(&mut self, ui: &mut egui::Ui) {
-        let emulator = self.emulator.clone();
-        let callback = move |_info: egui::PaintCallbackInfo,
-                             painter: &egui_glow::painter::Painter| {
-            emulator.borrow_mut().render(painter.gl());
+        let (rect, _) = ui.allocate_exact_size(
+            egui::Vec2::new((WIDTH * PIXEL_SIZE) as f32, (HEIGHT * PIXEL_SIZE) as f32),
+            egui::Sense::drag(),
+        );
+
+        let callback = egui::PaintCallback {
+            rect,
+            callback: self.paint_callback.clone(),
         };
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
-
-            let (rect, _) = ui.allocate_exact_size(
-                egui::Vec2::new((WIDTH * PIXEL_SIZE) as f32, (HEIGHT * PIXEL_SIZE) as f32),
-                egui::Sense::drag(),
-            );
-
-            let callback = egui::PaintCallback {
-                rect,
-                callback: std::sync::Arc::new(egui_glow::CallbackFn::new(callback)),
-            };
-            ui.painter().add(callback);
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            drop((ui, callback));
-        }
+        ui.painter().add(callback);
     }
 }
 
@@ -173,29 +162,32 @@ impl eframe::App for MyEguiApp {
             ));
             ui.label(&format!("revision: {}", meta("revision")));
             ui.label(&format!("built at: {}", meta("build_date")));
-
-            let mut total = Duration::ZERO;
-            while total < FRAME_DURATION {
-                total += self.emulator.borrow_mut().tick();
-            }
-            ctx.request_repaint_after(total);
         });
+
+        let mut total = Duration::ZERO;
+        while total < FRAME_DURATION {
+            total += self.emulator.borrow_mut().tick();
+        }
+        ctx.request_repaint_after(total);
     }
 }
 
-#[cfg(target_arch = "wasm32")]
 #[wasm_bindgen(start)]
-pub async fn start() -> Result<(), eframe::wasm_bindgen::JsValue> {
+pub async fn start() -> Result<(), wasm_bindgen::JsValue> {
     console_error_panic_hook::set_once();
     wasm_logger::init(wasm_logger::Config::default());
     log::info!("Come Boy Starting");
 
-    let web_options = eframe::WebOptions::default();
-    eframe::start_web(
-        "canvas",
-        web_options,
-        Box::new(|cc| Box::new(MyEguiApp::new(cc))),
-    )
-    .await?;
+    #[cfg(target_arch = "wasm32")]
+    {
+        let web_options = eframe::WebOptions::default();
+        eframe::start_web(
+            "canvas",
+            web_options,
+            Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+        )
+        .await?;
+    }
+
     Ok(())
 }
