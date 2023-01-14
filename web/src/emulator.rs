@@ -6,6 +6,7 @@ use come_boy::game_boy_emulator::{
     SLEEP_INPUT_TICKS,
 };
 use come_boy::sound::NullSoundStream;
+use std::time::Duration;
 
 fn performance() -> web_sys::Performance {
     window()
@@ -109,12 +110,13 @@ impl Emulator {
         }
     }
 
-    pub fn tick(&mut self) -> i32 {
+    pub fn tick(&mut self) -> Duration {
         for _ in 0..SLEEP_INPUT_TICKS {
             self.emulator.tick(&mut self.ops);
         }
         self.read_key_events();
 
-        self.underclocker.get_delay(self.emulator.elapsed_cycles())
+        let delay = self.underclocker.get_delay(self.emulator.elapsed_cycles());
+        Duration::from_millis(if delay >= 0 { delay as u64 } else { 0 })
     }
 }

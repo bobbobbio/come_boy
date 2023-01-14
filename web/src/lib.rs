@@ -3,6 +3,7 @@ use egui::widgets::Hyperlink;
 use emulator::Emulator;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -102,27 +103,6 @@ fn set_up_input(emulator: EmulatorRef) {
     on_key_up.forget();
 }
 
-fn request_timeout(f: &Closure<dyn FnMut()>, from_now: i32) {
-    window()
-        .set_timeout_with_callback_and_timeout_and_arguments_0(f.as_ref().unchecked_ref(), from_now)
-        .expect("should register `setTimeout` OK");
-}
-
-fn schedule<F: FnMut() -> i32 + 'static>(mut body: F, from_now: i32) {
-    let f = Rc::new(RefCell::new(None));
-    let g = f.clone();
-
-    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        let next = body();
-        request_timeout(f.borrow().as_ref().unwrap(), next);
-    }) as Box<dyn FnMut()>));
-    request_timeout(g.borrow().as_ref().unwrap(), from_now);
-}
-
-fn set_up_tick(emulator: EmulatorRef) {
-    schedule(move || emulator.borrow_mut().tick(), 0);
-}
-
 struct MyEguiApp {
     emulator: EmulatorRef,
 }
@@ -134,8 +114,6 @@ impl MyEguiApp {
 
         let emulator = EmulatorRef::new(Emulator::new(gl.as_ref()));
         set_up_file_input(emulator.clone());
-
-        set_up_tick(emulator.clone());
         set_up_input(emulator.clone());
 
         Self { emulator }
@@ -171,6 +149,9 @@ impl MyEguiApp {
     }
 }
 
+/// This is roughly 1s / 60 (60fps)
+const FRAME_DURATION: Duration = Duration::from_millis(17);
+
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
@@ -193,7 +174,11 @@ impl eframe::App for MyEguiApp {
             ui.label(&format!("revision: {}", meta("revision")));
             ui.label(&format!("built at: {}", meta("build_date")));
 
-            ctx.request_repaint_after(std::time::Duration::from_millis(17));
+            let mut total = Duration::ZERO;
+            while total < FRAME_DURATION {
+                total += self.emulator.borrow_mut().tick();
+            }
+            ctx.request_repaint_after(total);
         });
     }
 }
