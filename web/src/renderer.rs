@@ -15,6 +15,7 @@ pub struct CanvasFrontRenderer {
 pub struct CanvasBackRenderer {
     inner: GlowBackRenderer,
     keyboard_events: Vec<Event>,
+    pub dirty: bool,
 }
 
 fn keycode_from_native_code(code: &str) -> Keycode {
@@ -57,6 +58,7 @@ impl CanvasBackRenderer {
         Self {
             inner,
             keyboard_events: vec![],
+            dirty: true,
         }
     }
 
@@ -89,5 +91,6 @@ impl Renderer for CanvasBackRenderer {
 
     fn present(&mut self) {
         self.inner.present();
+        self.dirty = true;
     }
 }

@@ -99,9 +99,30 @@ fn set_up_input(emulator: EmulatorRef) {
     on_key_up.forget();
 }
 
+fn request_timeout(f: &Closure<dyn FnMut()>, from_now: i32) {
+    window()
+        .set_timeout_with_callback_and_timeout_and_arguments_0(f.as_ref().unchecked_ref(), from_now)
+        .expect("should register `setTimeout` OK");
+}
+
+fn schedule<F: FnMut() -> i32 + 'static>(mut body: F, from_now: i32) {
+    let f = Rc::new(RefCell::new(None));
+    let g = f.clone();
+
+    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+        let next = body();
+        request_timeout(f.borrow().as_ref().unwrap(), next);
+    }) as Box<dyn FnMut()>));
+    request_timeout(g.borrow().as_ref().unwrap(), from_now);
+}
+
+fn set_up_tick(emulator: EmulatorRef) {
+    schedule(move || emulator.borrow_mut().tick(), 0);
+}
+
 struct MyEguiApp {
     paint_callback: Arc<egui_glow::CallbackFn>,
-    emulator: EmulatorRef,
+    about_is_open: bool,
 }
 
 impl MyEguiApp {
@@ -113,14 +134,15 @@ impl MyEguiApp {
         let emulator = EmulatorRef::new(Emulator::new(back));
         set_up_file_input(emulator.clone());
         set_up_input(emulator.clone());
+        set_up_tick(emulator);
 
         let paint_cb = move |_: egui::PaintCallbackInfo, painter: &egui_glow::painter::Painter| {
             front.render(painter.gl());
         };
 
         Self {
-            emulator,
             paint_callback: Arc::new(egui_glow::CallbackFn::new(paint_cb)),
+            about_is_open: false,
         }
     }
 
@@ -138,37 +160,53 @@ impl MyEguiApp {
     }
 }
 
+fn performance() -> web_sys::Performance {
+    window()
+        .performance()
+        .expect("performance appears to be available")
+}
+
 /// This is roughly 1s / 60 (60fps)
 const FRAME_DURATION: Duration = Duration::from_millis(17);
 
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |ui| {
-            ui.horizontal(|ui| {
-                ui.spacing_mut().item_spacing.x = 0.0;
-                ui.label("ComeBoy");
+        egui::CentralPanel::default().show(ctx, |_| {
+            egui::TopBottomPanel::top("menu").show(ctx, |ui| {
+                egui::menu::bar(ui, |ui| {
+                    ui.menu_button("File", |ui| {
+                        if ui.button("Load ROM").clicked() {
+                            input().click();
+                            ui.close_menu();
+                        }
+                        if ui.button("About").clicked() {
+                            self.about_is_open = true;
+                            ui.close_menu();
+                        }
+                    });
+                });
             });
-
-            egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                self.custom_painting(ui);
+            egui::TopBottomPanel::top("screen").show(ctx, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                    self.custom_painting(ui);
+                });
             });
-
-            if ui.add(egui::Button::new("load ROM")).clicked() {
-                input().click();
-            }
-            ui.add(Hyperlink::from_label_and_url(
-                "come_boy on github",
-                "https://github.com/bobbobbio/come_boy",
-            ));
-            ui.label(&format!("revision: {}", meta("revision")));
-            ui.label(&format!("built at: {}", meta("build_date")));
         });
 
-        let mut total = Duration::ZERO;
-        while total < FRAME_DURATION {
-            total += self.emulator.borrow_mut().tick();
-        }
-        ctx.request_repaint_after(total);
+        egui::Window::new("About")
+            .vscroll(false)
+            .resizable(false)
+            .open(&mut self.about_is_open)
+            .show(ctx, |ui| {
+                ui.add(Hyperlink::from_label_and_url(
+                    "come_boy on github",
+                    "https://github.com/bobbobbio/come_boy",
+                ));
+                ui.label(&format!("revision: {}", meta("revision")));
+                ui.label(&format!("built at: {}", meta("build_date")));
+            });
+
+        ctx.request_repaint_after(FRAME_DURATION);
     }
 }
 

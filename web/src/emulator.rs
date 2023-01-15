@@ -6,13 +6,6 @@ use come_boy::game_boy_emulator::{
     SLEEP_INPUT_TICKS,
 };
 use come_boy::sound::NullSoundStream;
-use std::time::Duration;
-
-fn performance() -> web_sys::Performance {
-    window()
-        .performance()
-        .expect("performance appears to be available")
-}
 
 fn local_storage() -> web_sys::Storage {
     window()
@@ -40,7 +33,7 @@ struct Underclocker {
 
 impl Underclocker {
     fn new(now: u64, speed: u32) -> Self {
-        let perf = performance();
+        let perf = crate::performance();
         Self {
             start_cycles: now,
             start_time: perf.now(),
@@ -92,6 +85,8 @@ impl Emulator {
         let game_pak = GamePak::new(rom, &mut self.ops.storage, Some(&sram_key)).unwrap();
         self.ops.load_game_pak(game_pak);
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
+        self.underclocker =
+            Underclocker::new(self.emulator.elapsed_cycles(), self.ops.clock_speed_hz);
     }
 
     fn read_key_events(&mut self) {
@@ -102,13 +97,12 @@ impl Emulator {
         }
     }
 
-    pub fn tick(&mut self) -> Duration {
+    pub fn tick(&mut self) -> i32 {
         for _ in 0..SLEEP_INPUT_TICKS {
             self.emulator.tick(&mut self.ops);
         }
         self.read_key_events();
 
-        let delay = self.underclocker.get_delay(self.emulator.elapsed_cycles());
-        Duration::from_millis(if delay >= 0 { delay as u64 } else { 0 })
+        self.underclocker.get_delay(self.emulator.elapsed_cycles())
     }
 }
