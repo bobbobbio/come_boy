@@ -6,18 +6,13 @@ use super::{
 };
 use alloc::vec::Vec;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 enum KeyBank {
     Neither,
+    #[default]
     Both,
     ButtonKeys,
     DirectionKeys,
-}
-
-impl Default for KeyBank {
-    fn default() -> Self {
-        KeyBank::Both
-    }
 }
 
 #[derive(Default)]

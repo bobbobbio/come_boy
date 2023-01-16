@@ -108,14 +108,9 @@ enum JoypadFlag {
     RightOrA = 0b00000001,
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, Default, PartialEq)]
 enum ButtonState {
     Pressed,
+    #[default]
     NotPressed,
-}
-
-impl Default for ButtonState {
-    fn default() -> Self {
-        ButtonState::NotPressed
-    }
 }
