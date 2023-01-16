@@ -5,7 +5,6 @@ use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::time::Duration;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
@@ -86,6 +85,26 @@ fn set_up_tick(emulator: EmulatorRef) {
     schedule(move || emulator.borrow_mut().tick(), 0);
 }
 
+fn request_animation_frame(f: &Closure<dyn FnMut()>) {
+    window()
+        .request_animation_frame(f.as_ref().unchecked_ref())
+        .expect("should register `requestAnimationFrame` OK");
+}
+
+fn set_up_rendering(ctx: egui::Context) {
+    let f = Rc::new(RefCell::new(None));
+    let g = f.clone();
+
+    *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
+        ctx.request_repaint();
+
+        // Schedule ourselves for another requestAnimationFrame callback.
+        request_animation_frame(f.borrow().as_ref().unwrap());
+    }) as Box<dyn FnMut()>));
+
+    request_animation_frame(g.borrow().as_ref().unwrap());
+}
+
 struct MyEguiApp {
     emulator: EmulatorRef,
     paint_callback: Arc<egui_glow::CallbackFn>,
@@ -100,6 +119,7 @@ impl MyEguiApp {
         let emulator = EmulatorRef::new(Emulator::new(back));
         set_up_input(emulator.clone());
         set_up_tick(emulator.clone());
+        set_up_rendering(cc.egui_ctx.clone());
 
         let paint_cb = move |_: egui::PaintCallbackInfo, painter: &egui_glow::painter::Painter| {
             front.render(painter.gl());
@@ -111,7 +131,7 @@ impl MyEguiApp {
         }
     }
 
-    fn custom_painting(&mut self, ui: &mut egui::Ui) {
+    fn render_game_screen(&mut self, ui: &mut egui::Ui) {
         let (rect, _) = ui.allocate_exact_size(
             egui::Vec2::new((WIDTH * PIXEL_SIZE) as f32, (HEIGHT * PIXEL_SIZE) as f32),
             egui::Sense::drag(),
@@ -142,17 +162,19 @@ fn performance() -> web_sys::Performance {
         .expect("performance appears to be available")
 }
 
-/// This is roughly 1s / 60 (60fps)
-const FRAME_DURATION: Duration = Duration::from_millis(17);
-
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::CentralPanel::default().show(ctx, |_| {
-            egui::SidePanel::right("options").show(ctx, |ui| {
+        egui::SidePanel::right("sidebar").show(ctx, |ui| {
+            egui::TopBottomPanel::top("options").show_inside(ui, |ui| {
                 if ui.button("Load ROM").clicked() {
                     self.load_rom();
                 }
+                if let Some(loaded_rom) = self.emulator.borrow_mut().loaded_rom() {
+                    ui.label(&format!("playing: {loaded_rom}"));
+                }
+            });
 
+            egui::TopBottomPanel::bottom("information").show_inside(ui, |ui| {
                 ui.add(Hyperlink::from_label_and_url(
                     "come_boy on github",
                     "https://github.com/bobbobbio/come_boy",
@@ -160,14 +182,12 @@ impl eframe::App for MyEguiApp {
                 ui.label(&format!("revision: {}", meta("revision")));
                 ui.label(&format!("built at: {}", meta("build_date")));
             });
-            egui::SidePanel::left("screen").show(ctx, |ui| {
-                egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    self.custom_painting(ui);
-                });
+        });
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                self.render_game_screen(ui);
             });
         });
-
-        ctx.request_repaint_after(FRAME_DURATION);
     }
 }
 

@@ -89,6 +89,10 @@ impl Emulator {
             Underclocker::new(self.emulator.elapsed_cycles(), self.ops.clock_speed_hz);
     }
 
+    pub fn loaded_rom(&self) -> Option<&str> {
+        self.ops.loaded_game_pak().map(|gp| gp.title())
+    }
+
     fn read_key_events(&mut self) {
         let res = self.emulator.read_key_events(&mut self.ops);
         if let Err(UserControl::SpeedChange) = res {

@@ -687,6 +687,10 @@ impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, Sou
         log::info!("Loading {:?}", &game_pak);
         self.game_pak = Some(game_pak);
     }
+
+    pub fn loaded_game_pak(&self) -> Option<&GamePak<Storage>> {
+        self.game_pak.as_ref()
+    }
 }
 
 #[derive(Serialize, Deserialize)]
