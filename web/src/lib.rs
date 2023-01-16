@@ -122,7 +122,6 @@ fn set_up_tick(emulator: EmulatorRef) {
 
 struct MyEguiApp {
     paint_callback: Arc<egui_glow::CallbackFn>,
-    about_is_open: bool,
 }
 
 impl MyEguiApp {
@@ -142,7 +141,6 @@ impl MyEguiApp {
 
         Self {
             paint_callback: Arc::new(egui_glow::CallbackFn::new(paint_cb)),
-            about_is_open: false,
         }
     }
 
@@ -172,32 +170,10 @@ const FRAME_DURATION: Duration = Duration::from_millis(17);
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |_| {
-            egui::TopBottomPanel::top("menu").show(ctx, |ui| {
-                egui::menu::bar(ui, |ui| {
-                    ui.menu_button("File", |ui| {
-                        if ui.button("Load ROM").clicked() {
-                            input().click();
-                            ui.close_menu();
-                        }
-                        if ui.button("About").clicked() {
-                            self.about_is_open = true;
-                            ui.close_menu();
-                        }
-                    });
-                });
-            });
-            egui::TopBottomPanel::top("screen").show(ctx, |ui| {
-                egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    self.custom_painting(ui);
-                });
-            });
-        });
-
-        egui::Window::new("About")
-            .vscroll(false)
-            .resizable(false)
-            .open(&mut self.about_is_open)
-            .show(ctx, |ui| {
+            egui::SidePanel::right("options").show(ctx, |ui| {
+                if ui.button("Load ROM").clicked() {
+                    input().click();
+                }
                 ui.add(Hyperlink::from_label_and_url(
                     "come_boy on github",
                     "https://github.com/bobbobbio/come_boy",
@@ -205,6 +181,12 @@ impl eframe::App for MyEguiApp {
                 ui.label(&format!("revision: {}", meta("revision")));
                 ui.label(&format!("built at: {}", meta("build_date")));
             });
+            egui::SidePanel::left("screen").show(ctx, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                    self.custom_painting(ui);
+                });
+            });
+        });
 
         ctx.request_repaint_after(FRAME_DURATION);
     }
