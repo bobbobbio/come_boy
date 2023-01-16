@@ -17,15 +17,6 @@ fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
 
-fn input() -> web_sys::HtmlInputElement {
-    let document = window().document().unwrap();
-    let input = document.get_element_by_id("input").unwrap();
-    input
-        .dyn_into::<web_sys::HtmlInputElement>()
-        .map_err(|_| ())
-        .unwrap()
-}
-
 fn meta(name: &str) -> String {
     let document = window().document().unwrap();
     let head = document.head().unwrap();
@@ -47,31 +38,6 @@ impl EmulatorRef {
     fn borrow_mut(&self) -> std::cell::RefMut<'_, Emulator> {
         self.0.borrow_mut()
     }
-}
-
-fn set_up_file_input(emulator: EmulatorRef) {
-    let on_change = Closure::wrap(Box::new(move || {
-        let file_list = input().files().unwrap();
-        let file = file_list.get(0).unwrap();
-
-        let file_reader = web_sys::FileReader::new().unwrap();
-        file_reader.read_as_array_buffer(&file).unwrap();
-        let emulator = emulator.clone();
-        let on_load = Closure::wrap(Box::new(move |event: web_sys::Event| {
-            let file_reader: web_sys::FileReader = event.target().unwrap().dyn_into().unwrap();
-            let rom = file_reader.result().unwrap();
-            let rom = js_sys::Uint8Array::new(&rom);
-            let mut rom_file = vec![0; rom.length() as usize];
-            rom.copy_to(&mut rom_file);
-            emulator.borrow_mut().load_rom(&rom_file);
-        }) as Box<dyn FnMut(_)>);
-        file_reader.set_onload(Some(on_load.as_ref().unchecked_ref()));
-        on_load.forget();
-    }) as Box<dyn FnMut()>);
-    input()
-        .add_event_listener_with_callback("change", on_change.as_ref().unchecked_ref())
-        .unwrap();
-    on_change.forget();
 }
 
 fn set_up_input(emulator: EmulatorRef) {
@@ -121,6 +87,7 @@ fn set_up_tick(emulator: EmulatorRef) {
 }
 
 struct MyEguiApp {
+    emulator: EmulatorRef,
     paint_callback: Arc<egui_glow::CallbackFn>,
 }
 
@@ -131,15 +98,15 @@ impl MyEguiApp {
 
         let (front, back) = renderer::render_pair(gl);
         let emulator = EmulatorRef::new(Emulator::new(back));
-        set_up_file_input(emulator.clone());
         set_up_input(emulator.clone());
-        set_up_tick(emulator);
+        set_up_tick(emulator.clone());
 
         let paint_cb = move |_: egui::PaintCallbackInfo, painter: &egui_glow::painter::Painter| {
             front.render(painter.gl());
         };
 
         Self {
+            emulator,
             paint_callback: Arc::new(egui_glow::CallbackFn::new(paint_cb)),
         }
     }
@@ -155,6 +122,17 @@ impl MyEguiApp {
             callback: self.paint_callback.clone(),
         };
         ui.painter().add(callback);
+    }
+
+    fn load_rom(&mut self) {
+        let emulator = self.emulator.clone();
+        let future = async move {
+            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
+                let rom_data = file.read().await;
+                emulator.borrow_mut().load_rom(&rom_data);
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
     }
 }
 
@@ -172,8 +150,9 @@ impl eframe::App for MyEguiApp {
         egui::CentralPanel::default().show(ctx, |_| {
             egui::SidePanel::right("options").show(ctx, |ui| {
                 if ui.button("Load ROM").clicked() {
-                    input().click();
+                    self.load_rom();
                 }
+
                 ui.add(Hyperlink::from_label_and_url(
                     "come_boy on github",
                     "https://github.com/bobbobbio/come_boy",
