@@ -162,24 +162,35 @@ fn performance() -> web_sys::Performance {
         .expect("performance appears to be available")
 }
 
+const GITHUB_URL: &str = "https://github.com/bobbobbio/come_boy";
+
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::right("sidebar").show(ctx, |ui| {
             egui::TopBottomPanel::top("options").show_inside(ui, |ui| {
-                if ui.button("Load ROM").clicked() {
-                    self.load_rom();
-                }
-                if let Some(loaded_rom) = self.emulator.borrow_mut().loaded_rom() {
-                    ui.label(&format!("playing: {loaded_rom}"));
-                }
+                ui.horizontal(|ui| {
+                    if ui.button("Load ROM").clicked() {
+                        self.load_rom();
+                    }
+                    if let Some(loaded_rom) = self.emulator.borrow_mut().loaded_rom() {
+                        ui.label(&format!("playing: {loaded_rom}"));
+                    }
+                });
             });
 
             egui::TopBottomPanel::bottom("information").show_inside(ui, |ui| {
                 ui.add(Hyperlink::from_label_and_url(
                     "come_boy on github",
-                    "https://github.com/bobbobbio/come_boy",
+                    GITHUB_URL,
                 ));
-                ui.label(&format!("revision: {}", meta("revision")));
+                ui.horizontal(|ui| {
+                    let revision = meta("revision");
+                    ui.label("revision: ");
+                    ui.add(Hyperlink::from_label_and_url(
+                        &revision,
+                        format!("{GITHUB_URL}/commit/{revision}"),
+                    ));
+                });
                 ui.label(&format!("built at: {}", meta("build_date")));
             });
         });
