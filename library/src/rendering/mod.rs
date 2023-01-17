@@ -39,40 +39,45 @@ pub enum Event {
     KeyUp(Keycode),
 }
 
-pub trait Color {
-    fn new(r: u8, g: u8, b: u8) -> Self;
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+}
+
+impl Color {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    pub fn new(r: u8, g: u8, b: u8) -> Self {
+        Self { r, g, b }
+    }
+
+    pub fn to_array(&self) -> [u8; 4] {
+        [self.r, self.g, self.b, 255]
+    }
 }
 
 pub trait Renderer {
-    type Color: Color;
     fn poll_events(&mut self) -> Vec<Event>;
     fn save_buffer(&self, w: impl io::Write) -> io::Result<()>;
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color);
+    fn color_pixel(&mut self, x: i32, y: i32, color: Color);
     fn present(&mut self);
 }
 
 pub struct NullRenderer;
 
 impl Renderer for NullRenderer {
-    type Color = ();
-
     fn poll_events(&mut self) -> Vec<Event> {
         vec![]
     }
     fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {
         Ok(())
     }
-    fn color_pixel(&mut self, _: i32, _: i32, _: Self::Color) {}
+    fn color_pixel(&mut self, _: i32, _: i32, _: Color) {}
     fn present(&mut self) {}
 }
 
-impl Color for () {
-    fn new(_: u8, _: u8, _: u8) {}
-}
-
 impl<T: Renderer> Renderer for &mut T {
-    type Color = T::Color;
-
     fn poll_events(&mut self) -> Vec<Event> {
         (**self).poll_events()
     }
@@ -81,7 +86,7 @@ impl<T: Renderer> Renderer for &mut T {
         (**self).save_buffer(p)
     }
 
-    fn color_pixel(&mut self, x: i32, y: i32, c: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, c: Color) {
         (**self).color_pixel(x, y, c)
     }
 

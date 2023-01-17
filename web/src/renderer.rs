@@ -4,7 +4,7 @@ pub use come_boy::rendering::glow::{HEIGHT, PIXEL_SIZE, WIDTH};
 use come_boy::rendering::{
     self,
     glow::{GlowBackRenderer, GlowFrontRenderer},
-    Event, Keycode, Renderer,
+    Color, Event, Keycode, Renderer,
 };
 use std::{io, mem};
 
@@ -74,8 +74,6 @@ impl CanvasBackRenderer {
 }
 
 impl Renderer for CanvasBackRenderer {
-    type Color = <GlowBackRenderer as Renderer>::Color;
-
     fn poll_events(&mut self) -> Vec<Event> {
         mem::take(&mut self.keyboard_events)
     }
@@ -85,7 +83,7 @@ impl Renderer for CanvasBackRenderer {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         self.inner.color_pixel(x, y, color);
     }
 

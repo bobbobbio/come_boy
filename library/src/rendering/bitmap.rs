@@ -21,15 +21,13 @@ impl BitmapRenderer {
     }
 }
 
-impl Color for Pixel {
-    fn new(r: u8, g: u8, b: u8) -> Self {
-        Pixel::new(r, g, b)
+impl From<Color> for Pixel {
+    fn from(c: Color) -> Self {
+        Pixel::new(c.r, c.g, c.b)
     }
 }
 
 impl Renderer for BitmapRenderer {
-    type Color = Pixel;
-
     fn poll_events(&mut self) -> Vec<Event> {
         vec![]
     }
@@ -39,7 +37,7 @@ impl Renderer for BitmapRenderer {
         Ok(())
     }
 
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         let width = self.back.get_width();
         let height = self.back.get_height();
         assert!(x < width as i32, "{}", "x = {x} > {width}");
@@ -49,7 +47,7 @@ impl Renderer for BitmapRenderer {
             return;
         }
 
-        self.back.set_pixel(x as u32, y as u32, color);
+        self.back.set_pixel(x as u32, y as u32, color.into());
     }
 
     fn present(&mut self) {

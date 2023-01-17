@@ -13,12 +13,6 @@ use std::ops::Deref;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-pub struct SpeedyColor {
-    r: u8,
-    g: u8,
-    b: u8,
-}
-
 #[derive(Clone)]
 struct ScreenBuffer {
     buffer: Arc<Mutex<Vec<u8>>>,
@@ -168,12 +162,6 @@ pub fn run_loop<F: FnOnce(&mut SpeedyRenderer) + Send>(options: RenderingOptions
     .unwrap()
 }
 
-impl Color for SpeedyColor {
-    fn new(r: u8, g: u8, b: u8) -> Self {
-        SpeedyColor { r, g, b }
-    }
-}
-
 pub struct SpeedyRenderer {
     screen_buffer: ScreenBuffer,
     back_buffer: Vec<u8>,
@@ -184,8 +172,6 @@ pub struct SpeedyRenderer {
 }
 
 impl Renderer for SpeedyRenderer {
-    type Color = SpeedyColor;
-
     fn poll_events(&mut self) -> Vec<Event> {
         let mut events = vec![];
         while let Ok(event) = self.events.try_recv() {
@@ -199,7 +185,7 @@ impl Renderer for SpeedyRenderer {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         assert!(x < self.width as i32, "x = {x} > {}", self.width);
         assert!(y < self.height as i32, "y = {y} > {}", self.height);
         assert!(x >= 0, "{}", "x = {x} > 0");

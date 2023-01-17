@@ -32,10 +32,9 @@ impl Color {
     }
 }
 
-impl come_boy::rendering::Color for Color {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn new(r: u8, g: u8, b: u8) -> Self {
-        Self::rgb(r, g, b)
+impl From<come_boy::rendering::Color> for Color {
+    fn from(color: come_boy::rendering::Color) -> Self {
+        Color::rgb(color.r, color.g, color.b)
     }
 }
 
@@ -83,8 +82,6 @@ impl Graphics {
 }
 
 impl come_boy::rendering::Renderer for Graphics {
-    type Color = Color;
-
     fn poll_events(&mut self) -> Vec<come_boy::rendering::Event> {
         vec![]
     }
@@ -94,7 +91,8 @@ impl come_boy::rendering::Renderer for Graphics {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, color: come_boy::rendering::Color) {
+        let color: Color = color.into();
         if x < 0 || x >= SCREEN_WIDTH as i32 || y < 0 || y >= SCREEN_HEIGHT as i32 {
             return;
         }

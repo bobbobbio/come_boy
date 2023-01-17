@@ -128,7 +128,7 @@ mod sdl2 {
 
 mod null {
     use super::{Backend, Frontend};
-    use come_boy::rendering::{Event, Renderer, RenderingOptions};
+    use come_boy::rendering::{Color, Event, Renderer, RenderingOptions};
     use come_boy::sound::NullSoundStream;
     use std::io;
     use std::sync::mpsc::{channel, Receiver};
@@ -136,8 +136,6 @@ mod null {
     pub struct NullRendererWithEvents(Receiver<Event>);
 
     impl Renderer for NullRendererWithEvents {
-        type Color = ();
-
         fn poll_events(&mut self) -> Vec<Event> {
             self.0.try_recv().into_iter().collect()
         }
@@ -146,7 +144,7 @@ mod null {
             Ok(())
         }
 
-        fn color_pixel(&mut self, _: i32, _: i32, _: Self::Color) {}
+        fn color_pixel(&mut self, _: i32, _: i32, _: Color) {}
         fn present(&mut self) {}
     }
 

@@ -46,7 +46,7 @@ struct ScreenBuffer {
     dirty: bool,
 }
 
-const DEFAULT_COLOR: SimpleColor = SimpleColor {
+const DEFAULT_COLOR: Color = Color {
     r: 0xe0,
     g: 0xf8,
     b: 0xd0,
@@ -302,25 +302,6 @@ impl GlowFrontRenderer {
     }
 }
 
-#[derive(Clone)]
-pub struct SimpleColor {
-    r: u8,
-    g: u8,
-    b: u8,
-}
-
-impl SimpleColor {
-    fn to_array(&self) -> [u8; 4] {
-        [self.r, self.g, self.b, 255]
-    }
-}
-
-impl Color for SimpleColor {
-    fn new(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
-    }
-}
-
 impl GlowBackRenderer {
     fn new(front_buffer: SharedScreenBuffer) -> Self {
         Self {
@@ -331,8 +312,6 @@ impl GlowBackRenderer {
 }
 
 impl Renderer for GlowBackRenderer {
-    type Color = SimpleColor;
-
     fn poll_events(&mut self) -> Vec<Event> {
         vec![]
     }
@@ -342,7 +321,7 @@ impl Renderer for GlowBackRenderer {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         assert!(x < WIDTH as i32, "{}", "x = {x} > {WIDTH}");
         assert!(y < HEIGHT as i32, "{}", "y = {y} > {HEIGHT}");
         assert!(x >= 0, "{}", "x = {x} > 0");

@@ -262,12 +262,12 @@ enum LcdShade {
 }
 
 #[cfg_attr(not(debug_assertions), inline(always))]
-fn color_for_shade<R: Renderer>(shade: LcdShade) -> R::Color {
+fn color_for_shade(shade: LcdShade) -> Color {
     match shade {
-        LcdShade::Shade0 => R::Color::new(0xe0, 0xf8, 0xd0),
-        LcdShade::Shade1 => R::Color::new(0x88, 0xc0, 0x70),
-        LcdShade::Shade2 => R::Color::new(0x34, 0x68, 0x56),
-        LcdShade::Shade3 => R::Color::new(0x08, 0x18, 0x20),
+        LcdShade::Shade0 => Color::new(0xe0, 0xf8, 0xd0),
+        LcdShade::Shade1 => Color::new(0x88, 0xc0, 0x70),
+        LcdShade::Shade2 => Color::new(0x34, 0x68, 0x56),
+        LcdShade::Shade3 => Color::new(0x08, 0x18, 0x20),
     }
 }
 
@@ -645,7 +645,7 @@ impl ScanLine {
     #[cfg_attr(not(debug_assertions), inline(always))]
     fn draw<R: Renderer>(&self, renderer: &mut R, y: i32) {
         for (x, &v) in self.data.iter().enumerate() {
-            renderer.color_pixel(x as i32, y, color_for_shade::<R>(v));
+            renderer.color_pixel(x as i32, y, color_for_shade(v));
         }
     }
 }

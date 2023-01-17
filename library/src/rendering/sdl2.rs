@@ -65,15 +65,13 @@ impl Sdl2WindowRenderer {
     }
 }
 
-impl Color for sdl2::pixels::Color {
-    fn new(r: u8, g: u8, b: u8) -> Self {
-        sdl2::pixels::Color::RGB(r, g, b)
+impl From<Color> for sdl2::pixels::Color {
+    fn from(color: Color) -> Self {
+        sdl2::pixels::Color::RGB(color.r, color.g, color.b)
     }
 }
 
 impl Renderer for Sdl2WindowRenderer {
-    type Color = sdl2::pixels::Color;
-
     fn poll_events(&mut self) -> Vec<Event> {
         let mut events = vec![];
         for event in self.event_pump.poll_iter() {
@@ -120,7 +118,7 @@ impl Renderer for Sdl2WindowRenderer {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn color_pixel(&mut self, x: i32, y: i32, color: Self::Color) {
+    fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         assert!(x < self.width as i32, "x = {} > {}", x, self.width);
         assert!(y < self.height as i32, "y = {} > {}", x, self.height);
 
