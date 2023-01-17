@@ -39,7 +39,7 @@ pub enum Event {
     KeyUp(Keycode),
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Color {
     pub r: u8,
     pub g: u8,

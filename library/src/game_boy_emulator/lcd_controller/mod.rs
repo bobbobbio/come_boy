@@ -261,13 +261,34 @@ enum LcdShade {
     Shade3 = 0x3,
 }
 
-#[cfg_attr(not(debug_assertions), inline(always))]
-fn color_for_shade(shade: LcdShade) -> Color {
-    match shade {
-        LcdShade::Shade0 => Color::new(0xe0, 0xf8, 0xd0),
-        LcdShade::Shade1 => Color::new(0x88, 0xc0, 0x70),
-        LcdShade::Shade2 => Color::new(0x34, 0x68, 0x56),
-        LcdShade::Shade3 => Color::new(0x08, 0x18, 0x20),
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Palette {
+    shade0: Color,
+    shade1: Color,
+    shade2: Color,
+    shade3: Color,
+}
+
+impl Default for Palette {
+    fn default() -> Self {
+        Self {
+            shade0: Color::new(0xe0, 0xf8, 0xd0),
+            shade1: Color::new(0x88, 0xc0, 0x70),
+            shade2: Color::new(0x34, 0x68, 0x56),
+            shade3: Color::new(0x08, 0x18, 0x20),
+        }
+    }
+}
+
+impl Palette {
+    #[cfg_attr(not(debug_assertions), inline(always))]
+    fn color_for_shade(&self, shade: LcdShade) -> Color {
+        match shade {
+            LcdShade::Shade0 => self.shade0,
+            LcdShade::Shade1 => self.shade1,
+            LcdShade::Shade2 => self.shade2,
+            LcdShade::Shade3 => self.shade3,
+        }
     }
 }
 
@@ -643,9 +664,9 @@ impl ScanLine {
     }
 
     #[cfg_attr(not(debug_assertions), inline(always))]
-    fn draw<R: Renderer>(&self, renderer: &mut R, y: i32) {
+    fn draw<R: Renderer>(&self, renderer: &mut R, palette: &Palette, y: i32) {
         for (x, &v) in self.data.iter().enumerate() {
-            renderer.color_pixel(x as i32, y, color_for_shade(v));
+            renderer.color_pixel(x as i32, y, palette.color_for_shade(v));
         }
     }
 }
@@ -662,6 +683,8 @@ pub struct LcdController {
     enabled: bool,
     #[serde(skip)]
     object_buffer: Vec<LcdObject>,
+    #[serde(skip)]
+    palette: Palette,
 }
 
 impl Default for LcdController {
@@ -681,6 +704,7 @@ impl LcdController {
             enabled: true,
             registers: Default::default(),
             object_buffer: Vec::new(),
+            palette: Default::default(),
         }
     }
 
@@ -970,7 +994,7 @@ impl LcdController {
         self.draw_background(&mut line);
         self.draw_window(&mut line);
         self.draw_oam_data(&mut line);
-        line.draw(renderer, ly as i32);
+        line.draw(renderer, &self.palette, ly as i32);
 
         self.registers.stat.set_flag_value(LcdStatusFlag::Mode, 0x3);
         scheduler.schedule(time + 175, LcdControllerEvent::Mode0);
