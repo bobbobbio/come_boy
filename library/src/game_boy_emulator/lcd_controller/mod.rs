@@ -48,14 +48,17 @@ use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, GameBoyRegister, MemoryChunk, MemoryMappedHardware,
 };
 use crate::game_boy_emulator::{GameBoyEmulatorEvent, GameBoyScheduler, InterruptFlag};
-use crate::rendering::{Color, Renderer};
+use crate::rendering::Renderer;
 use alloc::vec::Vec;
 use core::ops::Range;
 use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
+use palette::Palette;
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::IntoStaticStr;
+
+mod palette;
 
 /// The width of the screen in pixels
 const SCREEN_WIDTH: i32 = 160;
@@ -254,42 +257,11 @@ impl FlagMask for LcdColor {
 
 /// These are the 4 shades that the Game Boy (DMG) screen is capable of displaying.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum LcdShade {
+pub(crate) enum LcdShade {
     Shade0 = 0x0,
     Shade1 = 0x1,
     Shade2 = 0x2,
     Shade3 = 0x3,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct Palette {
-    shade0: Color,
-    shade1: Color,
-    shade2: Color,
-    shade3: Color,
-}
-
-impl Default for Palette {
-    fn default() -> Self {
-        Self {
-            shade0: Color::new(0xe0, 0xf8, 0xd0),
-            shade1: Color::new(0x88, 0xc0, 0x70),
-            shade2: Color::new(0x34, 0x68, 0x56),
-            shade3: Color::new(0x08, 0x18, 0x20),
-        }
-    }
-}
-
-impl Palette {
-    #[cfg_attr(not(debug_assertions), inline(always))]
-    fn color_for_shade(&self, shade: LcdShade) -> Color {
-        match shade {
-            LcdShade::Shade0 => self.shade0,
-            LcdShade::Shade1 => self.shade1,
-            LcdShade::Shade2 => self.shade2,
-            LcdShade::Shade3 => self.shade3,
-        }
-    }
 }
 
 /// This is a mask for the LCDC (LCD control) register.
