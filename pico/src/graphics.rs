@@ -11,7 +11,7 @@ const SCREEN_HEIGHT: usize = 240;
 pub struct Color(u16);
 
 impl Color {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline(always)]
     pub const fn rgb(r: u8, g: u8, b: u8) -> Self {
         const fn conv(v: u8) -> u16 {
             ((v as u32) * 100 / 255 * 0xF / 100) as u16

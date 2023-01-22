@@ -82,7 +82,7 @@ impl Renderer for CanvasBackRenderer {
         unimplemented!()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         self.inner.color_pixel(x, y, color);
     }
