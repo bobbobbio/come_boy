@@ -6,7 +6,7 @@ use super::{
     Color, Event, Keycode, Renderer,
 };
 use crate::io;
-use alloc::{collections::BTreeSet, vec, vec::Vec};
+use alloc::{collections::BTreeSet, vec::Vec};
 use enum_iterator::IntoEnumIterator as _;
 
 pub struct EguiFrontRenderer {
@@ -69,7 +69,8 @@ impl EguiBackRenderer {
 
 impl Renderer for EguiBackRenderer {
     fn poll_events(&mut self) -> Vec<Event> {
-        let mut events = vec![];
+        let mut events = self.renderer.poll_events();
+
         for key in Keycode::into_enum_iter() {
             if let Ok(egui_key) = try_translate_keycode(key) {
                 if self.ctx.input().key_down(egui_key) {

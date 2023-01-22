@@ -132,7 +132,10 @@ mod sdl2 {
 #[cfg(feature = "eframe-renderer")]
 mod eframe {
     use super::{Backend, Frontend};
-    use come_boy::rendering::{glow, RenderingOptions};
+    use come_boy::rendering::{
+        egui::{render_pair, EguiFrontRenderer},
+        RenderingOptions,
+    };
     use come_boy::sound::cpal::CpalSoundStream;
     use std::sync::Arc;
     use std::time::Duration;
@@ -143,7 +146,7 @@ mod eframe {
     }
 
     impl App {
-        fn new(front: glow::GlowFrontRenderer, window_vec: egui::Vec2) -> Self {
+        fn new(front: EguiFrontRenderer, window_vec: egui::Vec2) -> Self {
             let paint_cb = move |_: egui::PaintCallbackInfo,
                                  painter: &egui_glow::painter::Painter| {
                 front.render(painter.gl());
@@ -209,8 +212,9 @@ mod eframe {
                     "come_boy",
                     native_options,
                     Box::new(move |cc| {
+                        let ctx = cc.egui_ctx.clone();
                         let gl = cc.gl.as_ref().unwrap();
-                        let (front_renderer, back_renderer) = glow::render_pair(gl);
+                        let (front_renderer, back_renderer) = render_pair(ctx, gl);
                         sender.send(back_renderer).unwrap();
                         Box::new(App::new(front_renderer, window_vec))
                     }),
