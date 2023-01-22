@@ -48,6 +48,9 @@ impl<F: Frontend> BackendMap<F> {
         #[cfg(feature = "sdl2-renderer")]
         map.add("sdl2", |m| m.run_backend(self::sdl2::Sdl2Backend));
 
+        #[cfg(feature = "eframe-renderer")]
+        map.add("eframe", |m| m.run_backend(self::eframe::EframeBackend));
+
         map.add("null", |m| m.run_backend(self::null::NullBackend));
 
         map
@@ -120,6 +123,95 @@ mod sdl2 {
             let mut sound_stream = CpalSoundStream::new();
             let mut renderer = Sdl2WindowRenderer::new(rendering_options);
             frontend.run(&mut renderer, &mut sound_stream);
+            log::info!("Exiting...");
+            std::process::exit(0)
+        }
+    }
+}
+
+#[cfg(feature = "eframe-renderer")]
+mod eframe {
+    use super::{Backend, Frontend};
+    use come_boy::rendering::{glow, RenderingOptions};
+    use come_boy::sound::cpal::CpalSoundStream;
+    use std::sync::Arc;
+
+    struct App {
+        paint_callback: Arc<egui_glow::CallbackFn>,
+        window_vec: egui::Vec2,
+    }
+
+    impl App {
+        fn new(front: glow::GlowFrontRenderer, window_vec: egui::Vec2) -> Self {
+            let paint_cb = move |_: egui::PaintCallbackInfo,
+                                 painter: &egui_glow::painter::Painter| {
+                front.render(painter.gl());
+            };
+
+            Self {
+                paint_callback: Arc::new(egui_glow::CallbackFn::new(paint_cb)),
+                window_vec,
+            }
+        }
+
+        fn render_game_screen(&mut self, ui: &mut egui::Ui) {
+            let (rect, _) = ui.allocate_exact_size(self.window_vec.clone(), egui::Sense::drag());
+
+            let callback = egui::PaintCallback {
+                rect,
+                callback: self.paint_callback.clone(),
+            };
+            ui.painter().add(callback);
+        }
+    }
+
+    impl eframe::App for App {
+        fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+            egui::CentralPanel::default()
+                .frame(egui::Frame::canvas(&Default::default()))
+                .show(ctx, |ui| {
+                    self.render_game_screen(ui);
+                });
+        }
+    }
+
+    pub(super) struct EframeBackend;
+
+    impl Backend for EframeBackend {
+        fn run<F: Frontend>(&self, rendering_options: RenderingOptions, frontend: F) -> ! {
+            log::info!("Using eframe renderer");
+
+            let width = rendering_options.width;
+            let height = rendering_options.height;
+            let pixel_size = rendering_options.scale;
+            let window_vec =
+                egui::Vec2::new((width * pixel_size) as f32, (height * pixel_size) as f32);
+
+            let native_options = eframe::NativeOptions {
+                initial_window_size: Some(window_vec.clone()),
+                max_window_size: Some(window_vec.clone()),
+                ..Default::default()
+            };
+
+            std::thread::scope(move |scope| {
+                let (sender, receiver) = std::sync::mpsc::channel();
+                scope.spawn(move || {
+                    let mut back_renderer = receiver.recv().unwrap();
+                    let mut sound_stream = CpalSoundStream::new();
+                    frontend.run(&mut back_renderer, &mut sound_stream);
+                });
+
+                eframe::run_native(
+                    "come_boy",
+                    native_options,
+                    Box::new(move |cc| {
+                        let gl = cc.gl.as_ref().unwrap();
+                        let (front_renderer, back_renderer) = glow::render_pair(gl);
+                        sender.send(back_renderer).unwrap();
+                        Box::new(App::new(front_renderer, window_vec))
+                    }),
+                );
+            });
             log::info!("Exiting...");
             std::process::exit(0)
         }

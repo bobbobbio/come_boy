@@ -86,6 +86,10 @@ impl SharedScreenBuffer {
         let mut buffer = self.buffer.lock().unwrap();
         std::mem::swap(&mut *buffer, other);
     }
+
+    fn num_refs(&self) -> usize {
+        Arc::strong_count(&self.buffer)
+    }
 }
 
 pub struct GlowBackRenderer {
@@ -313,7 +317,11 @@ impl GlowBackRenderer {
 
 impl Renderer for GlowBackRenderer {
     fn poll_events(&mut self) -> Vec<Event> {
-        vec![]
+        if self.front_buffer.num_refs() < 2 {
+            vec![Event::Quit]
+        } else {
+            vec![]
+        }
     }
 
     fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {

@@ -10,11 +10,15 @@ homepage = "https://github.com/bobbobbio/come_boy"
 default = ["speedy2d-renderer", "sound"]
 speedy2d-renderer = ["come_boy/speedy2d-renderer"]
 sdl2-renderer = ["come_boy/sdl2-renderer"]
+eframe-renderer = ["eframe", "egui", "egui_glow"]
 sound = ["come_boy/sound"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 come_boy = { version = "*", path = "../library" }
 ctrlc = "*"
+eframe = { version = "*", optional = true }
+egui = { version = "*", optional = true }
+egui_glow = { version = "*", optional = true }
 log = "*"
 simple_logger = "*"
