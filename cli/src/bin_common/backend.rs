@@ -159,7 +159,7 @@ mod eframe {
         }
 
         fn render_game_screen(&mut self, ui: &mut egui::Ui) {
-            let (rect, _) = ui.allocate_exact_size(self.window_vec.clone(), egui::Sense::drag());
+            let (rect, _) = ui.allocate_exact_size(self.window_vec, egui::Sense::drag());
 
             let callback = egui::PaintCallback {
                 rect,
@@ -195,8 +195,8 @@ mod eframe {
                 egui::Vec2::new((width * pixel_size) as f32, (height * pixel_size) as f32);
 
             let native_options = eframe::NativeOptions {
-                initial_window_size: Some(window_vec.clone()),
-                max_window_size: Some(window_vec.clone()),
+                initial_window_size: Some(window_vec),
+                max_window_size: Some(window_vec),
                 ..Default::default()
             };
 
