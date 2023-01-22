@@ -7,7 +7,7 @@ repository = "https://github.com/bobbobbio/come_boy"
 homepage = "https://github.com/bobbobbio/come_boy"
 
 [features]
-default = ["speedy2d-renderer", "sound"]
+default = ["eframe-renderer", "sound"]
 speedy2d-renderer = ["come_boy/speedy2d-renderer"]
 sdl2-renderer = ["come_boy/sdl2-renderer"]
 eframe-renderer = ["eframe", "egui", "egui_glow"]
