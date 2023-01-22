@@ -135,6 +135,7 @@ mod eframe {
     use come_boy::rendering::{glow, RenderingOptions};
     use come_boy::sound::cpal::CpalSoundStream;
     use std::sync::Arc;
+    use std::time::Duration;
 
     struct App {
         paint_callback: Arc<egui_glow::CallbackFn>,
@@ -172,6 +173,9 @@ mod eframe {
                 .show(ctx, |ui| {
                     self.render_game_screen(ui);
                 });
+
+            // Approximately 60fps
+            ctx.request_repaint_after(Duration::from_millis(17));
         }
     }
 
