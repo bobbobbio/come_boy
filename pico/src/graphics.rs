@@ -53,7 +53,7 @@ impl Graphics {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn set_pen(&self, color: Color) {
         unsafe { picosystem::pen(color.r(), color.g(), color.b()) }
     }
@@ -62,7 +62,7 @@ impl Graphics {
         unsafe { picosystem::blend_copy() };
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn clear(&self) {
         unsafe { picosystem::clear() };
     }
@@ -90,7 +90,7 @@ impl come_boy::rendering::Renderer for Graphics {
         unimplemented!()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn color_pixel(&mut self, x: i32, y: i32, color: come_boy::rendering::Color) {
         let color: Color = color.into();
         if x < 0 || x >= SCREEN_WIDTH as i32 || y < 0 || y >= SCREEN_HEIGHT as i32 {

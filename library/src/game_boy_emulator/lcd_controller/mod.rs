@@ -128,7 +128,7 @@ pub struct DmaRegister {
 }
 
 impl<'a> MemoryMappedHardware for (&'a DmaRegister, &'a GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
 
@@ -136,14 +136,14 @@ impl<'a> MemoryMappedHardware for (&'a DmaRegister, &'a GameBoyScheduler) {
         reg.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, _address: u16, _value: u8) {
         unreachable!()
     }
 }
 
 impl<'a> MemoryMappedHardware for (&'a mut DmaRegister, &'a mut GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
 
@@ -151,7 +151,7 @@ impl<'a> MemoryMappedHardware for (&'a mut DmaRegister, &'a mut GameBoyScheduler
         reg.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
 
@@ -173,17 +173,17 @@ impl fmt::Debug for DmaRegister {
 }
 
 impl DmaRegister {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn get_request_addr(&mut self) -> u16 {
         self.read_value() as u16 * 0x100
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn read_value(&self) -> u8 {
         self.value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn set_value(&mut self, value: u8) {
         self.value = value;
     }
@@ -244,12 +244,12 @@ pub enum LcdColor {
 }
 
 impl FlagMask for LcdColor {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_mask() -> u8 {
         0xFF
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn write_mask() -> u8 {
         0xFF
     }
@@ -298,12 +298,12 @@ pub enum LcdControlFlag {
 }
 
 impl FlagMask for LcdControlFlag {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_mask() -> u8 {
         0xFF
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn write_mask() -> u8 {
         0xFF
     }
@@ -333,7 +333,7 @@ pub enum LcdStatusFlag {
 }
 
 impl FlagMask for LcdStatusFlag {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_mask() -> u8 {
         Self::InterruptLYMatching as u8
             | Self::InterruptMode10 as u8
@@ -343,7 +343,7 @@ impl FlagMask for LcdStatusFlag {
             | Self::Mode as u8
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn write_mask() -> u8 {
         Self::InterruptLYMatching as u8
             | Self::InterruptMode10 as u8
@@ -379,25 +379,25 @@ enum LcdObjectAttributeFlag {
 }
 
 impl FlagMask for LcdObjectAttributeFlag {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_mask() -> u8 {
         0xFF
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn write_mask() -> u8 {
         0xFF
     }
 }
 
 impl LcdObject {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_flag(&self, flag: LcdObjectAttributeFlag) -> bool {
         self.flags.read_flag(flag)
     }
 
     /// Returns tuple (y position, character code)
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn get_character_data_for_line(
         &self,
         line: i32,
@@ -434,7 +434,7 @@ impl LcdObject {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn draw_line(
         &self,
         line: &mut ScanLine,
@@ -471,7 +471,7 @@ struct LcdObjectIterator<'a> {
 impl<'a> Iterator for LcdObjectIterator<'a> {
     type Item = LcdObject;
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn next(&mut self) -> Option<LcdObject> {
         if self.chunk_iterator.peek().is_none() {
             None
@@ -493,7 +493,7 @@ impl<'a> Iterator for LcdObjectIterator<'a> {
 }
 
 impl<'a> LcdObjectIterator<'a> {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn new(chunk: &'a MemoryChunk) -> LcdObjectIterator<'a> {
         LcdObjectIterator {
             chunk_iterator: chunk.as_slice().iter().peekable(),
@@ -507,7 +507,7 @@ struct LcdDotData<'a> {
 }
 
 impl<'a> LcdDotData<'a> {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_pixel(&self, offset: usize) -> LcdColor {
         let byte_offset = (offset / 8) * 2;
         let bit_offset = 7 - (offset % 8);
@@ -526,7 +526,7 @@ impl<'a> LcdDotData<'a> {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     #[allow(clippy::too_many_arguments)]
     fn draw_line(
         &self,
@@ -591,7 +591,7 @@ pub enum LcdControllerEvent {
 }
 
 impl LcdControllerEvent {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub(crate) fn deliver(
         self,
         controller: &mut LcdController,
@@ -616,26 +616,26 @@ struct ScanLine {
 }
 
 impl ScanLine {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn new() -> Self {
         Self {
             data: [LcdShade::Shade0; SCREEN_WIDTH as usize],
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_pixel(&mut self, x: i32, shade: LcdShade) {
         assert!(x >= 0 && x < self.data.len() as i32);
         self.data[x as usize] = shade
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn get_pixel(&self, x: i32) -> LcdShade {
         assert!(x >= 0 && x < self.data.len() as i32);
         self.data[x as usize]
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn draw<R: Renderer>(&self, renderer: &mut R, palette: &Palette, y: i32) {
         for (x, &v) in self.data.iter().enumerate() {
             renderer.color_pixel(x as i32, y, palette.color_for_shade(v));
@@ -686,7 +686,7 @@ impl LcdController {
         scheduler.schedule(now + 56 + 456, LcdControllerEvent::AdvanceLy);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_dot_data(
         data: &MemoryChunk,
         character_data_selection: bool,
@@ -739,7 +739,7 @@ impl LcdController {
         self.oam_data.clone_from_slice(&oam_data[..]);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn get_scroll_origin_relative_to_lcd(&self) -> (i32, i32) {
         let mut x = -(self.registers.scx.read_value() as i32);
         let mut y = -(self.registers.scy.read_value() as i32);
@@ -758,7 +758,7 @@ impl LcdController {
         (x, y)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn get_window_origin_relative_to_lcd(&self) -> (i32, i32) {
         let x = self.registers.wx.read_value() as i32 - 7;
         let y = self.registers.wy.read_value() as i32;
@@ -766,7 +766,7 @@ impl LcdController {
         (x, y)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn draw_tiles(
         &mut self,
         line: &mut ScanLine,
@@ -839,7 +839,7 @@ impl LcdController {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn draw_oam_data(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::ObjectOn) {
             return;
@@ -883,7 +883,7 @@ impl LcdController {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn mode_2(
         &mut self,
         interrupt_flag: &mut GameBoyFlags<InterruptFlag>,
@@ -905,7 +905,7 @@ impl LcdController {
         scheduler.schedule(time + 77, LcdControllerEvent::Mode3);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn draw_background(&mut self, line: &mut ScanLine) {
         let bg_area_selection = self
             .registers
@@ -926,7 +926,7 @@ impl LcdController {
         );
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn draw_window(&mut self, line: &mut ScanLine) {
         if !self.registers.lcdc.read_flag(LcdControlFlag::WindowingOn) {
             return;
@@ -947,7 +947,7 @@ impl LcdController {
         );
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn mode_3(
         &mut self,
         renderer: &mut impl Renderer,
@@ -972,7 +972,7 @@ impl LcdController {
         scheduler.schedule(time + 175, LcdControllerEvent::Mode0);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn mode_0(
         &mut self,
         interrupt_flag: &mut GameBoyFlags<InterruptFlag>,
@@ -1008,7 +1008,7 @@ impl LcdController {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn advance_ly(&mut self, scheduler: &mut GameBoyScheduler, time: u64) {
         // This advances the ly register, which represents the horizontal line that is currently
         // being drawn on the LCD.
@@ -1025,7 +1025,7 @@ impl LcdController {
         scheduler.schedule(time + 1, LcdControllerEvent::UpdateLyMatch);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn update_ly_match(
         &mut self,
         interrupt_flag: &mut GameBoyFlags<InterruptFlag>,
@@ -1045,7 +1045,7 @@ impl LcdController {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn mode_1<R: Renderer>(
         &mut self,
         renderer: &mut R,
@@ -1070,7 +1070,7 @@ impl LcdController {
         scheduler.schedule(time + 4560, LcdControllerEvent::Mode2);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn enable(&mut self, scheduler: &mut GameBoyScheduler) {
         assert!(!self.enabled);
 
@@ -1078,7 +1078,7 @@ impl LcdController {
         self.schedule_initial_events(scheduler, scheduler.now());
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn disable(&mut self, scheduler: &mut GameBoyScheduler) {
         assert!(self.enabled);
 
@@ -1105,7 +1105,7 @@ impl LcdController {
 
 /// This implementation is where reads for LCDC go
 impl<'a> MemoryMappedHardware for (&'a LcdController, &'a GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (controller, _scheduler) = self;
@@ -1119,14 +1119,14 @@ impl<'a> MemoryMappedHardware for (&'a LcdController, &'a GameBoyScheduler) {
 
 /// This implementation is where the writes for LCDC go
 impl<'a> MemoryMappedHardware for (&'a mut LcdController, &'a mut GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (controller, _scheduler) = self;
         controller.registers.lcdc.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
         let (controller, scheduler) = self;

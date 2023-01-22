@@ -48,7 +48,7 @@ def ensure_rust_updated():
 
 def build():
     cd('web')
-    sh('wasm-pack build --target web --release')
+    sh('wasm-pack build --target web --release --features aggressive-inline')
     cd('www')
     sh('npm install')
     cd('..')

@@ -22,7 +22,7 @@ impl Default for Palette {
 }
 
 impl Palette {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub(crate) fn color_for_shade(&self, shade: LcdShade) -> Color {
         match shade {
             LcdShade::Shade0 => self.shade0,

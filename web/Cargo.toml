@@ -7,6 +7,9 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+aggressive-inline = ["come_boy/aggressive-inline"]
+
 [dependencies]
 egui = "*"
 egui_glow = "*"

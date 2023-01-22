@@ -225,20 +225,20 @@ impl Divider {
         self.0.set_value(0xab);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn increment(&mut self) {
         self.0.add(1)
     }
 }
 
 impl MemoryMappedHardware for Divider {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         self.0.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, address: u16, _value: u8) {
         assert_eq!(address, 0);
         self.0.set_value(0);
@@ -259,7 +259,7 @@ impl InterruptsEnabled {
 }
 
 impl<'a> MemoryMappedHardware for (&'a InterruptsEnabled, &'a GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, _address: u16) -> u8 {
         unreachable!()
     }
@@ -274,17 +274,17 @@ impl<'a> MemoryMappedHardware for (&'a InterruptsEnabled, &'a GameBoyScheduler) 
 }
 
 impl<'a> MemoryMappedHardware for (&'a mut InterruptsEnabled, &'a mut GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, _address: u16) -> u8 {
         unreachable!()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, _address: u16, _value: u8) {
         unreachable!()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_interrupts_enabled(&mut self, enabled: bool) {
         let (flag, scheduler) = self;
         flag.set(enabled);
@@ -308,7 +308,7 @@ struct GameBoyRegisters {
 
 /// This implementation is where reads for interrupt_flag go
 impl<'a> MemoryMappedHardware for (&'a GameBoyFlags<InterruptFlag>, &'a GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (flags, _scheduler) = self;
@@ -327,14 +327,14 @@ impl<'a> MemoryMappedHardware
         &'a mut GameBoyScheduler,
     )
 {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (flags, _scheduler) = self;
         flags.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
         let (flags, scheduler) = self;
@@ -350,7 +350,7 @@ impl<'a> MemoryMappedHardware
 
 /// This implementation is where reads for interrupt_enable_mask go
 impl<'a> MemoryMappedHardware for (&'a GameBoyFlags<InterruptEnableFlag>, &'a GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (flags, _scheduler) = self;
@@ -369,14 +369,14 @@ impl<'a> MemoryMappedHardware
         &'a mut GameBoyScheduler,
     )
 {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (flags, _scheduler) = self;
         flags.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
         let (flags, scheduler) = self;
@@ -473,7 +473,7 @@ impl GameBoyTimer {
 
 /// This implementation is where reads for timer control go
 impl<'a> MemoryMappedHardware for (&'a GameBoyTimer, &'a GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (timer, _scheduler) = self;
@@ -487,14 +487,14 @@ impl<'a> MemoryMappedHardware for (&'a GameBoyTimer, &'a GameBoyScheduler) {
 
 /// This implementation is where the writes for timer control go
 impl<'a> MemoryMappedHardware for (&'a mut GameBoyTimer, &'a mut GameBoyScheduler) {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_value(&self, address: u16) -> u8 {
         assert_eq!(address, 0);
         let (timer, _scheduler) = self;
         timer.control.read_value()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_value(&mut self, address: u16, value: u8) {
         assert_eq!(address, 0);
         let (timer, scheduler) = self;
@@ -552,7 +552,7 @@ impl From<sound_controller::SoundControllerEvent> for GameBoyEmulatorEvent {
 type GameBoyScheduler = crate::util::Scheduler<GameBoyEmulatorEvent>;
 
 impl GameBoyEmulatorEvent {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn deliver(
         self,
         emulator: &mut GameBoyEmulator,
@@ -658,7 +658,7 @@ impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, Sou
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn memory_map<'a>(&'a self, bridge: &'a Bridge) -> GameBoyMemoryMap<'a, Storage> {
         GameBoyMemoryMap {
             game_pak: self.game_pak.as_ref(),
@@ -667,7 +667,7 @@ impl<Renderer, SoundStream, Storage: PersistentStorage> GameBoyOps<Renderer, Sou
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn memory_map_mut<'a>(
         &'a mut self,
         bridge: &'a mut Bridge,
@@ -756,7 +756,7 @@ impl GameBoyEmulator {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn divider_tick(&mut self, time: u64) {
         self.bridge.registers.divider.increment();
         self.bridge
@@ -764,7 +764,7 @@ impl GameBoyEmulator {
             .schedule(time + 256, GameBoyEmulatorEvent::DividerTick);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn deliver_events(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -785,7 +785,7 @@ impl GameBoyEmulator {
         self.tick_with_observer(ops, &mut NullPerfObserver)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn halted_cpu_tick(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -797,7 +797,7 @@ impl GameBoyEmulator {
         self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn cpu_tick(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -869,7 +869,7 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn drive_joypad(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -884,7 +884,7 @@ impl GameBoyEmulator {
             .schedule(time + 456, GameBoyEmulatorEvent::DriveJoypad);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn start_dma_transfer(
         &mut self,
         ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -906,7 +906,7 @@ impl GameBoyEmulator {
         self.drive_dma_transfer(ops, now);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn drive_dma_transfer(
         &mut self,
         ops: &GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -935,7 +935,7 @@ impl GameBoyEmulator {
     /// Before handling an interrupt we push the return address to the stack. If the high byte when
     /// writing that address overwrites the IE register (0xFFFF) the interrupt handling will
     /// short-circuit and jump to address 0x0000.
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn maybe_handle_ie_push_bug(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -958,7 +958,7 @@ impl GameBoyEmulator {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn deliver_interrupt(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -981,7 +981,7 @@ impl GameBoyEmulator {
         self.bridge.registers.interrupt_flag.set_flag(flag, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn maybe_deliver_interrupt(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
@@ -1008,7 +1008,7 @@ impl GameBoyEmulator {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn handle_interrupts(
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,

@@ -324,7 +324,7 @@ pub enum LR35902InstructionType {
 pub const NUM_INSTRUCTIONS: usize = 87usize;
 impl LR35902Instruction {
     #[allow(clippy::unnecessary_cast)]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn from_memory(memory: &(impl MemoryAccessor + ?Sized), address: u16) -> Option<Self> {
         let opcode = memory.read_memory(address);
         match opcode {
@@ -4450,7 +4450,7 @@ pub trait LR35902InstructionSet {
     fn test_bit(&mut self, data1: u8, register2: Intel8080Register);
 }
 impl LR35902Instruction {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn dispatch<I: LR35902InstructionSet>(self, machine: &mut I) {
         match self {
             Self::NoOperation {} => machine.no_operation(),

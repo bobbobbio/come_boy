@@ -77,7 +77,7 @@ impl LR35902Emulator {
         self.instr.clone()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
         if value {
             self.registers[Intel8080Register::FLAGS as usize] |= flag as u8;
@@ -86,50 +86,50 @@ impl LR35902Emulator {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn read_flag(&self, flag: LR35902Flag) -> bool {
         self.registers[Intel8080Register::FLAGS as usize] & flag as u8 == flag as u8
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn read_register(&self, register: Intel8080Register) -> u8 {
         self.read_raw_register(register as usize)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn set_register(&mut self, register: Intel8080Register, value: u8) {
         self.set_raw_register(register as usize, value)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn read_register_pair(&self, register: Intel8080Register) -> u16 {
         self.read_raw_register_pair(register as usize / 2)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn set_register_pair(&mut self, register: Intel8080Register, value: u16) {
         self.set_raw_register_pair(register as usize / 2, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_raw_register(&self, index: usize) -> u8 {
         self.registers[index]
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_raw_register(&mut self, index: usize, value: u8) {
         assert!(index != Intel8080Register::FLAGS as usize);
         self.registers[index] = value;
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_raw_register_pair(&self, index: usize) -> u16 {
         let first_byte = index * 2;
         let second_byte = first_byte + 1;
         u16::from_be_bytes([self.registers[first_byte], self.registers[second_byte]])
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
         let first_byte = index * 2;
         let second_byte = first_byte + 1;
@@ -144,17 +144,17 @@ impl LR35902Emulator {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn read_program_counter(&self) -> u16 {
         self.program_counter
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn set_program_counter(&mut self, address: u16) {
         self.program_counter = address;
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn push_u16_onto_stack<M: MemoryAccessor>(
         &mut self,
         memory_accessor: &mut M,
@@ -164,17 +164,17 @@ impl LR35902Emulator {
         Intel8080InstructionSetOps::push_u16_onto_stack(&mut ops, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn add_cycles(&mut self, cycles: u8) {
         self.elapsed_cycles += cycles as u64;
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn resume(&mut self) {
         self.halted = false;
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn is_halted(&self) -> bool {
         self.halted
     }
@@ -206,13 +206,13 @@ pub trait LR35902InstructionSetOps {
     fn push_frame(&mut self, address: u16);
     fn pop_frame(&mut self);
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn get_relative_address(&self, n: u8) -> u16 {
         self.read_program_counter()
             .wrapping_add(((n as i8) as i16) as u16)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8 {
         let new_value = value_a.wrapping_add(value_b);
 
@@ -229,7 +229,7 @@ pub trait LR35902InstructionSetOps {
         new_value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, ovalue_b: u8) -> u8 {
         let value_b = ovalue_b.twos_complement();
         let new_value = value_a.wrapping_add(value_b);
@@ -242,7 +242,7 @@ pub trait LR35902InstructionSetOps {
         new_value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a.wrapping_sub(value_b);
         self.set_flag(LR35902Flag::Zero, new_value == 0);
@@ -251,7 +251,7 @@ pub trait LR35902InstructionSetOps {
         new_value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a & value_b;
         self.set_flag(LR35902Flag::Zero, new_value == 0);
@@ -261,7 +261,7 @@ pub trait LR35902InstructionSetOps {
         new_value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a ^ value_b;
         self.set_flag(LR35902Flag::Zero, new_value == 0);
@@ -271,7 +271,7 @@ pub trait LR35902InstructionSetOps {
         new_value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         let new_value = value_a | value_b;
         self.set_flag(LR35902Flag::Zero, new_value == 0);
@@ -281,7 +281,7 @@ pub trait LR35902InstructionSetOps {
         new_value
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_signed_double_add(&mut self, value_a: u16, value_b: u8) -> u16 {
         let value = ((value_b as i8) as i16) as u16;
         let new_value = value_a.wrapping_add(value);
@@ -318,134 +318,134 @@ impl<'a, M: MemoryAccessor> InstructionDispatchOps<'a, M> {
 }
 
 impl<'a, M: MemoryAccessor> InstructionDispatchOps<'a, M> {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
         self.emulator.set_flag(flag, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_flag(&self, flag: LR35902Flag) -> bool {
         self.emulator.read_flag(flag)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         self.memory_accessor.read_memory(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.memory_accessor.set_memory(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory_u16(&self, address: u16) -> u16 {
         self.memory_accessor.read_memory_u16(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory_u16(&mut self, address: u16, value: u16) {
         self.memory_accessor.set_memory_u16(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_program_counter(&self) -> u16 {
         self.emulator.read_program_counter()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_program_counter(&mut self, address: u16) {
         self.emulator.set_program_counter(address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_interrupts_enabled(&mut self, value: bool) {
         self.memory_accessor.set_interrupts_enabled(value);
     }
 }
 
 impl<'a, M: MemoryAccessor> LR35902InstructionSetOps for InstructionDispatchOps<'a, M> {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_flag(&mut self, flag: LR35902Flag, value: bool) {
         self.set_flag(flag, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_flag(&self, flag: LR35902Flag) -> bool {
         self.read_flag(flag)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         self.read_memory(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.set_memory(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory_u16(&self, address: u16) -> u16 {
         self.read_memory_u16(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory_u16(&mut self, address: u16, value: u16) {
         self.set_memory_u16(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_raw_register(&self, index: usize) -> u8 {
         self.emulator.read_raw_register(index)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_raw_register(&mut self, index: usize, value: u8) {
         self.emulator.set_raw_register(index, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_raw_register_pair(&self, index: usize) -> u16 {
         self.emulator.read_raw_register_pair(index)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
         self.emulator.set_raw_register_pair(index, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_program_counter(&self) -> u16 {
         self.read_program_counter()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_program_counter(&mut self, address: u16) {
         self.set_program_counter(address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_interrupts_enabled(&mut self, value: bool) {
         self.set_interrupts_enabled(value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_cycles(&mut self, cycles: u8) {
         self.emulator.add_cycles(cycles);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn push_frame(&mut self, address: u16) {
         self.emulator.call_stack.push(address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn pop_frame(&mut self) {
         self.emulator.call_stack.pop();
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn wait_until_interrupt(&mut self) {
         self.emulator.halted = true;
     }
@@ -464,27 +464,27 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
      * Implementing this trait is the translation layer that allows 8080 instructions to be run on
      * the LR35902.
      */
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         self.read_memory(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         self.set_memory(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory_u16(&self, address: u16) -> u16 {
         self.read_memory_u16(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory_u16(&mut self, address: u16, value: u16) {
         self.set_memory_u16(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_flag(&mut self, flag: Intel8080Flag, value: bool) {
         match flag {
             Intel8080Flag::Zero => self.set_flag(LR35902Flag::Zero, value),
@@ -494,7 +494,7 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
         };
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_flag(&self, flag: Intel8080Flag) -> bool {
         match flag {
             Intel8080Flag::Zero => self.read_flag(LR35902Flag::Zero),
@@ -504,87 +504,87 @@ impl<I: LR35902InstructionSetOps> Intel8080InstructionSetOps for I {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_raw_register(&self, index: usize) -> u8 {
         self.read_raw_register(index)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_raw_register(&mut self, index: usize, value: u8) {
         self.set_raw_register(index, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_raw_register_pair(&self, index: usize) -> u16 {
         self.read_raw_register_pair(index)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_raw_register_pair(&mut self, index: usize, value: u16) {
         self.set_raw_register_pair(index, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_addition(&mut self, value_a: u8, value_b: u8, update_carry: bool) -> u8 {
         self.perform_addition(value_a, value_b, update_carry)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_subtraction_using_twos_complement(&mut self, value_a: u8, value_b: u8) -> u8 {
         self.perform_subtraction_using_twos_complement(value_a, value_b)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_subtraction(&mut self, value_a: u8, value_b: u8) -> u8 {
         self.perform_subtraction(value_a, value_b)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_and(&mut self, value_a: u8, value_b: u8) -> u8 {
         self.perform_and(value_a, value_b)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_exclusive_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         self.perform_exclusive_or(value_a, value_b)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn perform_or(&mut self, value_a: u8, value_b: u8) -> u8 {
         self.perform_or(value_a, value_b)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_program_counter(&self) -> u16 {
         self.read_program_counter()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_program_counter(&mut self, address: u16) {
         self.set_program_counter(address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_interrupts_enabled(&mut self, value: bool) {
         self.set_interrupts_enabled(value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_cycles(&mut self, cycles: u8) {
         self.add_cycles(cycles);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn push_frame(&mut self, address: u16) {
         self.push_frame(address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn pop_frame(&mut self) {
         self.pop_frame();
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn wait_until_interrupt(&mut self) {
         self.wait_until_interrupt();
     }
@@ -765,7 +765,7 @@ fn perform_subtraction_sets_half_carry_flag() {
  */
 
 impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn move_and_increment_hl(
         &mut self,
         dest_register: Intel8080Register,
@@ -776,7 +776,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_register_pair(Intel8080Register::H, old_value.wrapping_add(1));
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn move_and_decrement_hl(
         &mut self,
         dest_register: Intel8080Register,
@@ -787,26 +787,26 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_register_pair(Intel8080Register::H, old_value.wrapping_sub(1));
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn store_accumulator_direct(&mut self, address: u16) {
         Intel8080InstructionSet::store_accumulator_direct(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn store_sp_plus_immediate(&mut self, data: u8) {
         let sp = self.read_register_pair(Intel8080Register::SP);
         let address = self.perform_signed_double_add(sp, data);
         self.set_register_pair(Intel8080Register::H, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_immediate_to_sp(&mut self, data: u8) {
         let sp = self.read_register_pair(Intel8080Register::SP);
         let new_value = self.perform_signed_double_add(sp, data);
         self.set_register_pair(Intel8080Register::SP, new_value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn double_add(&mut self, register: Intel8080Register) {
         let value = self.read_register_pair(register);
         let old_value = self.read_register_pair(Intel8080Register::H);
@@ -822,97 +822,97 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_register_pair(Intel8080Register::H, new_value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn store_accumulator_direct_one_byte(&mut self, relative_address: u8) {
         let value = self.read_register(Intel8080Register::A);
         self.set_memory(0xFF00 + relative_address as u16, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn store_accumulator_one_byte(&mut self) {
         let relative_address = self.read_register(Intel8080Register::C);
         self.store_accumulator_direct_one_byte(relative_address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_accumulator_direct_one_byte(&mut self, relative_address: u8) {
         let value = self.read_memory(0xFF00 + relative_address as u16);
         self.set_register(Intel8080Register::A, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_accumulator_one_byte(&mut self) {
         let relative_address = self.read_register(Intel8080Register::C);
         self.load_accumulator_direct_one_byte(relative_address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn return_and_enable_interrupts(&mut self) {
         LR35902InstructionSet::return_unconditionally(self);
         LR35902InstructionSet::enable_interrupts(self);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn halt_until_button_press(&mut self) {
         unimplemented!();
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_relative(&mut self, n: u8) {
         let address = self.get_relative_address(n);
         Intel8080InstructionSet::jump(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_relative_if_zero(&mut self, n: u8) {
         let address = self.get_relative_address(n);
         Intel8080InstructionSet::jump_if_zero(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_relative_if_not_zero(&mut self, n: u8) {
         let address = self.get_relative_address(n);
         Intel8080InstructionSet::jump_if_not_zero(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_relative_if_carry(&mut self, n: u8) {
         let address = self.get_relative_address(n);
         Intel8080InstructionSet::jump_if_carry(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_relative_if_no_carry(&mut self, n: u8) {
         let address = self.get_relative_address(n);
         Intel8080InstructionSet::jump_if_no_carry(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn store_sp_direct(&mut self, address: u16) {
         let value = self.read_register_pair(Intel8080Register::SP);
         self.set_memory_u16(address, value);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_accumulator_direct(&mut self, address: u16) {
         Intel8080InstructionSet::load_accumulator_direct(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn reset_bit(&mut self, bit: u8, register: Intel8080Register) {
         assert!(bit < 8);
         let value = self.read_register(register);
         self.set_register(register, value & !(1u8 << bit));
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_bit(&mut self, bit: u8, register: Intel8080Register) {
         assert!(bit < 8);
         let value = self.read_register(register);
         self.set_register(register, value | (1u8 << bit));
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn test_bit(&mut self, bit: u8, register: Intel8080Register) {
         assert!(bit < 8);
         let value = self.read_register(register);
@@ -921,7 +921,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::HalfCarry, true);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn shift_register_right_signed(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = ((value as i8) >> 1) as u8;
@@ -932,7 +932,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::Carry, (value & 1) != 0);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn shift_register_right(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = value >> 1;
@@ -943,7 +943,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::Carry, (value & 1) != 0);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn shift_register_left(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = value << 1;
@@ -954,7 +954,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::Carry, (value & (1u8 << 7)) != 0);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn swap_register(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = (value << 4) | (value >> 4);
@@ -965,7 +965,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::Carry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_register_right(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = self.perform_rotate_right(value);
@@ -975,7 +975,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_register_left(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = self.perform_rotate_left(value);
@@ -985,7 +985,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_register_right_through_carry(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = self.perform_rotate_right_through_carry(value);
@@ -995,7 +995,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_register_left_through_carry(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
         let new_value = self.perform_rotate_left_through_carry(value);
@@ -1005,31 +1005,31 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_accumulator_right(&mut self) {
         self.rotate_register_right(Intel8080Register::A);
         self.set_flag(LR35902Flag::Zero, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_accumulator_left(&mut self) {
         self.rotate_register_left(Intel8080Register::A);
         self.set_flag(LR35902Flag::Zero, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_accumulator_right_through_carry(&mut self) {
         self.rotate_register_right_through_carry(Intel8080Register::A);
         self.set_flag(LR35902Flag::Zero, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn rotate_accumulator_left_through_carry(&mut self) {
         self.rotate_register_left_through_carry(Intel8080Register::A);
         self.set_flag(LR35902Flag::Zero, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn decimal_adjust_accumulator(&mut self) {
         if !self.read_flag(LR35902Flag::Subtract) {
             Intel8080InstructionSet::decimal_adjust_accumulator(self);
@@ -1052,269 +1052,269 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn complement_accumulator(&mut self) {
         Intel8080InstructionSet::complement_accumulator(self);
         self.set_flag(LR35902Flag::Subtract, true);
         self.set_flag(LR35902Flag::HalfCarry, true);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_carry(&mut self) {
         Intel8080InstructionSet::set_carry(self);
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn complement_carry(&mut self) {
         Intel8080InstructionSet::complement_carry(self);
         self.set_flag(LR35902Flag::Subtract, false);
         self.set_flag(LR35902Flag::HalfCarry, false);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_sp_from_h_and_l(&mut self) {
         Intel8080InstructionSet::load_sp_from_h_and_l(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn or_immediate_with_accumulator(&mut self, data: u8) {
         Intel8080InstructionSet::or_immediate_with_accumulator(self, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn no_operation(&mut self) {
         Intel8080InstructionSet::no_operation(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_register_pair_immediate(&mut self, register: Intel8080Register, data: u16) {
         Intel8080InstructionSet::load_register_pair_immediate(self, register, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn move_data(&mut self, dest_register: Intel8080Register, src_register: Intel8080Register) {
         Intel8080InstructionSet::move_data(self, dest_register, src_register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn enable_interrupts(&mut self) {
         Intel8080InstructionSet::enable_interrupts(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn return_if_zero(&mut self) {
         Intel8080InstructionSet::return_if_zero(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn exclusive_or_immediate_with_accumulator(&mut self, data: u8) {
         Intel8080InstructionSet::exclusive_or_immediate_with_accumulator(self, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn and_immediate_with_accumulator(&mut self, data: u8) {
         Intel8080InstructionSet::and_immediate_with_accumulator(self, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn decrement_register_or_memory(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::decrement_register_or_memory(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn halt(&mut self) {
         Intel8080InstructionSet::halt(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn compare_with_accumulator(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::compare_with_accumulator(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn restart(&mut self, implicit_data: u8) {
         Intel8080InstructionSet::restart(self, implicit_data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn decrement_register_pair(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::decrement_register_pair(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn return_if_not_zero(&mut self) {
         Intel8080InstructionSet::return_if_not_zero(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn logical_or_with_accumulator(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::logical_or_with_accumulator(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump(&mut self, address: u16) {
         Intel8080InstructionSet::jump(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn call_if_not_zero(&mut self, address: u16) {
         Intel8080InstructionSet::call_if_not_zero(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn subtract_immediate_from_accumulator(&mut self, data: u8) {
         Intel8080InstructionSet::subtract_immediate_from_accumulator(self, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn subtract_from_accumulator(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::subtract_from_accumulator(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_accumulator(&mut self, register_pair: Intel8080Register) {
         Intel8080InstructionSet::load_accumulator(self, register_pair)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn return_unconditionally(&mut self) {
         Intel8080InstructionSet::return_unconditionally(self);
         self.pop_frame();
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_if_not_zero(&mut self, address: u16) {
         Intel8080InstructionSet::jump_if_not_zero(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn call_if_carry(&mut self, address: u16) {
         Intel8080InstructionSet::call_if_carry(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn logical_and_with_accumulator(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::logical_and_with_accumulator(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_if_no_carry(&mut self, address: u16) {
         Intel8080InstructionSet::jump_if_no_carry(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn call(&mut self, address: u16) {
         Intel8080InstructionSet::call(self, address);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn return_if_no_carry(&mut self) {
         Intel8080InstructionSet::return_if_no_carry(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn call_if_zero(&mut self, address: u16) {
         Intel8080InstructionSet::call_if_zero(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_if_carry(&mut self, address: u16) {
         Intel8080InstructionSet::jump_if_carry(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_immediate_to_accumulator_with_carry(&mut self, data: u8) {
         Intel8080InstructionSet::add_immediate_to_accumulator_with_carry(self, data);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn increment_register_pair(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::increment_register_pair(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn store_accumulator(&mut self, register_pair: Intel8080Register) {
         Intel8080InstructionSet::store_accumulator(self, register_pair)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_to_accumulator_with_carry(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::add_to_accumulator_with_carry(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn subtract_from_accumulator_with_borrow(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::subtract_from_accumulator_with_borrow(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn push_data_onto_stack(&mut self, register_pair: Intel8080Register) {
         Intel8080InstructionSet::push_data_onto_stack(self, register_pair)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn increment_register_or_memory(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::increment_register_or_memory(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn load_program_counter(&mut self) {
         Intel8080InstructionSet::load_program_counter(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn pop_data_off_stack(&mut self, register_pair: Intel8080Register) {
         Intel8080InstructionSet::pop_data_off_stack(self, register_pair)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_immediate_to_accumulator(&mut self, data: u8) {
         Intel8080InstructionSet::add_immediate_to_accumulator(self, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn logical_exclusive_or_with_accumulator(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::logical_exclusive_or_with_accumulator(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn add_to_accumulator(&mut self, register: Intel8080Register) {
         Intel8080InstructionSet::add_to_accumulator(self, register)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn disable_interrupts(&mut self) {
         Intel8080InstructionSet::disable_interrupts(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn compare_immediate_with_accumulator(&mut self, data: u8) {
         Intel8080InstructionSet::compare_immediate_with_accumulator(self, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn move_immediate_data(&mut self, dest_register: Intel8080Register, data: u8) {
         Intel8080InstructionSet::move_immediate_data(self, dest_register, data)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn call_if_no_carry(&mut self, address: u16) {
         Intel8080InstructionSet::call_if_no_carry(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn return_if_carry(&mut self) {
         Intel8080InstructionSet::return_if_carry(self)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn jump_if_zero(&mut self, address: u16) {
         Intel8080InstructionSet::jump_if_zero(self, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data: u8) {
         Intel8080InstructionSet::subtract_immediate_from_accumulator_with_borrow(self, data);
     }
@@ -2486,7 +2486,7 @@ impl LR35902Emulator {
         self.crash_message.is_some()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn run_lr35902_instruction<M: MemoryAccessor>(
         &mut self,
         instruction: LR35902Instruction,
@@ -2504,7 +2504,7 @@ impl LR35902Emulator {
         self.crash(format!("Unknown opcode at address {pc:x}"));
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn load_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &M) {
         debug_assert!(!self.halted);
 
@@ -2518,7 +2518,7 @@ impl LR35902Emulator {
         self.instr = instr;
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn execute_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
         debug_assert!(!self.halted);
 
@@ -2535,13 +2535,13 @@ impl LR35902Emulator {
         self.execute_instruction(memory_accessor);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn jump<M: MemoryAccessor>(&mut self, memory_accessor: &mut M, address: u16) {
         let mut ops = InstructionDispatchOps::new(self, memory_accessor);
         LR35902InstructionSet::jump(&mut ops, address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn push_frame(&mut self, address: u16) {
         self.call_stack.push(address);
     }

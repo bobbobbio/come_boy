@@ -47,7 +47,7 @@ pub struct Color {
 }
 
 impl Color {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn new(r: u8, g: u8, b: u8) -> Self {
         Self { r, g, b }
     }

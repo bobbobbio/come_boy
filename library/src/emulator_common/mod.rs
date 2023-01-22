@@ -16,7 +16,7 @@ pub trait MemoryAccessor {
     fn read_memory(&self, address: u16) -> u8;
     fn set_memory(&mut self, address: u16, value: u8);
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory_u16(&self, address: u16) -> u16 {
         if address == 0xFFFF {
             return self.read_memory(address) as u16;
@@ -25,7 +25,7 @@ pub trait MemoryAccessor {
         (self.read_memory(address + 1) as u16) << 8 | (self.read_memory(address) as u16)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory_u16(&mut self, address: u16, value: u16) {
         self.set_memory(address, value as u8);
 
@@ -42,17 +42,17 @@ pub trait MemoryAccessor {
 }
 
 impl MemoryAccessor for &dyn MemoryAccessor {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         (*self).read_memory(address)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory(&mut self, _address: u16, _value: u8) {
         unreachable!()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_interrupts_enabled(&mut self, _enabled: bool) {
         unreachable!()
     }

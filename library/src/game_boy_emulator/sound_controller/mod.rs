@@ -171,7 +171,7 @@ impl From<channel1::Channel1Event> for GameBoyEmulatorEvent {
 }
 
 impl SoundControllerEvent {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub(crate) fn deliver(
         self,
         controller: &mut SoundController,
@@ -327,7 +327,7 @@ impl SoundController {
         }
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn mixer_tick(
         &mut self,
         sound_stream: &mut impl SoundStream,

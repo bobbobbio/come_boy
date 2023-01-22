@@ -671,7 +671,7 @@ impl OpcodeGenerator {
 
         tokens.extend(quote!(
             impl #enum_name {
-                #[cfg_attr(not(debug_assertions), inline(always))]
+                #[cfg_attr(feature = "aggressive-inline", inline(always))]
                 pub fn dispatch<I: #trait_name>(self, machine: &mut I) {
                     match self {
                         #( #dispatches, )*
@@ -801,7 +801,7 @@ impl OpcodeGenerator {
 
             impl #enum_name {
                 #[allow(clippy::unnecessary_cast)]
-                #[cfg_attr(not(debug_assertions), inline(always))]
+                #[cfg_attr(feature = "aggressive-inline", inline(always))]
                 pub fn from_memory(
                     memory: &(impl MemoryAccessor + ?Sized),
                     address: u16
@@ -1153,7 +1153,7 @@ fn generate_memory_map_from_mapping(
 
         impl #generics #memory_controller::MemoryAccessor for #name #generics #where_clause {
             #[allow(clippy::identity_op, clippy::if_same_then_else)]
-            #[cfg_attr(not(debug_assertions), inline(always))]
+            #[cfg_attr(feature = "aggressive-inline", inline(always))]
             fn read_memory(&self, address: u16) -> u8 {
                 #(if #read_condition {
                     MemoryMappedHardware::read_value(#read_expr, address - #read_offset)
@@ -1164,13 +1164,13 @@ fn generate_memory_map_from_mapping(
             }
 
             #[allow(unused_variables, clippy::identity_op, clippy::if_same_then_else)]
-            #[cfg_attr(not(debug_assertions), inline(always))]
+            #[cfg_attr(feature = "aggressive-inline", inline(always))]
             fn set_memory(&mut self, address: u16, value: u8) {
                 #set_memory_body
             }
 
             #[allow(unused_variables)]
-            #[cfg_attr(not(debug_assertions), inline(always))]
+            #[cfg_attr(feature = "aggressive-inline", inline(always))]
             fn set_interrupts_enabled(&mut self, enabled: bool) {
                 #set_interrupts_enabled_body
             }

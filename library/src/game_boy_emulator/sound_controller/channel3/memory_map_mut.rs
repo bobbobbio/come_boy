@@ -2,7 +2,7 @@ use super::Channel3;
 use crate::game_boy_emulator::memory_controller::MemoryMappedHardware;
 impl crate::game_boy_emulator::memory_controller::MemoryAccessor for Channel3 {
     #[allow(clippy::identity_op, clippy::if_same_then_else)]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         if address == 65306u16 {
             MemoryMappedHardware::read_value(&self.enabled, address - 65306u16)
@@ -17,7 +17,7 @@ impl crate::game_boy_emulator::memory_controller::MemoryAccessor for Channel3 {
         }
     }
     #[allow(unused_variables, clippy::identity_op, clippy::if_same_then_else)]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         if address == 65306u16 {
             MemoryMappedHardware::set_value(&mut self.enabled, address - 65306u16, value)
@@ -30,7 +30,7 @@ impl crate::game_boy_emulator::memory_controller::MemoryAccessor for Channel3 {
         }
     }
     #[allow(unused_variables)]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_interrupts_enabled(&mut self, enabled: bool) {
         panic!("unexpected set_interrupts_enabled call")
     }

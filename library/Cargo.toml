@@ -20,6 +20,7 @@ default = [
     "std",
     "ui",
 ]
+aggressive-inline = []
 bitmap-renderer = ["bmp"]
 game-pad = ["gilrs"]
 glow-renderer = ["glow"]

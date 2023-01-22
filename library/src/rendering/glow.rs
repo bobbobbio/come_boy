@@ -328,7 +328,7 @@ impl Renderer for GlowBackRenderer {
         unimplemented!()
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
         assert!(x < WIDTH as i32, "{}", "x = {x} > {WIDTH}");
         assert!(y < HEIGHT as i32, "{}", "y = {y} > {HEIGHT}");

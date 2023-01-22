@@ -283,7 +283,7 @@ pub enum Intel8080InstructionType {
 pub const NUM_INSTRUCTIONS: usize = 80usize;
 impl Intel8080Instruction {
     #[allow(clippy::unnecessary_cast)]
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn from_memory(memory: &(impl MemoryAccessor + ?Sized), address: u16) -> Option<Self> {
         let opcode = memory.read_memory(address);
         match opcode {
@@ -2178,7 +2178,7 @@ pub trait Intel8080InstructionSet {
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8);
 }
 impl Intel8080Instruction {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn dispatch<I: Intel8080InstructionSet>(self, machine: &mut I) {
         match self {
             Self::NoOperation {} => machine.no_operation(),

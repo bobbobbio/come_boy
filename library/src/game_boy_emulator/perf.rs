@@ -13,13 +13,13 @@ pub trait PerfObserver {
 pub struct NullPerfObserver;
 
 impl PerfObserver for NullPerfObserver {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn start_observation(&mut self, _tag: &'static str) {}
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn end_observation(&mut self, _tag: &'static str) {}
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn tick_observed(&mut self) {}
 }
 
@@ -79,13 +79,13 @@ impl<InstantT> PerfStats<InstantT> {
 }
 
 impl<InstantT: Instant> PerfObserver for PerfStats<InstantT> {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn start_observation(&mut self, tag: &'static str) {
         let existing = self.in_flight.insert(tag, InstantT::now()).is_some();
         assert!(!existing, "{}", "unfinished tag {tag}");
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn end_observation(&mut self, tag: &'static str) {
         let start = self
             .in_flight
@@ -96,7 +96,7 @@ impl<InstantT: Instant> PerfObserver for PerfStats<InstantT> {
         entry.1 += 1;
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn tick_observed(&mut self) {
         self.num_ticks += 1;
     }

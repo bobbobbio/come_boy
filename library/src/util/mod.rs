@@ -170,7 +170,7 @@ impl<T> Scheduler<T> {
 
     /// This is a linear search from the end. Binary-search might be better, but I suspect most
     /// insertions are closer to the end of the queue anyway.
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn insertion_position(&self, time: u64) -> usize {
         let mut index = self.timeline.len();
         while index > 0 && self.timeline[index - 1].time >= time {
@@ -179,7 +179,7 @@ impl<T> Scheduler<T> {
         index
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn schedule(&mut self, time: u64, event: impl Into<T>) {
         let index = self.insertion_position(time);
         let entry = SchedulerEntry {
@@ -189,12 +189,12 @@ impl<T> Scheduler<T> {
         self.timeline.insert(index, entry);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn poll(&mut self, now: u64) -> Option<(u64, T)> {
         self.poll_match(now, |_| true)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn poll_match(&mut self, now: u64, mut m: impl FnMut(&T) -> bool) -> Option<(u64, T)> {
         assert!(now >= self.now);
         self.now = now;
@@ -212,17 +212,17 @@ impl<T> Scheduler<T> {
         None
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn peek_time(&self) -> Option<u64> {
         self.timeline.get(0).map(|e| e.time)
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn drop_events(&mut self, mut should_drop: impl FnMut(&T) -> bool) {
         self.timeline.retain(|e| !should_drop(&e.event));
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn now(&self) -> u64 {
         self.now
     }

@@ -162,7 +162,7 @@ pub enum Channel1Event {
 }
 
 impl Channel1Event {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub(crate) fn deliver(
         self,
         channel: &mut Channel1,
@@ -249,7 +249,7 @@ pub struct Channel1 {
 }
 
 impl Channel1 {
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn sweep_tick(&mut self, freq: &mut Frequency, scheduler: &mut GameBoyScheduler, now: u64) {
         self.sweep.tick(freq, &mut self.enabled);
 
@@ -257,7 +257,7 @@ impl Channel1 {
         scheduler.schedule(now + period as u64, Channel1Event::SweepTick);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn freq_tick(&mut self, freq: &mut Frequency, scheduler: &mut GameBoyScheduler, now: u64) {
         self.length_and_wave.waveform.tick();
 
@@ -267,7 +267,7 @@ impl Channel1 {
         scheduler.schedule(now + period, Channel1Event::FrequencyTick);
     }
 
-    #[cfg_attr(not(debug_assertions), inline(always))]
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn length_tick(&mut self, using_length: bool, scheduler: &mut GameBoyScheduler, now: u64) {
         self.length_and_wave
             .length_tick(using_length, &mut self.enabled);
