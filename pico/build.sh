@@ -66,6 +66,7 @@ cargo build \
     --target thumbv6m-none-eabi \
     --release \
     --no-default-features \
+    --features aggressive-inline \
     --package come_boy_pico
 
 popd
