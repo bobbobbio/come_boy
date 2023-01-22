@@ -1,7 +1,7 @@
 // copyright 2021 Remi Bernotavicius
+use come_boy::rendering::egui::{render_pair, HEIGHT, PIXEL_SIZE, WIDTH};
 use egui::widgets::Hyperlink;
 use emulator::Emulator;
-use renderer::{HEIGHT, PIXEL_SIZE, WIDTH};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -9,7 +9,6 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 mod emulator;
-mod renderer;
 mod storage;
 
 fn window() -> web_sys::Window {
@@ -90,7 +89,7 @@ impl MyEguiApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let gl = cc.gl.as_ref().unwrap();
 
-        let (front, back) = renderer::render_pair(cc.egui_ctx.clone(), gl);
+        let (front, back) = render_pair(cc.egui_ctx.clone(), gl);
         let emulator = EmulatorRef::new(Emulator::new(back));
         set_up_tick(emulator.clone());
         set_up_rendering(cc.egui_ctx.clone());

@@ -17,6 +17,9 @@ pub mod bitmap;
 #[cfg(feature = "glow-renderer")]
 pub mod glow;
 
+#[cfg(feature = "egui-renderer")]
+pub mod egui;
+
 #[derive(IntoEnumIterator, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
 pub enum Keycode {
     Down,

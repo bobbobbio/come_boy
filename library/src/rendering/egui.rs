@@ -1,20 +1,19 @@
 // copyright 2021 Remi Bernotavicius
 
-pub use come_boy::rendering::glow::{HEIGHT, PIXEL_SIZE, WIDTH};
-use come_boy::rendering::{
-    self,
+pub use super::glow::{HEIGHT, PIXEL_SIZE, WIDTH};
+use super::{
     glow::{GlowBackRenderer, GlowFrontRenderer},
     Color, Event, Keycode, Renderer,
 };
+use crate::io;
+use alloc::{collections::BTreeSet, vec, vec::Vec};
 use enum_iterator::IntoEnumIterator as _;
-use std::collections::BTreeSet;
-use std::io;
 
-pub struct CanvasFrontRenderer {
+pub struct EguiFrontRenderer {
     renderer: GlowFrontRenderer,
 }
 
-pub struct CanvasBackRenderer {
+pub struct EguiBackRenderer {
     renderer: GlowBackRenderer,
     pressed_keys: BTreeSet<Keycode>,
     ctx: egui::Context,
@@ -23,11 +22,11 @@ pub struct CanvasBackRenderer {
 pub fn render_pair(
     ctx: egui::Context,
     gl: &glow::Context,
-) -> (CanvasFrontRenderer, CanvasBackRenderer) {
-    let (front_renderer, back_renderer) = rendering::glow::render_pair(gl);
+) -> (EguiFrontRenderer, EguiBackRenderer) {
+    let (front_renderer, back_renderer) = super::glow::render_pair(gl);
     (
-        CanvasFrontRenderer::new(front_renderer),
-        CanvasBackRenderer::new(back_renderer, ctx),
+        EguiFrontRenderer::new(front_renderer),
+        EguiBackRenderer::new(back_renderer, ctx),
     )
 }
 
@@ -48,7 +47,7 @@ fn try_translate_keycode(code: Keycode) -> Result<egui::Key, &'static str> {
     }
 }
 
-impl CanvasFrontRenderer {
+impl EguiFrontRenderer {
     pub fn new(renderer: GlowFrontRenderer) -> Self {
         Self { renderer }
     }
@@ -58,7 +57,7 @@ impl CanvasFrontRenderer {
     }
 }
 
-impl CanvasBackRenderer {
+impl EguiBackRenderer {
     pub fn new(renderer: GlowBackRenderer, ctx: egui::Context) -> Self {
         Self {
             renderer,
@@ -68,7 +67,7 @@ impl CanvasBackRenderer {
     }
 }
 
-impl Renderer for CanvasBackRenderer {
+impl Renderer for EguiBackRenderer {
     fn poll_events(&mut self) -> Vec<Event> {
         let mut events = vec![];
         for key in Keycode::into_enum_iter() {

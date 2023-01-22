@@ -14,7 +14,7 @@ crate-type = ["rlib"]
 default = [
     "bitmap-renderer",
     "game-pad",
-    "glow-renderer",
+    "egui-renderer",
     "sound",
     "speedy2d-renderer",
     "std",
@@ -22,6 +22,7 @@ default = [
 ]
 aggressive-inline = []
 bitmap-renderer = ["bmp"]
+egui-renderer = ["egui", "glow-renderer"]
 game-pad = ["gilrs"]
 glow-renderer = ["glow"]
 sdl2-renderer = ["sdl2"]

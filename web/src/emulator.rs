@@ -1,10 +1,10 @@
-use super::renderer::CanvasBackRenderer;
 use super::storage::WebStorage;
 use super::window;
 use come_boy::game_boy_emulator::{
     rom_hash, ControllerJoyPad, GameBoyEmulator, GameBoyOps, GamePak, UserControl,
     SLEEP_INPUT_TICKS,
 };
+use come_boy::rendering::egui::EguiBackRenderer;
 use come_boy::sound::NullSoundStream;
 
 fn local_storage() -> web_sys::Storage {
@@ -55,12 +55,12 @@ impl Underclocker {
 
 pub struct Emulator {
     emulator: GameBoyEmulator,
-    ops: GameBoyOps<CanvasBackRenderer, NullSoundStream, WebStorage>,
+    ops: GameBoyOps<EguiBackRenderer, NullSoundStream, WebStorage>,
     underclocker: Underclocker,
 }
 
 impl Emulator {
-    pub fn new(renderer: CanvasBackRenderer) -> Self {
+    pub fn new(renderer: EguiBackRenderer) -> Self {
         let emulator = GameBoyEmulator::new();
         let ops = GameBoyOps::new(renderer, NullSoundStream, WebStorage::new(local_storage()));
         let underclocker = Underclocker::new(emulator.elapsed_cycles(), ops.clock_speed_hz);
