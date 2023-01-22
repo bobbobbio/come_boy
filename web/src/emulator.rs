@@ -71,14 +71,6 @@ impl Emulator {
         }
     }
 
-    pub fn on_key_down(&mut self, code: &str) {
-        self.ops.renderer.on_key_down(code);
-    }
-
-    pub fn on_key_up(&mut self, code: &str) {
-        self.ops.renderer.on_key_up(code);
-    }
-
     pub fn load_rom(&mut self, rom: &[u8]) {
         self.emulator = GameBoyEmulator::new();
         let sram_key = format!("{:x}", rom_hash(rom));

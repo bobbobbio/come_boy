@@ -6,76 +6,83 @@ use come_boy::rendering::{
     glow::{GlowBackRenderer, GlowFrontRenderer},
     Color, Event, Keycode, Renderer,
 };
-use std::{io, mem};
+use enum_iterator::IntoEnumIterator as _;
+use std::collections::BTreeSet;
+use std::io;
 
 pub struct CanvasFrontRenderer {
-    inner: GlowFrontRenderer,
+    renderer: GlowFrontRenderer,
 }
 
 pub struct CanvasBackRenderer {
-    inner: GlowBackRenderer,
-    keyboard_events: Vec<Event>,
-    pub dirty: bool,
+    renderer: GlowBackRenderer,
+    pressed_keys: BTreeSet<Keycode>,
+    ctx: egui::Context,
 }
 
-fn keycode_from_native_code(code: &str) -> Keycode {
-    match code {
-        "ArrowDown" => Keycode::Down,
-        "ArrowLeft" => Keycode::Left,
-        "ArrowRight" => Keycode::Right,
-        "ArrowUp" => Keycode::Up,
-        "Tab" => Keycode::Tab,
-        "KeyX" => Keycode::X,
-        "KeyZ" => Keycode::Z,
-        "Enter" => Keycode::Return,
-        "F2" => Keycode::F2,
-        "F3" => Keycode::F3,
-        "F4" => Keycode::F4,
-        _ => Keycode::Unknown,
-    }
-}
-
-pub fn render_pair(gl: &glow::Context) -> (CanvasFrontRenderer, CanvasBackRenderer) {
-    let (front, back) = rendering::glow::render_pair(gl);
+pub fn render_pair(
+    ctx: egui::Context,
+    gl: &glow::Context,
+) -> (CanvasFrontRenderer, CanvasBackRenderer) {
+    let (front_renderer, back_renderer) = rendering::glow::render_pair(gl);
     (
-        CanvasFrontRenderer::new(front),
-        CanvasBackRenderer::new(back),
+        CanvasFrontRenderer::new(front_renderer),
+        CanvasBackRenderer::new(back_renderer, ctx),
     )
 }
 
+fn try_translate_keycode(code: Keycode) -> Result<egui::Key, &'static str> {
+    match code {
+        Keycode::Down => Ok(egui::Key::ArrowDown),
+        Keycode::F2 => Ok(egui::Key::F2),
+        Keycode::F3 => Ok(egui::Key::F3),
+        Keycode::F4 => Ok(egui::Key::F4),
+        Keycode::Left => Ok(egui::Key::ArrowLeft),
+        Keycode::Return => Ok(egui::Key::Enter),
+        Keycode::Right => Ok(egui::Key::ArrowRight),
+        Keycode::Tab => Ok(egui::Key::Tab),
+        Keycode::Unknown => Err("unknown"),
+        Keycode::Up => Ok(egui::Key::ArrowUp),
+        Keycode::X => Ok(egui::Key::X),
+        Keycode::Z => Ok(egui::Key::Z),
+    }
+}
+
 impl CanvasFrontRenderer {
-    pub fn new(inner: GlowFrontRenderer) -> Self {
-        Self { inner }
+    pub fn new(renderer: GlowFrontRenderer) -> Self {
+        Self { renderer }
     }
 
     pub fn render(&self, gl: &glow::Context) {
-        self.inner.render(gl);
+        self.renderer.render(gl);
     }
 }
 
 impl CanvasBackRenderer {
-    pub fn new(inner: GlowBackRenderer) -> Self {
+    pub fn new(renderer: GlowBackRenderer, ctx: egui::Context) -> Self {
         Self {
-            inner,
-            keyboard_events: vec![],
-            dirty: true,
+            renderer,
+            pressed_keys: BTreeSet::new(),
+            ctx,
         }
-    }
-
-    pub fn on_key_down(&mut self, code: &str) {
-        self.keyboard_events
-            .push(Event::KeyDown(keycode_from_native_code(code)));
-    }
-
-    pub fn on_key_up(&mut self, code: &str) {
-        self.keyboard_events
-            .push(Event::KeyUp(keycode_from_native_code(code)));
     }
 }
 
 impl Renderer for CanvasBackRenderer {
     fn poll_events(&mut self) -> Vec<Event> {
-        mem::take(&mut self.keyboard_events)
+        let mut events = vec![];
+        for key in Keycode::into_enum_iter() {
+            if let Ok(egui_key) = try_translate_keycode(key) {
+                if self.ctx.input().key_down(egui_key) {
+                    if self.pressed_keys.insert(key) {
+                        events.push(Event::KeyDown(key));
+                    }
+                } else if self.pressed_keys.remove(&key) {
+                    events.push(Event::KeyUp(key));
+                }
+            }
+        }
+        events
     }
 
     fn save_buffer(&self, _: impl io::Write) -> io::Result<()> {
@@ -84,11 +91,10 @@ impl Renderer for CanvasBackRenderer {
 
     #[inline(always)]
     fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
-        self.inner.color_pixel(x, y, color);
+        self.renderer.color_pixel(x, y, color);
     }
 
     fn present(&mut self) {
-        self.inner.present();
-        self.dirty = true;
+        self.renderer.present();
     }
 }

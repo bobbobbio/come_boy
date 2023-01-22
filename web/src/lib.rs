@@ -39,31 +39,6 @@ impl EmulatorRef {
     }
 }
 
-fn set_up_input(emulator: EmulatorRef) {
-    let window = window();
-
-    let their_emulator = emulator.clone();
-    let on_key_down = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
-        their_emulator.borrow_mut().on_key_down(&event.code());
-        event.prevent_default();
-    }) as Box<dyn FnMut(_)>);
-
-    let their_emulator = emulator;
-    let on_key_up = Closure::wrap(Box::new(move |event: web_sys::KeyboardEvent| {
-        their_emulator.borrow_mut().on_key_up(&event.code());
-        event.prevent_default();
-    }) as Box<dyn FnMut(_)>);
-
-    window
-        .add_event_listener_with_callback("keydown", on_key_down.as_ref().unchecked_ref())
-        .unwrap();
-    window
-        .add_event_listener_with_callback("keyup", on_key_up.as_ref().unchecked_ref())
-        .unwrap();
-    on_key_down.forget();
-    on_key_up.forget();
-}
-
 fn request_timeout(f: &Closure<dyn FnMut()>, from_now: i32) {
     window()
         .set_timeout_with_callback_and_timeout_and_arguments_0(f.as_ref().unchecked_ref(), from_now)
@@ -115,9 +90,8 @@ impl MyEguiApp {
     fn new(cc: &eframe::CreationContext<'_>) -> Self {
         let gl = cc.gl.as_ref().unwrap();
 
-        let (front, back) = renderer::render_pair(gl);
+        let (front, back) = renderer::render_pair(cc.egui_ctx.clone(), gl);
         let emulator = EmulatorRef::new(Emulator::new(back));
-        set_up_input(emulator.clone());
         set_up_tick(emulator.clone());
         set_up_rendering(cc.egui_ctx.clone());
 

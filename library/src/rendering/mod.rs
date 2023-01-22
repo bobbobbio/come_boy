@@ -2,6 +2,7 @@
 
 use crate::io;
 use alloc::{string::String, vec, vec::Vec};
+use enum_iterator::IntoEnumIterator;
 use serde_derive::{Deserialize, Serialize};
 
 #[cfg(feature = "sdl2-renderer")]
@@ -16,7 +17,7 @@ pub mod bitmap;
 #[cfg(feature = "glow-renderer")]
 pub mod glow;
 
-#[derive(Serialize, Deserialize, Clone, Copy)]
+#[derive(IntoEnumIterator, PartialOrd, Ord, PartialEq, Eq, Serialize, Deserialize, Clone, Copy)]
 pub enum Keycode {
     Down,
     F2,
