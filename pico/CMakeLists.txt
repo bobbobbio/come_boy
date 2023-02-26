@@ -13,6 +13,8 @@ pico_sdk_init()
 # Include the PicoSystem library
 include(picosystem/libraries/picosystem.cmake REQUIRED)
 
+include_directories(pico-sdk/src/rp2_common/pico_multicore/include/)
+
 picosystem_executable(
     come_boy
     src/main.cpp
@@ -23,3 +25,4 @@ disable_startup_logo(come_boy)
 target_link_libraries(
     come_boy ${CMAKE_SOURCE_DIR}/../target/thumbv6m-none-eabi/release/libcome_boy_pico.a
 )
+target_link_libraries(come_boy pico_multicore)

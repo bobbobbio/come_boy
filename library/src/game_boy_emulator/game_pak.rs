@@ -3,7 +3,9 @@
 use super::memory_controller::{MemoryChunk, MemoryMappedHardware};
 use crate::io::{self, Read as _, Seek as _, SeekFrom, Write as _};
 use crate::storage::{OpenMode, PersistentStorage, StorageFile as _};
+use alloc::boxed::Box;
 use alloc::{format, string::String, vec, vec::Vec};
+use core::borrow::Borrow;
 use core::fmt;
 use core::ops::Range;
 use core::str;
@@ -13,9 +15,21 @@ pub fn rom_hash(rom: &[u8]) -> u32 {
     crate::util::super_fast_hash(rom)
 }
 
+struct RomChunk(Box<dyn Borrow<[u8]> + Send>);
+
+impl RomChunk {
+    fn read_value(&self, address: u16) -> u8 {
+        (&*self.0).borrow()[address as usize]
+    }
+
+    fn set_value(&self, _address: u16, _value: u8) {
+        panic!("can't write to ROM")
+    }
+}
+
 struct BankOps<Storage: PersistentStorage> {
     sram_file: Option<Storage::File>,
-    rom_memory: Vec<MemoryChunk>,
+    rom_memory: Vec<RomChunk>,
 }
 
 trait MemoryMappedBank {
@@ -922,7 +936,7 @@ const TITLE: Range<usize> = Range {
     end: 0x0144,
 };
 
-fn banks_and_chunks_from_rom(rom: &[u8]) -> (Vec<RomBank>, Vec<MemoryChunk>) {
+fn get_number_of_banks(rom: &[u8]) -> usize {
     let number_of_banks = match rom[ROM_SIZE_ADDRESS] {
         n if n <= 0x08 => 2usize.pow(n as u32 + 1),
         0x52 => 72,
@@ -935,14 +949,40 @@ fn banks_and_chunks_from_rom(rom: &[u8]) -> (Vec<RomBank>, Vec<MemoryChunk>) {
         rom.len() / (BANK_SIZE as usize),
         "ROM wrong size"
     );
+    number_of_banks
+}
 
+fn make_banks(number_of_banks: usize) -> Vec<RomBank> {
     let mut banks = Vec::new();
+    for b in 0..number_of_banks {
+        banks.push(RomBank::new(b));
+    }
+    banks
+}
+
+fn banks_and_chunks_from_rom(rom: &[u8]) -> (Vec<RomBank>, Vec<RomChunk>) {
+    let number_of_banks = get_number_of_banks(rom);
+    let banks = make_banks(number_of_banks);
+
     let mut chunks = Vec::new();
     for b in 0..number_of_banks {
         let start = b * (BANK_SIZE as usize);
         let end = start + (BANK_SIZE as usize);
-        banks.push(RomBank::new(b));
-        chunks.push(MemoryChunk::new(rom[start..end].to_vec()));
+        chunks.push(RomChunk(Box::new(rom[start..end].to_vec())));
+    }
+
+    (banks, chunks)
+}
+
+fn banks_and_chunks_from_static_rom(rom: &'static [u8]) -> (Vec<RomBank>, Vec<RomChunk>) {
+    let number_of_banks = get_number_of_banks(rom);
+    let banks = make_banks(number_of_banks);
+
+    let mut chunks = Vec::new();
+    for b in 0..number_of_banks {
+        let start = b * (BANK_SIZE as usize);
+        let end = start + (BANK_SIZE as usize);
+        chunks.push(RomChunk(Box::new(&rom[start..end])));
     }
 
     (banks, chunks)
@@ -1026,12 +1066,36 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
         GamePak::new(&rom, storage, None)
     }
 
+    pub fn new_static(
+        rom: &'static [u8],
+        storage: &mut Storage,
+        sram_key: Option<&str>,
+    ) -> io::Result<Self> {
+        assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
+
+        let (rom_banks, rom_chunks) = banks_and_chunks_from_static_rom(rom);
+        Ok(Self::inner_new(
+            rom, storage, rom_banks, rom_chunks, sram_key,
+        )?)
+    }
+
     pub fn new(rom: &[u8], storage: &mut Storage, sram_key: Option<&str>) -> io::Result<Self> {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
-        let hash = rom_hash(rom);
 
         let (rom_banks, rom_chunks) = banks_and_chunks_from_rom(rom);
+        Ok(Self::inner_new(
+            rom, storage, rom_banks, rom_chunks, sram_key,
+        )?)
+    }
 
+    fn inner_new(
+        rom: &[u8],
+        storage: &mut Storage,
+        rom_banks: Vec<RomBank>,
+        rom_chunks: Vec<RomChunk>,
+        sram_key: Option<&str>,
+    ) -> io::Result<Self> {
+        let hash = rom_hash(rom);
         let title_slice = &rom[TITLE];
         let title_end = title_slice
             .iter()

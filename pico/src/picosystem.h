@@ -36,3 +36,19 @@ now_us(void);
 
 void
 frect(int x, int y, int w, int h);
+
+void
+launch_core1(void(*func)(void));
+
+struct pico_mutex {
+    unsigned long data[2];
+};
+
+void
+pico_mutex_init(struct pico_mutex *);
+
+void
+pico_mutex_enter_blocking(struct pico_mutex *);
+
+void
+pico_mutex_exit(struct pico_mutex *);

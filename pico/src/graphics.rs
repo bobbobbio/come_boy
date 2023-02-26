@@ -1,11 +1,17 @@
 // copyright 2021 Remi Bernotavicius
 
+use crate::mutex::Mutex;
 use crate::picosystem;
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
+use core::alloc::GlobalAlloc as _;
+use core::cell::UnsafeCell;
+use core::mem;
+use core::slice;
 
-const SCREEN_WIDTH: usize = 240;
-const SCREEN_HEIGHT: usize = 240;
+pub const SCREEN_WIDTH: usize = 160;
+pub const SCREEN_HEIGHT: usize = 144;
 
 #[derive(Clone, Copy)]
 pub struct Color(u16);
@@ -18,18 +24,6 @@ impl Color {
         }
         Self(conv(r) | conv(b) << 8 | conv(g) << 12)
     }
-
-    fn r(&self) -> u8 {
-        (self.0 & 0xF) as u8
-    }
-
-    fn g(&self) -> u8 {
-        ((self.0 >> 12) & 0xF) as u8
-    }
-
-    fn b(&self) -> u8 {
-        ((self.0 >> 8) & 0xF) as u8
-    }
 }
 
 impl From<come_boy::rendering::Color> for Color {
@@ -38,33 +32,80 @@ impl From<come_boy::rendering::Color> for Color {
     }
 }
 
+const SCREEN_BUFFER_SIZE: usize = SCREEN_WIDTH * SCREEN_HEIGHT;
+
+#[repr(align(4))]
+struct ScreenBuffer([u16; SCREEN_BUFFER_SIZE]);
+
+impl ScreenBuffer {
+    fn new_global(color: Color) -> &'static mut Self {
+        let layout =
+            core::alloc::Layout::from_size_align(mem::size_of::<ScreenBuffer>(), 4).unwrap();
+        let ptr = unsafe { crate::ALLOCATOR.alloc(layout) } as *mut Self;
+        assert!(ptr as u64 % 4 == 0);
+        let s = unsafe { &mut *ptr };
+        for i in 0..SCREEN_BUFFER_SIZE {
+            s.0[i] = color.0;
+        }
+        s
+    }
+}
+
+struct SharedScreenBufferPtr(Mutex<*mut ScreenBuffer>);
+
+unsafe impl Sync for SharedScreenBufferPtr {}
+
+impl SharedScreenBufferPtr {
+    fn new(buffer: *mut ScreenBuffer) -> Self {
+        Self(Mutex::new(buffer))
+    }
+}
+
+struct BackBufferPtr(UnsafeCell<*mut SharedScreenBufferPtr>);
+
+unsafe impl Sync for BackBufferPtr {}
+
+impl BackBufferPtr {
+    const fn new() -> Self {
+        Self(UnsafeCell::new(core::ptr::null_mut()))
+    }
+
+    // safety: Must be called once while single threaded
+    unsafe fn init(&self) {
+        *unsafe { &mut *self.0.get() } = Box::into_raw(Box::new(SharedScreenBufferPtr::new(
+            ScreenBuffer::new_global(Color::rgb(255, 0, 0)),
+        )));
+    }
+
+    fn get(&self) -> &SharedScreenBufferPtr {
+        let ptr = *(unsafe { &*self.0.get() });
+        assert!(!ptr.is_null());
+        unsafe { &*ptr }
+    }
+}
+
+/// This pointer is shared between the two cores
+static BACK: BackBufferPtr = BackBufferPtr::new();
+
+/// Must be called only once while single-threaded
+pub unsafe fn init_from_core0() {
+    unsafe { picosystem::blend_copy() };
+
+    BACK.init();
+}
+
 pub struct Graphics {
-    pub dirty: bool,
-    target_buffer: *mut picosystem::buffer,
+    writing: &'static mut ScreenBuffer,
+    back: &'static SharedScreenBufferPtr,
 }
 
 #[allow(dead_code)]
 impl Graphics {
     pub fn new() -> Self {
-        let target_buffer = unsafe { picosystem::target_buffer() };
         Self {
-            dirty: false,
-            target_buffer,
+            writing: ScreenBuffer::new_global(Color::rgb(0, 255, 0)),
+            back: BACK.get(),
         }
-    }
-
-    #[cfg_attr(feature = "aggressive-inline", inline(always))]
-    pub fn set_pen(&self, color: Color) {
-        unsafe { picosystem::pen(color.r(), color.g(), color.b()) }
-    }
-
-    pub fn blend_copy(&self) {
-        unsafe { picosystem::blend_copy() };
-    }
-
-    #[cfg_attr(feature = "aggressive-inline", inline(always))]
-    pub fn clear(&self) {
-        unsafe { picosystem::clear() };
     }
 
     pub fn text(&self, msg: &str, x: i32, y: i32) {
@@ -96,14 +137,34 @@ impl come_boy::rendering::Renderer for Graphics {
         if x < 0 || x >= SCREEN_WIDTH as i32 || y < 0 || y >= SCREEN_HEIGHT as i32 {
             return;
         }
-        let buffer = unsafe { &*self.target_buffer };
-        let color_data = buffer.data as *mut u16;
+        let color_data = self.writing as *mut ScreenBuffer as *mut u16;
         let color_data =
             unsafe { color_data.offset(SCREEN_WIDTH as isize * (y as isize) + x as isize) };
         unsafe { color_data.write(color.0) };
     }
 
     fn present(&mut self) {
-        self.dirty = true;
+        let mut back = self.back.0.lock().unwrap();
+        let back_ptr = *back;
+        *back = self.writing;
+        self.writing = unsafe { &mut *back_ptr };
+    }
+}
+
+/// Called periodically from core0
+///
+/// safety: The caller needs to make sure nothing is using the target buffer
+pub unsafe fn draw_from_core0() {
+    // Swap the shared buffer ptr with our local one.
+    let target_buffer = unsafe { &mut *crate::picosystem::target_buffer() };
+    let back = BACK.get().0.lock().unwrap();
+    let src = slice::from_raw_parts(*back as *mut u16, SCREEN_BUFFER_SIZE);
+    let dst = slice::from_raw_parts_mut(target_buffer.data as *mut u16, 240 * 240);
+
+    for row in 0..SCREEN_HEIGHT {
+        let row_delta = (240 - SCREEN_HEIGHT) / 2;
+        let row_start = ((row + row_delta) * 240) + (240 - SCREEN_WIDTH) / 2;
+        dst[row_start..(row_start + SCREEN_WIDTH)]
+            .copy_from_slice(&src[(row * SCREEN_WIDTH)..((row + 1) * SCREEN_WIDTH)]);
     }
 }

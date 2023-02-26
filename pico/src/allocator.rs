@@ -8,7 +8,7 @@ extern "C" {
     fn free(ptr: *mut c_void);
 }
 
-struct Allocator;
+pub struct Allocator;
 
 impl Allocator {
     const fn new() -> Self {
@@ -18,7 +18,9 @@ impl Allocator {
 
 unsafe impl GlobalAlloc for Allocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        malloc(layout.size()) as *mut u8
+        let ptr = malloc(layout.size()) as *mut u8;
+        assert!(!ptr.is_null(), "Out of memory");
+        ptr
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, _layout: Layout) {
@@ -27,4 +29,4 @@ unsafe impl GlobalAlloc for Allocator {
 }
 
 #[global_allocator]
-static ALLOCATOR: Allocator = Allocator::new();
+pub static ALLOCATOR: Allocator = Allocator::new();

@@ -18,6 +18,7 @@ aggressive-inline = ["come_boy/aggressive-inline"]
 [dependencies]
 come_boy = {default_features = false, path = "../library", version = "*"}
 enum-iterator = "0.8.1"
+rpi-pico-sdk-sys = "*"
 
 [build-dependencies]
 bindgen = "*"
