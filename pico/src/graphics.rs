@@ -3,6 +3,7 @@
 use crate::mutex::Mutex;
 use crate::picosystem;
 use alloc::boxed::Box;
+use alloc::format;
 use alloc::vec;
 use alloc::vec::Vec;
 use core::alloc::GlobalAlloc as _;
@@ -107,19 +108,28 @@ impl Graphics {
             back: BACK.get(),
         }
     }
+}
 
-    pub fn text(&self, msg: &str, x: i32, y: i32) {
-        assert!(msg.is_ascii());
+pub fn pen(r: u8, g: u8, b: u8) {
+    unsafe { picosystem::pen(r, g, b) }
+}
 
-        let mut buffer = vec![0; msg.len() + 1];
-        buffer[..(msg.len())].clone_from_slice(msg.as_bytes());
+#[allow(dead_code)]
+pub fn clear() {
+    unsafe { picosystem::clear() }
+}
 
-        unsafe { picosystem::text(buffer.as_ptr() as *const i8, x, y) }
-    }
+pub fn text(msg: &str, x: i32, y: i32) {
+    assert!(msg.is_ascii());
 
-    pub fn filled_rect(&self, x: i32, y: i32, w: i32, h: i32) {
-        unsafe { picosystem::frect(x, y, w, h) }
-    }
+    let mut buffer = vec![0; msg.len() + 1];
+    buffer[..(msg.len())].clone_from_slice(msg.as_bytes());
+
+    unsafe { picosystem::text(buffer.as_ptr() as *const i8, x, y) }
+}
+
+pub fn filled_rect(x: i32, y: i32, w: i32, h: i32) {
+    unsafe { picosystem::frect(x, y, w, h) }
 }
 
 impl come_boy::rendering::Renderer for Graphics {
@@ -162,9 +172,19 @@ pub unsafe fn draw_from_core0() {
     let dst = slice::from_raw_parts_mut(target_buffer.data as *mut u16, 240 * 240);
 
     for row in 0..SCREEN_HEIGHT {
-        let row_delta = (240 - SCREEN_HEIGHT) / 2;
-        let row_start = ((row + row_delta) * 240) + (240 - SCREEN_WIDTH) / 2;
+        let row_start = (row * 240) + (240 - SCREEN_WIDTH) / 2;
         dst[row_start..(row_start + SCREEN_WIDTH)]
             .copy_from_slice(&src[(row * SCREEN_WIDTH)..((row + 1) * SCREEN_WIDTH)]);
     }
+
+    // clear stats
+    pen(0, 0, 0);
+    filled_rect(3, 150, 240, 100);
+
+    // draw stats
+    pen(255, 0, 0);
+
+    let perf_stats = unsafe { crate::emulator::PERF_STATS.get() }.lock().unwrap();
+    let msg = format!("{}", &*perf_stats);
+    text(&msg, 3, 150);
 }
