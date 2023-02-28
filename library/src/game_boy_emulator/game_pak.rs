@@ -19,7 +19,7 @@ struct RomChunk(Box<dyn Borrow<[u8]> + Send>);
 
 impl RomChunk {
     fn read_value(&self, address: u16) -> u8 {
-        (&*self.0).borrow()[address as usize]
+        (*self.0).borrow()[address as usize]
     }
 
     fn set_value(&self, _address: u16, _value: u8) {
@@ -1074,18 +1074,14 @@ impl<Storage: PersistentStorage> GamePak<Storage> {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
 
         let (rom_banks, rom_chunks) = banks_and_chunks_from_static_rom(rom);
-        Ok(Self::inner_new(
-            rom, storage, rom_banks, rom_chunks, sram_key,
-        )?)
+        Self::inner_new(rom, storage, rom_banks, rom_chunks, sram_key)
     }
 
     pub fn new(rom: &[u8], storage: &mut Storage, sram_key: Option<&str>) -> io::Result<Self> {
         assert_eq!(rom.len() % (BANK_SIZE as usize), 0, "ROM wrong size");
 
         let (rom_banks, rom_chunks) = banks_and_chunks_from_rom(rom);
-        Ok(Self::inner_new(
-            rom, storage, rom_banks, rom_chunks, sram_key,
-        )?)
+        Self::inner_new(rom, storage, rom_banks, rom_chunks, sram_key)
     }
 
     fn inner_new(
