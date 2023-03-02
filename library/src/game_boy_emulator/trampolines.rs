@@ -190,6 +190,11 @@ pub fn run_with_coverage<Storage: PersistentStorage + 'static>(
     Ok(())
 }
 
-pub fn display_coverage(rom: &[u8], input: impl io::Read, output: impl io::Write) -> Result<()> {
-    Ok(coverage::display(rom, input, output)?)
+pub fn display_coverage(
+    rom: &[u8],
+    input: impl io::Read,
+    visited_threshold: Option<f64>,
+    output: impl io::Write,
+) -> Result<()> {
+    Ok(coverage::display(rom, input, visited_threshold, output)?)
 }

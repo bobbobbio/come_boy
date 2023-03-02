@@ -63,6 +63,11 @@ enum Subcommand {
         rom: PathBuf,
         #[arg(long = "input")]
         input: PathBuf,
+        #[arg(
+            long = "visited-threshold",
+            help = "Only show lines which were visited more than the given percentage of the time"
+        )]
+        visited_threshold: Option<f64>,
     },
 }
 
@@ -89,14 +94,23 @@ pub fn main(options: Options) -> Result<()> {
             backend_map.run(&renderer)?;
             Ok(())
         }
-        Subcommand::Display { rom, input } => {
+        Subcommand::Display {
+            rom,
+            input,
+            visited_threshold,
+        } => {
             let mut rom_file = File::open(rom)?;
             let mut rom: Vec<u8> = vec![];
             rom_file.read_to_end(&mut rom)?;
 
             let input_file = File::open(input)?;
 
-            game_boy_emulator::display_coverage(&rom, &input_file, io::stdout())?;
+            game_boy_emulator::display_coverage(
+                &rom,
+                &input_file,
+                visited_threshold,
+                io::stdout(),
+            )?;
             Ok(())
         }
     }
