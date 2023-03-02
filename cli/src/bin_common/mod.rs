@@ -1,6 +1,9 @@
 // Copyright 2021 Remi Bernotavicius
 
 use come_boy::game_boy_emulator;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
 
 pub mod backend;
 pub mod frontend;
@@ -31,3 +34,10 @@ impl From<std::io::Error> for Error {
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub fn read_save_state(path: impl AsRef<Path>) -> Result<Vec<u8>> {
+    let mut file = File::open(path.as_ref())?;
+    let mut contents = vec![];
+    file.read_to_end(&mut contents)?;
+    Ok(contents)
+}

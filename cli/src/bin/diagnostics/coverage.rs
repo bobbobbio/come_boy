@@ -1,6 +1,6 @@
 // Copyright 2022 Remi Bernotavicius
 
-use crate::bin_common::{backend::BackendMap, Result};
+use crate::bin_common::{backend::BackendMap, read_save_state, Result};
 use come_boy::game_boy_emulator::{self, GamePak};
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::SoundStream;
@@ -12,14 +12,16 @@ use std::path::PathBuf;
 struct RecordFrontend {
     fs: Fs,
     game_pak: GamePak<Fs>,
+    save_state: Option<Vec<u8>>,
     output: String,
 }
 
 impl RecordFrontend {
-    fn new(fs: Fs, game_pak: GamePak<Fs>, output: String) -> Self {
+    fn new(fs: Fs, game_pak: GamePak<Fs>, save_state: Option<Vec<u8>>, output: String) -> Self {
         Self {
             fs,
             game_pak,
+            save_state,
             output,
         }
     }
@@ -32,6 +34,7 @@ impl crate::bin_common::frontend::Frontend for RecordFrontend {
             renderer,
             sound_stream,
             self.game_pak,
+            self.save_state,
             &self.output,
         )
         .unwrap()
@@ -58,6 +61,8 @@ enum Subcommand {
         scale: u32,
         #[arg(long = "renderer", default_value = "default")]
         renderer: String,
+        #[arg(long = "save-state")]
+        save_state: Option<PathBuf>,
     },
     Display {
         rom: PathBuf,
@@ -78,10 +83,12 @@ pub fn main(options: Options) -> Result<()> {
             output,
             scale,
             renderer,
+            save_state,
         } => {
             let mut fs = Fs::new(rom.parent());
             let rom_key = Fs::path_to_key(&rom)?;
             let game_pak = GamePak::from_storage(&mut fs, &rom_key)?;
+            let save_state = save_state.map(read_save_state).transpose()?;
             let rendering_options = RenderingOptions {
                 scale,
                 ..Default::default()
@@ -89,7 +96,7 @@ pub fn main(options: Options) -> Result<()> {
             let output_key = Fs::path_to_key(&output)?;
             let backend_map = BackendMap::new(
                 rendering_options,
-                RecordFrontend::new(fs, game_pak, output_key),
+                RecordFrontend::new(fs, game_pak, save_state, output_key),
             );
             backend_map.run(&renderer)?;
             Ok(())

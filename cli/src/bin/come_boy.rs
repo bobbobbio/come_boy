@@ -3,7 +3,7 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 
 use bin_common::backend::BackendMap;
-use bin_common::Result;
+use bin_common::{read_save_state, Result};
 use clap::Parser as _;
 use come_boy::game_boy_emulator::{
     self,
@@ -13,8 +13,6 @@ use come_boy::game_boy_emulator::{
 use come_boy::rendering::{Renderer, RenderingOptions};
 use come_boy::sound::{NullSoundStream, SoundStream};
 use come_boy::storage::fs::Fs;
-use std::fs::File;
-use std::io::Read;
 use std::path::PathBuf;
 
 #[path = "../bin_common/mod.rs"]
@@ -127,13 +125,6 @@ struct Options {
 
     #[arg(long = "log-level", default_value = "info")]
     log_level: log::LevelFilter,
-}
-
-fn read_save_state(path: PathBuf) -> Result<Vec<u8>> {
-    let mut file = File::open(path)?;
-    let mut contents = vec![];
-    file.read_to_end(&mut contents)?;
-    Ok(contents)
 }
 
 fn main() -> Result<()> {

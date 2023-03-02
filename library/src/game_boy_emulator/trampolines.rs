@@ -171,6 +171,7 @@ pub fn run_with_coverage<Storage: PersistentStorage + 'static>(
     renderer: impl Renderer,
     sound_stream: impl SoundStream,
     game_pak: GamePak<Storage>,
+    save_state: Option<Vec<u8>>,
     output_key: &str,
 ) -> Result<()> {
     let mut ops = GameBoyOps::new(renderer, sound_stream, storage);
@@ -178,6 +179,10 @@ pub fn run_with_coverage<Storage: PersistentStorage + 'static>(
     ops.load_game_pak(game_pak);
 
     let mut e = GameBoyEmulator::new();
+
+    if let Some(save_state) = save_state {
+        e.load_state(ops.game_pak.as_mut(), &save_state[..])?;
+    }
 
     let mut coverage_data = CoverageData::new();
 
