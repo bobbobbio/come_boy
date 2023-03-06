@@ -1,6 +1,5 @@
 // Copyright 2023 Remi Bernotavicius
 
-use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::LR35902Instruction;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -9,11 +8,8 @@ use combine::eof;
 use combine::parser::char::spaces;
 use combine::stream::position;
 use combine::{choice, many, optional, EasyParser as _, Parser};
-use jump::Condition;
 use section::Section;
-use types::{
-    spanned, Address, Error, Label, LabelOrAddress, Register, Result, SourcePosition, Span,
-};
+use types::{spanned, Address, Error, Label, LabelOrAddress, Result, SourcePosition, Span};
 
 mod bits;
 mod jump;
@@ -21,19 +17,87 @@ mod load;
 mod section;
 mod types;
 
+#[derive(Default)]
+struct LabelTable(BTreeMap<String, u16>);
+
+impl LabelTable {
+    fn insert(&mut self, label: Label, address: u16) {
+        self.0.insert(label.name, address);
+    }
+
+    fn resolve(&self, label_or_address: LabelOrAddress) -> Result<Address> {
+        match label_or_address {
+            LabelOrAddress::Label(Label { name, span }) => {
+                if let Some(address_value) = self.0.get(&name) {
+                    Ok(Address::new(*address_value, span))
+                } else {
+                    Err(Error::new(format!("no such label: {name:?}"), span))
+                }
+            }
+            LabelOrAddress::Address(address) => Ok(address),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum Instruction {
-    Ldh {
-        register: Register,
-        label_or_address: LabelOrAddress,
-    },
-    And {
-        register: Register,
-    },
-    Jr {
-        condition: Condition,
-        label_or_address: LabelOrAddress,
-    },
+    Load(load::Instruction),
+    Bits(bits::Instruction),
+    Jump(jump::Instruction),
+}
+
+impl Instruction {
+    fn into_lr35902_instruction(
+        self,
+        current_address: u16,
+        label_table: &LabelTable,
+    ) -> Result<LR35902Instruction> {
+        match self {
+            Self::Load(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Bits(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Jump(instr) => instr.into_lr35902_instruction(current_address, label_table),
+        }
+    }
+}
+
+impl Instruction {
+    fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            load::Instruction::parser().map(Self::Load),
+            bits::Instruction::parser().map(Self::Bits),
+            jump::Instruction::parser().map(Self::Jump),
+        ))
+    }
+}
+
+#[test]
+fn instruction_line() {
+    use crate::emulator_common::Intel8080Register;
+    use types::Register;
+
+    let input = ".foo ldh  a, [$FF85]";
+    let (instruction_line, _) = InstructionLine::parser()
+        .skip(eof())
+        .easy_parse(position::Stream::new(input))
+        .unwrap();
+    assert_eq!(
+        instruction_line,
+        InstructionLine {
+            label: Some(Label::new("foo", Span::from(((1, 1), (1, 5))))),
+            instruction: Instruction::Load(load::Instruction::Ldh {
+                register: Register::new(Intel8080Register::A, Span::from(((1, 11), (1, 12)))),
+                label_or_address: LabelOrAddress::Address(Address {
+                    value: 0xFF85,
+                    span: Span::from(((1, 15), (1, 20)))
+                }),
+            }),
+            span: Span::from(((1, 6), (1, 21)))
+        }
+    );
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -59,29 +123,6 @@ impl InstructionLine {
                 span,
             })
     }
-}
-
-#[test]
-fn instruction_line() {
-    let input = ".foo ldh  a, [$FF85]";
-    let (instruction_line, _) = InstructionLine::parser()
-        .skip(eof())
-        .easy_parse(position::Stream::new(input))
-        .unwrap();
-    assert_eq!(
-        instruction_line,
-        InstructionLine {
-            label: Some(Label::new("foo", Span::from(((1, 1), (1, 5))))),
-            instruction: Instruction::Ldh {
-                register: Register::new(Intel8080Register::A, Span::from(((1, 11), (1, 12)))),
-                label_or_address: LabelOrAddress::Address(Address {
-                    value: 0xFF85,
-                    span: Span::from(((1, 15), (1, 20)))
-                }),
-            },
-            span: Span::from(((1, 6), (1, 21)))
-        }
-    );
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -122,6 +163,9 @@ fn assembly_line_section() {
 
 #[test]
 fn assembly_line_instruction() {
+    use crate::emulator_common::Intel8080Register;
+    use types::Register;
+
     let input = ".foo
         ldh  a, [$FF85]";
     let (assembly_line, _) = AssemblyLine::parser()
@@ -132,89 +176,16 @@ fn assembly_line_instruction() {
         assembly_line,
         AssemblyLine::Instruction(InstructionLine {
             label: Some(Label::new("foo", Span::from(((1, 1), (1, 5))))),
-            instruction: Instruction::Ldh {
+            instruction: Instruction::Load(load::Instruction::Ldh {
                 register: Register::new(Intel8080Register::A, Span::from(((2, 14), (2, 15)))),
                 label_or_address: LabelOrAddress::Address(Address::new(
                     0xFF85,
                     Span::from(((2, 18), (2, 23)))
                 )),
-            },
+            }),
             span: Span::from(((2, 9), (2, 24)))
         })
     );
-}
-
-#[derive(Default)]
-struct LabelTable(BTreeMap<String, u16>);
-
-impl LabelTable {
-    fn insert(&mut self, label: Label, address: u16) {
-        self.0.insert(label.name, address);
-    }
-
-    fn resolve(&self, label_or_address: LabelOrAddress) -> Result<Address> {
-        match label_or_address {
-            LabelOrAddress::Label(Label { name, span }) => {
-                if let Some(address_value) = self.0.get(&name) {
-                    Ok(Address::new(*address_value, span))
-                } else {
-                    Err(Error::new(format!("no such label: {name:?}"), span))
-                }
-            }
-            LabelOrAddress::Address(address) => Ok(address),
-        }
-    }
-}
-
-impl Instruction {
-    fn into_lr35902_instruction(
-        self,
-        current_address: u16,
-        label_table: &LabelTable,
-    ) -> Result<LR35902Instruction> {
-        match self {
-            Self::Ldh {
-                register,
-                label_or_address,
-            } => {
-                register.require_value(Intel8080Register::A)?;
-                let data1 = label_table.resolve(label_or_address)?.shorten()?;
-                Ok(LR35902Instruction::LoadAccumulatorDirectOneByte { data1 })
-            }
-            Self::And { register } => Ok(LR35902Instruction::LogicalAndWithAccumulator {
-                register1: register.value,
-            }),
-            Self::Jr {
-                condition,
-                label_or_address,
-            } => {
-                let next_address = current_address + 2;
-                let dest = label_table.resolve(label_or_address)?;
-                let difference = dest.value as i32 - next_address as i32;
-                if difference > i8::MAX as i32 || difference < i8::MIN as i32 {
-                    return Err(Error::new("relative jump too far", dest.span));
-                }
-                let data1 = (difference as i8) as u8;
-
-                Ok(match condition {
-                    Condition::NoCarry => LR35902Instruction::JumpRelativeIfNoCarry { data1 },
-                    Condition::NotZero => LR35902Instruction::JumpRelativeIfNotZero { data1 },
-                    Condition::Carry => LR35902Instruction::JumpRelativeIfCarry { data1 },
-                    Condition::Zero => LR35902Instruction::JumpRelativeIfZero { data1 },
-                })
-            }
-        }
-    }
-}
-
-impl Instruction {
-    fn parser<Input>() -> impl Parser<Input, Output = Self>
-    where
-        Input: combine::Stream<Token = char>,
-        Input::Position: Into<SourcePosition>,
-    {
-        choice((load::ldh(), bits::and(), jump::jr()))
-    }
 }
 
 fn program_parser<Input>() -> impl Parser<Input, Output = Vec<AssemblyLine>>
