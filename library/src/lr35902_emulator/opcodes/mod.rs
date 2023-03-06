@@ -8,7 +8,8 @@ use crate::emulator_common::disassembler::{
 };
 use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
 pub use crate::lr35902_emulator::opcodes::opcode_gen::{
-    LR35902Instruction, LR35902InstructionSet, LR35902InstructionType, NUM_INSTRUCTIONS,
+    IllegalInstructionError, LR35902Instruction, LR35902InstructionSet, LR35902InstructionType,
+    NUM_INSTRUCTIONS,
 };
 
 #[cfg(test)]

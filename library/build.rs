@@ -581,6 +581,7 @@ impl OpcodeGenerator {
         let use_path = &self.use_path;
         let printer_name = &self.printer_name;
         tokens.extend(quote!(
+            use alloc::vec::Vec;
             use crate::emulator_common::{MemoryAccessor, Intel8080Register};
             use crate::#(#use_path)::*::#printer_name;
             use serde_derive::{Serialize, Deserialize};
@@ -909,6 +910,66 @@ impl OpcodeGenerator {
         ));
     }
 
+    fn generate_opcode_assembler(&self, tokens: &mut TokenStream) {
+        let enum_name = &self.enum_name;
+        let mut arms: Vec<syn::Arm> = vec![];
+
+        for opcode in &self.opcodes {
+            let variant_name = Ident::new(&opcode.camel_name, Span::call_site());
+            let mut patterns = vec![];
+
+            let mut values: Vec<syn::Expr> = vec![];
+            values.extend(opcode.code.code.iter().map(|v| syn::parse_quote!(#v)));
+
+            let iter = opcode
+                .enum_args
+                .iter()
+                .zip(opcode.function_call.args.iter());
+            for (arg, var_name) in iter {
+                match arg {
+                    OpcodeArgument::Register(ident) => {
+                        patterns.push(quote!(#var_name: Intel8080Register::#ident));
+                    }
+                    OpcodeArgument::ReadOneByte => {
+                        patterns.push(quote!(#var_name));
+                        values.push(syn::parse_quote!(*#var_name));
+                    }
+                    OpcodeArgument::ReadTwoBytes | OpcodeArgument::ReadAddress => {
+                        patterns.push(quote!(#var_name));
+                        values.push(syn::parse_quote!(*#var_name as u8));
+                        values.push(syn::parse_quote!((*#var_name >> 8) as u8));
+                    }
+                    OpcodeArgument::ConstantValue(value) => {
+                        patterns.push(quote!(#var_name: #value));
+                    }
+                }
+            }
+
+            arms.push(syn::parse_quote! {
+                Self::#variant_name { #(#patterns, )* .. } => {
+                    let v = [#(#values, )*];
+                    let len = v.len();
+                    out.extend(v);
+                    Ok(len)
+                }
+            });
+        }
+
+        tokens.extend(quote!(
+            #[derive(Debug)]
+            pub struct IllegalInstructionError(pub #enum_name);
+
+            impl #enum_name {
+                pub fn to_opcode(&self, out: &mut Vec<u8>) -> Result<usize, IllegalInstructionError> {
+                    match self {
+                        #(#arms)*
+                        _ => Err(IllegalInstructionError(self.clone()))
+                    }
+                }
+            }
+        ));
+    }
+
     fn generate(&self, tokens: &mut TokenStream) {
         self.generate_preamble(tokens);
         self.generate_instruction_enum(tokens);
@@ -917,6 +978,7 @@ impl OpcodeGenerator {
         self.generate_instructions_trait(tokens);
         self.generate_instruction_dispatch(tokens);
         self.generate_opcode_printer(tokens);
+        self.generate_opcode_assembler(tokens);
     }
 }
 

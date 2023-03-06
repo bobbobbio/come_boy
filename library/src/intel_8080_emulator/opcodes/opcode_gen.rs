@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::emulator_common::{Intel8080Register, MemoryAccessor};
 use crate::intel_8080_emulator::opcodes::Intel8080InstructionPrinter;
+use alloc::vec::Vec;
 use serde_derive::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(u16)]
@@ -2549,5 +2550,2102 @@ impl<'a> Intel8080InstructionSet for Intel8080InstructionPrinter<'a> {
     }
     fn subtract_immediate_from_accumulator_with_borrow(&mut self, data1: u8) {
         self.error = write!(self.stream_out, "{:04} #${data1:02x}", "SBI");
+    }
+}
+#[derive(Debug)]
+pub struct IllegalInstructionError(pub Intel8080Instruction);
+impl Intel8080Instruction {
+    pub fn to_opcode(&self, out: &mut Vec<u8>) -> Result<usize, IllegalInstructionError> {
+        match self {
+            Self::NoOperation { .. } => {
+                let v = [0u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::B,
+                data2,
+                ..
+            } => {
+                let v = [1u8, *data2 as u8, (*data2 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::StoreAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [2u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [3u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [4u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [5u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::B,
+                data2,
+                ..
+            } => {
+                let v = [6u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::RotateAccumulatorLeft { .. } => {
+                let v = [7u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DoubleAdd {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [9u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [10u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [11u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [12u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [13u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::C,
+                data2,
+                ..
+            } => {
+                let v = [14u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::RotateAccumulatorRight { .. } => {
+                let v = [15u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::D,
+                data2,
+                ..
+            } => {
+                let v = [17u8, *data2 as u8, (*data2 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::StoreAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [18u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [19u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [20u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [21u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::D,
+                data2,
+                ..
+            } => {
+                let v = [22u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::RotateAccumulatorLeftThroughCarry { .. } => {
+                let v = [23u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DoubleAdd {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [25u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [26u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [27u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [28u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [29u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::E,
+                data2,
+                ..
+            } => {
+                let v = [30u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::RotateAccumulatorRightThroughCarry { .. } => {
+                let v = [31u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Rim { .. } => {
+                let v = [32u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::H,
+                data2,
+                ..
+            } => {
+                let v = [33u8, *data2 as u8, (*data2 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::StoreHAndLDirect { address1, .. } => {
+                let v = [34u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [35u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [36u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [37u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::H,
+                data2,
+                ..
+            } => {
+                let v = [38u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecimalAdjustAccumulator { .. } => {
+                let v = [39u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DoubleAdd {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [41u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadHAndLDirect { address1, .. } => {
+                let v = [42u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [43u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [44u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [45u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::L,
+                data2,
+                ..
+            } => {
+                let v = [46u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ComplementAccumulator { .. } => {
+                let v = [47u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Sim { .. } => {
+                let v = [48u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadRegisterPairImmediate {
+                register1: Intel8080Register::SP,
+                data2,
+                ..
+            } => {
+                let v = [49u8, *data2 as u8, (*data2 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::StoreAccumulatorDirect { address1, .. } => {
+                let v = [50u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterPair {
+                register1: Intel8080Register::SP,
+                ..
+            } => {
+                let v = [51u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [52u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [53u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::M,
+                data2,
+                ..
+            } => {
+                let v = [54u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SetCarry { .. } => {
+                let v = [55u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DoubleAdd {
+                register1: Intel8080Register::SP,
+                ..
+            } => {
+                let v = [57u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadAccumulatorDirect { address1, .. } => {
+                let v = [58u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterPair {
+                register1: Intel8080Register::SP,
+                ..
+            } => {
+                let v = [59u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::IncrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [60u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DecrementRegisterOrMemory {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [61u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveImmediateData {
+                register1: Intel8080Register::A,
+                data2,
+                ..
+            } => {
+                let v = [62u8, *data2];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ComplementCarry { .. } => {
+                let v = [63u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [64u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [65u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [66u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [67u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [68u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [69u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [70u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::B,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [71u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [72u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [73u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [74u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [75u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [76u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [77u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [78u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::C,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [79u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [80u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [81u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [82u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [83u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [84u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [85u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [86u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::D,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [87u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [88u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [89u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [90u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [91u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [92u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [93u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [94u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::E,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [95u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [96u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [97u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [98u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [99u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [100u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [101u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [102u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::H,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [103u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [104u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [105u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [106u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [107u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [108u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [109u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [110u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::L,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [111u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [112u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [113u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [114u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [115u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [116u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [117u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Halt { .. } => {
+                let v = [118u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::M,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [119u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::B,
+                ..
+            } => {
+                let v = [120u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::C,
+                ..
+            } => {
+                let v = [121u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::D,
+                ..
+            } => {
+                let v = [122u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::E,
+                ..
+            } => {
+                let v = [123u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::H,
+                ..
+            } => {
+                let v = [124u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::L,
+                ..
+            } => {
+                let v = [125u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::M,
+                ..
+            } => {
+                let v = [126u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::MoveData {
+                register1: Intel8080Register::A,
+                register2: Intel8080Register::A,
+                ..
+            } => {
+                let v = [127u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [128u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [129u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [130u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [131u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [132u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [133u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [134u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [135u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [136u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [137u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [138u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [139u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [140u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [141u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [142u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddToAccumulatorWithCarry {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [143u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [144u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [145u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [146u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [147u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [148u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [149u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [150u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [151u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [152u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [153u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [154u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [155u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [156u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [157u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [158u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractFromAccumulatorWithBorrow {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [159u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [160u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [161u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [162u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [163u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [164u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [165u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [166u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalAndWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [167u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [168u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [169u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [170u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [171u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [172u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [173u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [174u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalExclusiveOrWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [175u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [176u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [177u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [178u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [179u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [180u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [181u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [182u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LogicalOrWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [183u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [184u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::C,
+                ..
+            } => {
+                let v = [185u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [186u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::E,
+                ..
+            } => {
+                let v = [187u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [188u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::L,
+                ..
+            } => {
+                let v = [189u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::M,
+                ..
+            } => {
+                let v = [190u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareWithAccumulator {
+                register1: Intel8080Register::A,
+                ..
+            } => {
+                let v = [191u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfNotZero { .. } => {
+                let v = [192u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PopDataOffStack {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [193u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfNotZero { address1, .. } => {
+                let v = [194u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Jump { address1, .. } => {
+                let v = [195u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfNotZero { address1, .. } => {
+                let v = [196u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::B,
+                ..
+            } => {
+                let v = [197u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddImmediateToAccumulator { data1, .. } => {
+                let v = [198u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 0u8, .. } => {
+                let v = [199u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfZero { .. } => {
+                let v = [200u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnUnconditionally { .. } => {
+                let v = [201u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfZero { address1, .. } => {
+                let v = [202u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfZero { address1, .. } => {
+                let v = [204u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Call { address1, .. } => {
+                let v = [205u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AddImmediateToAccumulatorWithCarry { data1, .. } => {
+                let v = [206u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 1u8, .. } => {
+                let v = [207u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfNoCarry { .. } => {
+                let v = [208u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PopDataOffStack {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [209u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfNoCarry { address1, .. } => {
+                let v = [210u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Output { data1, .. } => {
+                let v = [211u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfNoCarry { address1, .. } => {
+                let v = [212u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::D,
+                ..
+            } => {
+                let v = [213u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractImmediateFromAccumulator { data1, .. } => {
+                let v = [214u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 2u8, .. } => {
+                let v = [215u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfCarry { .. } => {
+                let v = [216u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfCarry { address1, .. } => {
+                let v = [218u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Input { data1, .. } => {
+                let v = [219u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfCarry { address1, .. } => {
+                let v = [220u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::SubtractImmediateFromAccumulatorWithBorrow { data1, .. } => {
+                let v = [222u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 3u8, .. } => {
+                let v = [223u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfParityOdd { .. } => {
+                let v = [224u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PopDataOffStack {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [225u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfParityOdd { address1, .. } => {
+                let v = [226u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ExchangeStack { .. } => {
+                let v = [227u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfParityOdd { address1, .. } => {
+                let v = [228u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::H,
+                ..
+            } => {
+                let v = [229u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::AndImmediateWithAccumulator { data1, .. } => {
+                let v = [230u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 4u8, .. } => {
+                let v = [231u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfParityEven { .. } => {
+                let v = [232u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadProgramCounter { .. } => {
+                let v = [233u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfParityEven { address1, .. } => {
+                let v = [234u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ExchangeRegisters { .. } => {
+                let v = [235u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfParityEven { address1, .. } => {
+                let v = [236u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ExclusiveOrImmediateWithAccumulator { data1, .. } => {
+                let v = [238u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 5u8, .. } => {
+                let v = [239u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfPlus { .. } => {
+                let v = [240u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PopDataOffStack {
+                register1: Intel8080Register::PSW,
+                ..
+            } => {
+                let v = [241u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfPositive { address1, .. } => {
+                let v = [242u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::DisableInterrupts { .. } => {
+                let v = [243u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfPlus { address1, .. } => {
+                let v = [244u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::PushDataOntoStack {
+                register1: Intel8080Register::PSW,
+                ..
+            } => {
+                let v = [245u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::OrImmediateWithAccumulator { data1, .. } => {
+                let v = [246u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 6u8, .. } => {
+                let v = [247u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::ReturnIfMinus { .. } => {
+                let v = [248u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::LoadSpFromHAndL { .. } => {
+                let v = [249u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::JumpIfMinus { address1, .. } => {
+                let v = [250u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::EnableInterrupts { .. } => {
+                let v = [251u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CallIfMinus { address1, .. } => {
+                let v = [252u8, *address1 as u8, (*address1 >> 8) as u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::CompareImmediateWithAccumulator { data1, .. } => {
+                let v = [254u8, *data1];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            Self::Restart { data1: 7u8, .. } => {
+                let v = [255u8];
+                let len = v.len();
+                out.extend(v);
+                Ok(len)
+            }
+            _ => Err(IllegalInstructionError(self.clone())),
+        }
     }
 }

@@ -28,7 +28,7 @@ glow-renderer = ["glow"]
 sdl2-renderer = ["sdl2"]
 sound = ["cpal"]
 speedy2d-renderer = ["speedy2d", "crossbeam"]
-std = ["bincode"]
+std = ["bincode", "combine"]
 ui = ["egui"]
 
 [badges]
@@ -37,6 +37,7 @@ travis-ci = { repository = "bobbobbio/come_boy" }
 [dependencies]
 bincode = { version = "*", optional = true }
 bmp = { version = "*", optional = true }
+combine = { version = "*", optional = true }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "0.8.1"

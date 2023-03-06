@@ -11,8 +11,8 @@ pub use crate::emulator_common::Intel8080Register;
 pub use crate::emulator_common::{MemoryAccessor, SimpleMemoryAccessor};
 pub use crate::lr35902_emulator::debugger::run_debugger;
 pub use crate::lr35902_emulator::opcodes::{
-    disassemble_lr35902_rom, LR35902Instruction, LR35902InstructionSet, LR35902InstructionType,
-    NUM_INSTRUCTIONS,
+    disassemble_lr35902_rom, IllegalInstructionError, LR35902Instruction, LR35902InstructionSet,
+    LR35902InstructionType, NUM_INSTRUCTIONS,
 };
 
 pub mod debugger;

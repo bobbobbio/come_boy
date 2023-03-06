@@ -25,11 +25,14 @@ use num_enum::IntoPrimitive;
 use perf::PerfObserver;
 use serde_derive::{Deserialize, Serialize};
 
+pub use self::assembler::assemble;
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
 pub use self::underclocker::*;
 pub use perf::NullPerfObserver;
 
+#[cfg(feature = "std")]
+mod assembler;
 mod coverage;
 mod debugger;
 mod disassembler;
