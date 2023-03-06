@@ -14,6 +14,8 @@ use types::{spanned, Address, Error, Label, LabelOrAddress, Result, SourcePositi
 mod bits;
 mod jump;
 mod load;
+mod no_arg;
+mod ret;
 mod section;
 mod types;
 
@@ -44,6 +46,8 @@ enum Instruction {
     Load(load::Instruction),
     Bits(bits::Instruction),
     Jump(jump::Instruction),
+    NoArg(no_arg::Instruction),
+    Ret(ret::Instruction),
 }
 
 impl Instruction {
@@ -56,6 +60,8 @@ impl Instruction {
             Self::Load(instr) => instr.into_lr35902_instruction(current_address, label_table),
             Self::Bits(instr) => instr.into_lr35902_instruction(current_address, label_table),
             Self::Jump(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::NoArg(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Ret(instr) => instr.into_lr35902_instruction(current_address, label_table),
         }
     }
 }
@@ -70,6 +76,8 @@ impl Instruction {
             load::Instruction::parser().map(Self::Load),
             bits::Instruction::parser().map(Self::Bits),
             jump::Instruction::parser().map(Self::Jump),
+            no_arg::Instruction::parser().map(Self::NoArg),
+            ret::Instruction::parser().map(Self::Ret),
         ))
     }
 }
@@ -77,7 +85,7 @@ impl Instruction {
 #[test]
 fn instruction_line() {
     use crate::emulator_common::Intel8080Register;
-    use types::Register;
+    use types::{LoadDestination, LoadSource, Register};
 
     let input = ".foo ldh  a, [$FF85]";
     let (instruction_line, _) = InstructionLine::parser()
@@ -88,12 +96,16 @@ fn instruction_line() {
         instruction_line,
         InstructionLine {
             label: Some(Label::new("foo", Span::from(((1, 1), (1, 5))))),
-            instruction: Instruction::Load(load::Instruction::Ldh {
-                register: Register::new(Intel8080Register::A, Span::from(((1, 11), (1, 12)))),
-                label_or_address: LabelOrAddress::Address(Address {
+            instruction: Instruction::Load(load::Instruction {
+                type_: load::LoadType::Ldh,
+                destination: LoadDestination::Register(Register::new(
+                    Intel8080Register::A,
+                    Span::from(((1, 11), (1, 12)))
+                )),
+                source: LoadSource::Address(LabelOrAddress::Address(Address {
                     value: 0xFF85,
                     span: Span::from(((1, 15), (1, 20)))
-                }),
+                })),
             }),
             span: Span::from(((1, 6), (1, 21)))
         }
@@ -164,7 +176,7 @@ fn assembly_line_section() {
 #[test]
 fn assembly_line_instruction() {
     use crate::emulator_common::Intel8080Register;
-    use types::Register;
+    use types::{LoadDestination, LoadSource, Register};
 
     let input = ".foo
         ldh  a, [$FF85]";
@@ -176,12 +188,16 @@ fn assembly_line_instruction() {
         assembly_line,
         AssemblyLine::Instruction(InstructionLine {
             label: Some(Label::new("foo", Span::from(((1, 1), (1, 5))))),
-            instruction: Instruction::Load(load::Instruction::Ldh {
-                register: Register::new(Intel8080Register::A, Span::from(((2, 14), (2, 15)))),
-                label_or_address: LabelOrAddress::Address(Address::new(
+            instruction: Instruction::Load(load::Instruction {
+                type_: load::LoadType::Ldh,
+                destination: LoadDestination::Register(Register::new(
+                    Intel8080Register::A,
+                    Span::from(((2, 14), (2, 15)))
+                )),
+                source: LoadSource::Address(LabelOrAddress::Address(Address::new(
                     0xFF85,
                     Span::from(((2, 18), (2, 23)))
-                )),
+                ))),
             }),
             span: Span::from(((2, 9), (2, 24)))
         })
@@ -246,5 +262,59 @@ fn small_loop() {
         0xf0, 0x85,
         0xa7,
         0x28, 0xfb,
+    ]);
+}
+
+#[test]
+fn two_functions() {
+    let bin = assemble(
+        "
+    SECTION test,ROM0[$0166]
+        ld   a,e
+        add  [hl]
+        daa
+        ldi  [hl],a
+        ld   a,d
+        adc  [hl]
+        daa
+        ldi  [hl],a
+        ld   a,$00
+        adc  [hl]
+        daa
+        ld   [hl],a
+        ld   a,$01
+        ldh  [$FFE0],a
+        ret  nc
+        ld   a,$99
+        ldd  [hl],a
+        ldd  [hl],a
+        ld   [hl],a
+        ret
+        ",
+    )
+    .unwrap();
+
+    #[rustfmt::skip]
+    assert_eq!(bin, [
+        0x7b,
+        0x86,
+        0x27,
+        0x22,
+        0x7a,
+        0x8e,
+        0x27,
+        0x22,
+        0x3e, 0x00,
+        0x8e,
+        0x27,
+        0x77,
+        0x3e, 0x01,
+        0xe0, 0xe0,
+        0xd0,
+        0x3e, 0x99,
+        0x32,
+        0x32,
+        0x77,
+        0xc9,
     ]);
 }

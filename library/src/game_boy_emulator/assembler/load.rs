@@ -1,18 +1,44 @@
 // Copyright 2023 Remi Bernotavicius
 
-use super::types::{LabelOrAddress, Register, Result, SourcePosition};
+use super::types::{spaces1, LoadDestination, LoadSource, Result, SourcePosition};
 use super::LabelTable;
 use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::parser::char::{char, spaces, string};
-use combine::{between, optional, Parser};
+use combine::{attempt, choice, Parser};
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Instruction {
-    Ldh {
-        register: Register,
-        label_or_address: LabelOrAddress,
-    },
+pub enum LoadType {
+    /// Regular load
+    Ld,
+    /// Load memory
+    Ldh,
+    /// Load and increment
+    Ldi,
+    /// Load and decrement
+    Ldd,
+}
+
+impl LoadType {
+    fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(string("ldh")).map(|_| Self::Ldh),
+            attempt(string("ldi")).map(|_| Self::Ldi),
+            attempt(string("ldd")).map(|_| Self::Ldd),
+            string("ld").map(|_| Self::Ld),
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Instruction {
+    pub type_: LoadType,
+    pub destination: LoadDestination,
+    pub source: LoadSource,
 }
 
 impl Instruction {
@@ -22,13 +48,15 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         (
-            string("ldh").skip(spaces()).with(Register::parser()),
-            char(',').skip(optional(spaces())),
-            between(char('['), char(']'), LabelOrAddress::parser()),
+            LoadType::parser().skip(spaces1()),
+            LoadDestination::parser(),
+            (spaces(), char(','), spaces()),
+            LoadSource::parser(),
         )
-            .map(|(register, _, label_or_address)| Self::Ldh {
-                register,
-                label_or_address,
+            .map(|(type_, destination, _, source)| Self {
+                type_,
+                destination,
+                source,
             })
     }
 }
@@ -50,20 +78,124 @@ fn ldh_load_address_too_low() {
     );
 }
 
+#[test]
+fn parse_ldh() {
+    use super::types::{Address, LabelOrAddress, Register, Span};
+    use combine::eof;
+    use combine::{stream::position, EasyParser as _};
+
+    let input = "ldh  a, [$FF85]";
+    let (instr, _) = Instruction::parser()
+        .skip(eof())
+        .easy_parse(position::Stream::new(input))
+        .unwrap();
+
+    assert_eq!(
+        instr,
+        Instruction {
+            type_: LoadType::Ldh,
+            destination: LoadDestination::Register(Register::new(
+                Intel8080Register::A,
+                Span::from(((1, 6), (1, 7)))
+            )),
+            source: LoadSource::Address(LabelOrAddress::Address(Address::new(
+                0xFF85,
+                Span::from(((1, 10), (1, 15)))
+            )))
+        }
+    );
+}
+
+#[test]
+fn parse_ld() {
+    use super::types::{LoadDestination, RegisterPair, Span};
+    use combine::eof;
+    use combine::{stream::position, EasyParser as _};
+
+    let input = "ld  sp,hl";
+    let (instr, _) = Instruction::parser()
+        .skip(eof())
+        .easy_parse(position::Stream::new(input))
+        .unwrap();
+
+    assert_eq!(
+        instr,
+        Instruction {
+            type_: LoadType::Ld,
+            destination: LoadDestination::RegisterPair(RegisterPair::new(
+                Intel8080Register::SP,
+                Span::from(((1, 5), (1, 7)))
+            )),
+            source: LoadSource::RegisterPair(RegisterPair::new(
+                Intel8080Register::H,
+                Span::from(((1, 8), (1, 10)))
+            )),
+        }
+    );
+}
+
 impl Instruction {
     pub(super) fn into_lr35902_instruction(
         self,
         _current_address: u16,
         label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
-        match self {
-            Self::Ldh {
-                register,
-                label_or_address,
-            } => {
-                register.require_value(Intel8080Register::A)?;
-                let data1 = label_table.resolve(label_or_address)?.shorten()?;
-                Ok(LR35902Instruction::LoadAccumulatorDirectOneByte { data1 })
+        match self.type_ {
+            LoadType::Ldh => match (self.destination, self.source) {
+                (LoadDestination::Register(destination), LoadSource::Address(source)) => {
+                    destination.require_value(Intel8080Register::A)?;
+                    let data1 = label_table.resolve(source)?.shorten()?;
+                    Ok(LR35902Instruction::LoadAccumulatorDirectOneByte { data1 })
+                }
+                (LoadDestination::Address(destination), LoadSource::Register(source)) => {
+                    source.require_value(Intel8080Register::A)?;
+                    let data1 = label_table.resolve(destination)?.shorten()?;
+                    Ok(LR35902Instruction::StoreAccumulatorDirectOneByte { data1 })
+                }
+                v => unimplemented!("{v:?}"),
+            },
+            LoadType::Ld => {
+                match (self.destination, self.source) {
+                    (LoadDestination::Register(destination), LoadSource::Register(source)) => {
+                        Ok(LR35902Instruction::MoveData {
+                            register1: destination.value,
+                            register2: source.value,
+                        })
+                    }
+                    (LoadDestination::Register(register), LoadSource::Constant(constant)) => {
+                        Ok(LR35902Instruction::MoveImmediateData {
+                            register1: register.value,
+                            data2: constant.value,
+                        })
+                    }
+                    v => unimplemented!("{v:?}"),
+                }
+                // load_sp_from_h_and_l ld sp.hl
+                // load_register_pair_immediate ld <rp>,$XXXX
+                // load_accumulator_direct ld a,$XXXX
+                // store_sp_direct ld $XXXX,sp
+                // load_accumulator ld a,<rp>
+                // load_accumulator_one_byte ld a,[$FF00+c]
+                // store_accumulator_one_byte ld [$FF00+c],a
+                // store_accumulator_direct ld [$XXXX],a
+                // store_accumulator ld [<rp>],a
+                // store_sp_plus_immediate ld hl,[sp+$XXXX]
+            }
+            LoadType::Ldi => {
+                let destination = self.destination.require_register()?;
+                let source = self.source.require_register()?;
+                Ok(LR35902Instruction::MoveAndIncrementHl {
+                    register1: destination.value,
+                    register2: source.value,
+                })
+            }
+            LoadType::Ldd => {
+                let destination = self.destination.require_register()?;
+                let source = self.source.require_register()?;
+                Ok(LR35902Instruction::MoveAndDecrementHl {
+                    register1: destination.value,
+                    register2: source.value,
+                })
             }
         }
     }

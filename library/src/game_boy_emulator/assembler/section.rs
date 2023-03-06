@@ -1,8 +1,8 @@
 // Copyright 2023 Remi Bernotavicius
 
-use super::types::{identifier, Address, SourcePosition};
+use super::types::{identifier, spaces1, Address, SourcePosition};
 use alloc::string::String;
-use combine::parser::char::{char, spaces, string};
+use combine::parser::char::{char, string};
 use combine::{between, choice, optional, Parser};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -27,7 +27,7 @@ impl SectionType {
             string("ROM0").map(|_| Self::Rom0),
             string("ROMX").map(|_| Self::RomX),
             string("VRAM").map(|_| Self::Vram),
-            string("Sram").map(|_| Self::Sram),
+            string("SRAM").map(|_| Self::Sram),
             string("WRAM0").map(|_| Self::Wram0),
             string("WRAMX").map(|_| Self::WramX),
             string("OAM").map(|_| Self::Oam),
@@ -50,7 +50,7 @@ impl Section {
         Input::Position: Into<SourcePosition>,
     {
         (
-            string("SECTION").skip(spaces()),
+            string("SECTION").skip(spaces1()),
             identifier().skip(char(',')),
             SectionType::parser(),
             optional(between(char('['), char(']'), Address::parser())),

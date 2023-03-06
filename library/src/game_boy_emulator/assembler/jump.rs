@@ -1,10 +1,10 @@
 // Copyright 2023 Remi Bernotavicius
 
-use super::types::{Error, LabelOrAddress, Result, SourcePosition};
+use super::types::{spaces1, Condition, Error, LabelOrAddress, Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::parser::char::{char, spaces, string};
-use combine::{choice, optional, Parser};
+use combine::Parser;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
@@ -14,29 +14,6 @@ pub enum Instruction {
     },
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Condition {
-    NotZero,
-    NoCarry,
-    Zero,
-    Carry,
-}
-
-impl Condition {
-    fn parser<Input>() -> impl Parser<Input, Output = Self>
-    where
-        Input: combine::Stream<Token = char>,
-        Input::Position: Into<SourcePosition>,
-    {
-        choice((
-            string("nc").map(|_| Self::NoCarry),
-            string("nz").map(|_| Self::NotZero),
-            string("c").map(|_| Self::Carry),
-            string("z").map(|_| Self::Zero),
-        ))
-    }
-}
-
 impl Instruction {
     pub(super) fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
@@ -44,8 +21,8 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         (
-            string("jr").skip(spaces()).with(Condition::parser()),
-            char(',').skip(optional(spaces())),
+            string("jr").skip(spaces1()).with(Condition::parser()),
+            (spaces(), char(','), spaces()),
             LabelOrAddress::parser(),
         )
             .map(|(condition, _, label_or_address)| Self::Jr {

@@ -4,9 +4,9 @@ use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::IllegalInstructionError;
 use alloc::format;
 use alloc::string::String;
-use combine::parser::char::{alpha_num, char, hex_digit};
+use combine::parser::char::{alpha_num, char, hex_digit, space, string};
 use combine::stream::{easy, position};
-use combine::{choice, many1, position, Parser};
+use combine::{attempt, between, choice, many1, position, skip_many1, Parser};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourcePosition {
@@ -98,7 +98,7 @@ impl Register {
         Self { value, span }
     }
 
-    pub fn parser<Input>() -> impl Parser<Input, Output = Register>
+    pub fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
@@ -110,6 +110,7 @@ impl Register {
             char('e').map(|_| Intel8080Register::E),
             char('h').map(|_| Intel8080Register::H),
             char('l').map(|_| Intel8080Register::L),
+            string("[hl]").map(|_| Intel8080Register::M),
         )))
         .map(|(value, span)| Self { value, span })
     }
@@ -125,7 +126,183 @@ impl Register {
     }
 }
 
-fn hex_u8<Input>() -> impl Parser<Input, Output = u8>
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RegisterPair {
+    pub value: Intel8080Register,
+    pub span: Span,
+}
+
+impl RegisterPair {
+    #[cfg(test)]
+    pub fn new(value: Intel8080Register, span: Span) -> Self {
+        Self { value, span }
+    }
+
+    pub fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        spanned(choice((
+            string("bc").map(|_| Intel8080Register::B),
+            string("de").map(|_| Intel8080Register::D),
+            string("hl").map(|_| Intel8080Register::H),
+            string("sp").map(|_| Intel8080Register::SP),
+            string("af").map(|_| Intel8080Register::PSW),
+        )))
+        .map(|(value, span)| Self { value, span })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum RegisterOrPair {
+    Register(Register),
+    RegisterPair(RegisterPair),
+}
+
+impl RegisterOrPair {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(RegisterPair::parser()).map(Self::RegisterPair),
+            Register::parser().map(Self::Register),
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Constant {
+    pub value: u8,
+    pub span: Span,
+}
+
+impl Constant {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        spanned(char('$').with(hex_u8())).map(|(value, span)| Self { value, span })
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoadSource {
+    Address(LabelOrAddress),
+    Register(Register),
+    RegisterPair(RegisterPair),
+    Constant(Constant),
+}
+
+impl LoadSource {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            Constant::parser().map(Self::Constant),
+            attempt(RegisterPair::parser()).map(Self::RegisterPair),
+            attempt(Register::parser()).map(Self::Register),
+            between(char('['), char(']'), LabelOrAddress::parser()).map(Self::Address),
+        ))
+    }
+
+    pub fn require_register(self) -> Result<Register> {
+        if let Self::Register(register) = self {
+            Ok(register)
+        } else {
+            Err(Error::new(
+                format!("expected register, found {self:?}"),
+                self.into_span(),
+            ))
+        }
+    }
+
+    pub fn require_constant(self) -> Result<Constant> {
+        if let Self::Constant(constant) = self {
+            Ok(constant)
+        } else {
+            Err(Error::new(
+                format!("expected constant, found {self:?}"),
+                self.into_span(),
+            ))
+        }
+    }
+
+    pub fn require_register_pair(self) -> Result<RegisterPair> {
+        if let Self::RegisterPair(pair) = self {
+            Ok(pair)
+        } else {
+            Err(Error::new(
+                format!("expected register pair, found {self:?}"),
+                self.into_span(),
+            ))
+        }
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Constant(constant) => constant.span,
+            Self::Register(register) => register.span,
+            Self::RegisterPair(register_pair) => register_pair.span,
+            Self::Address(label_or_address) => label_or_address.into_span(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoadDestination {
+    Register(Register),
+    RegisterPair(RegisterPair),
+    Address(LabelOrAddress),
+}
+
+impl LoadDestination {
+    pub fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(RegisterPair::parser()).map(Self::RegisterPair),
+            attempt(Register::parser()).map(Self::Register),
+            between(char('['), char(']'), LabelOrAddress::parser()).map(Self::Address),
+        ))
+    }
+
+    pub fn require_register(self) -> Result<Register> {
+        if let Self::Register(register) = self {
+            Ok(register)
+        } else {
+            Err(Error::new(
+                format!("expected register, found {self:?}"),
+                self.into_span(),
+            ))
+        }
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Register(register) => register.span,
+            Self::RegisterPair(register_pair) => register_pair.span,
+            Self::Address(label_or_address) => label_or_address.into_span(),
+        }
+    }
+}
+
+pub fn spaces1<Input>() -> impl Parser<Input, Output = ()>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    skip_many1(space()).expected("at least one space")
+}
+
+pub fn hex_u8<Input>() -> impl Parser<Input, Output = u8>
 where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
@@ -133,7 +310,7 @@ where
     (hex_digit(), hex_digit()).map(|(h1, h2)| u8::from_str_radix(&format!("{h1}{h2}"), 16).unwrap())
 }
 
-fn hex_u16<Input>() -> impl Parser<Input, Output = u16>
+pub fn hex_u16<Input>() -> impl Parser<Input, Output = u16>
 where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
@@ -226,6 +403,36 @@ impl LabelOrAddress {
         choice((
             Address::parser().map(Self::Address),
             Label::parser().map(Self::Label),
+        ))
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Label(label) => label.span,
+            Self::Address(address) => address.span,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Condition {
+    NotZero,
+    NoCarry,
+    Zero,
+    Carry,
+}
+
+impl Condition {
+    pub fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            string("nc").map(|_| Self::NoCarry),
+            string("nz").map(|_| Self::NotZero),
+            string("c").map(|_| Self::Carry),
+            string("z").map(|_| Self::Zero),
         ))
     }
 }
