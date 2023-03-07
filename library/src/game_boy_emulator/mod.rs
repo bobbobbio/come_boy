@@ -25,6 +25,7 @@ use num_enum::IntoPrimitive;
 use perf::PerfObserver;
 use serde_derive::{Deserialize, Serialize};
 
+#[cfg(feature = "std")]
 pub use self::assembler::assemble;
 pub use self::disassembler::disassemble_game_boy_rom;
 pub use self::trampolines::*;
