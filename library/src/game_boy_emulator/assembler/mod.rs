@@ -5,18 +5,21 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use alloc::{collections::BTreeMap, format, vec};
 use combine::eof;
-use combine::parser::char::spaces;
+use combine::parser::char::{char, spaces};
 use combine::stream::position;
-use combine::{choice, many, optional, EasyParser as _, Parser};
+use combine::{attempt, choice, many, optional, satisfy, EasyParser as _, Parser};
 use section::Section;
 use types::{spanned, Address, Error, Label, LabelOrAddress, Result, SourcePosition, Span};
 
 mod bits;
+mod call;
+mod compare;
 mod jump;
 mod load;
 mod no_arg;
 mod ret;
 mod section;
+mod stack;
 mod types;
 
 #[derive(Default)]
@@ -43,11 +46,14 @@ impl LabelTable {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Instruction {
-    Load(load::Instruction),
     Bits(bits::Instruction),
+    Call(call::Instruction),
+    Compare(compare::Instruction),
     Jump(jump::Instruction),
+    Load(load::Instruction),
     NoArg(no_arg::Instruction),
     Ret(ret::Instruction),
+    Stack(stack::Instruction),
 }
 
 impl Instruction {
@@ -57,11 +63,14 @@ impl Instruction {
         label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
         match self {
-            Self::Load(instr) => instr.into_lr35902_instruction(current_address, label_table),
             Self::Bits(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Call(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Compare(instr) => instr.into_lr35902_instruction(current_address, label_table),
             Self::Jump(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Load(instr) => instr.into_lr35902_instruction(current_address, label_table),
             Self::NoArg(instr) => instr.into_lr35902_instruction(current_address, label_table),
             Self::Ret(instr) => instr.into_lr35902_instruction(current_address, label_table),
+            Self::Stack(instr) => instr.into_lr35902_instruction(current_address, label_table),
         }
     }
 }
@@ -73,11 +82,14 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            load::Instruction::parser().map(Self::Load),
-            bits::Instruction::parser().map(Self::Bits),
-            jump::Instruction::parser().map(Self::Jump),
-            no_arg::Instruction::parser().map(Self::NoArg),
-            ret::Instruction::parser().map(Self::Ret),
+            attempt(bits::Instruction::parser()).map(Self::Bits),
+            attempt(call::Instruction::parser()).map(Self::Call),
+            attempt(compare::Instruction::parser()).map(Self::Compare),
+            attempt(jump::Instruction::parser()).map(Self::Jump),
+            attempt(load::Instruction::parser()).map(Self::Load),
+            attempt(no_arg::Instruction::parser()).map(Self::NoArg),
+            attempt(ret::Instruction::parser()).map(Self::Ret),
+            attempt(stack::Instruction::parser()).map(Self::Stack),
         ))
     }
 }
@@ -149,10 +161,16 @@ impl AssemblyLine {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
+        let comment = attempt((
+            spaces(),
+            char(';'),
+            many::<String, _, _>(satisfy(|c| c != '\n')),
+        ));
         choice((
             Section::parser().map(Self::Section),
             InstructionLine::parser().map(Self::Instruction),
         ))
+        .skip(optional(comment))
     }
 }
 
@@ -316,5 +334,71 @@ fn two_functions() {
         0x32,
         0x77,
         0xc9,
+    ]);
+}
+
+#[test]
+fn another_function() {
+    let bin = assemble(
+        "
+    SECTION test,ROM0[$025a]
+        ld   a,[$C0CE]
+        and  a
+        jr   z,$027A
+        ldh  a,[$FF98]
+        cp   a,$03
+        jr   nz,$027A
+        ld   hl,$986D
+        call $249B
+        ld   a,$01
+        ldh  [$FFE0],a
+        ld   hl,$9C6D
+        call $249B
+        xor  a
+        ld   [$C0CE],a
+        ld   hl,$FFE2
+        inc  [hl]
+        xor  a
+        ldh  [$FF43],a ; SCX
+        ldh  [$FF42],a ; SCY
+        inc  a
+        ldh  [$FF85],a
+        pop  hl
+        pop  de
+        pop  bc
+        pop  af
+        reti
+        ",
+    )
+    .unwrap();
+
+    #[rustfmt::skip]
+    assert_eq!(bin, [
+        0xfa, 0xce, 0xc0,
+        0xa7,
+        0x28, 0x1a,
+        0xf0, 0x98,
+        0xfe, 0x03,
+        0x20, 0x14,
+        0x21, 0x6d, 0x98,
+        0xcd, 0x9b, 0x24,
+        0x3e, 0x01,
+        0xe0, 0xe0,
+        0x21, 0x6d, 0x9c,
+        0xcd, 0x9b, 0x24,
+        0xaf,
+        0xea, 0xce, 0xc0,
+        0x21, 0xe2, 0xff,
+        0x34,
+        0xaf,
+        0xe0, 0x43,
+        0xe0, 0x42,
+        0x3c,
+        0xe0, 0x85,
+        0xe1,
+        0xd1,
+        0xc1,
+        0xf1,
+        0xd9,
     ]);
 }

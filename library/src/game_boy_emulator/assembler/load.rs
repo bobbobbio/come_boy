@@ -162,22 +162,39 @@ impl Instruction {
                             register2: source.value,
                         })
                     }
-                    (LoadDestination::Register(register), LoadSource::Constant(constant)) => {
+                    (LoadDestination::Register(destination), LoadSource::Address(address)) => {
+                        destination.require_value(Intel8080Register::A)?;
+                        let address = label_table.resolve(address)?;
+                        Ok(LR35902Instruction::LoadAccumulatorDirect {
+                            address1: address.value,
+                        })
+                    }
+                    (LoadDestination::Register(register), LoadSource::ConstantU8(constant)) => {
                         Ok(LR35902Instruction::MoveImmediateData {
                             register1: register.value,
                             data2: constant.value,
                         })
                     }
+                    (LoadDestination::RegisterPair(pair), LoadSource::ConstantU16(constant)) => {
+                        Ok(LR35902Instruction::LoadRegisterPairImmediate {
+                            register1: pair.value,
+                            data2: constant.value,
+                        })
+                    }
+                    (LoadDestination::Address(address), LoadSource::Register(register)) => {
+                        register.require_value(Intel8080Register::A)?;
+                        let address = label_table.resolve(address)?;
+                        Ok(LR35902Instruction::StoreAccumulatorDirect {
+                            address1: address.value,
+                        })
+                    }
                     v => unimplemented!("{v:?}"),
                 }
-                // load_sp_from_h_and_l ld sp.hl
-                // load_register_pair_immediate ld <rp>,$XXXX
-                // load_accumulator_direct ld a,$XXXX
+                // load_sp_from_h_and_l ld sp,hl
                 // store_sp_direct ld $XXXX,sp
                 // load_accumulator ld a,<rp>
                 // load_accumulator_one_byte ld a,[$FF00+c]
                 // store_accumulator_one_byte ld [$FF00+c],a
-                // store_accumulator_direct ld [$XXXX],a
                 // store_accumulator ld [<rp>],a
                 // store_sp_plus_immediate ld hl,[sp+$XXXX]
             }

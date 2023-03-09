@@ -174,12 +174,12 @@ impl RegisterOrPair {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Constant {
-    pub value: u8,
+pub struct Constant<T> {
+    pub value: T,
     pub span: Span,
 }
 
-impl Constant {
+impl Constant<u8> {
     pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
         Input: combine::Stream<Token = char>,
@@ -189,12 +189,23 @@ impl Constant {
     }
 }
 
+impl Constant<u16> {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        spanned(char('$').with(hex_u16())).map(|(value, span)| Self { value, span })
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub enum LoadSource {
     Address(LabelOrAddress),
     Register(Register),
     RegisterPair(RegisterPair),
-    Constant(Constant),
+    ConstantU16(Constant<u16>),
+    ConstantU8(Constant<u8>),
 }
 
 impl LoadSource {
@@ -204,7 +215,8 @@ impl LoadSource {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            Constant::parser().map(Self::Constant),
+            attempt(Constant::<u16>::parser()).map(Self::ConstantU16),
+            Constant::<u8>::parser().map(Self::ConstantU8),
             attempt(RegisterPair::parser()).map(Self::RegisterPair),
             attempt(Register::parser()).map(Self::Register),
             between(char('['), char(']'), LabelOrAddress::parser()).map(Self::Address),
@@ -222,12 +234,12 @@ impl LoadSource {
         }
     }
 
-    pub fn require_constant(self) -> Result<Constant> {
-        if let Self::Constant(constant) = self {
+    pub fn require_constant_u8(self) -> Result<Constant<u8>> {
+        if let Self::ConstantU8(constant) = self {
             Ok(constant)
         } else {
             Err(Error::new(
-                format!("expected constant, found {self:?}"),
+                format!("expected 8-bit constant, found {self:?}"),
                 self.into_span(),
             ))
         }
@@ -246,7 +258,8 @@ impl LoadSource {
 
     fn into_span(self) -> Span {
         match self {
-            Self::Constant(constant) => constant.span,
+            Self::ConstantU8(constant) => constant.span,
+            Self::ConstantU16(constant) => constant.span,
             Self::Register(register) => register.span,
             Self::RegisterPair(register_pair) => register_pair.span,
             Self::Address(label_or_address) => label_or_address.into_span(),
@@ -429,7 +442,7 @@ impl Condition {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            string("nc").map(|_| Self::NoCarry),
+            attempt(string("nc")).map(|_| Self::NoCarry),
             string("nz").map(|_| Self::NotZero),
             string("c").map(|_| Self::Carry),
             string("z").map(|_| Self::Zero),
