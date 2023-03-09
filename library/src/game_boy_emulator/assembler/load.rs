@@ -188,11 +188,21 @@ impl Instruction {
                             address1: address.value,
                         })
                     }
+                    (LoadDestination::Address(address), LoadSource::RegisterPair(pair)) => {
+                        pair.require_value(Intel8080Register::SP)?;
+                        let address = label_table.resolve(address)?;
+                        Ok(LR35902Instruction::StoreSpDirect {
+                            address1: address.value,
+                        })
+                    }
+                    (LoadDestination::RegisterPair(pair1), LoadSource::RegisterPair(pair2)) => {
+                        pair1.require_value(Intel8080Register::SP)?;
+                        pair2.require_value(Intel8080Register::H)?;
+                        Ok(LR35902Instruction::LoadSpFromHAndL)
+                    }
                     v => unimplemented!("{v:?}"),
                 }
-                // load_sp_from_h_and_l ld sp,hl
-                // store_sp_direct ld $XXXX,sp
-                // load_accumulator ld a,<rp>
+                // load_accumulator ld a,[<rp>]
                 // load_accumulator_one_byte ld a,[$FF00+c]
                 // store_accumulator_one_byte ld [$FF00+c],a
                 // store_accumulator ld [<rp>],a

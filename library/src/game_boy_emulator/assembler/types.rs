@@ -152,6 +152,16 @@ impl RegisterPair {
         )))
         .map(|(value, span)| Self { value, span })
     }
+
+    pub fn require_value(self, requirement: Intel8080Register) -> Result<()> {
+        if self.value != requirement {
+            return Err(Error::new(
+                format!("must be register {requirement:?}"),
+                self.span,
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
