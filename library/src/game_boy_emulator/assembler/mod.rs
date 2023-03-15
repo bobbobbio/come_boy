@@ -285,7 +285,7 @@ fn small_loop() {
 }
 
 #[test]
-fn two_functions() {
+fn sample1() {
     let bin = assemble(
         "
     SECTION test,ROM0[$0166]
@@ -339,7 +339,7 @@ fn two_functions() {
 }
 
 #[test]
-fn another_function() {
+fn sample2() {
     let bin = assemble(
         "
     SECTION test,ROM0[$025a]
@@ -405,7 +405,7 @@ fn another_function() {
 }
 
 #[test]
-fn yet_another_function() {
+fn sample3() {
     let bin = assemble(
         "
     SECTION test,ROM0[$3085]
@@ -443,7 +443,7 @@ fn yet_another_function() {
 }
 
 #[test]
-fn yet_another_another_function() {
+fn sample4() {
     let bin = assemble(
         "
     SECTION test,ROM0[$0383]
@@ -511,5 +511,55 @@ fn yet_another_another_function() {
         0x17,
         0x77,
         0x19,
+    ]);
+}
+
+#[test]
+fn sample5() {
+    let bin = assemble(
+        "
+    SECTION test,ROM0[$6894]
+        add  b
+        add  b
+        jr   nz,$6835
+        add  a
+        add  b
+        ld   hl,[sp+$20]
+        sbc  b
+        add  a
+        add  b
+        ei
+        jr   nz,$6838
+        add  a
+        add  b
+        or   a,$20
+        sub  l
+        add  a
+        ld   hl,$6EDA
+        call $693E
+        ",
+    )
+    .unwrap();
+
+    #[rustfmt::skip]
+    assert_eq!(bin, [
+        0x80,
+        0x80,
+        0x20, 0x9d,
+        0x87,
+        0x80,
+        0xf8, 0x20,
+        0x98,
+        0x87,
+        0x80,
+        0xfb,
+        0x20, 0x96,
+        0x87,
+        0x80,
+        0xf6, 0x20,
+        0x95,
+        0x87,
+        0x21, 0xda, 0x6e,
+        0xcd, 0x3e, 0x69,
     ]);
 }

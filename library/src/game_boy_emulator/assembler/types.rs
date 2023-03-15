@@ -249,7 +249,7 @@ impl AddressSource {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AddressAugend {
-    Address(LabelOrAddress),
+    Constant(Constant<u8>),
     Register(Register),
 }
 
@@ -260,14 +260,14 @@ impl AddressAugend {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            LabelOrAddress::parser().map(Self::Address),
+            Constant::<u8>::parser().map(Self::Constant),
             Register::parser().map(Self::Register),
         ))
     }
 
     fn into_span(self) -> Span {
         match self {
-            Self::Address(a) => a.into_span(),
+            Self::Constant(a) => a.span,
             Self::Register(a) => a.span,
         }
     }
@@ -287,9 +287,7 @@ impl AddressExpression {
     {
         (
             AddressSource::parser(),
-            optional(attempt(
-                (spaces(), char('+'), spaces()).with(AddressAugend::parser()),
-            )),
+            optional(attempt((spaces(), char('+'), spaces())).with(AddressAugend::parser())),
         )
             .map(|(base, plus)| {
                 if let Some(plus) = plus {
@@ -365,7 +363,7 @@ impl LoadSource {
         }
     }
 
-    fn into_span(self) -> Span {
+    pub fn into_span(self) -> Span {
         match self {
             Self::ConstantU8(constant) => constant.span,
             Self::ConstantU16(constant) => constant.span,
@@ -407,7 +405,7 @@ impl LoadDestination {
         }
     }
 
-    fn into_span(self) -> Span {
+    pub fn into_span(self) -> Span {
         match self {
             Self::Register(register) => register.span,
             Self::RegisterPair(register_pair) => register_pair.span,

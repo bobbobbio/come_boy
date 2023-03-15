@@ -11,43 +11,49 @@ use combine::parser::char::{char, spaces, string};
 use combine::{attempt, choice, optional, Parser};
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum SimpleKeyword {
+    Adc,
+    And,
+    Or,
+    Sbc,
+    Sub,
+    Xor,
+}
+
+impl SimpleKeyword {
+    fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(string("adc")).map(|_| Self::Adc),
+            attempt(string("and")).map(|_| Self::And),
+            attempt(string("or")).map(|_| Self::Or),
+            attempt(string("sbc")).map(|_| Self::Sbc),
+            attempt(string("sub")).map(|_| Self::Sub),
+            attempt(string("xor")).map(|_| Self::Xor),
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
-    And {
-        register: Register,
-        source: Option<Constant<u8>>,
-    },
     Add {
         destination: Option<RegisterOrPair>,
-        source: LoadSource,
-    },
-    Adc {
         source: LoadSource,
     },
     Dec {
         register: RegisterOrPair,
     },
-    Xor {
-        register: Register,
-        constant: Option<Constant<u8>>,
-    },
     Inc {
         register: RegisterOrPair,
     },
-}
-
-fn and<Input>() -> impl Parser<Input, Output = Instruction>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Position: Into<SourcePosition>,
-{
-    attempt(string("and").skip(spaces1()))
-        .with((
-            Register::parser(),
-            optional(attempt(
-                (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
-            )),
-        ))
-        .map(|(register, source)| Instruction::And { register, source })
+    Simple {
+        keyword: SimpleKeyword,
+        register: Register,
+        source: Option<Constant<u8>>,
+    },
 }
 
 fn add<Input>() -> impl Parser<Input, Output = Instruction>
@@ -72,16 +78,6 @@ where
     )))
 }
 
-fn adc<Input>() -> impl Parser<Input, Output = Instruction>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Position: Into<SourcePosition>,
-{
-    attempt(string("adc").skip(spaces1())).with(choice((
-        LoadSource::parser().map(|source| Instruction::Adc { source }),
-    )))
-}
-
 fn dec<Input>() -> impl Parser<Input, Output = Instruction>
 where
     Input: combine::Stream<Token = char>,
@@ -94,20 +90,6 @@ where
         .map(|(_, register)| Instruction::Dec { register })
 }
 
-fn xor<Input>() -> impl Parser<Input, Output = Instruction>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Position: Into<SourcePosition>,
-{
-    (
-        attempt(string("xor").skip(spaces1())).with(Register::parser()),
-        optional(attempt(
-            (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
-        )),
-    )
-        .map(|(register, constant)| Instruction::Xor { register, constant })
-}
-
 fn inc<Input>() -> impl Parser<Input, Output = Instruction>
 where
     Input: combine::Stream<Token = char>,
@@ -118,13 +100,32 @@ where
         .map(|register| Instruction::Inc { register })
 }
 
+fn simple<Input>() -> impl Parser<Input, Output = Instruction>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    (
+        attempt(SimpleKeyword::parser().skip(spaces1())),
+        Register::parser(),
+        optional(attempt(
+            (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
+        )),
+    )
+        .map(|(keyword, register, source)| Instruction::Simple {
+            keyword,
+            register,
+            source,
+        })
+}
+
 impl Instruction {
     pub(super) fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        choice((and(), add(), adc(), dec(), xor(), inc()))
+        choice((add(), dec(), inc(), simple()))
     }
 }
 
@@ -135,18 +136,6 @@ impl Instruction {
         _label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
         match self {
-            Self::And { register, source } => {
-                if let Some(constant) = source {
-                    register.require_value(Intel8080Register::A)?;
-                    Ok(LR35902Instruction::AndImmediateWithAccumulator {
-                        data1: constant.value,
-                    })
-                } else {
-                    Ok(LR35902Instruction::LogicalAndWithAccumulator {
-                        register1: register.value,
-                    })
-                }
-            }
             Self::Add {
                 destination,
                 source,
@@ -180,12 +169,6 @@ impl Instruction {
                     })
                 }
             },
-            Self::Adc { source } => {
-                let source = source.require_register()?;
-                Ok(LR35902Instruction::AddToAccumulatorWithCarry {
-                    register1: source.value,
-                })
-            }
             Self::Dec { register } => match register {
                 RegisterOrPair::Register(register) => {
                     Ok(LR35902Instruction::DecrementRegisterOrMemory {
@@ -198,18 +181,6 @@ impl Instruction {
                     })
                 }
             },
-            Self::Xor { register, constant } => {
-                if let Some(constant) = constant {
-                    register.require_value(Intel8080Register::A)?;
-                    Ok(LR35902Instruction::ExclusiveOrImmediateWithAccumulator {
-                        data1: constant.value,
-                    })
-                } else {
-                    Ok(LR35902Instruction::LogicalExclusiveOrWithAccumulator {
-                        register1: register.value,
-                    })
-                }
-            }
             Self::Inc { register } => match register {
                 RegisterOrPair::Register(register) => {
                     Ok(LR35902Instruction::IncrementRegisterOrMemory {
@@ -220,6 +191,86 @@ impl Instruction {
                     Ok(LR35902Instruction::IncrementRegisterPair {
                         register1: register.value,
                     })
+                }
+            },
+            Self::Simple {
+                keyword,
+                register,
+                source,
+            } => match keyword {
+                SimpleKeyword::And => {
+                    if let Some(constant) = source {
+                        register.require_value(Intel8080Register::A)?;
+                        Ok(LR35902Instruction::AndImmediateWithAccumulator {
+                            data1: constant.value,
+                        })
+                    } else {
+                        Ok(LR35902Instruction::LogicalAndWithAccumulator {
+                            register1: register.value,
+                        })
+                    }
+                }
+                SimpleKeyword::Adc => {
+                    if let Some(constant) = source {
+                        register.require_value(Intel8080Register::A)?;
+                        Ok(LR35902Instruction::AddImmediateToAccumulatorWithCarry {
+                            data1: constant.value,
+                        })
+                    } else {
+                        Ok(LR35902Instruction::AddToAccumulatorWithCarry {
+                            register1: register.value,
+                        })
+                    }
+                }
+                SimpleKeyword::Sub => {
+                    if let Some(constant) = source {
+                        register.require_value(Intel8080Register::A)?;
+                        Ok(LR35902Instruction::SubtractImmediateFromAccumulator {
+                            data1: constant.value,
+                        })
+                    } else {
+                        Ok(LR35902Instruction::SubtractFromAccumulator {
+                            register1: register.value,
+                        })
+                    }
+                }
+                SimpleKeyword::Sbc => {
+                    if let Some(constant) = source {
+                        register.require_value(Intel8080Register::A)?;
+                        Ok(
+                            LR35902Instruction::SubtractImmediateFromAccumulatorWithBorrow {
+                                data1: constant.value,
+                            },
+                        )
+                    } else {
+                        Ok(LR35902Instruction::SubtractFromAccumulatorWithBorrow {
+                            register1: register.value,
+                        })
+                    }
+                }
+                SimpleKeyword::Or => {
+                    if let Some(constant) = source {
+                        register.require_value(Intel8080Register::A)?;
+                        Ok(LR35902Instruction::OrImmediateWithAccumulator {
+                            data1: constant.value,
+                        })
+                    } else {
+                        Ok(LR35902Instruction::LogicalOrWithAccumulator {
+                            register1: register.value,
+                        })
+                    }
+                }
+                SimpleKeyword::Xor => {
+                    if let Some(constant) = source {
+                        register.require_value(Intel8080Register::A)?;
+                        Ok(LR35902Instruction::ExclusiveOrImmediateWithAccumulator {
+                            data1: constant.value,
+                        })
+                    } else {
+                        Ok(LR35902Instruction::LogicalExclusiveOrWithAccumulator {
+                            register1: register.value,
+                        })
+                    }
                 }
             },
         }

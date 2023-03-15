@@ -9,6 +9,7 @@ use combine::{attempt, choice, parser::char::string};
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Daa,
+    Ei,
     Rla,
     Rlca,
     Rra,
@@ -23,6 +24,7 @@ impl Instruction {
     {
         choice((
             attempt(string("daa")).map(|_| Self::Daa),
+            attempt(string("ei")).map(|_| Self::Ei),
             attempt(string("rlca")).map(|_| Self::Rlca),
             attempt(string("rra")).map(|_| Self::Rra),
             attempt(string("rrca")).map(|_| Self::Rrca),
@@ -39,6 +41,7 @@ impl Instruction {
     ) -> Result<LR35902Instruction> {
         match self {
             Self::Daa => Ok(LR35902Instruction::DecimalAdjustAccumulator),
+            Self::Ei => Ok(LR35902Instruction::EnableInterrupts),
             Self::Rla => Ok(LR35902Instruction::RotateAccumulatorLeftThroughCarry),
             Self::Rlca => Ok(LR35902Instruction::RotateAccumulatorLeft),
             Self::Rra => Ok(LR35902Instruction::RotateAccumulatorRightThroughCarry),
