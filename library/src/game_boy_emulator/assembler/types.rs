@@ -4,11 +4,11 @@ use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::IllegalInstructionError;
 use alloc::format;
 use alloc::string::String;
-use combine::parser::char::{alpha_num, char, hex_digit, space, string};
+use combine::parser::char::{alpha_num, char, hex_digit, space, spaces, string};
 use combine::stream::{easy, position};
-use combine::{attempt, between, choice, many1, position, skip_many1, Parser};
+use combine::{attempt, between, choice, many1, optional, position, skip_many1, Parser};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SourcePosition {
     line: u64,
     column: u64,
@@ -54,6 +54,17 @@ impl Span {
 
     fn unknown_end(start: SourcePosition) -> Self {
         Self { start, end: None }
+    }
+}
+
+impl std::ops::Add for Span {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self {
+            start: std::cmp::min(self.start, rhs.start),
+            end: std::cmp::max(self.end, rhs.end),
+        }
     }
 }
 
@@ -106,6 +117,7 @@ impl Register {
         spanned(choice((
             char('a').map(|_| Intel8080Register::A),
             char('b').map(|_| Intel8080Register::B),
+            char('c').map(|_| Intel8080Register::C),
             char('d').map(|_| Intel8080Register::D),
             char('e').map(|_| Intel8080Register::E),
             char('h').map(|_| Intel8080Register::H),
@@ -210,13 +222,99 @@ impl Constant<u16> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum LoadSource {
+pub enum AddressSource {
     Address(LabelOrAddress),
-    AddressPlusC(LabelOrAddressPlusC),
-    Register(Register),
     RegisterPair(RegisterPair),
+}
+
+impl AddressSource {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            LabelOrAddress::parser().map(Self::Address),
+            RegisterPair::parser().map(Self::RegisterPair),
+        ))
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Address(a) => a.into_span(),
+            Self::RegisterPair(a) => a.span,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AddressAugend {
+    Address(LabelOrAddress),
+    Register(Register),
+}
+
+impl AddressAugend {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            LabelOrAddress::parser().map(Self::Address),
+            Register::parser().map(Self::Register),
+        ))
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Address(a) => a.into_span(),
+            Self::Register(a) => a.span,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum AddressExpression {
+    Identity(AddressSource),
+    Addition(AddressSource, AddressAugend),
+}
+
+impl AddressExpression {
+    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        (
+            AddressSource::parser(),
+            optional(attempt(
+                (spaces(), char('+'), spaces()).with(AddressAugend::parser()),
+            )),
+        )
+            .map(|(base, plus)| {
+                if let Some(plus) = plus {
+                    Self::Addition(base, plus)
+                } else {
+                    Self::Identity(base)
+                }
+            })
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Identity(b) => b.into_span(),
+            Self::Addition(a, b) => a.into_span() + b.into_span(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum LoadSource {
+    Address(AddressExpression),
     ConstantU16(Constant<u16>),
     ConstantU8(Constant<u8>),
+    Register(Register),
+    RegisterPair(RegisterPair),
 }
 
 impl LoadSource {
@@ -225,16 +323,12 @@ impl LoadSource {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        let address = choice((
-            attempt(LabelOrAddressPlusC::parser().map(Self::AddressPlusC)),
-            LabelOrAddress::parser().map(Self::Address),
-        ));
         choice((
             attempt(Constant::<u16>::parser()).map(Self::ConstantU16),
             Constant::<u8>::parser().map(Self::ConstantU8),
             attempt(RegisterPair::parser()).map(Self::RegisterPair),
             attempt(Register::parser()).map(Self::Register),
-            between(char('['), char(']'), address),
+            between(char('['), char(']'), AddressExpression::parser()).map(Self::Address),
         ))
     }
 
@@ -277,18 +371,16 @@ impl LoadSource {
             Self::ConstantU16(constant) => constant.span,
             Self::Register(register) => register.span,
             Self::RegisterPair(register_pair) => register_pair.span,
-            Self::Address(label_or_address) => label_or_address.into_span(),
-            Self::AddressPlusC(label_or_address) => label_or_address.into_span(),
+            Self::Address(address) => address.into_span(),
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum LoadDestination {
+    Address(AddressExpression),
     Register(Register),
     RegisterPair(RegisterPair),
-    AddressPlusC(LabelOrAddressPlusC),
-    Address(LabelOrAddress),
 }
 
 impl LoadDestination {
@@ -297,14 +389,10 @@ impl LoadDestination {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        let address = choice((
-            attempt(LabelOrAddressPlusC::parser().map(Self::AddressPlusC)),
-            LabelOrAddress::parser().map(Self::Address),
-        ));
         choice((
             attempt(RegisterPair::parser()).map(Self::RegisterPair),
             attempt(Register::parser()).map(Self::Register),
-            between(char('['), char(']'), address),
+            between(char('['), char(']'), AddressExpression::parser()).map(Self::Address),
         ))
     }
 
@@ -324,7 +412,6 @@ impl LoadDestination {
             Self::Register(register) => register.span,
             Self::RegisterPair(register_pair) => register_pair.span,
             Self::Address(label_or_address) => label_or_address.into_span(),
-            Self::AddressPlusC(label_or_address) => label_or_address.into_span(),
         }
     }
 }
@@ -427,29 +514,6 @@ impl Address {
             return Err(Error::new(format!("must be ${requirement:04X}"), self.span));
         }
         Ok(())
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct LabelOrAddressPlusC(LabelOrAddress);
-
-impl LabelOrAddressPlusC {
-    pub fn parser<Input>() -> impl Parser<Input, Output = Self>
-    where
-        Input: combine::Stream<Token = char>,
-        Input::Position: Into<SourcePosition>,
-    {
-        LabelOrAddress::parser().skip(string("+c")).map(Self)
-    }
-
-    fn into_span(self) -> Span {
-        self.0.into_span()
-    }
-}
-
-impl From<LabelOrAddressPlusC> for LabelOrAddress {
-    fn from(address: LabelOrAddressPlusC) -> Self {
-        address.0
     }
 }
 

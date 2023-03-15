@@ -14,6 +14,7 @@ use combine::{attempt, choice, optional, Parser};
 pub enum Instruction {
     And {
         register: Register,
+        source: Option<Constant<u8>>,
     },
     Add {
         destination: Option<RegisterOrPair>,
@@ -21,6 +22,9 @@ pub enum Instruction {
     },
     Adc {
         source: LoadSource,
+    },
+    Dec {
+        register: RegisterOrPair,
     },
     Xor {
         register: Register,
@@ -37,8 +41,13 @@ where
     Input::Position: Into<SourcePosition>,
 {
     attempt(string("and").skip(spaces1()))
-        .with(Register::parser())
-        .map(|register| Instruction::And { register })
+        .with((
+            Register::parser(),
+            optional(attempt(
+                (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
+            )),
+        ))
+        .map(|(register, source)| Instruction::And { register, source })
 }
 
 fn add<Input>() -> impl Parser<Input, Output = Instruction>
@@ -73,6 +82,18 @@ where
     )))
 }
 
+fn dec<Input>() -> impl Parser<Input, Output = Instruction>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    (
+        attempt(string("dec").skip(spaces1())),
+        RegisterOrPair::parser(),
+    )
+        .map(|(_, register)| Instruction::Dec { register })
+}
+
 fn xor<Input>() -> impl Parser<Input, Output = Instruction>
 where
     Input: combine::Stream<Token = char>,
@@ -103,7 +124,7 @@ impl Instruction {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        choice((attempt(and()), attempt(add()), adc(), xor(), inc()))
+        choice((and(), add(), adc(), dec(), xor(), inc()))
     }
 }
 
@@ -114,9 +135,18 @@ impl Instruction {
         _label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
         match self {
-            Self::And { register } => Ok(LR35902Instruction::LogicalAndWithAccumulator {
-                register1: register.value,
-            }),
+            Self::And { register, source } => {
+                if let Some(constant) = source {
+                    register.require_value(Intel8080Register::A)?;
+                    Ok(LR35902Instruction::AndImmediateWithAccumulator {
+                        data1: constant.value,
+                    })
+                } else {
+                    Ok(LR35902Instruction::LogicalAndWithAccumulator {
+                        register1: register.value,
+                    })
+                }
+            }
             Self::Add {
                 destination,
                 source,
@@ -156,6 +186,18 @@ impl Instruction {
                     register1: source.value,
                 })
             }
+            Self::Dec { register } => match register {
+                RegisterOrPair::Register(register) => {
+                    Ok(LR35902Instruction::DecrementRegisterOrMemory {
+                        register1: register.value,
+                    })
+                }
+                RegisterOrPair::RegisterPair(register) => {
+                    Ok(LR35902Instruction::DecrementRegisterPair {
+                        register1: register.value,
+                    })
+                }
+            },
             Self::Xor { register, constant } => {
                 if let Some(constant) = constant {
                     register.require_value(Intel8080Register::A)?;

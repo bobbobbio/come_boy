@@ -4,11 +4,15 @@ use super::types::{Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::Parser;
-use combine::{attempt, parser::char::string};
+use combine::{attempt, choice, parser::char::string};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Daa,
+    Rla,
+    Rlca,
+    Rra,
+    Rrca,
 }
 
 impl Instruction {
@@ -17,7 +21,13 @@ impl Instruction {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        attempt(string("daa")).map(|_| Self::Daa)
+        choice((
+            attempt(string("daa")).map(|_| Self::Daa),
+            attempt(string("rlca")).map(|_| Self::Rlca),
+            attempt(string("rra")).map(|_| Self::Rra),
+            attempt(string("rrca")).map(|_| Self::Rrca),
+            attempt(string("rla")).map(|_| Self::Rla),
+        ))
     }
 }
 
@@ -29,6 +39,10 @@ impl Instruction {
     ) -> Result<LR35902Instruction> {
         match self {
             Self::Daa => Ok(LR35902Instruction::DecimalAdjustAccumulator),
+            Self::Rla => Ok(LR35902Instruction::RotateAccumulatorLeftThroughCarry),
+            Self::Rlca => Ok(LR35902Instruction::RotateAccumulatorLeft),
+            Self::Rra => Ok(LR35902Instruction::RotateAccumulatorRightThroughCarry),
+            Self::Rrca => Ok(LR35902Instruction::RotateAccumulatorRight),
         }
     }
 }

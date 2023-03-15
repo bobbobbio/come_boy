@@ -97,7 +97,7 @@ impl Instruction {
 #[test]
 fn instruction_line() {
     use crate::emulator_common::Intel8080Register;
-    use types::{LoadDestination, LoadSource, Register};
+    use types::{AddressExpression, AddressSource, LoadDestination, LoadSource, Register};
 
     let input = ".foo ldh  a, [$FF85]";
     let (instruction_line, _) = InstructionLine::parser()
@@ -114,10 +114,12 @@ fn instruction_line() {
                     Intel8080Register::A,
                     Span::from(((1, 11), (1, 12)))
                 )),
-                source: LoadSource::Address(LabelOrAddress::Address(Address {
-                    value: 0xFF85,
-                    span: Span::from(((1, 15), (1, 20)))
-                })),
+                source: LoadSource::Address(AddressExpression::Identity(AddressSource::Address(
+                    LabelOrAddress::Address(Address {
+                        value: 0xFF85,
+                        span: Span::from(((1, 15), (1, 20)))
+                    })
+                ))),
             }),
             span: Span::from(((1, 6), (1, 21)))
         }
@@ -194,7 +196,7 @@ fn assembly_line_section() {
 #[test]
 fn assembly_line_instruction() {
     use crate::emulator_common::Intel8080Register;
-    use types::{LoadDestination, LoadSource, Register};
+    use types::{AddressExpression, AddressSource, LoadDestination, LoadSource, Register};
 
     let input = ".foo
         ldh  a, [$FF85]";
@@ -212,9 +214,8 @@ fn assembly_line_instruction() {
                     Intel8080Register::A,
                     Span::from(((2, 14), (2, 15)))
                 )),
-                source: LoadSource::Address(LabelOrAddress::Address(Address::new(
-                    0xFF85,
-                    Span::from(((2, 18), (2, 23)))
+                source: LoadSource::Address(AddressExpression::Identity(AddressSource::Address(
+                    LabelOrAddress::Address(Address::new(0xFF85, Span::from(((2, 18), (2, 23)))))
                 ))),
             }),
             span: Span::from(((2, 9), (2, 24)))
@@ -438,5 +439,77 @@ fn yet_another_function() {
         0xff,
         0x21, 0x32, 0xdc,
         0xee, 0xe0,
+    ]);
+}
+
+#[test]
+fn yet_another_another_function() {
+    let bin = assemble(
+        "
+    SECTION test,ROM0[$0383]
+        dec  e
+        add  c
+        dec  e
+        add  hl,de
+        inc  b
+        and  a,$04
+        xor  b
+        inc  d
+        ldh  a,[$FF14] ; Channel 1 Frequency (high)
+        ld   l,e
+        ld   a,[de]
+        dec  de
+        ld   e,$71
+        rra
+        ld   a,d
+        rra
+        adc  c
+        dec  d
+        inc  d
+        dec  d
+        rst  $18
+        dec  d
+        inc  hl
+        ld   d,$8D
+        ld   d,$DE
+        ld   d,$4F
+        rla
+        ld   [hl],a
+        add  hl,de
+        ",
+    )
+    .unwrap();
+
+    #[rustfmt::skip]
+    assert_eq!(bin, [
+        0x1d,
+        0x81,
+        0x1d,
+        0x19,
+        0x04,
+        0xe6, 0x04,
+        0xa8,
+        0x14,
+        0xf0, 0x14,
+        0x6b,
+        0x1a,
+        0x1b,
+        0x1e, 0x71,
+        0x1f,
+        0x7a,
+        0x1f,
+        0x89,
+        0x15,
+        0x14,
+        0x15,
+        0xdf,
+        0x15,
+        0x23,
+        0x16, 0x8d,
+        0x16, 0xde,
+        0x16, 0x4f,
+        0x17,
+        0x77,
+        0x19,
     ]);
 }
