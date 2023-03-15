@@ -1,15 +1,49 @@
 // Copyright 2023 Remi Bernotavicius
 
-use super::types::{spaces1, Condition, LabelOrAddress, Result, SourcePosition};
+use super::types::{spaces1, Condition, Constant, Error, LabelOrAddress, Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::parser::char::{char, spaces, string};
-use combine::{attempt, optional, Parser};
+use combine::{attempt, choice, optional, Parser};
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Instruction {
-    condition: Option<Condition>,
-    address: LabelOrAddress,
+pub enum Instruction {
+    Call {
+        condition: Option<Condition>,
+        address: LabelOrAddress,
+    },
+    Restart {
+        constant: Constant<u8>,
+    },
+}
+
+fn call<Input>() -> impl Parser<Input, Output = Instruction>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    (
+        attempt(string("call").skip(spaces1())),
+        optional(attempt(Condition::parser().skip((
+            spaces(),
+            char(','),
+            spaces(),
+        )))),
+        LabelOrAddress::parser(),
+    )
+        .map(|(_, condition, address)| Instruction::Call { condition, address })
+}
+
+fn restart<Input>() -> impl Parser<Input, Output = Instruction>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    (
+        attempt(string("rst").skip(spaces1())),
+        Constant::<u8>::parser(),
+    )
+        .map(|(_, constant)| Instruction::Restart { constant })
 }
 
 impl Instruction {
@@ -18,16 +52,7 @@ impl Instruction {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        (
-            string("call").skip(spaces1()),
-            optional(attempt(Condition::parser().skip((
-                spaces(),
-                char(','),
-                spaces(),
-            )))),
-            LabelOrAddress::parser(),
-        )
-            .map(|(_, condition, address)| Self { condition, address })
+        choice((call(), restart()))
     }
 }
 
@@ -37,13 +62,24 @@ impl Instruction {
         _current_address: u16,
         label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
-        let address1 = label_table.resolve(self.address)?.value;
-        match self.condition {
-            Some(Condition::Carry) => Ok(LR35902Instruction::CallIfCarry { address1 }),
-            Some(Condition::NoCarry) => Ok(LR35902Instruction::CallIfNoCarry { address1 }),
-            Some(Condition::Zero) => Ok(LR35902Instruction::CallIfZero { address1 }),
-            Some(Condition::NotZero) => Ok(LR35902Instruction::CallIfNotZero { address1 }),
-            None => Ok(LR35902Instruction::Call { address1 }),
+        match self {
+            Self::Call { condition, address } => {
+                let address1 = label_table.resolve(address)?.value;
+                match condition {
+                    Some(Condition::Carry) => Ok(LR35902Instruction::CallIfCarry { address1 }),
+                    Some(Condition::NoCarry) => Ok(LR35902Instruction::CallIfNoCarry { address1 }),
+                    Some(Condition::Zero) => Ok(LR35902Instruction::CallIfZero { address1 }),
+                    Some(Condition::NotZero) => Ok(LR35902Instruction::CallIfNotZero { address1 }),
+                    None => Ok(LR35902Instruction::Call { address1 }),
+                }
+            }
+            Self::Restart { constant } => {
+                let data1 = constant.value >> 3;
+                if data1 > 7 {
+                    return Err(Error::new("value too large", constant.span));
+                }
+                Ok(LR35902Instruction::Restart { data1 })
+            }
         }
     }
 }

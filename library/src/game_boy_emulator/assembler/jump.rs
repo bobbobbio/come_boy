@@ -3,8 +3,11 @@
 use super::types::{spaces1, Condition, Error, LabelOrAddress, Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
-use combine::parser::char::{char, spaces, string};
 use combine::Parser;
+use combine::{
+    attempt,
+    parser::char::{char, spaces, string},
+};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
@@ -21,7 +24,7 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         (
-            string("jr").skip(spaces1()).with(Condition::parser()),
+            attempt(string("jr").skip(spaces1())).with(Condition::parser()),
             (spaces(), char(','), spaces()),
             LabelOrAddress::parser(),
         )

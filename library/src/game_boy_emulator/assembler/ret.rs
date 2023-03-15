@@ -17,7 +17,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    string("reti").map(|_| Instruction::Reti)
+    attempt(string("reti")).map(|_| Instruction::Reti)
 }
 
 pub fn ret<Input>() -> impl Parser<Input, Output = Instruction>
@@ -25,7 +25,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    string("ret")
+    attempt(string("ret"))
         .with(optional(attempt(spaces1().with(Condition::parser()))))
         .map(|condition| Instruction::Ret { condition })
 }

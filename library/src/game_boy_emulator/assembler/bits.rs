@@ -36,8 +36,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    string("and")
-        .skip(spaces1())
+    attempt(string("and").skip(spaces1()))
         .with(Register::parser())
         .map(|register| Instruction::And { register })
 }
@@ -47,7 +46,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    string("add").skip(spaces1()).with(choice((
+    attempt(string("add").skip(spaces1())).with(choice((
         attempt((
             RegisterOrPair::parser(),
             (spaces(), char(','), spaces()),
@@ -69,7 +68,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    string("adc").skip(spaces1()).with(choice((
+    attempt(string("adc").skip(spaces1())).with(choice((
         LoadSource::parser().map(|source| Instruction::Adc { source }),
     )))
 }
@@ -80,7 +79,7 @@ where
     Input::Position: Into<SourcePosition>,
 {
     (
-        string("xor").skip(spaces1()).with(Register::parser()),
+        attempt(string("xor").skip(spaces1())).with(Register::parser()),
         optional(attempt(
             (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
         )),
@@ -93,8 +92,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    string("inc")
-        .skip(spaces1())
+    attempt(string("inc").skip(spaces1()))
         .with(RegisterOrPair::parser())
         .map(|register| Instruction::Inc { register })
 }

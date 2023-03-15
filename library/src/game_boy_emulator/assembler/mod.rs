@@ -82,14 +82,14 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            attempt(bits::Instruction::parser()).map(Self::Bits),
-            attempt(call::Instruction::parser()).map(Self::Call),
-            attempt(compare::Instruction::parser()).map(Self::Compare),
-            attempt(jump::Instruction::parser()).map(Self::Jump),
-            attempt(load::Instruction::parser()).map(Self::Load),
-            attempt(no_arg::Instruction::parser()).map(Self::NoArg),
-            attempt(ret::Instruction::parser()).map(Self::Ret),
-            attempt(stack::Instruction::parser()).map(Self::Stack),
+            bits::Instruction::parser().map(Self::Bits),
+            call::Instruction::parser().map(Self::Call),
+            compare::Instruction::parser().map(Self::Compare),
+            jump::Instruction::parser().map(Self::Jump),
+            load::Instruction::parser().map(Self::Load),
+            no_arg::Instruction::parser().map(Self::NoArg),
+            ret::Instruction::parser().map(Self::Ret),
+            stack::Instruction::parser().map(Self::Stack),
         ))
     }
 }
@@ -400,5 +400,43 @@ fn another_function() {
         0xc1,
         0xf1,
         0xd9,
+    ]);
+}
+
+#[test]
+fn yet_another_function() {
+    let bin = assemble(
+        "
+    SECTION test,ROM0[$3085]
+    ldh  [$FFE1],a
+    rst  $38
+    ld   hl,$DE32
+    rst  $18
+    ldh  [$FFE1],a
+    rst  $38
+    ld   hl,$DE32
+    ld   [$FF00+c],a
+    ldh  [$FFE4],a
+    rst  $38
+    ld   hl,$DC32
+    xor  a,$E0
+        ",
+    )
+    .unwrap();
+
+    #[rustfmt::skip]
+    assert_eq!(bin, [
+        0xe0, 0xe1,
+        0xff,
+        0x21, 0x32, 0xde,
+        0xdf,
+        0xe0, 0xe1,
+        0xff,
+        0x21, 0x32, 0xde,
+        0xe2,
+        0xe0, 0xe4,
+        0xff,
+        0x21, 0x32, 0xdc,
+        0xee, 0xe0,
     ]);
 }

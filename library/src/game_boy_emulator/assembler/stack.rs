@@ -3,8 +3,8 @@
 use super::types::{spaces1, RegisterPair, Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
-use combine::parser::char::string;
 use combine::Parser;
+use combine::{attempt, parser::char::string};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
@@ -17,7 +17,7 @@ impl Instruction {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        string("pop")
+        attempt(string("pop"))
             .skip(spaces1())
             .with(RegisterPair::parser())
             .map(|register| Self::Pop { register })

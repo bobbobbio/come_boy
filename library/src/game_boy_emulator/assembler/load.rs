@@ -162,49 +162,63 @@ impl Instruction {
                             register2: source.value,
                         })
                     }
-                    (LoadDestination::Register(destination), LoadSource::Address(address)) => {
+                    (LoadDestination::Register(destination), LoadSource::Address(source)) => {
                         destination.require_value(Intel8080Register::A)?;
-                        let address = label_table.resolve(address)?;
+                        let source = label_table.resolve(source)?;
                         Ok(LR35902Instruction::LoadAccumulatorDirect {
-                            address1: address.value,
+                            address1: source.value,
                         })
                     }
-                    (LoadDestination::Register(register), LoadSource::ConstantU8(constant)) => {
+                    (LoadDestination::Register(destination), LoadSource::AddressPlusC(source)) => {
+                        destination.require_value(Intel8080Register::A)?;
+                        let source = label_table.resolve(source.into())?;
+                        source.require_value(0xFF00)?;
+                        Ok(LR35902Instruction::LoadAccumulatorOneByte)
+                    }
+                    (LoadDestination::Register(destination), LoadSource::ConstantU8(source)) => {
                         Ok(LR35902Instruction::MoveImmediateData {
-                            register1: register.value,
-                            data2: constant.value,
+                            register1: destination.value,
+                            data2: source.value,
                         })
                     }
-                    (LoadDestination::RegisterPair(pair), LoadSource::ConstantU16(constant)) => {
-                        Ok(LR35902Instruction::LoadRegisterPairImmediate {
-                            register1: pair.value,
-                            data2: constant.value,
-                        })
-                    }
-                    (LoadDestination::Address(address), LoadSource::Register(register)) => {
-                        register.require_value(Intel8080Register::A)?;
-                        let address = label_table.resolve(address)?;
+                    (
+                        LoadDestination::RegisterPair(destination),
+                        LoadSource::ConstantU16(source),
+                    ) => Ok(LR35902Instruction::LoadRegisterPairImmediate {
+                        register1: destination.value,
+                        data2: source.value,
+                    }),
+                    (LoadDestination::Address(destination), LoadSource::Register(source)) => {
+                        source.require_value(Intel8080Register::A)?;
+                        let destination = label_table.resolve(destination)?;
                         Ok(LR35902Instruction::StoreAccumulatorDirect {
-                            address1: address.value,
+                            address1: destination.value,
                         })
                     }
-                    (LoadDestination::Address(address), LoadSource::RegisterPair(pair)) => {
-                        pair.require_value(Intel8080Register::SP)?;
-                        let address = label_table.resolve(address)?;
+                    (LoadDestination::AddressPlusC(destination), LoadSource::Register(source)) => {
+                        source.require_value(Intel8080Register::A)?;
+                        let destination = label_table.resolve(destination.into())?;
+                        destination.require_value(0xFF00)?;
+                        Ok(LR35902Instruction::StoreAccumulatorOneByte)
+                    }
+                    (LoadDestination::Address(destination), LoadSource::RegisterPair(source)) => {
+                        source.require_value(Intel8080Register::SP)?;
+                        let destination = label_table.resolve(destination)?;
                         Ok(LR35902Instruction::StoreSpDirect {
-                            address1: address.value,
+                            address1: destination.value,
                         })
                     }
-                    (LoadDestination::RegisterPair(pair1), LoadSource::RegisterPair(pair2)) => {
-                        pair1.require_value(Intel8080Register::SP)?;
-                        pair2.require_value(Intel8080Register::H)?;
+                    (
+                        LoadDestination::RegisterPair(destination),
+                        LoadSource::RegisterPair(source),
+                    ) => {
+                        destination.require_value(Intel8080Register::SP)?;
+                        source.require_value(Intel8080Register::H)?;
                         Ok(LR35902Instruction::LoadSpFromHAndL)
                     }
                     v => unimplemented!("{v:?}"),
                 }
                 // load_accumulator ld a,[<rp>]
-                // load_accumulator_one_byte ld a,[$FF00+c]
-                // store_accumulator_one_byte ld [$FF00+c],a
                 // store_accumulator ld [<rp>],a
                 // store_sp_plus_immediate ld hl,[sp+$XXXX]
             }

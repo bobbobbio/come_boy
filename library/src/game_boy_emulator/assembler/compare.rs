@@ -20,7 +20,7 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         (
-            string("cp").skip(spaces1()).with(Register::parser()),
+            attempt(string("cp").skip(spaces1())).with(Register::parser()),
             optional(attempt(
                 (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
             )),
