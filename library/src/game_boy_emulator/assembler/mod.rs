@@ -151,6 +151,7 @@ impl InstructionLine {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq, Eq)]
 enum AssemblyLine {
     Section(Section),

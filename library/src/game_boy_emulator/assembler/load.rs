@@ -207,7 +207,7 @@ impl Instruction {
                     )),
                 ) => {
                     destination.require_value(Intel8080Register::A)?;
-                    let source = label_table.resolve(source.into())?;
+                    let source = label_table.resolve(source)?;
                     source.require_value(0xFF00)?;
                     augend.require_value(Intel8080Register::C)?;
                     Ok(LR35902Instruction::LoadAccumulatorOneByte)
@@ -255,7 +255,7 @@ impl Instruction {
                     LoadSource::Register(source),
                 ) => {
                     source.require_value(Intel8080Register::A)?;
-                    let destination = label_table.resolve(destination.into())?;
+                    let destination = label_table.resolve(destination)?;
                     destination.require_value(0xFF00)?;
                     augend.require_value(Intel8080Register::C)?;
                     Ok(LR35902Instruction::StoreAccumulatorOneByte)
