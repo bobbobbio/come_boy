@@ -1,6 +1,8 @@
 // Copyright 2023 Remi Bernotavicius
 
-use super::types::{spaces1, Condition, Constant, Error, LabelOrAddress, Result, SourcePosition};
+use super::types::{
+    spaces1, Condition, ConditionType, Constant, Error, LabelOrAddress, Result, SourcePosition,
+};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::parser::char::{char, spaces, string};
@@ -65,12 +67,19 @@ impl Instruction {
         match self {
             Self::Call { condition, address } => {
                 let address1 = label_table.resolve(address)?.value;
-                match condition {
-                    Some(Condition::Carry) => Ok(LR35902Instruction::CallIfCarry { address1 }),
-                    Some(Condition::NoCarry) => Ok(LR35902Instruction::CallIfNoCarry { address1 }),
-                    Some(Condition::Zero) => Ok(LR35902Instruction::CallIfZero { address1 }),
-                    Some(Condition::NotZero) => Ok(LR35902Instruction::CallIfNotZero { address1 }),
-                    None => Ok(LR35902Instruction::Call { address1 }),
+                if let Some(condition) = condition {
+                    match condition.value {
+                        ConditionType::Carry => Ok(LR35902Instruction::CallIfCarry { address1 }),
+                        ConditionType::NoCarry => {
+                            Ok(LR35902Instruction::CallIfNoCarry { address1 })
+                        }
+                        ConditionType::Zero => Ok(LR35902Instruction::CallIfZero { address1 }),
+                        ConditionType::NotZero => {
+                            Ok(LR35902Instruction::CallIfNotZero { address1 })
+                        }
+                    }
+                } else {
+                    Ok(LR35902Instruction::Call { address1 })
                 }
             }
             Self::Restart { constant } => {

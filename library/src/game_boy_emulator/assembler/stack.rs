@@ -4,11 +4,12 @@ use super::types::{spaces1, RegisterPair, Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::Parser;
-use combine::{attempt, parser::char::string};
+use combine::{attempt, choice, parser::char::string};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Pop { register: RegisterPair },
+    Push { register: RegisterPair },
 }
 
 impl Instruction {
@@ -17,10 +18,14 @@ impl Instruction {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        attempt(string("pop"))
-            .skip(spaces1())
-            .with(RegisterPair::parser())
-            .map(|register| Self::Pop { register })
+        choice((
+            attempt(string("pop").skip(spaces1()))
+                .with(RegisterPair::parser())
+                .map(|register| Self::Pop { register }),
+            attempt(string("push").skip(spaces1()))
+                .with(RegisterPair::parser())
+                .map(|register| Self::Push { register }),
+        ))
     }
 }
 
@@ -32,6 +37,9 @@ impl Instruction {
     ) -> Result<LR35902Instruction> {
         match self {
             Self::Pop { register } => Ok(LR35902Instruction::PopDataOffStack {
+                register1: register.value,
+            }),
+            Self::Push { register } => Ok(LR35902Instruction::PushDataOntoStack {
                 register1: register.value,
             }),
         }

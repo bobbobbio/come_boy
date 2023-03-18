@@ -157,7 +157,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(
             self.stream_out,
             "{:04} {}",
-            "rl",
+            "rlc",
             str_from_register(register1)
         );
     }
@@ -441,7 +441,7 @@ impl<'a> LR35902InstructionSet for RGBDSInstructionPrinter<'a> {
         self.error = write!(
             self.stream_out,
             "{:04} {}",
-            "rr",
+            "rcr",
             str_from_register(register1)
         );
     }

@@ -8,12 +8,11 @@ use combine::{attempt, choice, parser::char::string};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
-    Daa,
+    Di,
     Ei,
-    Rla,
-    Rlca,
-    Rra,
-    Rrca,
+    Halt,
+    Nop,
+    Stop,
 }
 
 impl Instruction {
@@ -23,12 +22,11 @@ impl Instruction {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            attempt(string("daa")).map(|_| Self::Daa),
+            attempt(string("di")).map(|_| Self::Di),
             attempt(string("ei")).map(|_| Self::Ei),
-            attempt(string("rlca")).map(|_| Self::Rlca),
-            attempt(string("rra")).map(|_| Self::Rra),
-            attempt(string("rrca")).map(|_| Self::Rrca),
-            attempt(string("rla")).map(|_| Self::Rla),
+            attempt(string("halt")).map(|_| Self::Halt),
+            attempt(string("nop")).map(|_| Self::Nop),
+            attempt(string("stop")).map(|_| Self::Stop),
         ))
     }
 }
@@ -40,12 +38,11 @@ impl Instruction {
         _label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
         match self {
-            Self::Daa => Ok(LR35902Instruction::DecimalAdjustAccumulator),
+            Self::Di => Ok(LR35902Instruction::DisableInterrupts),
             Self::Ei => Ok(LR35902Instruction::EnableInterrupts),
-            Self::Rla => Ok(LR35902Instruction::RotateAccumulatorLeftThroughCarry),
-            Self::Rlca => Ok(LR35902Instruction::RotateAccumulatorLeft),
-            Self::Rra => Ok(LR35902Instruction::RotateAccumulatorRightThroughCarry),
-            Self::Rrca => Ok(LR35902Instruction::RotateAccumulatorRight),
+            Self::Halt => Ok(LR35902Instruction::Halt),
+            Self::Nop => Ok(LR35902Instruction::NoOperation),
+            Self::Stop => Ok(LR35902Instruction::HaltUntilButtonPress),
         }
     }
 }

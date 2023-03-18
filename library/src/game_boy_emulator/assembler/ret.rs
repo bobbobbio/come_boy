@@ -1,6 +1,6 @@
 // Copyright 2023 Remi Bernotavicius
 
-use super::types::{spaces1, Condition, Result, SourcePosition};
+use super::types::{spaces1, Condition, ConditionType, Result, SourcePosition};
 use super::LabelTable;
 use crate::lr35902_emulator::LR35902Instruction;
 use combine::parser::char::string;
@@ -47,13 +47,18 @@ impl Instruction {
         _label_table: &LabelTable,
     ) -> Result<LR35902Instruction> {
         match self {
-            Self::Ret { condition } => match condition {
-                Some(Condition::Carry) => Ok(LR35902Instruction::ReturnIfCarry),
-                Some(Condition::NoCarry) => Ok(LR35902Instruction::ReturnIfNoCarry),
-                Some(Condition::Zero) => Ok(LR35902Instruction::ReturnIfZero),
-                Some(Condition::NotZero) => Ok(LR35902Instruction::ReturnIfNotZero),
-                None => Ok(LR35902Instruction::ReturnUnconditionally),
-            },
+            Self::Ret { condition } => {
+                if let Some(condition) = condition {
+                    match condition.value {
+                        ConditionType::Carry => Ok(LR35902Instruction::ReturnIfCarry),
+                        ConditionType::NoCarry => Ok(LR35902Instruction::ReturnIfNoCarry),
+                        ConditionType::Zero => Ok(LR35902Instruction::ReturnIfZero),
+                        ConditionType::NotZero => Ok(LR35902Instruction::ReturnIfNotZero),
+                    }
+                } else {
+                    Ok(LR35902Instruction::ReturnUnconditionally)
+                }
+            }
             Self::Reti => Ok(LR35902Instruction::ReturnAndEnableInterrupts),
         }
     }

@@ -11,7 +11,73 @@ use combine::parser::char::{char, spaces, string};
 use combine::{attempt, choice, optional, Parser};
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum SimpleKeyword {
+pub enum NoArgKeyword {
+    Ccf,
+    Cpl,
+    Daa,
+    Rla,
+    Rlca,
+    Rra,
+    Rrca,
+    Scf,
+}
+
+impl NoArgKeyword {
+    fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(string("ccf")).map(|_| Self::Ccf),
+            attempt(string("cpl")).map(|_| Self::Cpl),
+            attempt(string("daa")).map(|_| Self::Daa),
+            attempt(string("rlca")).map(|_| Self::Rlca),
+            attempt(string("rra")).map(|_| Self::Rra),
+            attempt(string("rrca")).map(|_| Self::Rrca),
+            attempt(string("rla")).map(|_| Self::Rla),
+            attempt(string("scf")).map(|_| Self::Scf),
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum SingleArgKeyword {
+    Dec,
+    Inc,
+    Rcr,
+    Rl,
+    Rlc,
+    Rr,
+    Sla,
+    Sra,
+    Srl,
+    Swap,
+}
+
+impl SingleArgKeyword {
+    fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(string("dec")).map(|_| Self::Dec),
+            attempt(string("inc")).map(|_| Self::Inc),
+            attempt(string("rcr")).map(|_| Self::Rcr),
+            attempt(string("rl")).map(|_| Self::Rl),
+            attempt(string("rlc")).map(|_| Self::Rlc),
+            attempt(string("rr")).map(|_| Self::Rr),
+            attempt(string("sla")).map(|_| Self::Sla),
+            attempt(string("sra")).map(|_| Self::Sra),
+            attempt(string("srl")).map(|_| Self::Srl),
+            attempt(string("swap")).map(|_| Self::Swap),
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum TwoArgsKeyword {
     Adc,
     And,
     Or,
@@ -20,7 +86,7 @@ pub enum SimpleKeyword {
     Xor,
 }
 
-impl SimpleKeyword {
+impl TwoArgsKeyword {
     fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
         Input: combine::Stream<Token = char>,
@@ -43,14 +109,15 @@ pub enum Instruction {
         destination: Option<RegisterOrPair>,
         source: LoadSource,
     },
-    Dec {
+    NoArg {
+        keyword: NoArgKeyword,
+    },
+    SingleArg {
+        keyword: SingleArgKeyword,
         register: RegisterOrPair,
     },
-    Inc {
-        register: RegisterOrPair,
-    },
-    Simple {
-        keyword: SimpleKeyword,
+    TwoArgs {
+        keyword: TwoArgsKeyword,
         register: Register,
         source: Option<Constant<u8>>,
     },
@@ -78,41 +145,39 @@ where
     )))
 }
 
-fn dec<Input>() -> impl Parser<Input, Output = Instruction>
+fn no_arg<Input>() -> impl Parser<Input, Output = Instruction>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    attempt(NoArgKeyword::parser()).map(|keyword| Instruction::NoArg { keyword })
+}
+
+fn single_arg<Input>() -> impl Parser<Input, Output = Instruction>
 where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
     (
-        attempt(string("dec").skip(spaces1())),
+        attempt(SingleArgKeyword::parser().skip(spaces1())),
         RegisterOrPair::parser(),
     )
-        .map(|(_, register)| Instruction::Dec { register })
+        .map(|(keyword, register)| Instruction::SingleArg { keyword, register })
 }
 
-fn inc<Input>() -> impl Parser<Input, Output = Instruction>
-where
-    Input: combine::Stream<Token = char>,
-    Input::Position: Into<SourcePosition>,
-{
-    attempt(string("inc").skip(spaces1()))
-        .with(RegisterOrPair::parser())
-        .map(|register| Instruction::Inc { register })
-}
-
-fn simple<Input>() -> impl Parser<Input, Output = Instruction>
+fn two_args<Input>() -> impl Parser<Input, Output = Instruction>
 where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
     (
-        attempt(SimpleKeyword::parser().skip(spaces1())),
+        attempt(TwoArgsKeyword::parser().skip(spaces1())),
         Register::parser(),
         optional(attempt(
             (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
         )),
     )
-        .map(|(keyword, register, source)| Instruction::Simple {
+        .map(|(keyword, register, source)| Instruction::TwoArgs {
             keyword,
             register,
             source,
@@ -125,7 +190,7 @@ impl Instruction {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        choice((add(), dec(), inc(), simple()))
+        choice((add(), no_arg(), single_arg(), two_args()))
     }
 }
 
@@ -169,36 +234,96 @@ impl Instruction {
                     })
                 }
             },
-            Self::Dec { register } => match register {
-                RegisterOrPair::Register(register) => {
-                    Ok(LR35902Instruction::DecrementRegisterOrMemory {
+            Self::NoArg { keyword } => match keyword {
+                NoArgKeyword::Ccf => Ok(LR35902Instruction::ComplementCarry),
+                NoArgKeyword::Cpl => Ok(LR35902Instruction::ComplementAccumulator),
+                NoArgKeyword::Daa => Ok(LR35902Instruction::DecimalAdjustAccumulator),
+                NoArgKeyword::Rla => Ok(LR35902Instruction::RotateAccumulatorLeftThroughCarry),
+                NoArgKeyword::Rlca => Ok(LR35902Instruction::RotateAccumulatorLeft),
+                NoArgKeyword::Rra => Ok(LR35902Instruction::RotateAccumulatorRightThroughCarry),
+                NoArgKeyword::Rrca => Ok(LR35902Instruction::RotateAccumulatorRight),
+                NoArgKeyword::Scf => Ok(LR35902Instruction::SetCarry),
+            },
+            Self::SingleArg { keyword, register } => match keyword {
+                SingleArgKeyword::Dec => match register {
+                    RegisterOrPair::Register(register) => {
+                        Ok(LR35902Instruction::DecrementRegisterOrMemory {
+                            register1: register.value,
+                        })
+                    }
+                    RegisterOrPair::RegisterPair(register) => {
+                        Ok(LR35902Instruction::DecrementRegisterPair {
+                            register1: register.value,
+                        })
+                    }
+                },
+                SingleArgKeyword::Inc => match register {
+                    RegisterOrPair::Register(register) => {
+                        Ok(LR35902Instruction::IncrementRegisterOrMemory {
+                            register1: register.value,
+                        })
+                    }
+                    RegisterOrPair::RegisterPair(register) => {
+                        Ok(LR35902Instruction::IncrementRegisterPair {
+                            register1: register.value,
+                        })
+                    }
+                },
+                SingleArgKeyword::Rcr => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::RotateRegisterRightThroughCarry {
                         register1: register.value,
                     })
                 }
-                RegisterOrPair::RegisterPair(register) => {
-                    Ok(LR35902Instruction::DecrementRegisterPair {
+                SingleArgKeyword::Rl => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::RotateRegisterLeft {
+                        register1: register.value,
+                    })
+                }
+                SingleArgKeyword::Rlc => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::RotateRegisterLeftThroughCarry {
+                        register1: register.value,
+                    })
+                }
+                SingleArgKeyword::Rr => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::RotateRegisterRight {
+                        register1: register.value,
+                    })
+                }
+                SingleArgKeyword::Sla => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::ShiftRegisterLeft {
+                        register1: register.value,
+                    })
+                }
+                SingleArgKeyword::Sra => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::ShiftRegisterRightSigned {
+                        register1: register.value,
+                    })
+                }
+                SingleArgKeyword::Srl => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::ShiftRegisterRight {
+                        register1: register.value,
+                    })
+                }
+                SingleArgKeyword::Swap => {
+                    let register = register.require_register()?;
+                    Ok(LR35902Instruction::SwapRegister {
                         register1: register.value,
                     })
                 }
             },
-            Self::Inc { register } => match register {
-                RegisterOrPair::Register(register) => {
-                    Ok(LR35902Instruction::IncrementRegisterOrMemory {
-                        register1: register.value,
-                    })
-                }
-                RegisterOrPair::RegisterPair(register) => {
-                    Ok(LR35902Instruction::IncrementRegisterPair {
-                        register1: register.value,
-                    })
-                }
-            },
-            Self::Simple {
+            Self::TwoArgs {
                 keyword,
                 register,
                 source,
             } => match keyword {
-                SimpleKeyword::And => {
+                TwoArgsKeyword::And => {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::AndImmediateWithAccumulator {
@@ -210,7 +335,7 @@ impl Instruction {
                         })
                     }
                 }
-                SimpleKeyword::Adc => {
+                TwoArgsKeyword::Adc => {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::AddImmediateToAccumulatorWithCarry {
@@ -222,7 +347,7 @@ impl Instruction {
                         })
                     }
                 }
-                SimpleKeyword::Sub => {
+                TwoArgsKeyword::Sub => {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::SubtractImmediateFromAccumulator {
@@ -234,7 +359,7 @@ impl Instruction {
                         })
                     }
                 }
-                SimpleKeyword::Sbc => {
+                TwoArgsKeyword::Sbc => {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(
@@ -248,7 +373,7 @@ impl Instruction {
                         })
                     }
                 }
-                SimpleKeyword::Or => {
+                TwoArgsKeyword::Or => {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::OrImmediateWithAccumulator {
@@ -260,7 +385,7 @@ impl Instruction {
                         })
                     }
                 }
-                SimpleKeyword::Xor => {
+                TwoArgsKeyword::Xor => {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::ExclusiveOrImmediateWithAccumulator {

@@ -193,6 +193,24 @@ impl RegisterOrPair {
             Register::parser().map(Self::Register),
         ))
     }
+
+    pub fn require_register(self) -> Result<Register> {
+        if let Self::Register(register) = self {
+            Ok(register)
+        } else {
+            Err(Error::new(
+                format!("expected register, found pair {self:?}"),
+                self.into_span(),
+            ))
+        }
+    }
+
+    fn into_span(self) -> Span {
+        match self {
+            Self::Register(a) => a.span,
+            Self::RegisterPair(a) => a.span,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -542,11 +560,17 @@ impl LabelOrAddress {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Condition {
+pub enum ConditionType {
     NotZero,
     NoCarry,
     Zero,
     Carry,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Condition {
+    pub value: ConditionType,
+    pub span: Span,
 }
 
 impl Condition {
@@ -555,11 +579,12 @@ impl Condition {
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        choice((
-            attempt(string("nc")).map(|_| Self::NoCarry),
-            string("nz").map(|_| Self::NotZero),
-            string("c").map(|_| Self::Carry),
-            string("z").map(|_| Self::Zero),
-        ))
+        spanned(choice((
+            attempt(string("nc")).map(|_| ConditionType::NoCarry),
+            string("nz").map(|_| ConditionType::NotZero),
+            string("c").map(|_| ConditionType::Carry),
+            string("z").map(|_| ConditionType::Zero),
+        )))
+        .map(|(value, span)| Self { value, span })
     }
 }
