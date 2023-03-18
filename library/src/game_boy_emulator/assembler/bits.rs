@@ -104,6 +104,27 @@ impl TwoArgsKeyword {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum BitKeyword {
+    Bit,
+    Res,
+    Set,
+}
+
+impl BitKeyword {
+    fn parser<Input>() -> impl Parser<Input, Output = Self>
+    where
+        Input: combine::Stream<Token = char>,
+        Input::Position: Into<SourcePosition>,
+    {
+        choice((
+            attempt(string("bit")).map(|_| Self::Bit),
+            attempt(string("res")).map(|_| Self::Res),
+            attempt(string("set")).map(|_| Self::Set),
+        ))
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub enum Instruction {
     Add {
         destination: Option<RegisterOrPair>,
@@ -120,6 +141,11 @@ pub enum Instruction {
         keyword: TwoArgsKeyword,
         register: Register,
         source: Option<Constant>,
+    },
+    Bit {
+        keyword: BitKeyword,
+        bit: Constant,
+        register: Register,
     },
 }
 
@@ -184,13 +210,31 @@ where
         })
 }
 
+fn bit<Input>() -> impl Parser<Input, Output = Instruction>
+where
+    Input: combine::Stream<Token = char>,
+    Input::Position: Into<SourcePosition>,
+{
+    (
+        attempt(BitKeyword::parser().skip(spaces1())),
+        Constant::parser(),
+        (spaces(), char(','), spaces()),
+        Register::parser(),
+    )
+        .map(|(keyword, bit, _, register)| Instruction::Bit {
+            keyword,
+            bit,
+            register,
+        })
+}
+
 impl Instruction {
     pub(super) fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        choice((add(), no_arg(), single_arg(), two_args()))
+        choice((add(), no_arg(), single_arg(), two_args(), bit()))
     }
 }
 
@@ -398,6 +442,30 @@ impl Instruction {
                     }
                 }
             },
+            Self::Bit {
+                keyword,
+                bit,
+                register,
+            } => {
+                let data1 = bit.require_u8()?;
+                if data1 > 7 {
+                    return Err(Error::new("must be <= 7", bit.span));
+                }
+                match keyword {
+                    BitKeyword::Bit => Ok(LR35902Instruction::TestBit {
+                        data1,
+                        register2: register.value,
+                    }),
+                    BitKeyword::Res => Ok(LR35902Instruction::ResetBit {
+                        data1,
+                        register2: register.value,
+                    }),
+                    BitKeyword::Set => Ok(LR35902Instruction::SetBit {
+                        data1,
+                        register2: register.value,
+                    }),
+                }
+            }
         }
     }
 }

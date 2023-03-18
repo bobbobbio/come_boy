@@ -563,3 +563,35 @@ fn sample5() {
         0xcd, 0x3e, 0x69,
     ]);
 }
+
+#[test]
+fn sample6() {
+    let bin = assemble(
+        "
+    SECTION test,ROM0[$2b3c]
+        cp   a,$FE
+        jr   z,$2B38
+        ldh  [$FF89],a
+        ldh  a,[$FF87]
+        ld   b,a
+        ld   a,[de]
+        ld   c,a
+        ldh  a,[$FF8B]
+        bit  6,a
+        ",
+    )
+    .unwrap();
+
+    #[rustfmt::skip]
+    assert_eq!(bin, [
+        0xfe, 0xfe,
+        0x28, 0xf8,
+        0xe0, 0x89,
+        0xf0, 0x87,
+        0x47,
+        0x1a,
+        0x4f,
+        0xf0, 0x8b,
+        0xcb, 0x77,
+    ]);
+}
