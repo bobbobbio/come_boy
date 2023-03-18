@@ -10,7 +10,7 @@ use combine::{attempt, optional, Parser};
 #[derive(Debug, PartialEq, Eq)]
 pub struct Instruction {
     left: Register,
-    right: Option<Constant<u8>>,
+    right: Option<Constant>,
 }
 
 impl Instruction {
@@ -22,7 +22,7 @@ impl Instruction {
         (
             attempt(string("cp").skip(spaces1())).with(Register::parser()),
             optional(attempt(
-                (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
+                (spaces(), char(','), spaces()).with(Constant::parser()),
             )),
         )
             .map(|(left, right)| Self { left, right })
@@ -37,7 +37,9 @@ impl Instruction {
     ) -> Result<LR35902Instruction> {
         if let Some(right) = self.right {
             self.left.require_value(Intel8080Register::A)?;
-            Ok(LR35902Instruction::CompareImmediateWithAccumulator { data1: right.value })
+            Ok(LR35902Instruction::CompareImmediateWithAccumulator {
+                data1: right.require_u8()?,
+            })
         } else {
             Ok(LR35902Instruction::CompareWithAccumulator {
                 register1: self.left.value,

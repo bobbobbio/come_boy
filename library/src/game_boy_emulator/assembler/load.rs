@@ -212,16 +212,16 @@ impl Instruction {
                     augend.require_value(Intel8080Register::C)?;
                     Ok(LR35902Instruction::LoadAccumulatorOneByte)
                 }
-                (LoadDestination::Register(destination), LoadSource::ConstantU8(source)) => {
+                (LoadDestination::Register(destination), LoadSource::Constant(source)) => {
                     Ok(LR35902Instruction::MoveImmediateData {
                         register1: destination.value,
-                        data2: source.value,
+                        data2: source.require_u8()?,
                     })
                 }
-                (LoadDestination::RegisterPair(destination), LoadSource::ConstantU16(source)) => {
+                (LoadDestination::RegisterPair(destination), LoadSource::Constant(source)) => {
                     Ok(LR35902Instruction::LoadRegisterPairImmediate {
                         register1: destination.value,
-                        data2: source.value,
+                        data2: source.require_u16()?,
                     })
                 }
                 (
@@ -287,7 +287,7 @@ impl Instruction {
                     destination.require_value(Intel8080Register::H)?;
                     base.require_value(Intel8080Register::SP)?;
                     Ok(LR35902Instruction::StoreSpPlusImmediate {
-                        data1: augend.value,
+                        data1: augend.require_u8()?,
                     })
                 }
                 (destination, source) => Err(Error::new(

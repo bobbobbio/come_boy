@@ -4,9 +4,11 @@ use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::IllegalInstructionError;
 use alloc::format;
 use alloc::string::String;
-use combine::parser::char::{alpha_num, char, hex_digit, space, spaces, string};
+use combine::parser::char::{alpha_num, char, digit, hex_digit, space, spaces, string};
 use combine::stream::{easy, position};
-use combine::{attempt, between, choice, many1, optional, position, skip_many1, Parser};
+use combine::{
+    attempt, between, choice, count_min_max, many1, optional, position, skip_many1, Parser,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SourcePosition {
@@ -214,28 +216,33 @@ impl RegisterOrPair {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Constant<T> {
-    pub value: T,
+pub struct Constant {
+    pub value: u32,
     pub span: Span,
 }
 
-impl Constant<u8> {
+impl Constant {
     pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
     where
         Input: combine::Stream<Token = char>,
         Input::Position: Into<SourcePosition>,
     {
-        spanned(char('$').with(hex_u8())).map(|(value, span)| Self { value, span })
+        let hex_number = count_min_max(1, 8, hex_digit())
+            .map(|value: String| u32::from_str_radix(&value, 16).unwrap());
+        let decimal_number =
+            count_min_max(1, 9, digit()).map(|value: String| value.parse().unwrap());
+        spanned(choice((char('$').with(hex_number), decimal_number)))
+            .map(|(value, span)| Self { value, span })
     }
-}
 
-impl Constant<u16> {
-    pub(crate) fn parser<Input>() -> impl Parser<Input, Output = Self>
-    where
-        Input: combine::Stream<Token = char>,
-        Input::Position: Into<SourcePosition>,
-    {
-        spanned(char('$').with(hex_u16())).map(|(value, span)| Self { value, span })
+    pub fn require_u8(&self) -> Result<u8> {
+        u8::try_from(self.value)
+            .map_err(|_| Error::new("value too large for 8 bits", self.span.clone()))
+    }
+
+    pub fn require_u16(&self) -> Result<u16> {
+        u16::try_from(self.value)
+            .map_err(|_| Error::new("value too large for 16 bits", self.span.clone()))
     }
 }
 
@@ -267,7 +274,7 @@ impl AddressSource {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum AddressAugend {
-    Constant(Constant<u8>),
+    Constant(Constant),
     Register(Register),
 }
 
@@ -278,7 +285,7 @@ impl AddressAugend {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            Constant::<u8>::parser().map(Self::Constant),
+            Constant::parser().map(Self::Constant),
             Register::parser().map(Self::Register),
         ))
     }
@@ -327,8 +334,7 @@ impl AddressExpression {
 #[derive(Debug, PartialEq, Eq)]
 pub enum LoadSource {
     Address(AddressExpression),
-    ConstantU16(Constant<u16>),
-    ConstantU8(Constant<u8>),
+    Constant(Constant),
     Register(Register),
     RegisterPair(RegisterPair),
 }
@@ -340,8 +346,7 @@ impl LoadSource {
         Input::Position: Into<SourcePosition>,
     {
         choice((
-            attempt(Constant::<u16>::parser()).map(Self::ConstantU16),
-            Constant::<u8>::parser().map(Self::ConstantU8),
+            attempt(Constant::parser()).map(Self::Constant),
             attempt(RegisterPair::parser()).map(Self::RegisterPair),
             attempt(Register::parser()).map(Self::Register),
             between(char('['), char(']'), AddressExpression::parser()).map(Self::Address),
@@ -359,12 +364,12 @@ impl LoadSource {
         }
     }
 
-    pub fn require_constant_u8(self) -> Result<Constant<u8>> {
-        if let Self::ConstantU8(constant) = self {
+    pub fn require_constant(self) -> Result<Constant> {
+        if let Self::Constant(constant) = self {
             Ok(constant)
         } else {
             Err(Error::new(
-                format!("expected 8-bit constant, found {self:?}"),
+                format!("expected constant, found {self:?}"),
                 self.into_span(),
             ))
         }
@@ -383,8 +388,7 @@ impl LoadSource {
 
     pub fn into_span(self) -> Span {
         match self {
-            Self::ConstantU8(constant) => constant.span,
-            Self::ConstantU16(constant) => constant.span,
+            Self::Constant(constant) => constant.span,
             Self::Register(register) => register.span,
             Self::RegisterPair(register_pair) => register_pair.span,
             Self::Address(address) => address.into_span(),

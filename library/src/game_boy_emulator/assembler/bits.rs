@@ -119,7 +119,7 @@ pub enum Instruction {
     TwoArgs {
         keyword: TwoArgsKeyword,
         register: Register,
-        source: Option<Constant<u8>>,
+        source: Option<Constant>,
     },
 }
 
@@ -174,7 +174,7 @@ where
         attempt(TwoArgsKeyword::parser().skip(spaces1())),
         Register::parser(),
         optional(attempt(
-            (spaces(), char(','), spaces()).with(Constant::<u8>::parser()),
+            (spaces(), char(','), spaces()).with(Constant::parser()),
         )),
     )
         .map(|(keyword, register, source)| Instruction::TwoArgs {
@@ -213,18 +213,18 @@ impl Instruction {
                         })
                     }
                     Intel8080Register::SP => {
-                        let constant = source.require_constant_u8()?;
+                        let constant = source.require_constant()?;
                         Ok(LR35902Instruction::AddImmediateToSp {
-                            data1: constant.value,
+                            data1: constant.require_u8()?,
                         })
                     }
                     v => Err(Error::new(format!("unsupported register {v:?}"), pair.span)),
                 },
                 Some(RegisterOrPair::Register(reg)) => {
                     reg.require_value(Intel8080Register::A)?;
-                    let constant = source.require_constant_u8()?;
+                    let constant = source.require_constant()?;
                     Ok(LR35902Instruction::AddImmediateToAccumulator {
-                        data1: constant.value,
+                        data1: constant.require_u8()?,
                     })
                 }
                 None => {
@@ -327,7 +327,7 @@ impl Instruction {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::AndImmediateWithAccumulator {
-                            data1: constant.value,
+                            data1: constant.require_u8()?,
                         })
                     } else {
                         Ok(LR35902Instruction::LogicalAndWithAccumulator {
@@ -339,7 +339,7 @@ impl Instruction {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::AddImmediateToAccumulatorWithCarry {
-                            data1: constant.value,
+                            data1: constant.require_u8()?,
                         })
                     } else {
                         Ok(LR35902Instruction::AddToAccumulatorWithCarry {
@@ -351,7 +351,7 @@ impl Instruction {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::SubtractImmediateFromAccumulator {
-                            data1: constant.value,
+                            data1: constant.require_u8()?,
                         })
                     } else {
                         Ok(LR35902Instruction::SubtractFromAccumulator {
@@ -364,7 +364,7 @@ impl Instruction {
                         register.require_value(Intel8080Register::A)?;
                         Ok(
                             LR35902Instruction::SubtractImmediateFromAccumulatorWithBorrow {
-                                data1: constant.value,
+                                data1: constant.require_u8()?,
                             },
                         )
                     } else {
@@ -377,7 +377,7 @@ impl Instruction {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::OrImmediateWithAccumulator {
-                            data1: constant.value,
+                            data1: constant.require_u8()?,
                         })
                     } else {
                         Ok(LR35902Instruction::LogicalOrWithAccumulator {
@@ -389,7 +389,7 @@ impl Instruction {
                     if let Some(constant) = source {
                         register.require_value(Intel8080Register::A)?;
                         Ok(LR35902Instruction::ExclusiveOrImmediateWithAccumulator {
-                            data1: constant.value,
+                            data1: constant.require_u8()?,
                         })
                     } else {
                         Ok(LR35902Instruction::LogicalExclusiveOrWithAccumulator {

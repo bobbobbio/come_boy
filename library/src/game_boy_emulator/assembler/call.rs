@@ -15,7 +15,7 @@ pub enum Instruction {
         address: LabelOrAddress,
     },
     Restart {
-        constant: Constant<u8>,
+        constant: Constant,
     },
 }
 
@@ -41,10 +41,7 @@ where
     Input: combine::Stream<Token = char>,
     Input::Position: Into<SourcePosition>,
 {
-    (
-        attempt(string("rst").skip(spaces1())),
-        Constant::<u8>::parser(),
-    )
+    (attempt(string("rst").skip(spaces1())), Constant::parser())
         .map(|(_, constant)| Instruction::Restart { constant })
 }
 
@@ -83,7 +80,7 @@ impl Instruction {
                 }
             }
             Self::Restart { constant } => {
-                let data1 = constant.value >> 3;
+                let data1 = constant.require_u8()? >> 3;
                 if data1 > 7 {
                     return Err(Error::new("value too large", constant.span));
                 }
