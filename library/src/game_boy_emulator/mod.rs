@@ -1218,3 +1218,6 @@ fn initial_state_test() {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod bench;

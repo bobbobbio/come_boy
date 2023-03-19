@@ -927,7 +927,7 @@ impl<Storage: PersistentStorage> MemoryMappedHardware for &mut GamePak<Storage> 
     }
 }
 
-const BANK_SIZE: u16 = 0x4000;
+pub(crate) const BANK_SIZE: u16 = 0x4000;
 const MBC_TYPE_ADDRESS: usize = 0x0147;
 const ROM_SIZE_ADDRESS: usize = 0x0148;
 const RAM_SIZE_ADDRESS: usize = 0x0149;

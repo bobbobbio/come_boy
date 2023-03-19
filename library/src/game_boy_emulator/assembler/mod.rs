@@ -237,6 +237,11 @@ pub fn assemble(input: &str) -> Result<Vec<u8>> {
         .skip(eof())
         .easy_parse(position::Stream::new(input))?;
     let mut assembled = vec![];
+    assembled.resize(
+        crate::game_boy_emulator::game_pak::BANK_SIZE as usize * 2,
+        0u8,
+    );
+
     let mut label_table = LabelTable::default();
     let mut current_address = 0;
     for line in program {
@@ -254,14 +259,22 @@ pub fn assemble(input: &str) -> Result<Vec<u8>> {
                 let instr = instr
                     .instruction
                     .into_lr35902_instruction(current_address, &label_table)?;
-                current_address += instr
-                    .to_opcode(&mut assembled)
-                    .map_err(|e| Error::illegal_instruction(e, span))?
-                    as u16;
+                let mut assembled_instr = vec![];
+                let size = instr
+                    .to_opcode(&mut assembled_instr)
+                    .map_err(|e| Error::illegal_instruction(e, span))?;
+                assembled[current_address as usize..(current_address as usize + size)]
+                    .clone_from_slice(&assembled_instr[..]);
+                current_address += size as u16;
             }
         }
     }
     Ok(assembled)
+}
+
+#[cfg(test)]
+fn assert_binary(bin: &[u8], offset: usize, expected: &[u8]) {
+    assert_eq!(expected, &bin[offset..(offset + expected.len())])
 }
 
 #[test]
@@ -278,7 +291,7 @@ fn small_loop() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x036C, &[
         0xf0, 0x85,
         0xa7,
         0x28, 0xfb,
@@ -315,7 +328,7 @@ fn sample1() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x0166, &[
         0x7b,
         0x86,
         0x27,
@@ -375,7 +388,7 @@ fn sample2() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x025a, &[
         0xfa, 0xce, 0xc0,
         0xa7,
         0x28, 0x1a,
@@ -427,7 +440,7 @@ fn sample3() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x3085, &[
         0xe0, 0xe1,
         0xff,
         0x21, 0x32, 0xde,
@@ -482,7 +495,7 @@ fn sample4() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x0383, &[
         0x1d,
         0x81,
         0x1d,
@@ -543,7 +556,7 @@ fn sample5() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x6894, &[
         0x80,
         0x80,
         0x20, 0x9d,
@@ -584,7 +597,7 @@ fn sample6() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_eq!(bin, [
+    assert_binary(&bin, 0x2b3c, &[
         0xfe, 0xfe,
         0x28, 0xf8,
         0xe0, 0x89,

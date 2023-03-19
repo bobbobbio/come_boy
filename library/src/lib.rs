@@ -1,6 +1,7 @@
 // Copyright 2021 Remi Bernotavicius
 
 #![cfg_attr(not(test), no_std)]
+#![feature(test)]
 
 extern crate alloc;
 
