@@ -2,16 +2,16 @@
 use super::*;
 
 impl GameBoyEmulator {
-    fn run_inner(
+    fn run_inner<RendererT: Renderer, SoundStreamT: SoundStream, StorageT: PersistentStorage>(
         &mut self,
-        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
-        visitor: &mut impl FnMut(&Self),
+        ops: &mut GameBoyOps<RendererT, SoundStreamT, StorageT>,
+        visitor: &mut impl FnMut(&Self, &mut GameBoyOps<RendererT, SoundStreamT, StorageT>),
         observer: &mut impl PerfObserver,
     ) -> core::result::Result<(), UserControl> {
         let mut underclocker = Underclocker::new(self.cpu.elapsed_cycles, ops.clock_speed_hz);
         let mut sometimes = ModuloCounter::new(SLEEP_INPUT_TICKS);
 
-        visitor(self);
+        visitor(self, ops);
 
         while self.crashed().is_none() {
             // We can't do this every tick because it is too slow. So instead so only every so
@@ -24,7 +24,7 @@ impl GameBoyEmulator {
                 self.tick(ops);
             }
 
-            visitor(self);
+            visitor(self, ops);
         }
 
         if self.cpu.crashed() {
@@ -36,10 +36,14 @@ impl GameBoyEmulator {
         Ok(())
     }
 
-    pub(crate) fn run_with_options(
+    pub(crate) fn run_with_options<
+        RendererT: Renderer,
+        SoundStreamT: SoundStream,
+        StorageT: PersistentStorage,
+    >(
         &mut self,
-        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
-        mut visitor: impl FnMut(&Self),
+        ops: &mut GameBoyOps<RendererT, SoundStreamT, StorageT>,
+        mut visitor: impl FnMut(&Self, &mut GameBoyOps<RendererT, SoundStreamT, StorageT>),
         observer: &mut impl PerfObserver,
     ) {
         loop {
@@ -60,6 +64,6 @@ impl GameBoyEmulator {
         &mut self,
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
     ) {
-        self.run_with_options(ops, |_| {}, &mut NullPerfObserver)
+        self.run_with_options(ops, |_, _| {}, &mut NullPerfObserver)
     }
 }

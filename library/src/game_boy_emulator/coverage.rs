@@ -1,9 +1,14 @@
 // Copyright 2022 Remi Bernotavicius
 
 use super::{disassembler, GameBoyEmulator};
+use crate::game_boy_emulator::GameBoyOps;
 use crate::io;
 use crate::io::Write as _;
+use crate::lr35902_emulator::LR35902Instruction;
 use crate::lr35902_emulator::{LR35902InstructionType, NUM_INSTRUCTIONS};
+use crate::rendering::Renderer;
+use crate::sound::SoundStream;
+use crate::storage::PersistentStorage;
 use alloc::collections::BTreeMap;
 use alloc::vec;
 use alloc::vec::Vec;
@@ -44,10 +49,14 @@ impl CoverageData {
         }
     }
 
-    pub fn sample(&mut self, e: &GameBoyEmulator) {
+    pub fn sample(
+        &mut self,
+        e: &GameBoyEmulator,
+        ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
+    ) {
         let pc = e.cpu.read_program_counter();
         *self.address_to_count.entry(pc).or_insert(0) += 1;
-        if let Some(instr) = e.cpu.get_last_instruction() {
+        if let Some(instr) = LR35902Instruction::from_memory(&ops.memory_map(&e.bridge), pc) {
             self.instruction_stats[instr.to_type() as usize] += 1;
         }
     }

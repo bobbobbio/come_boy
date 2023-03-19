@@ -46,7 +46,6 @@ pub struct LR35902Emulator {
     pub crash_message: Option<String>,
     pub call_stack: Vec<u16>,
     halted: bool,
-    instr: Option<LR35902Instruction>,
 }
 
 impl Default for LR35902Emulator {
@@ -64,17 +63,12 @@ impl LR35902Emulator {
             crash_message: None,
             call_stack: Vec::new(),
             halted: false,
-            instr: None,
         };
 
         e.set_register_pair(Intel8080Register::SP, 0xFFFE);
         e.set_program_counter(ROM_ADDRESS as u16);
 
         e
-    }
-
-    pub fn get_last_instruction(&self) -> Option<LR35902Instruction> {
-        self.instr.clone()
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
@@ -2499,13 +2493,16 @@ impl LR35902Emulator {
         self.add_cycles(total_duration - (instruction_size * 4));
     }
 
-    fn crash_from_unkown_opcode(&mut self) {
+    pub fn crash_from_unkown_opcode(&mut self) {
         let pc = self.read_program_counter();
         self.crash(format!("Unknown opcode at address {pc:x}"));
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
-    pub fn load_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &M) {
+    pub fn load_instruction<M: MemoryAccessor>(
+        &mut self,
+        memory_accessor: &M,
+    ) -> Option<LR35902Instruction> {
         debug_assert!(!self.halted);
 
         let pc = self.read_program_counter();
@@ -2515,24 +2512,26 @@ impl LR35902Emulator {
             self.set_program_counter(pc + instr.size() as u16);
             self.add_cycles(instr.size() * 4);
         }
-        self.instr = instr;
+        instr
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
-    pub fn execute_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
+    pub fn execute_instruction<M: MemoryAccessor>(
+        &mut self,
+        memory_accessor: &mut M,
+        instr: LR35902Instruction,
+    ) {
         debug_assert!(!self.halted);
-
-        match self.instr.clone() {
-            Some(res) => {
-                self.run_lr35902_instruction(res, memory_accessor);
-            }
-            None => self.crash_from_unkown_opcode(),
-        };
+        self.run_lr35902_instruction(instr, memory_accessor);
     }
 
     pub fn run_one_instruction<M: MemoryAccessor>(&mut self, memory_accessor: &mut M) {
-        self.load_instruction(memory_accessor);
-        self.execute_instruction(memory_accessor);
+        let instr = self.load_instruction(memory_accessor);
+        if let Some(instr) = instr {
+            self.execute_instruction(memory_accessor, instr);
+        } else {
+            self.crash_from_unkown_opcode();
+        }
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]

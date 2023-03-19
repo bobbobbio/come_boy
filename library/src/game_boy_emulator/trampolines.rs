@@ -47,7 +47,7 @@ pub fn run_emulator<Storage: PersistentStorage>(
         return Ok(());
     }
 
-    e.run_with_options(&mut ops, |_| (), observer);
+    e.run_with_options(&mut ops, |_, _| (), observer);
 
     Ok(())
 }
@@ -186,7 +186,11 @@ pub fn run_with_coverage<Storage: PersistentStorage + 'static>(
 
     let mut coverage_data = CoverageData::new();
 
-    e.run_with_options(&mut ops, |e| coverage_data.sample(e), &mut NullPerfObserver);
+    e.run_with_options(
+        &mut ops,
+        |e, ops| coverage_data.sample(e, ops),
+        &mut NullPerfObserver,
+    );
 
     log::info!("Writing coverage data to {:?}", output_key);
     let mut output_file = ops.storage.open(OpenMode::Write, output_key)?;

@@ -807,17 +807,21 @@ impl GameBoyEmulator {
         ops: &mut GameBoyOps<impl Renderer, impl SoundStream, impl PersistentStorage>,
         observer: &mut impl PerfObserver,
     ) {
-        observe!(observer, "load_instruction", {
-            self.cpu.load_instruction(&ops.memory_map(&self.bridge));
+        let instr = observe!(observer, "load_instruction", {
+            self.cpu.load_instruction(&ops.memory_map(&self.bridge))
         });
 
-        let interrupts_ok = false;
-        self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
+        if let Some(instr) = instr {
+            let interrupts_ok = false;
+            self.deliver_events(ops, observer, interrupts_ok, self.cpu.elapsed_cycles);
 
-        observe!(observer, "execute_instruction", {
-            self.cpu
-                .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge))
-        });
+            observe!(observer, "execute_instruction", {
+                self.cpu
+                    .execute_instruction(&mut ops.memory_map_mut(&mut self.bridge), instr)
+            });
+        } else {
+            self.cpu.crash_from_unkown_opcode();
+        }
     }
 
     pub fn tick_with_observer(
