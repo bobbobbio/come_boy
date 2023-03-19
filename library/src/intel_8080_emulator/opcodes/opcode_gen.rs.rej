@@ -1,0 +1,18 @@
+--- library/src/intel_8080_emulator/opcodes/opcode_gen.rs
++++ library/src/intel_8080_emulator/opcodes/opcode_gen.rs
+@@ -1158,6 +1158,7 @@ impl Intel8080Instruction {
+     }
+ }
+ impl Intel8080Instruction {
++    #[cfg_attr(feature = "aggressive-inline", inline(always))]
+     pub fn size(&self) -> u8 {
+         match self {
+             Self::NoOperation { .. } => 1u8,
+@@ -1244,6 +1245,7 @@ impl Intel8080Instruction {
+     }
+ }
+ impl Intel8080Instruction {
++    #[cfg_attr(feature = "aggressive-inline", inline(always))]
+     pub fn duration(&self) -> u8 {
+         match self {
+             Self::NoOperation { .. } => 0u8,

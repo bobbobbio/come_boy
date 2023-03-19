@@ -2493,6 +2493,7 @@ impl LR35902Emulator {
         self.add_cycles(total_duration - (instruction_size * 4));
     }
 
+    #[cold]
     pub fn crash_from_unkown_opcode(&mut self) {
         let pc = self.read_program_counter();
         self.crash(format!("Unknown opcode at address {pc:x}"));

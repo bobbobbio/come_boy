@@ -1,0 +1,18 @@
+--- library/build.rs
++++ library/build.rs
+@@ -839,6 +839,7 @@ impl OpcodeGenerator {
+ 
+         tokens.extend(quote!(
+             impl #enum_name {
++                #[cfg_attr(feature = "aggressive-inline", inline(always))]
+                 pub fn size(&self) -> u8 {
+                     match self {
+                         #( #dispatches, )*
+@@ -881,6 +882,7 @@ impl OpcodeGenerator {
+ 
+         tokens.extend(quote!(
+             impl #enum_name {
++                #[cfg_attr(feature = "aggressive-inline", inline(always))]
+                 pub fn duration(&self) -> u8 {
+                     match self {
+                         #( #dispatches, )*

@@ -789,6 +789,7 @@ impl GameBoyEmulator {
         self.tick_with_observer(ops, &mut NullPerfObserver)
     }
 
+    #[cold]
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn halted_cpu_tick(
         &mut self,
