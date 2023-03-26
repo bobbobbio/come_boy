@@ -6,6 +6,7 @@ use heck::{ToPascalCase as _, ToSnakeCase as _};
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, ToTokens};
 use serde_derive::Deserialize;
+use std::collections::HashMap;
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::TryInto as _;
 use std::error::Error;
@@ -1332,30 +1333,32 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
         return;
     }
 
+    let mut roms = HashMap::new();
     for rom_entry in stable_read_dir(roms_path) {
         let rom_path = rom_entry.path();
         println!("Found ROM {}", rom_path.to_string_lossy());
-        println!("cargo:rerun-if-changed={}", rom_path.to_string_lossy());
 
         let game_pak_title = game_pak_title(&rom_path);
         println!("Identified ROM as \"{game_pak_title}\"");
 
-        let game_pak_title = game_pak_title.to_lowercase().replace(' ', "_");
-        let expectations_path: std::path::PathBuf =
-            format!("{expectations_path}/{game_pak_title}/").into();
-        println!(
-            "Looking for expectations in {}",
-            expectations_path.to_string_lossy()
-        );
+        roms.insert(game_pak_title.to_lowercase().replace(' ', "_"), rom_path);
+    }
+
+    for expectation_entry in stable_read_dir(expectations_path) {
+        let rom_name = expectation_entry.file_name().to_str().unwrap().to_owned();
+        let rom_path = roms.get(&rom_name);
+        if rom_path.is_none() {
+            println!("Rom for \"{rom_name}\" not found");
+            continue;
+        }
+        let rom_path = rom_path.unwrap();
+        println!("cargo:rerun-if-changed={}", rom_path.to_string_lossy());
+
+        let expectations_path = expectation_entry.path();
         println!(
             "cargo:rerun-if-changed={}",
             expectations_path.to_string_lossy()
         );
-
-        if !expectations_path.exists() {
-            println!("Found no expectations");
-            continue;
-        }
 
         for expectation_entry in stable_read_dir(expectations_path) {
             let expectation_path = expectation_entry.path();
@@ -1376,7 +1379,7 @@ fn generate_rom_test_functions(rom_path: &str, expectations_path: &str, tokens: 
 
             println!("Expectation for clock offset {ticks}");
 
-            let mut test_name = format!("{game_pak_title}_{ticks}");
+            let mut test_name = format!("{rom_name}_{ticks}");
             if let Some(replay) = &replay {
                 test_name += "_";
                 test_name += replay.file_stem().unwrap().to_str().unwrap();
