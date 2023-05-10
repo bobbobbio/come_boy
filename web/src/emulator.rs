@@ -1,7 +1,7 @@
 use super::storage::WebStorage;
 use super::window;
 use come_boy::game_boy_emulator::{
-    rom_hash, ControllerJoyPad, GameBoyEmulator, GameBoyOps, GamePak, UserControl,
+    rom_hash, ControllerJoyPad, GameBoyEmulator, GameBoyOps, GamePak, Palette, UserControl,
     SLEEP_INPUT_TICKS,
 };
 use come_boy::rendering::egui::EguiBackRenderer;
@@ -83,6 +83,10 @@ impl Emulator {
 
     pub fn loaded_rom(&self) -> Option<&str> {
         self.ops.loaded_game_pak().map(|gp| gp.title())
+    }
+
+    pub fn palette_mut(&mut self) -> &mut Palette {
+        self.emulator.palette_mut()
     }
 
     fn read_key_events(&mut self) {

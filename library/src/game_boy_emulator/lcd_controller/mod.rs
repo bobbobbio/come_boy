@@ -54,7 +54,7 @@ use core::ops::Range;
 use core::{fmt, iter};
 use enum_iterator::IntoEnumIterator;
 use num_enum::IntoPrimitive;
-use palette::Palette;
+pub use palette::Palette;
 use serde_derive::{Deserialize, Serialize};
 use strum_macros::IntoStaticStr;
 
@@ -1100,6 +1100,10 @@ impl LcdController {
         scheduler.drop_events(|e| matches!(e, GameBoyEmulatorEvent::Lcd(_)));
 
         self.enabled = false;
+    }
+
+    pub fn palette_mut(&mut self) -> &mut Palette {
+        &mut self.palette
     }
 }
 

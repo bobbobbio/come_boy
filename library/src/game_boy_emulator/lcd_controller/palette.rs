@@ -4,10 +4,10 @@ use crate::rendering::Color;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Palette {
-    shade0: Color,
-    shade1: Color,
-    shade2: Color,
-    shade3: Color,
+    pub shade0: Color,
+    pub shade1: Color,
+    pub shade2: Color,
+    pub shade3: Color,
 }
 
 impl Default for Palette {

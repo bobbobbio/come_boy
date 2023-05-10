@@ -21,6 +21,7 @@ use core::fmt::Debug;
 use core::ops::{Range, RangeFrom};
 use core::{fmt, mem};
 use enum_iterator::IntoEnumIterator;
+pub use lcd_controller::Palette;
 use num_enum::IntoPrimitive;
 use perf::PerfObserver;
 use serde_derive::{Deserialize, Serialize};
@@ -1208,6 +1209,10 @@ impl GameBoyEmulator {
         }
 
         Ok(())
+    }
+
+    pub fn palette_mut(&mut self) -> &mut Palette {
+        self.bridge.lcd_controller.palette_mut()
     }
 }
 
