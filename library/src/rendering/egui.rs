@@ -73,7 +73,7 @@ impl Renderer for EguiBackRenderer {
 
         for key in Keycode::into_enum_iter() {
             if let Ok(egui_key) = try_translate_keycode(key) {
-                if self.ctx.input().key_down(egui_key) {
+                if self.ctx.input(|i| i.key_down(egui_key)) {
                     if self.pressed_keys.insert(key) {
                         events.push(Event::KeyDown(key));
                     }

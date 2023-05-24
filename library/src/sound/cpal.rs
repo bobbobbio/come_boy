@@ -72,7 +72,7 @@ impl CpalSoundStream {
         };
         let error_fn = |err| log::error!("audio stream error: {}", err);
         let stream = device
-            .build_output_stream(&config.into(), data_fn, error_fn)
+            .build_output_stream(&config.into(), data_fn, error_fn, None)
             .unwrap();
         stream.play().unwrap();
 

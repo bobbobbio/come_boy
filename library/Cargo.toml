@@ -41,7 +41,7 @@ combine = { version = "*", optional = true }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "0.8.1"
-glow = { version = "^0.11", optional = true }
+glow = { version = "*", optional = true }
 egui = { version = "*", optional = true }
 gilrs = { version = "*", features = ["wasm-bindgen"], optional = true }
 log = { version = "*", default_features = false }

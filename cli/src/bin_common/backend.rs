@@ -218,7 +218,8 @@ mod eframe {
                         sender.send(back_renderer).unwrap();
                         Box::new(App::new(front_renderer, window_vec))
                     }),
-                );
+                )
+                .unwrap();
             });
             log::info!("Exiting...");
             std::process::exit(0)

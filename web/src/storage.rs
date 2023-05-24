@@ -1,5 +1,6 @@
 // 2022 copyright Remi Bernotavicius
 
+use base64::Engine as _;
 use come_boy::storage::OpenMode;
 use std::cmp::min;
 use std::io::{self, SeekFrom};
@@ -16,11 +17,16 @@ fn load_bytes_from_storage(storage: &web_sys::Storage, key: &str) -> Option<Vec<
         .get_item(key)
         .ok()
         .flatten()
-        .and_then(|s| base64::decode(s).ok())
+        .and_then(|s| base64::engine::general_purpose::STANDARD.decode(s).ok())
 }
 
 fn save_bytes_to_storage(storage: &web_sys::Storage, key: &str, bytes: &[u8]) {
-    storage.set_item(key, &base64::encode(bytes)).ok();
+    storage
+        .set_item(
+            key,
+            &base64::engine::general_purpose::STANDARD.encode(bytes),
+        )
+        .ok();
 }
 
 impl WebStorageFile {
