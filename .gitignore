@@ -3,6 +3,5 @@ library/blargg_test_roms
 library/mooneye_test_roms
 *.swp
 *.pyc
-Cargo.lock
 rusty-tags.*
 library/test/roms/*
