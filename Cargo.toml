@@ -20,3 +20,7 @@ members = [
     "pico",
     "web",
 ]
+
+# stdweb is broken with latest wasm-bindgen, patch it to fix
+[patch.crates-io]
+stdweb = { git = 'https://github.com/bobbobbio/stdweb.git' }

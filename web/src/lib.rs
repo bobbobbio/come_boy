@@ -240,8 +240,9 @@ pub async fn start() -> Result<(), wasm_bindgen::JsValue> {
 
     #[cfg(target_arch = "wasm32")]
     {
+        let runner = eframe::WebRunner::new();
         let web_options = eframe::WebOptions::default();
-        eframe::start_web(
+        runner.start(
             "canvas",
             web_options,
             Box::new(|cc| Box::new(MyEguiApp::new(cc))),
