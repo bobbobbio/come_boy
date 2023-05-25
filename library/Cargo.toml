@@ -43,7 +43,7 @@ crossbeam = { version = "*", optional = true }
 enum-iterator = "0.8.1"
 glow = { version = "*", optional = true }
 egui = { version = "*", optional = true }
-gilrs = { version = "*", features = ["wasm-bindgen"], optional = true }
+gilrs = { version = "*", optional = true }
 log = { version = "*", default_features = false }
 num_enum = { version = "*", default_features = false }
 sdl2 = { version = "0.32.*", optional = true }
