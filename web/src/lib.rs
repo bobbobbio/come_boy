@@ -121,17 +121,6 @@ impl MyEguiApp {
         };
         ui.painter().add(callback);
     }
-
-    fn load_rom(&mut self) {
-        let emulator = self.emulator.clone();
-        let future = async move {
-            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
-                let rom_data = file.read().await;
-                emulator.borrow_mut().load_rom(&rom_data);
-            }
-        };
-        wasm_bindgen_futures::spawn_local(future);
-    }
 }
 
 fn performance() -> web_sys::Performance {
@@ -172,58 +161,71 @@ fn as_rgb(
     palette.shade3 = from_floats(shade3);
 }
 
-impl eframe::App for MyEguiApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::right("sidebar").show(ctx, |ui| {
-            egui::TopBottomPanel::top("options").show_inside(ui, |ui| {
-                ui.horizontal(|ui| {
-                    if ui.button("Load ROM").clicked() {
-                        self.load_rom();
-                    }
-                    if let Some(loaded_rom) = self.emulator.borrow_mut().loaded_rom() {
-                        ui.label(&format!("playing: {loaded_rom}"));
-                    }
-                });
-                ui.collapsing("pallete", |ui| {
-                    let mut emulator = self.emulator.borrow_mut();
-                    let palette = emulator.palette_mut();
-                    as_rgb(palette, |shade0, shade1, shade2, shade3| {
-                        ui.horizontal(|ui| {
-                            ui.label("Shade 0: ");
-                            color_edit_button_rgb(ui, shade0);
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Shade 1: ");
-                            color_edit_button_rgb(ui, shade1);
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Shade 2: ");
-                            color_edit_button_rgb(ui, shade2);
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Shade 3: ");
-                            color_edit_button_rgb(ui, shade3);
-                        });
-                    });
-                });
-            });
+fn load_rom(emulator: EmulatorRef) {
+    let future = async move {
+        if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
+            let rom_data = file.read().await;
+            emulator.borrow_mut().load_rom(&rom_data);
+        }
+    };
+    wasm_bindgen_futures::spawn_local(future);
+}
 
-            egui::TopBottomPanel::bottom("information").show_inside(ui, |ui| {
-                ui.add(Hyperlink::from_label_and_url(
-                    "come_boy on github",
-                    GITHUB_URL,
-                ));
+fn render_main_gui(ui: &mut egui::Ui, emulator: EmulatorRef) {
+    egui::TopBottomPanel::top("options").show_inside(ui, |ui| {
+        ui.horizontal(|ui| {
+            if ui.button("Load ROM").clicked() {
+                load_rom(emulator.clone());
+            }
+            if let Some(loaded_rom) = emulator.borrow_mut().loaded_rom() {
+                ui.label(&format!("playing: {loaded_rom}"));
+            }
+        });
+        ui.collapsing("pallete", |ui| {
+            let mut emulator = emulator.borrow_mut();
+            let palette = emulator.palette_mut();
+            as_rgb(palette, |shade0, shade1, shade2, shade3| {
                 ui.horizontal(|ui| {
-                    let revision = meta("revision");
-                    ui.label("revision: ");
-                    ui.add(Hyperlink::from_label_and_url(
-                        &revision,
-                        format!("{GITHUB_URL}/commit/{revision}"),
-                    ));
+                    ui.label("Shade 0: ");
+                    color_edit_button_rgb(ui, shade0);
                 });
-                ui.label(&format!("built at: {}", meta("build_date")));
+                ui.horizontal(|ui| {
+                    ui.label("Shade 1: ");
+                    color_edit_button_rgb(ui, shade1);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Shade 2: ");
+                    color_edit_button_rgb(ui, shade2);
+                });
+                ui.horizontal(|ui| {
+                    ui.label("Shade 3: ");
+                    color_edit_button_rgb(ui, shade3);
+                });
             });
         });
+    });
+
+    egui::TopBottomPanel::bottom("information").show_inside(ui, |ui| {
+        ui.add(Hyperlink::from_label_and_url(
+            "come_boy on github",
+            GITHUB_URL,
+        ));
+        ui.horizontal(|ui| {
+            let revision = meta("revision");
+            ui.label("revision: ");
+            ui.add(Hyperlink::from_label_and_url(
+                &revision,
+                format!("{GITHUB_URL}/commit/{revision}"),
+            ));
+        });
+        ui.label(&format!("built at: {}", meta("build_date")));
+    });
+}
+
+impl eframe::App for MyEguiApp {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        egui::SidePanel::right("sidebar")
+            .show(ctx, |ui| render_main_gui(ui, self.emulator.clone()));
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 self.render_game_screen(ui);
@@ -242,12 +244,13 @@ pub async fn start() -> Result<(), wasm_bindgen::JsValue> {
     {
         let runner = eframe::WebRunner::new();
         let web_options = eframe::WebOptions::default();
-        runner.start(
-            "canvas",
-            web_options,
-            Box::new(|cc| Box::new(MyEguiApp::new(cc))),
-        )
-        .await?;
+        runner
+            .start(
+                "canvas",
+                web_options,
+                Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+            )
+            .await?;
     }
 
     Ok(())
