@@ -8,6 +8,7 @@ use egui::widgets::color_picker::color_edit_button_rgb;
 use egui::widgets::Hyperlink;
 use emulator::Emulator;
 use std::cell::RefCell;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::Arc;
 use wasm_bindgen::prelude::*;
@@ -38,8 +39,30 @@ impl EmulatorRef {
         Self(Rc::new(RefCell::new(emulator)))
     }
 
-    fn borrow_mut(&self) -> std::cell::RefMut<'_, Emulator> {
-        self.0.borrow_mut()
+    fn borrow_mut(&self) -> BorrowedEmulator<'_> {
+        BorrowedEmulator {
+            ref_mut: self.0.borrow_mut(),
+            rc: self.clone(),
+        }
+    }
+}
+
+struct BorrowedEmulator<'a> {
+    ref_mut: std::cell::RefMut<'a, Emulator>,
+    rc: EmulatorRef,
+}
+
+impl Deref for BorrowedEmulator<'_> {
+    type Target = Emulator;
+
+    fn deref(&self) -> &Emulator {
+        &*self.ref_mut
+    }
+}
+
+impl DerefMut for BorrowedEmulator<'_> {
+    fn deref_mut(&mut self) -> &mut Emulator {
+        &mut *self.ref_mut
     }
 }
 
@@ -161,28 +184,44 @@ fn as_rgb(
     palette.shade3 = from_floats(shade3);
 }
 
-fn load_rom(emulator: EmulatorRef) {
-    let future = async move {
-        if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
-            let rom_data = file.read().await;
-            emulator.borrow_mut().load_rom(&rom_data);
-        }
-    };
-    wasm_bindgen_futures::spawn_local(future);
+trait EmulatorUiHandler {
+    fn load_rom_from_dialog(&mut self);
+    fn loaded_rom(&mut self) -> Option<&str>;
+    fn palette_mut(&mut self) -> &mut Palette;
 }
 
-fn render_main_gui(ui: &mut egui::Ui, emulator: EmulatorRef) {
+impl EmulatorUiHandler for BorrowedEmulator<'_> {
+    fn load_rom_from_dialog(&mut self) {
+        let emulator = self.rc.clone();
+        let future = async move {
+            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
+                let rom_data = file.read().await;
+                emulator.borrow_mut().load_rom(&rom_data);
+            }
+        };
+        wasm_bindgen_futures::spawn_local(future);
+    }
+
+    fn loaded_rom(&mut self) -> Option<&str> {
+        self.ref_mut.loaded_rom()
+    }
+
+    fn palette_mut(&mut self) -> &mut Palette {
+        self.ref_mut.palette_mut()
+    }
+}
+
+fn render_main_gui(ui: &mut egui::Ui, emulator: &mut impl EmulatorUiHandler) {
     egui::TopBottomPanel::top("options").show_inside(ui, |ui| {
         ui.horizontal(|ui| {
             if ui.button("Load ROM").clicked() {
-                load_rom(emulator.clone());
+                emulator.load_rom_from_dialog();
             }
-            if let Some(loaded_rom) = emulator.borrow_mut().loaded_rom() {
+            if let Some(loaded_rom) = emulator.loaded_rom() {
                 ui.label(&format!("playing: {loaded_rom}"));
             }
         });
         ui.collapsing("pallete", |ui| {
-            let mut emulator = emulator.borrow_mut();
             let palette = emulator.palette_mut();
             as_rgb(palette, |shade0, shade1, shade2, shade3| {
                 ui.horizontal(|ui| {
@@ -224,8 +263,9 @@ fn render_main_gui(ui: &mut egui::Ui, emulator: EmulatorRef) {
 
 impl eframe::App for MyEguiApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::right("sidebar")
-            .show(ctx, |ui| render_main_gui(ui, self.emulator.clone()));
+        egui::SidePanel::right("sidebar").show(ctx, |ui| {
+            render_main_gui(ui, &mut self.emulator.borrow_mut())
+        });
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 self.render_game_screen(ui);
