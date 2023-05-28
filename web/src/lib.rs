@@ -21,16 +21,6 @@ fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
 
-fn meta(name: &str) -> String {
-    let document = window().document().unwrap();
-    let head = document.head().unwrap();
-    head.query_selector(&format!("[name={name}][content]"))
-        .unwrap()
-        .unwrap()
-        .get_attribute("content")
-        .unwrap()
-}
-
 #[derive(Clone)]
 struct EmulatorRef(Rc<RefCell<Emulator>>);
 
@@ -188,6 +178,7 @@ trait EmulatorUiHandler {
     fn load_rom_from_dialog(&mut self);
     fn loaded_rom(&mut self) -> Option<&str>;
     fn palette_mut(&mut self) -> &mut Palette;
+    fn meta(&mut self, name: &str) -> String;
 }
 
 impl EmulatorUiHandler for BorrowedEmulator<'_> {
@@ -208,6 +199,16 @@ impl EmulatorUiHandler for BorrowedEmulator<'_> {
 
     fn palette_mut(&mut self) -> &mut Palette {
         self.ref_mut.palette_mut()
+    }
+
+    fn meta(&mut self, name: &str) -> String {
+        let document = window().document().unwrap();
+        let head = document.head().unwrap();
+        head.query_selector(&format!("[name={name}][content]"))
+            .unwrap()
+            .unwrap()
+            .get_attribute("content")
+            .unwrap()
     }
 }
 
@@ -250,14 +251,14 @@ fn render_main_gui(ui: &mut egui::Ui, emulator: &mut impl EmulatorUiHandler) {
             GITHUB_URL,
         ));
         ui.horizontal(|ui| {
-            let revision = meta("revision");
+            let revision = emulator.meta("revision");
             ui.label("revision: ");
             ui.add(Hyperlink::from_label_and_url(
                 &revision,
                 format!("{GITHUB_URL}/commit/{revision}"),
             ));
         });
-        ui.label(&format!("built at: {}", meta("build_date")));
+        ui.label(&format!("built at: {}", emulator.meta("build_date")));
     });
 }
 
