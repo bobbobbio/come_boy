@@ -26,7 +26,7 @@ wasm-bindgen-futures = "*"
 
 [dependencies.come_boy]
 default-features = false
-features = ["std", "game-pad", "egui-renderer"]
+features = ["std", "game-pad", "egui-renderer", "ui"]
 path = "../library"
 version = "*"
 
