@@ -41,13 +41,13 @@ impl Deref for BorrowedEmulator<'_> {
     type Target = Emulator;
 
     fn deref(&self) -> &Emulator {
-        &*self.ref_mut
+        &self.ref_mut
     }
 }
 
 impl DerefMut for BorrowedEmulator<'_> {
     fn deref_mut(&mut self) -> &mut Emulator {
-        &mut *self.ref_mut
+        &mut self.ref_mut
     }
 }
 
