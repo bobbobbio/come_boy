@@ -190,6 +190,7 @@ In no particular order
 - camera support
 - online play
 - game specific plugin support (like see party in pokemon, etc)
+- wgpu support
 
 # License
 MIT License
