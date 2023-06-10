@@ -178,6 +178,19 @@ This is useful for comparing the emulator's function with another emulator. The
 details of the trace format is not specified anywhere. Usually an existing
 emulator would need to be modified to emit the correct trace.
 
+### Future development plans / ideas
+
+In no particular order
+
+- finish sound emulation
+- debugger GUI
+- printer support
+- fullscreen
+- screen effects (like shaders to make it look like gameboy screen)
+- camera support
+- online play
+- game specific plugin support (like see party in pokemon, etc)
+
 # License
 MIT License
 
