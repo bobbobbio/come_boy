@@ -191,6 +191,7 @@ In no particular order
 - online play
 - game specific plugin support (like see party in pokemon, etc)
 - wgpu support
+- google drive integration?
 
 # License
 MIT License
