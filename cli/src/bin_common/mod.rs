@@ -8,6 +8,7 @@ use std::path::Path;
 pub mod backend;
 pub mod frontend;
 
+#[allow(dead_code)] // Debug use of field doesn't count as a usage
 #[derive(Debug)]
 pub enum Error {
     Emulator(game_boy_emulator::Error),

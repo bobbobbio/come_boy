@@ -16,9 +16,9 @@ aggressive-inline = ["come_boy/aggressive-inline"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-come_boy = {default_features = false, path = "../library", version = "*"}
+come_boy = {default-features = false, path = "../library", version = "*"}
 enum-iterator = "0.8.1"
 rpi-pico-sdk-sys = "*"
 
 [build-dependencies]
-bindgen = "*"
+bindgen = "0.65.1"

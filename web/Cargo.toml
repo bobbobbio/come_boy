@@ -11,9 +11,9 @@ crate-type = ["cdylib"]
 aggressive-inline = ["come_boy/aggressive-inline"]
 
 [dependencies]
-eframe = "*"
-egui = "*"
-egui_glow = "*"
+eframe = "0.22"
+egui = "0.22"
+egui_glow = "0.22"
 base64 = "*"
 console_error_panic_hook = "*"
 glow = "^0.11"

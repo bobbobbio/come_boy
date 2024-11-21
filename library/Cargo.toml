@@ -41,13 +41,13 @@ combine = { version = "*", optional = true }
 cpal = { version = "*", optional = true }
 crossbeam = { version = "*", optional = true }
 enum-iterator = "0.8.1"
-glow = { version = "*", optional = true }
-egui = { version = "*", optional = true }
+glow = { version = "0.12", optional = true }
+egui = { version = "0.22", optional = true }
 gilrs = { version = "*", optional = true }
-log = { version = "*", default_features = false }
-num_enum = { version = "*", default_features = false }
+log = { version = "*", default-features = false }
+num_enum = { version = "*", default-features = false }
 sdl2 = { version = "0.32.*", optional = true }
-serde = { version = "*", default_features = false, features = ["alloc"] }
+serde = { version = "*", default-features = false, features = ["alloc"] }
 serde_derive = "*"
 speedy2d = { version = "*", optional = true }
 strum_macros = { version = "*" }

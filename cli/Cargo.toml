@@ -17,8 +17,8 @@ sound = ["come_boy/sound"]
 clap = { version = "4", features = ["derive"] }
 come_boy = { version = "*", path = "../library" }
 ctrlc = "*"
-eframe = { version = "*", optional = true }
-egui = { version = "*", optional = true }
-egui_glow = { version = "*", optional = true }
+eframe = { version = "0.22", optional = true }
+egui = { version = "0.22", optional = true }
+egui_glow = { version = "0.22", optional = true }
 log = "*"
 simple_logger = "*"
