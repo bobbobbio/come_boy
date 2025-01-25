@@ -16,9 +16,6 @@ def head_revision():
 def sh(script):
     subprocess.check_call(['bash', '-c', 'set -ex\n' + script])
 
-def cd(path):
-    os.chdir(path)
-
 def replace(path, needle, replacement):
     with open(path) as f:
         contents = f.read()
@@ -30,6 +27,7 @@ def replace(path, needle, replacement):
 def put(path, contents):
     with open(path, 'w') as f:
         f.write(contents)
+    print(f"+ cat <contents> > {path}")
 
 def delete_contents(path):
     for p in glob.glob(path + '/*'):
@@ -38,20 +36,17 @@ def delete_contents(path):
 def install(source, dest_dir):
     for p in glob.glob(source):
         if os.path.isdir(p):
-            subprocess.check_call(['cp', '-r', '-v', p, dest_dir])
+            sh(f'cp -r -v {p} {dest_dir}')
         else:
-            subprocess.check_call(['install', p, dest_dir])
+            sh(f'install {p} {dest_dir}')
 
-def ensure_rust_updated():
-    sh('rustup update nightly')
-    sh('rustup default nightly')
-
-def build():
-    cd('web')
-    sh('wasm-pack build --target web --release --features aggressive-inline')
-    cd('www')
-    sh('npm install')
-    cd('..')
+def build(optimize):
+    target_dir = 'target/wasm32-unknown-unknown/release'
+    sh('cargo build --package come_boy_web --target wasm32-unknown-unknown --release --features aggressive-inline')
+    sh(f'wasm-bindgen --target web {target_dir}/come_boy_web.wasm --out-dir {target_dir}')
+    if optimize:
+        sh(f'wasm-opt {target_dir}/come_boy_web_bg.wasm -o {target_dir}/come_boy_web_bg.opt.wasm -O3')
+        sh(f'mv {target_dir}/come_boy_web_bg.opt.wasm {target_dir}/come_boy_web_bg.wasm')
 
 MAIN_SRC = '''\
 import * as wasm from "./come_boy_web.js";
@@ -63,8 +58,9 @@ init();
 def deploy(deploy_path):
     delete_contents(deploy_path)
 
-    install('pkg/*', deploy_path)
-    install('www/public/index.html', deploy_path)
+    install('target/wasm32-unknown-unknown/release/come_boy_web_bg.wasm', deploy_path)
+    install('target/wasm32-unknown-unknown/release/come_boy_web.js', deploy_path)
+    install('web/www/index.html', deploy_path)
 
     index_html = os.path.join(deploy_path, 'index.html')
     replace(index_html, '$REVISION', head_revision())
@@ -78,11 +74,11 @@ def deploy(deploy_path):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--optimize", action='store_true')
     parser.add_argument("deploy_path")
     opts = parser.parse_args()
 
-    ensure_rust_updated()
-    build()
+    build(opts.optimize)
     deploy(opts.deploy_path)
 
 if __name__ == "__main__":

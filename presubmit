@@ -20,14 +20,8 @@ popd
 
 cargo test --release
 
-pushd web
-wasm-pack build
-
-pushd www
-npm run build
-popd
-
-popd
+mkdir -p target/web_build
+./web/build.py target/web_build
 
 ./pico/build.sh
 

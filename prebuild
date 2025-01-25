@@ -13,6 +13,10 @@ sudo apt-get install --yes \
 
 library/download_test_roms
 
-if ! which wasm-pack; then
-    curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+if ! which wasm-bindgen; then
+    cargo install wasm-bindgen-cli
+fi
+
+if ! which wasm-opt; then
+    cargo install wasm-opt
 fi
