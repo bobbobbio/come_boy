@@ -66,3 +66,7 @@ serde_json = "*"
 [build-dependencies.syn]
 version = "*"
 features = ["full"]
+
+[lints.clippy]
+precedence = "allow"
+needless_lifetimes = "allow"

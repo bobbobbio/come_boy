@@ -236,11 +236,7 @@ pub fn assemble(input: &str) -> Result<Vec<u8>> {
     let (program, _) = program_parser()
         .skip(eof())
         .easy_parse(position::Stream::new(input))?;
-    let mut assembled = vec![];
-    assembled.resize(
-        crate::game_boy_emulator::game_pak::BANK_SIZE as usize * 2,
-        0u8,
-    );
+    let mut assembled = vec![0u8; crate::game_boy_emulator::game_pak::BANK_SIZE as usize * 2];
 
     let mut label_table = LabelTable::default();
     let mut current_address = 0;

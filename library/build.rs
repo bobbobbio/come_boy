@@ -482,6 +482,7 @@ impl OpcodePrinterFunction {
 impl ToTokens for OpcodePrinterFunction {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let instruction = &self.instruction;
+        #[allow(clippy::literal_string_with_formatting_args)]
         let mut fmt_string = "{:04}".to_string();
         for param in &self.function.parameters {
             fmt_string += " ";

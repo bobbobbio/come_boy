@@ -951,7 +951,7 @@ impl<I: LR35902InstructionSetOps> LR35902InstructionSet for I {
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn swap_register(&mut self, register: Intel8080Register) {
         let value = self.read_register(register);
-        let new_value = (value << 4) | (value >> 4);
+        let new_value = value.rotate_right(4);
         self.set_register(register, new_value);
         self.set_flag(LR35902Flag::Zero, new_value == 0);
         self.set_flag(LR35902Flag::Subtract, false);

@@ -214,7 +214,7 @@ impl<T> Scheduler<T> {
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     pub fn peek_time(&self) -> Option<u64> {
-        self.timeline.get(0).map(|e| e.time)
+        self.timeline.front().map(|e| e.time)
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]

@@ -82,7 +82,7 @@ impl<InstantT: Instant> PerfObserver for PerfStats<InstantT> {
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn start_observation(&mut self, tag: &'static str) {
         let existing = self.in_flight.insert(tag, InstantT::now()).is_some();
-        assert!(!existing, "{}", "unfinished tag {tag}");
+        assert!(!existing, "unfinished tag {tag}");
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]

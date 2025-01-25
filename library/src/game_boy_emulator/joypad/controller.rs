@@ -50,7 +50,7 @@ impl ControllerJoyPad {
                 EventType::AxisChanged(Axis::LeftStickX, v, _) if v < 0.0 => {
                     button_events.push(ButtonEvent::Down(ButtonCode::Left));
                 }
-                EventType::AxisChanged(Axis::LeftStickX, v, _) if v == 0.0 => {
+                EventType::AxisChanged(Axis::LeftStickX, _, _) => {
                     button_events.push(ButtonEvent::Up(ButtonCode::Right));
                     button_events.push(ButtonEvent::Up(ButtonCode::Left));
                 }
@@ -60,7 +60,7 @@ impl ControllerJoyPad {
                 EventType::AxisChanged(Axis::LeftStickY, v, _) if v < 0.0 => {
                     button_events.push(ButtonEvent::Down(ButtonCode::Down));
                 }
-                EventType::AxisChanged(Axis::LeftStickY, v, _) if v == 0.0 => {
+                EventType::AxisChanged(Axis::LeftStickY, _, _) => {
                     button_events.push(ButtonEvent::Up(ButtonCode::Up));
                     button_events.push(ButtonEvent::Up(ButtonCode::Down));
                 }

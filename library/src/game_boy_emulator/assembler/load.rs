@@ -7,6 +7,7 @@ use super::types::{
 use super::LabelTable;
 use crate::emulator_common::Intel8080Register;
 use crate::lr35902_emulator::LR35902Instruction;
+use alloc::format;
 use combine::parser::char::{char, spaces, string};
 use combine::{attempt, choice, Parser};
 
@@ -165,7 +166,7 @@ impl Instruction {
                     Ok(LR35902Instruction::StoreAccumulatorDirectOneByte { data1 })
                 }
                 (destination, source) => Err(Error::new(
-                    "invalid arguments destination: {destination:?}, source: {source:?}",
+                    format!("invalid arguments destination: {destination:?}, source: {source:?}"),
                     destination.into_span() + source.into_span(),
                 )),
             },
@@ -291,7 +292,7 @@ impl Instruction {
                     })
                 }
                 (destination, source) => Err(Error::new(
-                    "invalid arguments destination: {destination:?}, source: {source:?}",
+                    format!("invalid arguments destination: {destination:?}, source: {source:?}"),
                     destination.into_span() + source.into_span(),
                 )),
             },

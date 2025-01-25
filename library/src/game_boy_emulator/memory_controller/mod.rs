@@ -406,9 +406,7 @@ impl MemoryChunk {
     }
 
     pub fn from_range(range: Range<u16>) -> MemoryChunk {
-        let mut v = Vec::<u8>::new();
-        v.resize(range.len(), 0);
-        MemoryChunk::new(v)
+        MemoryChunk::new(vec![0u8; range.len()])
     }
 
     pub fn clone_from_slice(&mut self, slice: &[u8]) {

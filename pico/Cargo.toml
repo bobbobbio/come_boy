@@ -22,3 +22,6 @@ rpi-pico-sdk-sys = "*"
 
 [build-dependencies]
 bindgen = "0.65.1"
+
+[lints.clippy]
+precedence = "allow"

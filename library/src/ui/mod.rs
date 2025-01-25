@@ -52,7 +52,7 @@ pub fn render_main_gui(ui: &mut egui::Ui, emulator: &mut impl EmulatorUiHandler)
                 emulator.load_rom_from_dialog();
             }
             if let Some(loaded_rom) = emulator.loaded_rom() {
-                ui.label(&format!("playing: {loaded_rom}"));
+                ui.label(format!("playing: {loaded_rom}"));
             }
         });
         ui.collapsing("pallete", |ui| {
@@ -91,6 +91,6 @@ pub fn render_main_gui(ui: &mut egui::Ui, emulator: &mut impl EmulatorUiHandler)
                 format!("{GITHUB_URL}/commit/{revision}"),
             ));
         });
-        ui.label(&format!("built at: {}", emulator.meta("build_date")));
+        ui.label(format!("built at: {}", emulator.meta("build_date")));
     });
 }

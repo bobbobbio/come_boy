@@ -330,10 +330,10 @@ impl Renderer for GlowBackRenderer {
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn color_pixel(&mut self, x: i32, y: i32, color: Color) {
-        assert!(x < WIDTH as i32, "{}", "x = {x} > {WIDTH}");
-        assert!(y < HEIGHT as i32, "{}", "y = {y} > {HEIGHT}");
-        assert!(x >= 0, "{}", "x = {x} > 0");
-        assert!(y >= 0, "{}", "y = {y} > 0");
+        assert!(x < WIDTH as i32, "x = {x} > {WIDTH}");
+        assert!(y < HEIGHT as i32, "y = {y} > {HEIGHT}");
+        assert!(x >= 0, "x = {x} > 0");
+        assert!(y >= 0, "y = {y} > 0");
 
         let i = (y as usize * WIDTH + x as usize) * 4;
         self.back_buffer.data[i] = color.r;

@@ -46,11 +46,16 @@ impl PersistentStorage for Fs {
 
         match mode {
             OpenMode::Read => fs::OpenOptions::new().read(true).open(path),
-            OpenMode::Write => fs::OpenOptions::new().write(true).create(true).open(path),
+            OpenMode::Write => fs::OpenOptions::new()
+                .write(true)
+                .truncate(false)
+                .create(true)
+                .open(path),
             OpenMode::ReadWrite => fs::OpenOptions::new()
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(key),
         }
     }

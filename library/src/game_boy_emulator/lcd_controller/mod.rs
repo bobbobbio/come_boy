@@ -541,7 +541,7 @@ impl<'a> LcdDotData<'a> {
         palette: &GameBoyFlags<LcdColor>,
     ) {
         assert!(ly >= y && ly < y + CHARACTER_SIZE);
-        assert!(ly < SCREEN_HEIGHT, "{}", "drawing ly = {ly}");
+        assert!(ly < SCREEN_HEIGHT, "drawing ly = {ly}");
 
         let target_line = if vertical_flip {
             y + CHARACTER_SIZE - 1 - ly
@@ -955,7 +955,7 @@ impl LcdController {
         time: u64,
     ) {
         let ly = self.registers.ly.read_value();
-        assert!((ly as i32) < SCREEN_HEIGHT, "{}", "drawing ly = {ly}");
+        assert!((ly as i32) < SCREEN_HEIGHT, "drawing ly = {ly}");
         assert!(self.enabled);
 
         self.character_data.borrow();
