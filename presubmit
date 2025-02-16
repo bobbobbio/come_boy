@@ -25,4 +25,4 @@ mkdir -p target/web_build
 
 ./pico/build.sh
 
-cargo clippy -- --deny "warnings"
+cargo clippy --all-targets -- --deny "warnings"
