@@ -646,7 +646,7 @@ pub struct GameBoyOps<Renderer, SoundStream, Storage: PersistentStorage> {
 pub type NullGameBoyOps = GameBoyOps<NullRenderer, NullSoundStream, PanicStorage>;
 
 impl NullGameBoyOps {
-    fn null() -> Self {
+    pub fn null() -> Self {
         Self::new(NullRenderer, NullSoundStream, PanicStorage)
     }
 }
@@ -727,7 +727,7 @@ impl Bridge {
 
 #[derive(Serialize, Deserialize)]
 pub struct GameBoyEmulator {
-    cpu: LR35902Emulator,
+    pub cpu: LR35902Emulator,
     bridge: Bridge,
     dma_transfer: Option<OamDmaTransfer>,
     joypad_key_events: Vec<KeyEvent>,
@@ -1228,6 +1228,3 @@ fn initial_state_test() {
 
 #[cfg(test)]
 mod tests;
-
-#[cfg(test)]
-mod bench;

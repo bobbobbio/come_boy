@@ -54,6 +54,7 @@ strum_macros = { version = "*" }
 
 [dev-dependencies]
 tempfile = "*"
+criterion = { version = "0.3", features = ["html_reports"] }
 
 [build-dependencies]
 heck = "*"
@@ -70,3 +71,7 @@ features = ["full"]
 [lints.clippy]
 precedence = "allow"
 needless_lifetimes = "allow"
+
+[[bench]]
+name = "bench"
+harness = false
