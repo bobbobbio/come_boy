@@ -42,7 +42,7 @@ fn calculate_parity(value: u8) -> bool {
      * number of ones is even.  The 8080 represents odd parity as 0 (or false)
      * and even parity as 1 (or true).
      */
-    value.count_ones() % 2 == 0
+    value.count_ones().is_multiple_of(2)
 }
 
 #[test]

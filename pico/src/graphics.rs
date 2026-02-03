@@ -43,7 +43,7 @@ impl ScreenBuffer {
         let layout =
             core::alloc::Layout::from_size_align(mem::size_of::<ScreenBuffer>(), 4).unwrap();
         let ptr = unsafe { crate::ALLOCATOR.alloc(layout) } as *mut Self;
-        assert!(ptr as u64 % 4 == 0);
+        assert!((ptr as u64).is_multiple_of(4));
         let s = unsafe { &mut *ptr };
         for i in 0..SCREEN_BUFFER_SIZE {
             s.0[i] = color.0;

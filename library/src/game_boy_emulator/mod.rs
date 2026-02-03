@@ -73,7 +73,7 @@ impl ModuloCounter {
 
     fn incr(&mut self) -> bool {
         self.counter = self.counter.wrapping_add(1);
-        self.counter % self.every == 0
+        self.counter.is_multiple_of(self.every)
     }
 }
 
@@ -853,7 +853,7 @@ impl GameBoyEmulator {
 
         for event in ops.renderer.poll_events() {
             match event {
-                Event::Quit { .. } => {
+                Event::Quit => {
                     return Err(UserControl::ScreenClosed);
                 }
                 Event::KeyDown(Keycode::F2) => {

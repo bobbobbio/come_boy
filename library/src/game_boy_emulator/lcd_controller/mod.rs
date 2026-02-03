@@ -26,22 +26,22 @@
 //!
 //! - LCD: Liquid Crystal Display; This is the type of display in the Game Boy.
 //! - Background: This is layer displayed on the screen consisting of an 2D array of tiles. It can
-//!               be scrolled using SCX and SCY registers.
+//!   be scrolled using SCX and SCY registers.
 //! - Objects: These are sprites. It consists of 1 or 2 tiles (character data) and can be
-//!            independently placed on the screen.
+//!   independently placed on the screen.
 //! - Window: This is another layer displayed on the screen usually in front the background and
-//!           sprites. It can be scrolled independently of the background.
+//!   sprites. It can be scrolled independently of the background.
 //! - Dot Data: This is just an ordered (by position) array of dots (pixels). Basically a kind of
-//!             bitmap. It describes the color (palette entry) of each pixel.
+//!   bitmap. It describes the color (palette entry) of each pixel.
 //! - Character Data: This is an 8x8 tile used for drawing sprites. It is represented as dot data.
 //! - OAM: Object Attribute Memory; This chunk of memory contains information about objects
-//!        (sprites) like position etc.
+//!   (sprites) like position etc.
 //! - Background Display Data: This chunk of memory contains tiles for the background and window.
-//!                            The tiles are represented as dot data.
+//!   The tiles are represented as dot data.
 //! - Horizontal Blanking Period: A period of time between when two lines of the screen are being
-//!                               drawn.
+//!   drawn.
 //! - Vertical Blanking Period: A period of time between when the last line of the screen is drawn
-//!                             and the first line of the screen is drawn.
+//!   and the first line of the screen is drawn.
 //!
 
 use crate::game_boy_emulator::memory_controller::{

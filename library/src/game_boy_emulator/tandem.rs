@@ -341,6 +341,7 @@ struct EmulatorReplayer<R: Read> {
 impl<T: Read> EmulatorReplayer<T> {
     fn new(read: T) -> EmulatorReplayer<T> {
         let mut er = EmulatorReplayer {
+            #[allow(clippy::unbuffered_bytes)]
             bytes: read.bytes(),
             state: None,
             memory: [0u8; 0x10000],

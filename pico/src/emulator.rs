@@ -55,7 +55,7 @@ impl Emulator {
     }
 
     fn sample(&self) -> bool {
-        self.ticks % 10_000 == 0
+        self.ticks.is_multiple_of(10_000)
     }
 
     fn tick(&mut self) {

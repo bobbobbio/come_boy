@@ -104,10 +104,9 @@ impl<'a> Debugger<'a> {
     }
 
     fn check_for_watchpoint(&mut self) -> bool {
-        if self.watchpoint.is_some() {
+        if let Some(address) = self.watchpoint {
             let mut instruction = SimulatedInstruction::new();
             self.emulator.simulate_next(&mut instruction);
-            let address = self.watchpoint.unwrap();
             if instruction.memory_changed.contains(&address) {
                 writeln!(self.out, "Hit watchpoint").unwrap();
                 return false;

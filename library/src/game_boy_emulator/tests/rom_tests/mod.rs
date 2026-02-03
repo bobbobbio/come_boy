@@ -62,8 +62,8 @@ fn diff_bmp<P1: AsRef<std::path::Path>, P2: AsRef<std::path::Path>>(
     path1: P1,
     path2: P2,
 ) -> Result<bool> {
-    let image1 = bmp::open(path1).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
-    let image2 = bmp::open(path2).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+    let image1 = bmp::open(path1).map_err(io::Error::other)?;
+    let image2 = bmp::open(path2).map_err(io::Error::other)?;
 
     Ok(image1 != image2)
 }
