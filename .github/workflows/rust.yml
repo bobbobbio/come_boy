@@ -16,6 +16,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    - uses: Swatinem/rust-cache@v2
     - name: Install cargo-binstall
       uses: cargo-bins/cargo-binstall@main
     - name: prebuild
