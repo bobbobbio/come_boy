@@ -1,3 +1,4 @@
+#![allow(unused_imports)]
 use super::{do_rom_test, do_save_state_rom_test};
 use crate::game_boy_emulator::Result;
 #[test]
