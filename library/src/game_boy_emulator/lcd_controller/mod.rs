@@ -691,7 +691,7 @@ impl LcdController {
         data: &MemoryChunk,
         character_data_selection: bool,
         character_code: u8,
-    ) -> LcdDotData {
+    ) -> LcdDotData<'_> {
         let location = if character_data_selection {
             CHARACTER_DATA_1.start as usize + character_code as usize * 16
         } else {
