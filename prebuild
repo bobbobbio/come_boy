@@ -16,16 +16,16 @@ library/download_test_roms
 
 if ! which wasm-bindgen; then
     if which cargo-binstall; then
-        cargo binstall wasm-bindgen-cli
+        cargo binstall --force wasm-bindgen-cli
     else
-        cargo install wasm-bindgen-cli
+        cargo install --force wasm-bindgen-cli
     fi
 fi
 
 if ! which wasm-opt; then
     if which cargo-binstall; then
-        cargo binstall wasm-opt
+        cargo binstall --force wasm-opt
     else
-        cargo install wasm-opt
+        cargo install --force wasm-opt
     fi
 fi
