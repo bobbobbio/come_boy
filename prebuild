@@ -15,9 +15,17 @@ sudo apt-get install --yes \
 library/download_test_roms
 
 if ! which wasm-bindgen; then
-    cargo install wasm-bindgen-cli
+    if which cargo-binstall; then
+        cargo binstall wasm-bindgen-cli
+    elif
+        cargo install wasm-bindgen-cli
+    fi
 fi
 
 if ! which wasm-opt; then
-    cargo install wasm-opt
+    if which cargo-binstall; then
+        cargo binstall wasm-opt
+    elif
+        cargo install wasm-opt
+    fi
 fi
