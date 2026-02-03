@@ -1,4 +1,4 @@
 [toolchain]
 channel = "1.93.0"
 components = ["clippy", "rustfmt", "rust-analyzer"]
-targets = ["thumbv7em-none-eabihf"]
+targets = ["thumbv7em-none-eabihf", "wasm32-unknown-unknown"]
