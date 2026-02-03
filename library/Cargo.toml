@@ -54,7 +54,7 @@ strum_macros = { version = "0.26.4" }
 
 [dev-dependencies]
 tempfile = "3.15"
-criterion = { version = "0.3.6", features = ["html_reports"] }
+criterion = { version = "0.5.0", features = ["html_reports"] }
 
 [build-dependencies]
 heck = "0.5.0"
