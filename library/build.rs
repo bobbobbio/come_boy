@@ -1417,6 +1417,7 @@ fn generate_rom_tests(rom_dir: &str, expectations_dir: &str, module: &str) {
     let mut out = File::create(&output_file).unwrap();
     let mut tokens = TokenStream::new();
     tokens.extend(quote! {
+        #![allow(unused_imports)]
         use crate::game_boy_emulator::Result;
         use super::{do_rom_test, do_save_state_rom_test};
     });
