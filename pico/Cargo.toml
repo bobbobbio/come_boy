@@ -1,9 +1,11 @@
 [package]
 name = "come_boy_pico"
-version = "0.1.0"
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
 build = "build.rs"
-authors = ["Remi Bernotavicius <remi@abort.cc>"]
-edition = "2021"
 
 [lib]
 crate-type = ["staticlib"]

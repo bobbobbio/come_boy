@@ -20,3 +20,10 @@ members = [
     "pico",
     "web",
 ]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Remi Bernotavicius <remi@.abort.cc>"]
+repository = "https://github.com/bobbobbio/come_boy"
+homepage = "https://github.com/bobbobbio/come_boy"

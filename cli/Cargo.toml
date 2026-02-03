@@ -1,10 +1,10 @@
 [package]
 name = "come_boy_cli"
-version = "0.1.0"
-authors = ["Remi Bernotavicius <remi@.abort.cc>"]
-edition = "2021"
-repository = "https://github.com/bobbobbio/come_boy"
-homepage = "https://github.com/bobbobbio/come_boy"
+authors = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
 
 [features]
 default = ["eframe-renderer", "sound"]
