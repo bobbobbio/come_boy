@@ -23,4 +23,4 @@ jobs:
     - name: pico rom symlink
       run: ln -f -s ../library/blargg_test_roms/cpu_instrs/cpu_instrs.gb pico/rom.bin
     - name: presubmit
-      run: ./presubmit
+      run: SKIP_GIT_CHECK=1 ./presubmit

@@ -5,11 +5,13 @@ set -ex
 # Download the test roms
 $( dirname $0 )/library/download_test_roms
 
-CHANGES=$( git diff )
-if [ "$CHANGES" != "" ]; then
-    echo "Untracked Changes"
-    exit 1;
-fi;
+if [ -z $SKIP_GIT_CHECK ]; then
+    CHANGES=$( git diff )
+    if [ "$CHANGES" != "" ]; then
+        echo "Untracked Changes"
+        exit 1;
+    fi
+fi
 
 cargo build --all-features
 cargo build
