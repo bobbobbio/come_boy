@@ -1026,7 +1026,7 @@ dependencies = [
  "serde_json",
  "speedy2d",
  "strum_macros",
- "syn 2.0.96",
+ "syn 1.0.109",
  "tempfile",
 ]
 
