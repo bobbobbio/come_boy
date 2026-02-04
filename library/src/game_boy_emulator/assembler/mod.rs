@@ -232,7 +232,13 @@ where
     optional(spaces()).with(many(AssemblyLine::parser().skip(spaces())))
 }
 
-pub fn assemble(input: &str) -> Result<Vec<u8>> {
+#[derive(Debug)]
+pub struct AssembledRom {
+    pub bin: Vec<u8>,
+    pub labels: BTreeMap<String, u16>,
+}
+
+pub fn assemble(input: &str) -> Result<AssembledRom> {
     let (program, _) = program_parser()
         .skip(eof())
         .easy_parse(position::Stream::new(input))?;
@@ -265,7 +271,10 @@ pub fn assemble(input: &str) -> Result<Vec<u8>> {
             }
         }
     }
-    Ok(assembled)
+    Ok(AssembledRom {
+        bin: assembled,
+        labels: label_table.0,
+    })
 }
 
 #[cfg(test)]
@@ -275,7 +284,7 @@ fn assert_binary(bin: &[u8], offset: usize, expected: &[u8]) {
 
 #[test]
 fn small_loop() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$036C]
     .loop
@@ -287,7 +296,7 @@ fn small_loop() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x036C, &[
+    assert_binary(&rom.bin, 0x036C, &[
         0xf0, 0x85,
         0xa7,
         0x28, 0xfb,
@@ -296,7 +305,7 @@ fn small_loop() {
 
 #[test]
 fn sample1() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$0166]
         ld   a,e
@@ -324,7 +333,7 @@ fn sample1() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x0166, &[
+    assert_binary(&rom.bin, 0x0166, &[
         0x7b,
         0x86,
         0x27,
@@ -350,7 +359,7 @@ fn sample1() {
 
 #[test]
 fn sample2() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$025a]
         ld   a,[$C0CE]
@@ -384,7 +393,7 @@ fn sample2() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x025a, &[
+    assert_binary(&rom.bin, 0x025a, &[
         0xfa, 0xce, 0xc0,
         0xa7,
         0x28, 0x1a,
@@ -416,7 +425,7 @@ fn sample2() {
 
 #[test]
 fn sample3() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$3085]
     ldh  [$FFE1],a
@@ -436,7 +445,7 @@ fn sample3() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x3085, &[
+    assert_binary(&rom.bin, 0x3085, &[
         0xe0, 0xe1,
         0xff,
         0x21, 0x32, 0xde,
@@ -454,7 +463,7 @@ fn sample3() {
 
 #[test]
 fn sample4() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$0383]
         dec  e
@@ -491,7 +500,7 @@ fn sample4() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x0383, &[
+    assert_binary(&rom.bin, 0x0383, &[
         0x1d,
         0x81,
         0x1d,
@@ -526,7 +535,7 @@ fn sample4() {
 
 #[test]
 fn sample5() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$6894]
         add  b
@@ -552,7 +561,7 @@ fn sample5() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x6894, &[
+    assert_binary(&rom.bin, 0x6894, &[
         0x80,
         0x80,
         0x20, 0x9d,
@@ -576,7 +585,7 @@ fn sample5() {
 
 #[test]
 fn sample6() {
-    let bin = assemble(
+    let rom = assemble(
         "
     SECTION test,ROM0[$2b3c]
         cp   a,$FE
@@ -593,7 +602,7 @@ fn sample6() {
     .unwrap();
 
     #[rustfmt::skip]
-    assert_binary(&bin, 0x2b3c, &[
+    assert_binary(&rom.bin, 0x2b3c, &[
         0xfe, 0xfe,
         0x28, 0xf8,
         0xe0, 0x89,
