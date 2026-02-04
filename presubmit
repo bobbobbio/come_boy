@@ -22,6 +22,8 @@ popd
 
 cargo test --release
 
+cargo bench
+
 mkdir -p target/web_build
 ./web/build.py target/web_build
 
