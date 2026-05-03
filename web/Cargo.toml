@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 aggressive-inline = ["come_boy/aggressive-inline"]
 
 [dependencies]
-eframe = { version = "0.34.1", features = ["glow"] }
+eframe = { version = "0.34.1", default-features = false, features = ["glow"] }
 egui = "0.34.1"
 egui_glow = "0.34.1"
 base64 = "0.22.0"
