@@ -317,14 +317,10 @@ impl SoundController {
     }
 
     pub(crate) fn schedule_initial_events(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
-        // Completely disabled sound controller, it is not functioning correctly and is causing
-        // problems on picosystem
-        if false {
-            self.channel1
-                .channel
-                .schedule_initial_events(scheduler, now);
-            scheduler.schedule(now, SoundControllerEvent::MixerTick);
-        }
+        self.channel1
+            .channel
+            .schedule_initial_events(scheduler, now);
+        scheduler.schedule(now, SoundControllerEvent::MixerTick);
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
