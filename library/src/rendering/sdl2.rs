@@ -6,19 +6,19 @@ use alloc::{vec, vec::Vec};
 
 impl From<sdl2::keyboard::Keycode> for Keycode {
     fn from(keycode: sdl2::keyboard::Keycode) -> Self {
-        use sdl2::keyboard::Keycode::*;
+        use sdl2::keyboard::Keycode;
         match keycode {
-            Down => Self::Down,
-            Left => Self::Left,
-            Return => Self::Return,
-            Right => Self::Right,
-            Tab => Self::Tab,
-            Up => Self::Up,
-            X => Self::X,
-            Z => Self::Z,
-            F2 => Self::F2,
-            F3 => Self::F3,
-            F4 => Self::F4,
+            Keycode::DOWN => Self::Down,
+            Keycode::LEFT => Self::Left,
+            Keycode::RETURN => Self::Return,
+            Keycode::RIGHT => Self::Right,
+            Keycode::TAB => Self::Tab,
+            Keycode::UP => Self::Up,
+            Keycode::X => Self::X,
+            Keycode::Z => Self::Z,
+            Keycode::F2 => Self::F2,
+            Keycode::F3 => Self::F3,
+            Keycode::F4 => Self::F4,
             _ => Self::Unknown,
         }
     }
