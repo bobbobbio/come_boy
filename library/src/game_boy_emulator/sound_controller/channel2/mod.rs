@@ -27,6 +27,10 @@ impl Channel for Channel2 {
     fn disable(&mut self) {
         self.enabled = false;
     }
+
+    fn enable(&mut self) {
+        self.enabled = true;
+    }
 }
 
 impl MemoryMappedHardware for Channel2 {

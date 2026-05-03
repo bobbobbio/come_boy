@@ -52,4 +52,6 @@ impl Channel4 {
     }
 
     pub fn disable(&mut self) {}
+
+    pub fn enable(&mut self) {}
 }

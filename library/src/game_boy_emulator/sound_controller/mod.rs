@@ -28,6 +28,7 @@ trait Channel: MemoryMappedHardware {
     fn restart(&mut self, freq: &mut Frequency);
     fn enabled(&self) -> bool;
     fn disable(&mut self);
+    fn enable(&mut self);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
@@ -109,6 +110,10 @@ impl<C: Channel> ChannelController<C> {
 
     fn disable(&mut self) {
         self.channel.disable()
+    }
+
+    fn enable(&mut self) {
+        self.channel.enable();
     }
 
     fn write_high_byte(&mut self, value: u8) {
@@ -239,9 +244,11 @@ impl FlagMask for SoundEnable {
     }
 }
 
+const NR52_ADDR: u16 = 0xFF26;
+
 impl MemoryMappedHardware for SoundController {
     fn read_value(&self, address: u16) -> u8 {
-        if address == 0xFF26 {
+        if address == NR52_ADDR {
             self.read_enable_value()
         } else {
             self.read_memory(address)
@@ -249,7 +256,7 @@ impl MemoryMappedHardware for SoundController {
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        if address == 0xFF2 {
+        if address == NR52_ADDR {
             self.set_enable_value(value);
         } else {
             self.set_memory(address, value);
@@ -273,9 +280,20 @@ impl SoundController {
     fn set_enable_value(&mut self, value: u8) {
         let mut written = GameBoyFlags::<SoundEnable>::new();
         MemoryMappedHardware::set_value(&mut written, 0, value);
+
         if written.read_flag(SoundEnable::All) {
+            self.enable();
+        } else {
             self.disable();
         }
+    }
+
+    fn enable(&mut self) {
+        self.enabled = true;
+        self.channel1.enable();
+        self.channel2.enable();
+        self.channel3.enable();
+        self.channel4.enable();
     }
 
     fn disable(&mut self) {
