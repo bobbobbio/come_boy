@@ -170,15 +170,15 @@ mod eframe {
     }
 
     impl eframe::App for App {
-        fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
             egui::CentralPanel::default()
                 .frame(egui::Frame::canvas(&Default::default()))
-                .show(ctx, |ui| {
+                .show_inside(ui, |ui| {
                     self.render_game_screen(ui);
                 });
 
             // Approximately 60fps
-            ctx.request_repaint_after(Duration::from_millis(17));
+            ui.ctx().request_repaint_after(Duration::from_millis(17));
         }
     }
 
@@ -195,8 +195,12 @@ mod eframe {
                 egui::Vec2::new((width * pixel_size) as f32, (height * pixel_size) as f32);
 
             let native_options = eframe::NativeOptions {
-                initial_window_size: Some(window_vec),
-                max_window_size: Some(window_vec),
+                viewport: egui::ViewportBuilder {
+                    inner_size: Some(window_vec),
+                    max_inner_size: Some(window_vec),
+                    ..Default::default()
+                },
+                renderer: eframe::Renderer::Glow,
                 ..Default::default()
             };
 
@@ -213,10 +217,10 @@ mod eframe {
                     native_options,
                     Box::new(move |cc| {
                         let ctx = cc.egui_ctx.clone();
-                        let gl = cc.gl.as_ref().unwrap();
+                        let gl = cc.gl.as_ref().expect("should be using glow backend");
                         let (front_renderer, back_renderer) = render_pair(ctx, gl);
                         sender.send(back_renderer).unwrap();
-                        Box::new(App::new(front_renderer, window_vec))
+                        Ok(Box::new(App::new(front_renderer, window_vec)))
                     }),
                 )
                 .unwrap();

@@ -297,7 +297,7 @@ impl GlowFrontRenderer {
                     0,
                     glow::RGBA,
                     glow::UNSIGNED_BYTE,
-                    Some(&buffer.data[..]),
+                    glow::PixelUnpackData::Slice(Some(&buffer.data[..])),
                 );
                 buffer.dirty = false;
             }

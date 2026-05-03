@@ -46,7 +46,7 @@ fn as_rgb(
 }
 
 pub fn render_main_gui(ui: &mut egui::Ui, emulator: &mut impl EmulatorUiHandler) {
-    egui::TopBottomPanel::top("options").show_inside(ui, |ui| {
+    egui::Panel::top("options").show_inside(ui, |ui| {
         ui.horizontal(|ui| {
             if ui.button("Load ROM").clicked() {
                 emulator.load_rom_from_dialog();
@@ -78,7 +78,7 @@ pub fn render_main_gui(ui: &mut egui::Ui, emulator: &mut impl EmulatorUiHandler)
         });
     });
 
-    egui::TopBottomPanel::bottom("information").show_inside(ui, |ui| {
+    egui::Panel::bottom("information").show_inside(ui, |ui| {
         ui.add(Hyperlink::from_label_and_url(
             "come_boy on github",
             GITHUB_URL,

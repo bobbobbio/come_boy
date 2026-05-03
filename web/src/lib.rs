@@ -16,6 +16,16 @@ fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
 
+#[allow(dead_code)]
+fn canvas() -> web_sys::HtmlCanvasElement {
+    let document = window().document().unwrap();
+    let canvas = document.get_element_by_id("canvas").unwrap();
+    canvas
+        .dyn_into::<web_sys::HtmlCanvasElement>()
+        .map_err(|_| ())
+        .unwrap()
+}
+
 #[derive(Clone)]
 struct EmulatorRef(Rc<RefCell<Emulator>>);
 
@@ -169,11 +179,11 @@ impl come_boy::ui::EmulatorUiHandler for BorrowedEmulator<'_> {
 }
 
 impl eframe::App for MyEguiApp {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::right("sidebar").show(ctx, |ui| {
+    fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {
+        egui::Panel::right("sidebar").show_inside(ui, |ui| {
             come_boy::ui::render_main_gui(ui, &mut self.emulator.borrow_mut())
         });
-        egui::CentralPanel::default().show(ctx, |ui| {
+        egui::CentralPanel::default().show_inside(ui, |ui| {
             egui::Frame::canvas(ui.style()).show(ui, |ui| {
                 self.render_game_screen(ui);
             });
@@ -193,9 +203,9 @@ pub async fn start() -> Result<(), wasm_bindgen::JsValue> {
         let web_options = eframe::WebOptions::default();
         runner
             .start(
-                "canvas",
+                canvas(),
                 web_options,
-                Box::new(|cc| Box::new(MyEguiApp::new(cc))),
+                Box::new(|cc| Ok(Box::new(MyEguiApp::new(cc)))),
             )
             .await?;
     }
