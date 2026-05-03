@@ -49,7 +49,7 @@ num_enum = { version = "0.7.3", default-features = false }
 sdl2 = { version = "0.32.2", optional = true }
 serde = { version = "1", default-features = false, features = ["alloc"] }
 serde_derive = "1"
-speedy2d = { version = "2", optional = true }
+speedy2d = { version = "3", optional = true }
 strum_macros = { version = "0.26.4" }
 
 [dev-dependencies]
