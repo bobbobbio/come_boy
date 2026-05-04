@@ -264,6 +264,12 @@ impl MemoryMappedHardware for SoundController {
     }
 }
 
+/// The maximum value the volume envelope goes to.
+const MAX_VOLUME: u8 = 15;
+
+/// The number of samples in the channel waveforms.
+const WAVEFORM_SAMPLES: usize = 8;
+
 impl SoundController {
     fn read_enable_value(&self) -> u8 {
         let mut enabled = GameBoyFlags::<SoundEnable>::new();
@@ -366,13 +372,18 @@ impl SoundController {
     ) {
         let sample_rate_hz = sound_stream.sample_rate();
         let num_channels = sound_stream.channels() as usize;
+
+        // The period the emulator hardware samples audio at in clock ticks. The audio hardware
+        // clocks at exactly 1/4 the normal speed.
         let period = (2048 - self.channel1.freq.read_value() as u32) * 4;
+
+        // The period of time this sample has to fill in the audio hardware.
         let elong = (((sample_rate_hz * period) as usize) * num_channels)
             / default_clock_speed_hz() as usize;
 
-        let volume = self.channel1.channel.volume as f32 / 15.0;
+        let volume = self.channel1.channel.volume as f32 / MAX_VOLUME as f32;
         let waveform = self.channel1.channel.waveform();
-        self.mixer_buffer.0.resize(8 * elong, 0.0);
+        self.mixer_buffer.0.resize(WAVEFORM_SAMPLES * elong, 0.0);
         for (i, item) in self.mixer_buffer.0.iter_mut().enumerate() {
             *item = ((waveform >> (i / elong)) & 0x1) as f32 * volume;
         }

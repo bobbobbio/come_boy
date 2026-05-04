@@ -1,6 +1,6 @@
 // Copyright 2021 Remi Bernotavicius
 
-use super::{Channel, Frequency};
+use super::{Channel, Frequency, MAX_VOLUME};
 use crate::game_boy_emulator::memory_controller::{
     FlagMask, GameBoyFlags, MemoryAccessor, MemoryMappedHardware,
 };
@@ -311,7 +311,7 @@ impl Channel1 {
 
                 let direction = self.volume_envelope.read_flag(VolumeEnvelopeFlag::EnvDir);
                 if direction {
-                    if self.volume > 15 {
+                    if self.volume > MAX_VOLUME {
                         self.volume -= 1;
                     }
                 } else {
