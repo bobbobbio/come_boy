@@ -16,17 +16,17 @@ mod memory_map_mut;
 #[repr(u8)]
 pub enum SweepFlag {
     Time = 0b01110000,
-    IncreaseOrDecrease = 0b00001000,
+    Direction = 0b00001000,
     Shift = 0b00000111,
 }
 
 impl FlagMask for SweepFlag {
     fn read_mask() -> u8 {
-        Self::Time as u8 | Self::IncreaseOrDecrease as u8 | Self::Shift as u8
+        Self::Time as u8 | Self::Direction as u8 | Self::Shift as u8
     }
 
     fn write_mask() -> u8 {
-        Self::Time as u8 | Self::IncreaseOrDecrease as u8 | Self::Shift as u8
+        Self::Time as u8 | Self::Direction as u8 | Self::Shift as u8
     }
 }
 
@@ -86,7 +86,7 @@ impl Sweep {
     }
 
     fn decrease(&self) -> bool {
-        self.value.read_flag(SweepFlag::IncreaseOrDecrease)
+        self.value.read_flag(SweepFlag::Direction)
     }
 
     fn restart(&mut self, freq: &mut Frequency, channel_enabled: &mut bool) {
@@ -246,17 +246,17 @@ impl MemoryMappedHardware for LengthAndWave {
 #[repr(u8)]
 pub(crate) enum VolumeEnvelopeFlag {
     InitialVolume = 0b11110000,
-    EnvDir = 0b00001000,
+    Direction = 0b00001000,
     SweepPace = 0b00000111,
 }
 
 impl FlagMask for VolumeEnvelopeFlag {
     fn read_mask() -> u8 {
-        Self::InitialVolume as u8 | Self::EnvDir as u8 | Self::SweepPace as u8
+        Self::InitialVolume as u8 | Self::Direction as u8 | Self::SweepPace as u8
     }
 
     fn write_mask() -> u8 {
-        Self::InitialVolume as u8 | Self::EnvDir as u8 | Self::SweepPace as u8
+        Self::InitialVolume as u8 | Self::Direction as u8 | Self::SweepPace as u8
     }
 }
 
@@ -309,7 +309,9 @@ impl Channel1 {
             if self.volume_envelope_timer == 0 {
                 self.volume_envelope_timer = period;
 
-                let direction = self.volume_envelope.read_flag(VolumeEnvelopeFlag::EnvDir);
+                let direction = self
+                    .volume_envelope
+                    .read_flag(VolumeEnvelopeFlag::Direction);
                 if direction {
                     if self.volume < MAX_VOLUME {
                         self.volume += 1;
