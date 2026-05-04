@@ -2,7 +2,7 @@
 
 use super::{Channel, Frequency};
 use crate::game_boy_emulator::memory_controller::{
-    FlagMask, GameBoyFlags, GameBoyRegister, MemoryAccessor, MemoryMappedHardware,
+    FlagMask, GameBoyFlags, MemoryAccessor, MemoryMappedHardware,
 };
 use crate::game_boy_emulator::{default_clock_speed_hz, GameBoyScheduler};
 use crate::util::TwosComplement;
@@ -159,6 +159,7 @@ pub enum Channel1Event {
     FrequencyTick,
     SweepTick,
     LengthTick,
+    VolumeEnvelopeTick,
 }
 
 impl Channel1Event {
@@ -175,6 +176,7 @@ impl Channel1Event {
             Channel1Event::FrequencyTick => channel.freq_tick(freq, scheduler, time),
             Channel1Event::SweepTick => channel.sweep_tick(freq, scheduler, time),
             Channel1Event::LengthTick => channel.length_tick(using_length, scheduler, time),
+            Channel1Event::VolumeEnvelopeTick => channel.volume_envelope_tick(scheduler, time),
         }
     }
 }
@@ -240,12 +242,32 @@ impl MemoryMappedHardware for LengthAndWave {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive, IntoEnumIterator)]
+#[repr(u8)]
+pub(crate) enum VolumeEnvelopeFlag {
+    InitialVolume = 0b11110000,
+    EnvDir = 0b00001000,
+    SweepPace = 0b00000111,
+}
+
+impl FlagMask for VolumeEnvelopeFlag {
+    fn read_mask() -> u8 {
+        Self::InitialVolume as u8 | Self::EnvDir as u8 | Self::SweepPace as u8
+    }
+
+    fn write_mask() -> u8 {
+        Self::InitialVolume as u8 | Self::EnvDir as u8 | Self::SweepPace as u8
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize)]
 pub struct Channel1 {
     pub sweep: Sweep,
     pub length_and_wave: LengthAndWave,
-    pub volume_envelope: GameBoyRegister,
+    pub volume_envelope: GameBoyFlags<VolumeEnvelopeFlag>,
     pub enabled: bool,
+    pub volume_envelope_timer: u8,
+    pub volume: u8,
 }
 
 impl Channel1 {
@@ -276,6 +298,32 @@ impl Channel1 {
         scheduler.schedule(now + period as u64, Channel1Event::LengthTick);
     }
 
+    #[cfg_attr(feature = "aggressive-inline", inline(always))]
+    fn volume_envelope_tick(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
+        let period = self
+            .volume_envelope
+            .read_flag_value(VolumeEnvelopeFlag::SweepPace);
+
+        if period > 0 {
+            self.volume_envelope_timer = self.volume_envelope_timer.saturating_sub(1);
+            if self.volume_envelope_timer == 0 {
+                self.volume_envelope_timer = period;
+
+                let direction = self.volume_envelope.read_flag(VolumeEnvelopeFlag::EnvDir);
+                if direction {
+                    if self.volume > 15 {
+                        self.volume -= 1;
+                    }
+                } else {
+                    self.volume = self.volume.saturating_sub(1);
+                }
+            }
+        }
+
+        let period_ticks = default_clock_speed_hz() / 64;
+        scheduler.schedule(now + period_ticks as u64, Channel1Event::VolumeEnvelopeTick);
+    }
+
     pub fn waveform(&self) -> u8 {
         if self.enabled {
             self.length_and_wave.waveform.waveform()
@@ -288,6 +336,7 @@ impl Channel1 {
         scheduler.schedule(now, Channel1Event::FrequencyTick);
         scheduler.schedule(now, Channel1Event::SweepTick);
         scheduler.schedule(now, Channel1Event::LengthTick);
+        scheduler.schedule(now, Channel1Event::VolumeEnvelopeTick);
     }
 }
 
@@ -298,6 +347,14 @@ impl Channel for Channel1 {
         self.enabled = true;
         self.sweep.restart(freq, &mut self.enabled);
         self.length_and_wave.restart();
+
+        self.volume = self
+            .volume_envelope
+            .read_flag_value(VolumeEnvelopeFlag::InitialVolume);
+        let period = self
+            .volume_envelope
+            .read_flag_value(VolumeEnvelopeFlag::SweepPace);
+        self.volume_envelope_timer = period;
     }
 
     fn enabled(&self) -> bool {

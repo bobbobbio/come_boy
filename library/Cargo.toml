@@ -26,7 +26,7 @@ egui-renderer = ["egui", "glow-renderer"]
 game-pad = ["gilrs"]
 glow-renderer = ["glow"]
 sdl2-renderer = ["sdl2"]
-sound = ["cpal"]
+sound = ["cpal", "ringbuf"]
 speedy2d-renderer = ["speedy2d", "crossbeam"]
 std = ["bincode", "combine"]
 ui = ["egui"]
@@ -51,6 +51,7 @@ serde = { version = "1", default-features = false, features = ["alloc"] }
 serde_derive = "1"
 speedy2d = { version = "3", optional = true }
 strum_macros = { version = "0.26.4" }
+ringbuf = { version = "0.5.0", optional = true }
 
 [dev-dependencies]
 tempfile = "3.15"

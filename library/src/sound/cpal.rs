@@ -1,51 +1,15 @@
 // Copyright 2021 Remi Bernotavicius
 
 use super::SoundStream;
-use alloc::{borrow::ToOwned, vec, vec::Vec};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::Stream;
-use std::sync::{Arc, Mutex};
-
-struct Sample {
-    data: Vec<f32>,
-    pos: usize,
-}
-
-impl Sample {
-    fn new() -> Self {
-        Self {
-            data: vec![],
-            pos: 0,
-        }
-    }
-
-    fn set(&mut self, data: &[f32]) {
-        self.data = data.to_owned();
-        self.pos = 0;
-    }
-
-    fn fill(&mut self, data_out: &mut [f32]) {
-        if self.data.is_empty() {
-            return;
-        }
-
-        let mut pos = 0;
-
-        while pos < data_out.len() {
-            let source = &self.data[self.pos..];
-            let sink = &mut data_out[pos..];
-
-            let end = std::cmp::min(source.len(), sink.len());
-            sink[..end].clone_from_slice(&source[..end]);
-
-            self.pos = (self.pos + end) % self.data.len();
-            pos += end;
-        }
-    }
-}
+use ringbuf::{
+    traits::{Consumer as _, Producer as _, Split},
+    HeapRb,
+};
 
 pub struct CpalSoundStream {
-    sample: Arc<Mutex<Sample>>,
+    producer: <HeapRb<f32> as Split>::Prod,
     _stream: Stream,
     sample_rate: u32,
     channels: u16,
@@ -65,10 +29,15 @@ impl CpalSoundStream {
         let sample_rate = config.sample_rate().0;
         let channels = config.channels();
 
-        let sample = Arc::new(Mutex::new(Sample::new()));
-        let their_sample = sample.clone();
+        // buffer size: enough for ~100ms of audio to absorb timing jitter
+        let buf_size = (sample_rate as usize * channels as usize) / 10;
+        let rb = HeapRb::<f32>::new(buf_size);
+        let (producer, mut consumer) = rb.split();
+
         let data_fn = move |data_out: &mut [f32], _: &cpal::OutputCallbackInfo| {
-            their_sample.lock().unwrap().fill(data_out);
+            for sample in data_out.iter_mut() {
+                *sample = consumer.try_pop().unwrap_or(0.0);
+            }
         };
         let error_fn = |err| log::error!("audio stream error: {}", err);
         let stream = device
@@ -77,7 +46,7 @@ impl CpalSoundStream {
         stream.play().unwrap();
 
         Self {
-            sample,
+            producer,
             _stream: stream,
             sample_rate,
             channels,
@@ -87,7 +56,9 @@ impl CpalSoundStream {
 
 impl SoundStream for CpalSoundStream {
     fn play_sample(&mut self, data: &[f32]) {
-        self.sample.lock().unwrap().set(data);
+        for &sample in data {
+            let _ = self.producer.try_push(sample);
+        }
     }
 
     fn sample_rate(&self) -> u32 {

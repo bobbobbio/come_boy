@@ -282,21 +282,37 @@ impl SoundController {
         MemoryMappedHardware::set_value(&mut written, 0, value);
 
         if written.read_flag(SoundEnable::All) {
-            self.enable();
+            self.enabled = true;
+
+            if written.read_flag(SoundEnable::Channel1) {
+                self.channel1.enable();
+            } else {
+                self.channel1.disable();
+            }
+
+            if written.read_flag(SoundEnable::Channel2) {
+                self.channel2.enable();
+            } else {
+                self.channel2.disable();
+            }
+
+            if written.read_flag(SoundEnable::Channel3) {
+                self.channel3.enable();
+            } else {
+                self.channel3.disable();
+            }
+
+            if written.read_flag(SoundEnable::Channel4) {
+                self.channel4.enable();
+            } else {
+                self.channel4.disable();
+            }
         } else {
-            self.disable();
+            self.disable_all();
         }
     }
 
-    fn enable(&mut self) {
-        self.enabled = true;
-        self.channel1.enable();
-        self.channel2.enable();
-        self.channel3.enable();
-        self.channel4.enable();
-    }
-
-    fn disable(&mut self) {
+    fn disable_all(&mut self) {
         self.enabled = false;
         self.channel1.disable();
         self.channel2.disable();
@@ -350,18 +366,17 @@ impl SoundController {
     ) {
         let sample_rate_hz = sound_stream.sample_rate();
         let num_channels = sound_stream.channels() as usize;
-        let freq_hz =
-            default_clock_speed_hz() / ((2048 - self.channel1.freq.read_value() as u32) * 32);
-        let elong = ((sample_rate_hz / freq_hz) as usize) * num_channels;
+        let period = (2048 - self.channel1.freq.read_value() as u32) * 4;
+        let elong = (((sample_rate_hz * period) as usize) * num_channels)
+            / default_clock_speed_hz() as usize;
 
+        let volume = self.channel1.channel.volume as f32 / 15.0;
         let waveform = self.channel1.channel.waveform();
         self.mixer_buffer.0.resize(8 * elong, 0.0);
         for (i, item) in self.mixer_buffer.0.iter_mut().enumerate() {
-            *item = ((waveform >> (i / elong)) & 0x1) as f32;
+            *item = ((waveform >> (i / elong)) & 0x1) as f32 * volume;
         }
         sound_stream.play_sample(&self.mixer_buffer.0[..]);
-
-        let period = default_clock_speed_hz() / freq_hz;
 
         scheduler.schedule(now + period as u64, SoundControllerEvent::MixerTick);
     }
