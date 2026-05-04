@@ -71,6 +71,8 @@ impl Channel for Channel3 {
     }
 
     fn disable(&mut self) {}
+
+    fn enable(&mut self) {}
 }
 
 impl MemoryMappedHardware for Channel3 {

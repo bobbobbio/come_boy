@@ -28,6 +28,7 @@ trait Channel: MemoryMappedHardware {
     fn restart(&mut self, freq: &mut Frequency);
     fn enabled(&self) -> bool;
     fn disable(&mut self);
+    fn enable(&mut self);
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
@@ -109,6 +110,10 @@ impl<C: Channel> ChannelController<C> {
 
     fn disable(&mut self) {
         self.channel.disable()
+    }
+
+    fn enable(&mut self) {
+        self.channel.enable();
     }
 
     fn write_high_byte(&mut self, value: u8) {
@@ -239,9 +244,11 @@ impl FlagMask for SoundEnable {
     }
 }
 
+const NR52_ADDR: u16 = 0xFF26;
+
 impl MemoryMappedHardware for SoundController {
     fn read_value(&self, address: u16) -> u8 {
-        if address == 0xFF26 {
+        if address == NR52_ADDR {
             self.read_enable_value()
         } else {
             self.read_memory(address)
@@ -249,13 +256,19 @@ impl MemoryMappedHardware for SoundController {
     }
 
     fn set_value(&mut self, address: u16, value: u8) {
-        if address == 0xFF2 {
+        if address == NR52_ADDR {
             self.set_enable_value(value);
         } else {
             self.set_memory(address, value);
         }
     }
 }
+
+/// The maximum value the volume envelope goes to.
+const MAX_VOLUME: u8 = 15;
+
+/// The number of samples in the channel waveforms.
+const WAVEFORM_SAMPLES: usize = 8;
 
 impl SoundController {
     fn read_enable_value(&self) -> u8 {
@@ -273,12 +286,39 @@ impl SoundController {
     fn set_enable_value(&mut self, value: u8) {
         let mut written = GameBoyFlags::<SoundEnable>::new();
         MemoryMappedHardware::set_value(&mut written, 0, value);
+
         if written.read_flag(SoundEnable::All) {
-            self.disable();
+            self.enabled = true;
+
+            if written.read_flag(SoundEnable::Channel1) {
+                self.channel1.enable();
+            } else {
+                self.channel1.disable();
+            }
+
+            if written.read_flag(SoundEnable::Channel2) {
+                self.channel2.enable();
+            } else {
+                self.channel2.disable();
+            }
+
+            if written.read_flag(SoundEnable::Channel3) {
+                self.channel3.enable();
+            } else {
+                self.channel3.disable();
+            }
+
+            if written.read_flag(SoundEnable::Channel4) {
+                self.channel4.enable();
+            } else {
+                self.channel4.disable();
+            }
+        } else {
+            self.disable_all();
         }
     }
 
-    fn disable(&mut self) {
+    fn disable_all(&mut self) {
         self.enabled = false;
         self.channel1.disable();
         self.channel2.disable();
@@ -317,14 +357,10 @@ impl SoundController {
     }
 
     pub(crate) fn schedule_initial_events(&mut self, scheduler: &mut GameBoyScheduler, now: u64) {
-        // Completely disabled sound controller, it is not functioning correctly and is causing
-        // problems on picosystem
-        if false {
-            self.channel1
-                .channel
-                .schedule_initial_events(scheduler, now);
-            scheduler.schedule(now, SoundControllerEvent::MixerTick);
-        }
+        self.channel1
+            .channel
+            .schedule_initial_events(scheduler, now);
+        scheduler.schedule(now, SoundControllerEvent::MixerTick);
     }
 
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
@@ -336,18 +372,22 @@ impl SoundController {
     ) {
         let sample_rate_hz = sound_stream.sample_rate();
         let num_channels = sound_stream.channels() as usize;
-        let freq_hz =
-            default_clock_speed_hz() / ((2048 - self.channel1.freq.read_value() as u32) * 32);
-        let elong = ((sample_rate_hz / freq_hz) as usize) * num_channels;
 
+        // The period the emulator hardware samples audio at in clock ticks. The audio hardware
+        // clocks at exactly 1/4 the normal speed.
+        let period = (2048 - self.channel1.freq.read_value() as u32) * 4;
+
+        // The period of time this sample has to fill in the audio hardware.
+        let elong = (((sample_rate_hz * period) as usize) * num_channels)
+            / default_clock_speed_hz() as usize;
+
+        let volume = self.channel1.channel.volume as f32 / MAX_VOLUME as f32;
         let waveform = self.channel1.channel.waveform();
-        self.mixer_buffer.0.resize(8 * elong, 0.0);
+        self.mixer_buffer.0.resize(WAVEFORM_SAMPLES * elong, 0.0);
         for (i, item) in self.mixer_buffer.0.iter_mut().enumerate() {
-            *item = ((waveform >> (i / elong)) & 0x1) as f32;
+            *item = (((waveform >> (i / elong)) & 0x1) as f32 * 2.0 - 1.0) * volume;
         }
         sound_stream.play_sample(&self.mixer_buffer.0[..]);
-
-        let period = default_clock_speed_hz() / freq_hz;
 
         scheduler.schedule(now + period as u64, SoundControllerEvent::MixerTick);
     }

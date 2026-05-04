@@ -5,7 +5,7 @@ use come_boy::game_boy_emulator::{
     SLEEP_INPUT_TICKS,
 };
 use come_boy::rendering::egui::EguiBackRenderer;
-use come_boy::sound::NullSoundStream;
+use come_boy::sound::cpal::CpalSoundStream;
 
 fn local_storage() -> web_sys::Storage {
     window()
@@ -55,14 +55,18 @@ impl Underclocker {
 
 pub struct Emulator {
     emulator: GameBoyEmulator,
-    ops: GameBoyOps<EguiBackRenderer, NullSoundStream, WebStorage>,
+    ops: GameBoyOps<EguiBackRenderer, CpalSoundStream, WebStorage>,
     underclocker: Underclocker,
 }
 
 impl Emulator {
     pub fn new(renderer: EguiBackRenderer) -> Self {
         let emulator = GameBoyEmulator::new();
-        let ops = GameBoyOps::new(renderer, NullSoundStream, WebStorage::new(local_storage()));
+        let ops = GameBoyOps::new(
+            renderer,
+            CpalSoundStream::new(),
+            WebStorage::new(local_storage()),
+        );
         let underclocker = Underclocker::new(emulator.elapsed_cycles(), ops.clock_speed_hz);
         Self {
             emulator,
