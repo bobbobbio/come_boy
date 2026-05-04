@@ -385,7 +385,7 @@ impl SoundController {
         let waveform = self.channel1.channel.waveform();
         self.mixer_buffer.0.resize(WAVEFORM_SAMPLES * elong, 0.0);
         for (i, item) in self.mixer_buffer.0.iter_mut().enumerate() {
-            *item = ((waveform >> (i / elong)) & 0x1) as f32 * volume;
+            *item = (((waveform >> (i / elong)) & 0x1) as f32 * 2.0 - 1.0) * volume;
         }
         sound_stream.play_sample(&self.mixer_buffer.0[..]);
 

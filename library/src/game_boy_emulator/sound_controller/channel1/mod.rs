@@ -311,8 +311,8 @@ impl Channel1 {
 
                 let direction = self.volume_envelope.read_flag(VolumeEnvelopeFlag::EnvDir);
                 if direction {
-                    if self.volume > MAX_VOLUME {
-                        self.volume -= 1;
+                    if self.volume < MAX_VOLUME {
+                        self.volume += 1;
                     }
                 } else {
                     self.volume = self.volume.saturating_sub(1);
