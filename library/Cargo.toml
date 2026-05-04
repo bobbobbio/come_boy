@@ -30,6 +30,7 @@ sound = ["cpal", "ringbuf"]
 speedy2d-renderer = ["speedy2d", "crossbeam"]
 std = ["bincode", "combine"]
 ui = ["egui"]
+web-sound = ["cpal/wasm-bindgen"]
 
 [badges]
 travis-ci = { repository = "bobbobbio/come_boy" }
