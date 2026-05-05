@@ -8,21 +8,21 @@ use ringbuf::{
     HeapRb,
 };
 
-pub struct CpalSoundStream {
+struct CpalSoundStreamInner {
     producer: <HeapRb<f32> as Split>::Prod,
     _stream: Stream,
     sample_rate: u32,
     channels: u16,
 }
 
-impl Default for CpalSoundStream {
+impl Default for CpalSoundStreamInner {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl CpalSoundStream {
-    pub fn new() -> Self {
+impl CpalSoundStreamInner {
+    fn new() -> Self {
         let host = cpal::default_host();
         let device = host.default_output_device().unwrap();
         let config = device.default_output_config().unwrap();
@@ -52,20 +52,46 @@ impl CpalSoundStream {
             channels,
         }
     }
-}
 
-impl SoundStream for CpalSoundStream {
     fn play_sample(&mut self, data: &[f32]) {
         for &sample in data {
             let _ = self.producer.try_push(sample);
         }
     }
+}
 
-    fn sample_rate(&self) -> u32 {
-        self.sample_rate
+#[derive(Default)]
+pub struct CpalSoundStream {
+    inner: Option<CpalSoundStreamInner>,
+}
+
+impl CpalSoundStream {
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    fn channels(&self) -> u16 {
-        self.channels
+    fn ensure_running(&mut self) -> &mut CpalSoundStreamInner {
+        if self.inner.is_none() {
+            self.inner = Some(CpalSoundStreamInner::new());
+        }
+
+        self.inner.as_mut().unwrap()
+    }
+}
+
+impl SoundStream for CpalSoundStream {
+    fn play_sample(&mut self, data: &[f32]) {
+        let inner = self.ensure_running();
+        inner.play_sample(data)
+    }
+
+    fn sample_rate(&mut self) -> u32 {
+        let inner = self.ensure_running();
+        inner.sample_rate
+    }
+
+    fn channels(&mut self) -> u16 {
+        let inner = self.ensure_running();
+        inner.channels
     }
 }
