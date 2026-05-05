@@ -57,6 +57,7 @@ pub struct Emulator {
     emulator: GameBoyEmulator,
     ops: GameBoyOps<EguiBackRenderer, CpalSoundStream, WebStorage>,
     underclocker: Underclocker,
+    running: bool,
 }
 
 impl Emulator {
@@ -72,6 +73,7 @@ impl Emulator {
             emulator,
             ops,
             underclocker,
+            running: false,
         }
     }
 
@@ -83,6 +85,7 @@ impl Emulator {
         self.ops.plug_in_joy_pad(ControllerJoyPad::new());
         self.underclocker =
             Underclocker::new(self.emulator.elapsed_cycles(), self.ops.clock_speed_hz);
+        self.running = true;
     }
 
     pub fn loaded_rom(&self) -> Option<&str> {
@@ -102,6 +105,10 @@ impl Emulator {
     }
 
     pub fn tick(&mut self) -> i32 {
+        if !self.running {
+            return 0;
+        }
+
         for _ in 0..SLEEP_INPUT_TICKS {
             self.emulator.tick(&mut self.ops);
         }
