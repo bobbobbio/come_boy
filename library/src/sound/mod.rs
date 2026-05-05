@@ -5,18 +5,18 @@ pub mod cpal;
 
 pub trait SoundStream {
     fn play_sample(&mut self, data: &[f32]);
-    fn sample_rate(&self) -> u32;
-    fn channels(&self) -> u16;
+    fn sample_rate(&mut self) -> u32;
+    fn channels(&mut self) -> u16;
 }
 
 pub struct NullSoundStream;
 
 impl SoundStream for NullSoundStream {
     fn play_sample(&mut self, _data: &[f32]) {}
-    fn channels(&self) -> u16 {
+    fn channels(&mut self) -> u16 {
         1
     }
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&mut self) -> u32 {
         13_1072
     }
 }
@@ -26,11 +26,11 @@ impl<T: SoundStream> SoundStream for &mut T {
         (**self).play_sample(data)
     }
 
-    fn channels(&self) -> u16 {
+    fn channels(&mut self) -> u16 {
         (**self).channels()
     }
 
-    fn sample_rate(&self) -> u32 {
+    fn sample_rate(&mut self) -> u32 {
         (**self).sample_rate()
     }
 }
