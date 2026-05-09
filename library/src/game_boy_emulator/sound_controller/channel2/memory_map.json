@@ -1,6 +1,6 @@
 {
     "0xFF16": {
-        "field": "sound_length",
+        "field": "length_and_wave",
         "mapping_type": "ReadWrite"
     },
     "0xFF17": {

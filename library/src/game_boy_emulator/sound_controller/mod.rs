@@ -167,11 +167,18 @@ impl<C: Channel> MemoryMappedHardware for ChannelController<C> {
 pub enum SoundControllerEvent {
     MixerTick,
     Channel1(channel1::Channel1Event),
+    Channel2(channel2::Channel2Event),
 }
 
 impl From<channel1::Channel1Event> for GameBoyEmulatorEvent {
     fn from(e: channel1::Channel1Event) -> Self {
         SoundControllerEvent::Channel1(e).into()
+    }
+}
+
+impl From<channel2::Channel2Event> for GameBoyEmulatorEvent {
+    fn from(e: channel2::Channel2Event) -> Self {
+        SoundControllerEvent::Channel2(e).into()
     }
 }
 
@@ -190,6 +197,13 @@ impl SoundControllerEvent {
                 &mut controller.channel1.channel,
                 &mut controller.channel1.freq,
                 controller.channel1.using_length,
+                scheduler,
+                time,
+            ),
+            SoundControllerEvent::Channel2(e) => e.deliver(
+                &mut controller.channel2.channel,
+                &mut controller.channel2.freq,
+                controller.channel2.using_length,
                 scheduler,
                 time,
             ),
@@ -333,7 +347,7 @@ impl SoundController {
         self.channel1.freq.set_value(0xBFFF);
         self.channel1.channel.enabled = true;
 
-        self.channel2.channel.sound_length.set_value(0x3F);
+        self.channel2.channel.length_and_wave.set_value(0x3F);
         self.channel2.channel.volume_envelope.set_value(0x00);
         self.channel2.freq.set_value(0xBFFF);
 
@@ -360,6 +374,9 @@ impl SoundController {
         self.channel1
             .channel
             .schedule_initial_events(scheduler, now);
+        self.channel2
+            .channel
+            .schedule_initial_events(scheduler, now);
         scheduler.schedule(now, SoundControllerEvent::MixerTick);
     }
 
@@ -375,10 +392,10 @@ impl SoundController {
 
         // The period the emulator hardware samples audio at in clock ticks. The audio hardware
         // clocks at exactly 1/4 the normal speed.
-        let period = (2048 - self.channel1.freq.read_value() as u32) * 4;
+        let period1 = (2048 - self.channel1.freq.read_value() as u32) * 4;
 
         // The period of time this sample has to fill in the audio hardware.
-        let elong = (((sample_rate_hz * period) as usize) * num_channels)
+        let elong = (((sample_rate_hz * period1) as usize) * num_channels)
             / default_clock_speed_hz() as usize;
 
         let volume = self.channel1.channel.volume as f32 / MAX_VOLUME as f32;
@@ -387,9 +404,31 @@ impl SoundController {
         for (i, item) in self.mixer_buffer.0.iter_mut().enumerate() {
             *item = (((waveform >> (i / elong)) & 0x1) as f32 * 2.0 - 1.0) * volume;
         }
+
+        // The period the emulator hardware samples audio at in clock ticks. The audio hardware
+        // clocks at exactly 1/4 the normal speed.
+        let period2 = (2048 - self.channel2.freq.read_value() as u32) * 4;
+
+        // The period of time this sample has to fill in the audio hardware.
+        let elong = (((sample_rate_hz * period2) as usize) * num_channels)
+            / default_clock_speed_hz() as usize;
+
+        let volume = self.channel2.channel.volume as f32 / MAX_VOLUME as f32;
+        let waveform = self.channel2.channel.waveform();
+        if self.mixer_buffer.0.len() < WAVEFORM_SAMPLES * elong {
+            self.mixer_buffer.0.resize(WAVEFORM_SAMPLES * elong, 0.0);
+        }
+        let buffer_iter = self.mixer_buffer.0.iter_mut();
+        for (i, item) in buffer_iter.enumerate().take(WAVEFORM_SAMPLES * elong) {
+            *item += (((waveform >> (i / elong)) & 0x1) as f32 * 2.0 - 1.0) * volume;
+        }
+
         sound_stream.play_sample(&self.mixer_buffer.0[..]);
 
-        scheduler.schedule(now + period as u64, SoundControllerEvent::MixerTick);
+        scheduler.schedule(
+            now + core::cmp::max(period1, period2) as u64,
+            SoundControllerEvent::MixerTick,
+        );
     }
 }
 

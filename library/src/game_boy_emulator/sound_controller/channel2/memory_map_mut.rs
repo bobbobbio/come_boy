@@ -5,7 +5,7 @@ impl crate::game_boy_emulator::memory_controller::MemoryAccessor for Channel2 {
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn read_memory(&self, address: u16) -> u8 {
         if address == 65302u16 {
-            MemoryMappedHardware::read_value(&self.sound_length, address - 65302u16)
+            MemoryMappedHardware::read_value(&self.length_and_wave, address - 65302u16)
         } else if address == 65303u16 {
             MemoryMappedHardware::read_value(&self.volume_envelope, address - 65303u16)
         } else {
@@ -16,7 +16,7 @@ impl crate::game_boy_emulator::memory_controller::MemoryAccessor for Channel2 {
     #[cfg_attr(feature = "aggressive-inline", inline(always))]
     fn set_memory(&mut self, address: u16, value: u8) {
         if address == 65302u16 {
-            MemoryMappedHardware::set_value(&mut self.sound_length, address - 65302u16, value)
+            MemoryMappedHardware::set_value(&mut self.length_and_wave, address - 65302u16, value)
         } else if address == 65303u16 {
             MemoryMappedHardware::set_value(&mut self.volume_envelope, address - 65303u16, value)
         }
